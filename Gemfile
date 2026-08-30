@@ -16,7 +16,7 @@ gem "turbo-rails"
 gem "stimulus-rails"
 # Use Tailwind CSS [https://github.com/rails/tailwindcss-rails]
 gem "tailwindcss-rails"
-# Leitura streaming do XLSX fornecido pela Fiserv.
+# Leitura do XLSX fornecido pela Fiserv (carga em memória; ver README).
 gem "roo"
 # Exportação dos relatórios recorrentes em XLSX.
 gem "caxlsx"
