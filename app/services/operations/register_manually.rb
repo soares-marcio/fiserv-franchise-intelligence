@@ -35,8 +35,8 @@ module Operations
           BinImport::Consolidator.new(batch).call
         end
         batch.update!(status: "validated")
-        AuditViews.refresh!
       end
+      AuditViews.refresh!
       batch
     rescue StandardError => error
       batch&.update(status: "failed", validation_errors: [ error.message ])
@@ -46,8 +46,8 @@ module Operations
     private
 
     def assert_identifiers!
-      ec = BinImport::Normalizer.digits(@attrs.fetch("ec"))
-      cnpj = BinImport::Normalizer.digits(@attrs.fetch("cnpj"))
+      ec = BinImport::Normalizer.ec(@attrs.fetch("ec"))
+      cnpj = BinImport::Normalizer.cnpj(@attrs.fetch("cnpj"))
       raise ArgumentError, "EC inválido" unless ec.match?(/\A\d{8}\z/)
       raise ArgumentError, "CNPJ inválido" unless cnpj.match?(/\A\d{14}\z/)
     end
@@ -70,12 +70,18 @@ module Operations
       }
     end
 
+    # Cada aba tem sua própria convenção de cabeçalho para os nomes (ver Template).
+    def name_headers(sheet_name)
+      columns = BinImport::Template.name_columns(sheet_name)
+      { columns[:razao_social] => @attrs["razao_social"], columns[:nome_fantasia] => @attrs["nome_fantasia"] }
+    end
+
     def map_row
       {
         "_row_number" => 2, "REPORT_ID" => report_id, "CANAL" => canal, "SUB-CANAL" => sub_canal,
         "EC" => @attrs.fetch("ec"), "CNPJ" => @attrs.fetch("cnpj"),
         "STATUS DO CONTRATO" => @attrs.fetch("status_contrato"),
-        "NOME FANTASIA" => @attrs["razao_social"], "RAZÃO SOCIAL" => @attrs["nome_fantasia"],
+        **name_headers("Mapa de Clientes BIN"),
         "TIPO DE PESSOA" => @attrs["tipo_pessoa"], "RAMO DE ATIVIDADE" => @attrs["ramo_atividade"],
         "CÓDIGO DO CNAE" => @attrs["cnae_codigo"], "DESCRIÇÃO DO CNAE" => @attrs["cnae_descricao"],
         "ENDEREÇO" => @attrs["endereco"], "CEP" => @attrs["cep"],
@@ -92,6 +98,7 @@ module Operations
       return unless revenue_requested?
 
       row = map_row.merge(
+        **name_headers("Faturamento"),
         "fat_total_m1" => @attrs["fat_total_m1"],
         "FATURAMENTO TOTAL DESTE MÊS" => @attrs["fat_total_mes_atual"],
         "CNAE" => @attrs["cnae"]
@@ -106,18 +113,18 @@ module Operations
     def persist!(batch, channel, rows)
       map = rows.fetch("Mapa de Clientes BIN").first
       sub_channel = channel.sub_channels.find_or_create_by!(sub_canal: sub_canal)
-      company = Company.find_or_create_by!(cnpj: BinImport::Normalizer.digits(map["CNPJ"]))
-      establishment = Establishment.find_or_create_by!(ec: BinImport::Normalizer.digits(map["EC"])) do |record|
+      company = Company.find_or_create_by!(cnpj: BinImport::Normalizer.cnpj(map["CNPJ"]))
+      establishment = Establishment.find_or_create_by!(ec: BinImport::Normalizer.ec(map["EC"])) do |record|
         record.company = company
         record.channel = channel
       end
       MapSnapshot.create!(
         import_batch: batch, channel:, sub_channel:, establishment:,
         hierarquia_origem: canal, status_contrato: map["STATUS DO CONTRATO"],
-        razao_social: map["NOME FANTASIA"], nome_fantasia: map["RAZÃO SOCIAL"],
+        razao_social: @attrs["razao_social"], nome_fantasia: @attrs["nome_fantasia"],
         tipo_pessoa: map["TIPO DE PESSOA"], ramo_atividade: map["RAMO DE ATIVIDADE"],
         cnae_codigo: map["CÓDIGO DO CNAE"], cnae_descricao: map["DESCRIÇÃO DO CNAE"],
-        endereco: map["ENDEREÇO"], cep: BinImport::Normalizer.digits(map["CEP"]),
+        endereco: map["ENDEREÇO"], cep: BinImport::Normalizer.cep(map["CEP"]),
         cidade: map["CIDADE"], estado: map["ESTADO"],
         telefone_trabalho: BinImport::Normalizer.digits(map["TELEFONE DO TRABALHO"]),
         nome_contato_1: map["NOME CONTATO 1"], nome_contato_2: map["NOME CONTATO 2"],

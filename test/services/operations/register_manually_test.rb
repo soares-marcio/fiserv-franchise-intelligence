@@ -14,6 +14,25 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_equal "MIC TESTE", snapshot.sub_channel.sub_canal
   end
 
+  test "grava razão social e nome fantasia sem inverter" do
+    Operations::RegisterManually.call(valid_attrs)
+    snapshot = Establishment.find_by!(ec: "12345678").current_map_snapshot
+
+    assert_equal "RAZAO", snapshot.razao_social
+    assert_equal "FANTASIA", snapshot.nome_fantasia
+  end
+
+  test "propaga os nomes para o snapshot de faturamento" do
+    Operations::RegisterManually.call(valid_attrs.merge(
+      "competencia_m1" => "2026-07-01", "competencia_atual" => "2026-08-01",
+      "fat_total_mes_atual" => "100", "dia_01" => "100"
+    ))
+    snapshot = RevenueSnapshot.joins(:establishment).find_by!(establishments: { ec: "12345678" })
+
+    assert_equal "RAZAO", snapshot.razao_social
+    assert_equal "FANTASIA", snapshot.nome_fantasia
+  end
+
   test "rejects an invalid CNPJ" do
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs.merge("cnpj" => "123")) }
     assert_equal "CNPJ inválido", error.message

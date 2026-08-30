@@ -27,6 +27,10 @@ module BinImport
       "QTDE SMART POS", "QTDE DEMAIS POS", "QTDE MPS", "QTDE PIN", "QTDE TEF",
       "QTDE OUTROS TERMINAIS", "QTDE TOTAL TERMINAIS", "NET MDR"
     ].freeze
+    NAME_HEADERS = [ "RAZÃO SOCIAL", "NOME FANTASIA" ].freeze
+    # A Fiserv entrega as abas Faturamento e Ativacao com os cabeçalhos de razão social e
+    # nome fantasia trocados entre si; o Mapa de Clientes BIN vem com os cabeçalhos corretos.
+    INVERTED_NAME_SHEETS = %w[Faturamento Ativacao].freeze
     VOLUME_MONTHS = %w[202604 202605 202606 202607 202608].freeze
     VOLUME_FAMILIES = [
       "VOLUME DE FATURAMENTO TOTAL", "VOLUME DE FATURAMENTO CRÉDITO",
@@ -80,8 +84,15 @@ module BinImport
       end
     end
 
+    # Cabeçalho de origem para cada campo de nome, respeitando a inversão por aba.
+    def self.name_columns(sheet_name)
+      return { razao_social: "NOME FANTASIA", nome_fantasia: "RAZÃO SOCIAL" } if INVERTED_NAME_SHEETS.include?(sheet_name)
+
+      { razao_social: "RAZÃO SOCIAL", nome_fantasia: "NOME FANTASIA" }
+    end
+
     def self.rule_for(sheet_name, header)
-      return "invert_razao_fantasia" if sheet_name == "Mapa de Clientes BIN" && [ "RAZÃO SOCIAL", "NOME FANTASIA" ].include?(header)
+      return "invert_razao_fantasia" if INVERTED_NAME_SHEETS.include?(sheet_name) && NAME_HEADERS.include?(header)
       return "split_actions(>)" if header == "MELHOR CONVERSA"
       return "strip_non_digits" if [ "CNPJ", "CEP", "TELEFONE DO TRABALHO" ].include?(header)
       return "numeric_or_sentinel(Inativo)" if header == "NET MDR"

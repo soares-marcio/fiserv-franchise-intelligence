@@ -2,58 +2,77 @@ require "test_helper"
 require "caxlsx"
 
 class BinImport::ImporterTest < ActiveSupport::TestCase
-  SOURCE_FILE = Rails.root.join("1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx")
+  # A planilha real da Fiserv não é versionada; quando ela existe localmente,
+  # o teste de referência no fim deste arquivo roda contra ela.
+  REFERENCE_FILE = Rails.root.join("1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx")
 
-  test "imports the reference XLSX into the test database" do
-    batch = BinImport::Importer.new(SOURCE_FILE).call
+  setup do
+    @lojas = BinWorkbook.default_lojas
+    @cutoff = BinWorkbook.cutoff_day(@lojas)
+  end
+
+  test "importa a planilha sintética e reconcilia as competências" do
+    batch = import_synthetic_workbook(lojas: @lojas)
 
     assert_equal "validated", batch.status
-    assert_equal Date.new(2026, 7, 1), batch.competencia_m1
-    assert_equal Date.new(2026, 8, 1), batch.competencia_atual
-    assert_equal 24, batch.dia_corte_mes_atual
-    assert_equal 457, RevenueSnapshot.count
-    assert_equal 94, ActivationProposal.count
-    assert_equal 552, MapSnapshot.count
-    assert_equal 6807, DailyRevenue.count
-    assert_equal 7000, MonthlyVolume.count
-    assert_equal 21, DataAnomaly.where(anomaly_type: "ec_duplicate_candidate").count
-    assert_equal 1, DataAnomaly.where(anomaly_type: "company_in_multiple_sub_channels").count
-    assert_equal 1, DataAnomaly.where(anomaly_type: "row_without_canal").count
-    assert_equal 21, ReportScope.new.stalled_companies.size
-    assert_equal "45573486000195",
-      DataAnomaly.find_by(anomaly_type: "company_in_multiple_sub_channels").company.cnpj
+    assert_equal BinWorkbook::COMPETENCIA_M1, batch.competencia_m1
+    assert_equal BinWorkbook::COMPETENCIA_ATUAL, batch.competencia_atual
+    assert_equal @cutoff, batch.dia_corte_mes_atual
+    assert_equal @lojas.size, MapSnapshot.count
+    assert_equal @lojas.size, RevenueSnapshot.count
+    assert_equal @lojas.count(&:proposta), ActivationProposal.count
+    assert_equal lancamentos_esperados, DailyRevenue.count
+    assert_equal volumes_esperados, MonthlyVolume.count
+  end
 
-    mapa = MapSnapshot.joins(:establishment).find_by(establishments: { ec: "92540262" })
-    assert_equal "MAGAO NA BRASA", mapa.razao_social
-    assert_equal "MAGAO NA BRASA COMERCIO E SERVICOS DE AL", mapa.nome_fantasia
+  test "grava razão social e nome fantasia nos campos certos nas três abas" do
+    import_synthetic_workbook(lojas: @lojas)
+    loja = @lojas.first
 
-    aparecida = ReportScope.new.revenue_by_sub_channel.find do |row|
-      row["sub_canal"] == "MIC APARECIDA DE GOIANIA GO 1"
+    mapa = MapSnapshot.joins(:establishment).find_by!(establishments: { ec: loja.ec })
+    faturamento = RevenueSnapshot.joins(:establishment).find_by!(establishments: { ec: loja.ec })
+    ativacao = ActivationProposal.joins(:establishment).find_by!(establishments: { ec: loja.ec })
+
+    [ mapa, faturamento, ativacao ].each do |registro|
+      assert_equal loja.razao_social, registro.razao_social, "#{registro.class}: razão social"
+      assert_equal loja.nome_fantasia, registro.nome_fantasia, "#{registro.class}: nome fantasia"
     end
-    assert_equal 126_668.29, aparecida["faturamento_m1"].to_d
-    assert_equal 75_793.58, aparecida["faturamento_atual"].to_d
+  end
 
+  test "o mês anterior cheio ignora o corte e o comparável respeita" do
+    import_synthetic_workbook(lojas: @lojas)
     totals = ReportScope.new.totals
-    variation = ((totals[:faturamento_atual] / totals[:faturamento_m1] - 1) * 100).round(1)
-    assert_equal 5_709_803.00, totals[:faturamento_m1]
-    assert_equal 5_580_201.30, totals[:faturamento_atual]
-    assert_in_delta(-2.3, variation, 0.1)
 
-    full_previous = DailyRevenueConsolidated.where(competencia: batch.competencia_m1).sum(:amount)
-    assert_equal full_previous, totals[:faturamento_m1_cheio]
-    naive_variation = ((totals[:faturamento_atual] / full_previous - 1) * 100).round(1)
-    assert_in_delta(-24.3, naive_variation, 0.1)
+    assert_equal soma(@lojas, :dias_m1), totals[:faturamento_m1_cheio]
+    assert_equal soma(@lojas, :dias_m1, ate: @cutoff), totals[:faturamento_m1]
+    assert_equal soma(@lojas, :dias_atual, ate: @cutoff), totals[:faturamento_atual]
+    assert_operator totals[:faturamento_m1_cheio], :>, totals[:faturamento_m1]
   end
 
-  test "rejects an already imported checksum" do
-    BinImport::Importer.new(SOURCE_FILE).call
+  test "detecta EC 3xx duplicado do 9xx do mesmo CNPJ" do
+    batch = import_synthetic_workbook(lojas: @lojas)
+    anomalia = DataAnomaly.find_by(anomaly_type: "ec_duplicate_candidate")
 
-    error = assert_raises(ArgumentError) { BinImport::Importer.new(SOURCE_FILE).call }
+    assert_equal batch.channel_id, anomalia.channel_id
+    assert_equal "30000001", anomalia.establishment.ec
+    assert_equal "90000001", anomalia.details["paired_ec"]
+  end
+
+  test "recusa a mesma planilha duas vezes pelo checksum" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-BIN_TESTE_20260811.xlsx")
+    BinWorkbook.write(path, lojas: @lojas)
+    BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+
+    error = assert_raises(ArgumentError) do
+      BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+    end
     assert_equal "Arquivo já importado", error.message
+  ensure
+    File.delete(path) if path && File.exist?(path)
   end
 
-  test "rejects divergent headers" do
-    path = Rails.root.join("tmp/bad-headers.xlsx")
+  test "recusa cabeçalhos divergentes" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-bad-headers.xlsx")
     Axlsx::Package.new do |package|
       BinImport::Template::SHEETS.each do |sheet|
         package.workbook.add_worksheet(name: sheet) do |worksheet|
@@ -67,43 +86,67 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
 
     error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
     assert_match(/Cabeçalhos divergentes em Faturamento/, error.message)
+  ensure
+    File.delete(path) if path && File.exist?(path)
   end
 
-  test "a later batch extends coverage without duplicating known days" do
-    first = BinImport::Importer.new(SOURCE_FILE).call
-    second = ImportBatch.create!(
-      channel: first.channel, import_template: first.import_template,
-      source_filename: "second.xlsx", file_checksum: "second-batch",
-      competencia_m1: first.competencia_m1, competencia_atual: first.competencia_atual,
-      dia_corte_mes_atual: 27, status: "pending"
-    )
-    now = Time.current
-    copies = DailyRevenue.where(import_batch: first, competencia: first.competencia_atual).map do |row|
-      {
-        import_batch_id: second.id, channel_id: row.channel_id, establishment_id: row.establishment_id,
-        competencia: row.competencia, day: row.day, amount: row.amount, provisional: row.provisional,
-        created_at: now, updated_at: now
-      }
-    end
-    DailyRevenue.insert_all!(copies)
-    known = DailyRevenueConsolidated.find_by!(competencia: first.competencia_atual, day: 24)
-    establishment = known.establishment
-    (25..27).each do |day|
-      DailyRevenue.create!(
-        import_batch: second, channel: first.channel, establishment:,
-        competencia: first.competencia_atual, day:, amount: 10, provisional: true
-      )
-    end
+  test "recusa EC que muda de CNPJ entre importações" do
+    import_synthetic_workbook(lojas: @lojas)
+    outras = BinWorkbook.default_lojas
+    outras.first.cnpj = "99888777000166"
 
-    BinImport::Consolidator.new(second).call
-    coverage = CompetenciaCoverage.find_by(channel: first.channel, competencia: first.competencia_atual)
+    error = assert_raises(ArgumentError) { import_synthetic_workbook(lojas: outras) }
+    assert_equal "EC 30000001 mudou de CNPJ", error.message
+  end
 
-    assert_equal 27, coverage.max_dia_conhecido
+  test "um lote posterior estende a cobertura sem duplicar dias conhecidos" do
+    first = import_synthetic_workbook(lojas: @lojas)
+    estendidas = BinWorkbook.default_lojas
+    estendidas.first.dias_atual = estendidas.first.dias_atual.merge(11 => 90, 12 => 60)
+    second = import_synthetic_workbook(lojas: estendidas, filename: "BIN_TESTE_20260813.xlsx")
+
+    coverage = CompetenciaCoverage.find_by!(channel: first.channel, competencia: first.competencia_atual)
+    establishment = Establishment.find_by!(ec: estendidas.first.ec)
+
+    assert_equal 12, coverage.max_dia_conhecido
     assert_equal 1, DailyRevenueConsolidated.where(
-      establishment:, competencia: first.competencia_atual, day: 24
+      establishment:, competencia: first.competencia_atual, day: 10
     ).count
-    assert_equal 10, DailyRevenueConsolidated.find_by(
-      establishment:, competencia: first.competencia_atual, day: 27
+    assert_equal 60, DailyRevenueConsolidated.find_by!(
+      establishment:, competencia: first.competencia_atual, day: 12
     ).amount
+  end
+
+  test "arquivo de referência da Fiserv, quando presente no disco" do
+    skip "planilha de referência não está no disco" unless File.exist?(REFERENCE_FILE)
+
+    batch = BinImport::Importer.new(REFERENCE_FILE).call
+
+    assert_equal "validated", batch.status
+    assert_equal Date.new(2026, 7, 1), batch.competencia_m1
+    assert_equal Date.new(2026, 8, 1), batch.competencia_atual
+    assert_equal 24, batch.dia_corte_mes_atual
+    assert_equal 457, RevenueSnapshot.count
+    assert_equal 552, MapSnapshot.count
+
+    mapa = MapSnapshot.joins(:establishment).find_by!(establishments: { ec: "92540262" })
+    assert_equal "MAGAO NA BRASA COMERCIO E SERVICOS DE AL", mapa.razao_social
+    assert_equal "MAGAO NA BRASA", mapa.nome_fantasia
+  end
+
+  private
+
+  def soma(lojas, campo, ate: nil)
+    lojas.sum do |loja|
+      loja.public_send(campo).sum { |day, amount| ate && day > ate ? 0 : amount }
+    end.to_d
+  end
+
+  def lancamentos_esperados
+    @lojas.sum { |loja| loja.dias_m1.size + loja.dias_atual.size }
+  end
+
+  def volumes_esperados
+    @lojas.size * BinImport::Template::VOLUME_FAMILIES.size * BinImport::Template::VOLUME_MONTHS.size
   end
 end

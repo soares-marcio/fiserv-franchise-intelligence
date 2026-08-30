@@ -35,6 +35,7 @@ module BinImport
         competencias_cobertas: validation.competencias_cobertas.map(&:to_s),
         dia_corte_mes_atual: Cutoff.day(rows.fetch("Faturamento"))
       )
+      detect_short_cutoff!(batch)
 
       ApplicationRecord.transaction do
         persist_raw_rows(batch, rows)
@@ -44,8 +45,8 @@ module BinImport
         consolidate!(batch)
         detect_anomalies!(batch)
         batch.update!(status: "validated")
-        AuditViews.refresh!
       end
+      AuditViews.refresh!
       batch
     rescue StandardError => e
       batch&.update(status: "failed", validation_errors: [ e.message ])
@@ -53,6 +54,11 @@ module BinImport
     end
 
     private
+
+    def name_attributes(sheet_name, row)
+      columns = Template.name_columns(sheet_name)
+      { razao_social: row[columns[:razao_social]], nome_fantasia: row[columns[:nome_fantasia]] }
+    end
 
     def rows_for(sheet_name)
       @workbook.default_sheet = sheet_name
@@ -79,15 +85,20 @@ module BinImport
       Date.strptime(match[1], "%Y%m%d") if match
     end
 
+    RAW_ROW_BATCH = 500
+
+    # Em lotes para não materializar o payload de todas as linhas de uma aba de uma vez.
     def persist_raw_rows(batch, rows)
       now = Time.current
       rows.each do |sheet_name, sheet_rows|
-        RawImportRow.insert_all!(sheet_rows.map do |row|
-          {
-            import_batch_id: batch.id, sheet_name:, row_number: row.fetch("_row_number"),
-            payload: json_payload(row), created_at: now, updated_at: now
-          }
-        end)
+        sheet_rows.each_slice(RAW_ROW_BATCH) do |slice|
+          RawImportRow.insert_all!(slice.map do |row|
+            {
+              import_batch_id: batch.id, sheet_name:, row_number: row.fetch("_row_number"),
+              payload: json_payload(row), created_at: now, updated_at: now
+            }
+          end)
+        end
       end
     end
 
@@ -121,15 +132,21 @@ module BinImport
     end
 
     def find_sub_channel(channel, value)
-      channel.sub_channels.find_or_create_by!(sub_canal: value.to_s.strip)
+      name = value.to_s.strip
+      (@sub_channels ||= {})[name] ||= channel.sub_channels.find_or_create_by!(sub_canal: name)
+    end
+
+    def find_company(cnpj)
+      (@companies ||= {})[cnpj] ||= Company.find_or_create_by!(cnpj:)
     end
 
     def find_establishment(channel, row)
-      cnpj = Normalizer.digits(row["CNPJ"])
+      cnpj = Normalizer.cnpj(row["CNPJ"])
       raise ArgumentError, "CNPJ inválido" unless cnpj.match?(/\A\d{14}\z/)
 
-      company = Company.find_or_create_by!(cnpj:)
-      Establishment.find_or_create_by!(ec: Normalizer.digits(row["EC"])) do |establishment|
+      company = find_company(cnpj)
+      ec = Normalizer.ec(row["EC"])
+      (@establishments ||= {})[ec] ||= Establishment.find_or_create_by!(ec:) do |establishment|
         establishment.company = company
         establishment.channel = channel
       end
@@ -140,11 +157,11 @@ module BinImport
         import_batch_id: batch.id, channel_id: batch.channel_id,
         sub_channel_id: sub_channel.id, establishment_id: establishment.id,
         hierarquia_origem: row["HIERARQUIA"], tipo_pessoa: row["TIPO DE PESSOA"],
-        razao_social: row["NOME FANTASIA"], nome_fantasia: row["RAZÃO SOCIAL"],
+        **name_attributes("Mapa de Clientes BIN", row),
         ramo_atividade: row["RAMO DE ATIVIDADE"], cnae_codigo: row["CÓDIGO DO CNAE"],
         cnae_descricao: row["DESCRIÇÃO DO CNAE"], status_contrato: row["STATUS DO CONTRATO"],
         melhor_conversa_raw: row["MELHOR CONVERSA"], telefone_trabalho: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
-        endereco: row["ENDEREÇO"], cep: Normalizer.digits(row["CEP"]), cidade: row["CIDADE"], estado: row["ESTADO"],
+        endereco: row["ENDEREÇO"], cep: Normalizer.cep(row["CEP"]), cidade: row["CIDADE"], estado: row["ESTADO"],
         nome_contato_1: row["NOME CONTATO 1"], nome_contato_2: row["NOME CONTATO 2"],
         ilha_pj_mais: Normalizer.boolean(row["Ilha PJ+"]),
         vip_boarding_date: Normalizer.datetime(row["vip_boarding_date"]),
@@ -186,7 +203,7 @@ module BinImport
     def persist_actions(batch, rows)
       specifications = rows.flat_map do |row|
         row["MELHOR CONVERSA"].to_s.split(">").map(&:strip).reject(&:blank?).each_with_index.map do |text, index|
-          [ Normalizer.digits(row["EC"]), text, index + 1 ]
+          [ Normalizer.ec(row["EC"]), text, index + 1 ]
         end
       end
       return if specifications.empty?
@@ -225,18 +242,18 @@ module BinImport
       snapshot_rows = []
       daily_rows = []
       rows.each do |row|
-        establishment = establishments.fetch(Normalizer.digits(row["EC"]))
+        establishment = establishments.fetch(Normalizer.ec(row["EC"]))
         sub_channel = find_sub_channel(batch.channel, row["SUB-CANAL"])
         snapshot_rows << {
           import_batch_id: batch.id, channel_id: batch.channel_id,
           establishment_id: establishment.id, sub_channel_id: sub_channel.id,
-          hierarquia_origem: row["HIERARQUIA"], razao_social: row["RAZÃO SOCIAL"],
-          nome_fantasia: row["NOME FANTASIA"], status_contrato: row["STATUS DO CONTRATO"],
+          hierarquia_origem: row["HIERARQUIA"], **name_attributes("Faturamento", row),
+          status_contrato: row["STATUS DO CONTRATO"],
           data_suspensao: Normalizer.date(row["DATA DE SUSPENSÃO"]),
           data_ult_transacao: Normalizer.date(row["DATA DA ÚLT TRANSAÇÃO"]),
           ativo_ultimos_60_dias: Normalizer.boolean(row["ATIVO NOS ÚLTIMOS 60 DIAS?"]),
           endereco: row["ENDEREÇO"], cidade: row["CIDADE"], estado: row["ESTADO"],
-          cep: Normalizer.digits(row["CEP"]), cep_raw: row["CEP"].to_s,
+          cep: Normalizer.cep(row["CEP"]), cep_raw: row["CEP"].to_s,
           telefone_trabalho: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
           telefone_raw: row["TELEFONE DO TRABALHO"].to_s,
           cnae_codigo: row["CNAE"], cnae_descricao: row["DESCRIÇÃO DO CNAE"],
@@ -267,15 +284,15 @@ module BinImport
     def persist_activation_rows(batch, rows, establishments)
       now = Time.current
       activation_rows = rows.map do |row|
-        establishment = establishments[Normalizer.digits(row["EC"])]
-        company = Company.find_or_create_by!(cnpj: Normalizer.digits(row["CNPJ"]))
+        establishment = establishments[Normalizer.ec(row["EC"])]
+        company = find_company(Normalizer.cnpj(row["CNPJ"]))
         sub_channel = find_sub_channel(batch.channel, row["SUB-CANAL"])
         {
           import_batch_id: batch.id, channel_id: batch.channel_id,
           sub_channel_id: sub_channel.id, company_id: company.id,
           establishment_id: establishment&.id, nr_da_proposta: row["NR DA PROPOSTA"].to_s,
-          hierarquia_origem: row["HIERARQUIA"], razao_social: row["RAZÃO SOCIAL"],
-          nome_fantasia: row["NOME FANTASIA"], status_proposta: row["STATUS DA PROPOSTA"],
+          hierarquia_origem: row["HIERARQUIA"], **name_attributes("Ativacao", row),
+          status_proposta: row["STATUS DA PROPOSTA"],
           data_proposta: Normalizer.date(row["DATA DA PROPOSTA"]),
           data_afiliacao: Normalizer.date(row["DATA DE AFILIAÇÃO"]),
           data_instalacao: Normalizer.date(row["DATA DE INSTALAÇÃO"]),
@@ -290,6 +307,24 @@ module BinImport
 
     def consolidate!(batch)
       BinImport::Consolidator.new(batch).call
+    end
+
+    # Os dias ainda não cobertos chegam como zero, então o corte observado pode ficar abaixo
+    # do que o arquivo realmente cobre. Registra a divergência para o analista decidir pelo
+    # Operations::AdjustCutoff — nunca estende a cobertura por conta própria.
+    def detect_short_cutoff!(batch)
+      file_date = batch.source_file_date
+      return if file_date.blank? || batch.competencia_atual.blank?
+      return unless file_date.beginning_of_month == batch.competencia_atual
+
+      expected = file_date.day - 1
+      return if expected <= batch.dia_corte_mes_atual.to_i
+
+      Anomalies.record!(
+        batch:, type: "cutoff_below_file_date", severity: "info",
+        details: { corte_observado: batch.dia_corte_mes_atual, dia_do_arquivo: file_date.day,
+                   corte_esperado: expected }
+      )
     end
 
     def detect_anomalies!(batch)
