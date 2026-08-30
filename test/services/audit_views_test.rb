@@ -56,6 +56,26 @@ class AuditViewsTest < ActiveSupport::TestCase
     assert_nothing_raised { ApplicationRecord.transaction { AuditViews.refresh! } }
   end
 
+  test "view recém-criada não é elegível a CONCURRENTLY" do
+    ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW audit_weekly_revenue WITH NO DATA")
+
+    assert_not AuditViews.populated?("audit_weekly_revenue"),
+      "banco novo carrega as views WITH NO DATA; o primeiro refresh precisa ser bloqueante"
+    assert_nothing_raised { AuditViews.refresh! }
+    assert AuditViews.populated?("audit_weekly_revenue")
+  end
+
+  test "relatórios de view respondem vazio antes do primeiro import" do
+    AuditViews::ALIGNED_VIEWS.each do |view|
+      ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW #{view} WITH NO DATA")
+    end
+    ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW audit_weekly_revenue WITH NO DATA")
+
+    scope = ReportScope.new
+    assert_empty scope.stalled_companies
+    assert_empty scope.weekly_revenue
+  end
+
   private
 
   def view_rows(name)

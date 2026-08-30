@@ -1,6 +1,18 @@
 require "test_helper"
 
 class ReportsControllerTest < ActionDispatch::IntegrationTest
+  test "clientes parados e semanal abrem com o banco recém-criado" do
+    [ *AuditViews::ALIGNED_VIEWS, "audit_weekly_revenue" ].each do |view|
+      ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW #{view} WITH NO DATA")
+    end
+
+    get stalled_reports_path
+    assert_response :success
+
+    get weekly_reports_path
+    assert_response :success
+  end
+
   test "renders the audit page without data" do
     get reports_path
     assert_response :success

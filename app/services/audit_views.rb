@@ -14,10 +14,21 @@ class AuditViews
 
   def self.refresh!
     connection = ApplicationRecord.connection
-    # REFRESH ... CONCURRENTLY não roda dentro de transação (Postgres recusa); nos testes,
-    # que rodam em transação, caímos no refresh bloqueante.
-    concurrently = connection.transaction_open? ? "" : "CONCURRENTLY "
-    NAMES.each { |name| connection.execute("REFRESH MATERIALIZED VIEW #{concurrently}#{name}") }
+    in_transaction = connection.transaction_open?
+    NAMES.each do |name|
+      concurrently = "CONCURRENTLY " if !in_transaction && populated?(name)
+      connection.execute("REFRESH MATERIALIZED VIEW #{concurrently}#{name}")
+    end
+  end
+
+  # CONCURRENTLY tem duas restrições: não roda dentro de transação (os testes rodam),
+  # e não roda em view ainda não populada — o structure.sql as cria WITH NO DATA, então
+  # o primeiro refresh de um banco novo é sempre bloqueante.
+  def self.populated?(name)
+    connection = ApplicationRecord.connection
+    connection.select_value(
+      "SELECT relispopulated FROM pg_class WHERE relname = #{connection.quote(name)}"
+    )
   end
 
   def self.recreate!

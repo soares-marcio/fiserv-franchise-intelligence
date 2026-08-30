@@ -126,6 +126,10 @@ class ReportScope
 
   def query(name, order_by = nil)
     table = VIEWS.fetch(name)
+    # Banco recém-criado carrega as views WITH NO DATA e consultá-las levanta erro;
+    # até o primeiro import o relatório é legitimamente vazio.
+    return [] unless AuditViews.populated?(table)
+
     sql = +"SELECT * FROM #{table}"
     sql << " WHERE channel_id = #{ApplicationRecord.connection.quote(@channel_id)}" if @channel_id
     sql << " ORDER BY #{order_by}" if order_by
