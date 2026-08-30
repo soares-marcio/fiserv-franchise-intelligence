@@ -1,0 +1,82 @@
+<% content_for :title, "EC #{@establishment.ec}" %>
+<% content_for :container_width, "max-w-5xl" %>
+
+<section class="card bg-base-100 shadow-sm">
+  <div class="card-body gap-8">
+    <div class="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+      <div>
+        <p class="eyebrow">EC <%= @establishment.ec %></p>
+        <h1 class="page-title">
+          <%= present_or_dash(@snapshot&.nome_fantasia.presence || @snapshot&.razao_social) %>
+        </h1>
+        <p class="page-description">
+          <%= formatted_cnpj(@establishment.company.cnpj) %>
+          · <%= present_or_dash(@snapshot&.sub_channel&.sub_canal) %>
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <%= contract_status_badge(@snapshot&.status_contrato) %>
+        <%= link_to "Voltar à lista", establishments_path, class: "btn btn-ghost btn-sm" %>
+      </div>
+    </div>
+
+    <% if @establishment.primary_establishment %>
+      <div class="alert">
+        Principal: <%= link_to @establishment.primary_establishment.ec, @establishment.primary_establishment, class: "link" %>
+      </div>
+    <% end %>
+
+    <%= render "detail_group", title: "Identidade", rows: [
+      [ "EC", @establishment.ec ],
+      [ "CNPJ", formatted_cnpj(@establishment.company.cnpj) ],
+      [ "Canal", @establishment.channel.canal ],
+      [ "Sub-canal", @snapshot&.sub_channel&.sub_canal ],
+      [ "Status do contrato", @snapshot&.status_contrato ],
+      [ "Tipo de pessoa", @snapshot&.tipo_pessoa ]
+    ] %>
+
+    <%= render "detail_group", title: "Nome e atividade", rows: [
+      [ "Nome fantasia", @snapshot&.nome_fantasia ],
+      [ "Razão social", @snapshot&.razao_social ],
+      [ "Ramo de atividade", @snapshot&.ramo_atividade ],
+      [ "CNAE", @snapshot&.cnae_codigo ],
+      [ "Descrição do CNAE", @snapshot&.cnae_descricao ],
+      [ "Segmento presumido", @snapshot&.segmento_presumido ],
+      [ "Segmento performado", @snapshot&.segmento_performado ],
+      [ "Status de reciprocidade", @snapshot&.status_reciprocidade ]
+    ] %>
+
+    <%= render "detail_group", title: "Endereço e contato", rows: [
+      [ "Endereço", @snapshot&.endereco ],
+      [ "CEP", formatted_cep(@snapshot&.cep) ],
+      [ "Cidade", @snapshot&.cidade ],
+      [ "UF", @snapshot&.estado ],
+      [ "Telefone", @snapshot&.telefone_trabalho ],
+      [ "Contato 1", @snapshot&.nome_contato_1 ],
+      [ "Contato 2", @snapshot&.nome_contato_2 ]
+    ] %>
+
+    <%= render "detail_group", title: "Atividade", rows: [
+      [ "Ativo no mês atual", boolean_label(@snapshot&.ativo_mes_atual) ],
+      [ "Ativo no último mês", boolean_label(@snapshot&.ativo_ultimo_mes) ],
+      [ "Ativo nos últimos 30 dias", boolean_label(@snapshot&.ativo_ultimos_30_dias) ],
+      [ "Última transação", format_date(@snapshot&.data_ult_transacao) ],
+      [ "Credenciamento", format_date(@snapshot&.data_credenciamento) ],
+      [ "Instalação", format_date(@snapshot&.data_instalacao) ],
+      [ "Ativação", format_date(@snapshot&.data_ativacao) ],
+      [ "Suspensão", format_date(@snapshot&.data_suspensao) ]
+    ] %>
+
+    <%= render "detail_group", title: "Produtos e terminais", rows: [
+      [ "Soluções financeiras", @snapshot&.solucoes_financeiras ],
+      [ "Link de pagamento", boolean_label(@snapshot&.possui_link_pgto) ],
+      [ "Total de terminais", @snapshot&.qtde_total_terminais ],
+      [ "Smart POS", @snapshot&.qtde_smart_pos ],
+      [ "TEF", @snapshot&.qtde_tef ],
+      [ "TAP on phone", @snapshot&.qtde_tap_on_phone ],
+      [ "Agenda semanal", @snapshot&.agenda_semanal ],
+      [ "Melhor conversa", @snapshot&.melhor_conversa_raw ]
+    ] %>
+
+  </div>
+</section>

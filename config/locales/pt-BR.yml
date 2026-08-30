@@ -1,0 +1,32 @@
+pt-BR:
+  number:
+    currency:
+      format:
+        unit: "R$"
+        separator: ","
+        delimiter: "."
+        format: "%u %n"
+        precision: 2
+    percentage:
+      format:
+        delimiter: "."
+        separator: ","
+        format: "%n%"
+  date:
+    formats:
+      default: "%d/%m/%Y"
+      long: "%d de %B de %Y"
+    month_names:
+      - ~
+      - janeiro
+      - fevereiro
+      - março
+      - abril
+      - maio
+      - junho
+      - julho
+      - agosto
+      - setembro
+      - outubro
+      - novembro
+      - dezembro

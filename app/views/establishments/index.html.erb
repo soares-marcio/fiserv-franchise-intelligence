@@ -1,0 +1,104 @@
+<% content_for :title, "Estabelecimentos" %>
+<% content_for :container_width, "max-w-[90rem]" %>
+
+<section class="card bg-base-100 shadow-sm">
+  <div class="card-body gap-6">
+    <div class="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+      <div>
+        <p class="eyebrow">Carteira ativa</p>
+        <h1 class="page-title">Estabelecimentos</h1>
+        <p class="page-description">
+          Cadastro corrente do mapa: nome, CNAE, endereço e sub-canal do último lote
+          validado. O EC continua sendo o grão técnico; o cliente é o CNPJ.
+        </p>
+      </div>
+      <%= link_to "Novo cadastro", new_establishment_path, class: "btn btn-primary" %>
+    </div>
+
+    <%= form_with url: establishments_path, method: :get,
+      class: "filter-panel grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end" do %>
+      <label class="grid min-w-0 gap-1.5">
+        <span class="text-sm font-medium">Buscar</span>
+        <%= search_field_tag :q, @query, class: "input input-bordered w-full",
+          placeholder: "EC, CNPJ, nome, cidade, CNAE ou sub-canal" %>
+      </label>
+      <%= submit_tag "Buscar", class: "btn btn-outline" %>
+      <% if @query.present? %>
+        <%= link_to "Limpar", establishments_path, class: "btn btn-ghost" %>
+      <% end %>
+    <% end %>
+
+    <div class="overflow-x-auto rounded-xl border border-base-300">
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Estabelecimento</th>
+            <th>CNPJ</th>
+            <th>Sub-canal</th>
+            <th>Endereço</th>
+            <th>CNAE</th>
+            <th>Status</th>
+            <th>Segmento</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @establishments.each do |establishment| %>
+            <% snapshot = establishment.current_map_snapshot %>
+            <tr class="align-top">
+              <td>
+                <%= link_to establishment, class: "link link-hover font-medium" do %>
+                  EC <%= establishment.ec %>
+                <% end %>
+                <p class="mt-0.5 max-w-xs"><%= present_or_dash(snapshot&.nome_fantasia.presence || snapshot&.razao_social) %></p>
+                <% if snapshot&.razao_social.present? && snapshot.razao_social != snapshot.nome_fantasia %>
+                  <p class="max-w-xs text-xs opacity-60"><%= snapshot.razao_social %></p>
+                <% end %>
+              </td>
+              <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(establishment.company.cnpj) %></td>
+              <td>
+                <p><%= present_or_dash(snapshot&.sub_channel&.sub_canal) %></p>
+                <p class="text-xs opacity-60"><%= establishment.channel.canal %></p>
+              </td>
+              <td>
+                <p class="max-w-xs"><%= present_or_dash(snapshot&.endereco) %></p>
+                <p class="text-xs opacity-70">
+                  <%= [ snapshot&.cidade, snapshot&.estado ].compact_blank.join(" · ").presence || "—" %>
+                  <% if snapshot&.cep.present? %>
+                    · <%= formatted_cep(snapshot.cep) %>
+                  <% end %>
+                </p>
+              </td>
+              <td>
+                <p class="font-mono text-xs"><%= present_or_dash(snapshot&.cnae_codigo) %></p>
+                <p class="max-w-xs text-xs opacity-70"><%= present_or_dash(snapshot&.cnae_descricao) %></p>
+              </td>
+              <td>
+                <%= contract_status_badge(snapshot&.status_contrato) %>
+                <% if establishment.primary_establishment %>
+                  <p class="mt-1 text-xs opacity-60">Principal <%= establishment.primary_establishment.ec %></p>
+                <% end %>
+              </td>
+              <td>
+                <p><%= present_or_dash(snapshot&.segmento_performado) %></p>
+                <% if snapshot&.ramo_atividade.present? %>
+                  <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.ramo_atividade %></p>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @establishments.empty? %>
+        <div class="empty-state">
+          <p>
+          <% if @query.present? %>
+            Nenhum estabelecimento encontrado para “<%= @query %>”.
+          <% else %>
+            Nenhum estabelecimento cadastrado ainda.
+          <% end %>
+          </p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</section>

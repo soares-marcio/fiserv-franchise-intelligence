@@ -1,0 +1,27 @@
+<% content_for :title, @import_batch.source_filename %>
+
+<section class="page-hero">
+  <div class="card-body">
+    <p class="eyebrow">Detalhes do lote</p>
+    <h1 class="page-title break-words"><%= @import_batch.source_filename %></h1>
+    <p class="page-description">
+      <%= @import_batch.channel.canal %> · status <%= @import_batch.status %>
+      <% if @import_batch.dia_corte_mes_atual %>
+        · corte dia <%= @import_batch.dia_corte_mes_atual %>
+      <% end %>
+    </p>
+
+    <%= form_with url: update_cutoff_import_batch_path(@import_batch), method: :patch,
+      class: "relative z-10 mt-6 flex flex-wrap items-end gap-3" do %>
+      <label class="form-control">
+        <span class="label-text">Ajustar dia de corte</span>
+        <%= number_field_tag :max_dia_conhecido, @import_batch.dia_corte_mes_atual, min: 1, max: 31, class: "input input-bordered w-24" %>
+      </label>
+      <%= submit_tag "Ajustar corte", class: "btn btn-outline" %>
+    <% end %>
+
+    <%= button_to "Reprocessar lote", reprocess_import_batch_path(@import_batch), method: :post,
+      class: "btn btn-outline mt-4",
+      data: { turbo_confirm: "Reprocessar consolidação e views deste lote?" } %>
+  </div>
+</section>

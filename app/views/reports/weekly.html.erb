@@ -1,0 +1,45 @@
+<% content_for :title, "Faturamento semanal" %>
+
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Ritmo da carteira</p>
+    <h1 class="page-title">Faturamento semanal</h1>
+    <p class="page-description">
+      Semanas de 7 dias a partir do dia 1 da competência. A semana em andamento
+      pode ser parcial até o dia de corte<%= @cutoff_day ? " (#{@cutoff_day})" : "" %>.
+    </p>
+  </section>
+  <section class="table-frame">
+    <div class="table-toolbar">
+      <div>
+        <p class="section-label">Evolução</p>
+        <h2 class="table-title">Movimento por semana</h2>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Competência</th>
+            <th>Semana</th>
+            <th class="text-right">Faturamento</th>
+            <th class="text-right">ECs com movimento</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @reports.each do |report| %>
+            <tr>
+              <td><%= Date.parse(report["competencia"].to_s).strftime("%m/%Y") %></td>
+              <td><%= report["semana"] %></td>
+              <td class="text-right tabular-nums"><%= brl(report["faturamento"]) %></td>
+              <td class="text-right"><%= report["estabelecimentos"] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @reports.empty? %>
+        <div class="empty-state">Nenhuma série semanal ainda.</div>
+      <% end %>
+    </div>
+  </section>
+</div>

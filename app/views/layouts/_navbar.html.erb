@@ -1,0 +1,26 @@
+<header class="topbar">
+  <div class="topbar-inner">
+    <%= link_to root_path, class: "brand-lockup", aria: { label: "Auditoria BIN — início" } do %>
+      <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <span>
+        <span class="brand-name">Auditoria BIN</span>
+        <span class="brand-caption">Inteligência de franquias</span>
+      </span>
+    <% end %>
+
+    <nav class="primary-nav" aria-label="Navegação principal">
+      <%= link_to "Faturamento", reports_path,
+        class: "nav-link #{'is-active' if controller_name == 'reports' && action_name == 'index'}" %>
+      <%= link_to "Clientes parados", stalled_reports_path,
+        class: "nav-link #{'is-active' if controller_name == 'reports' && action_name == 'stalled'}" %>
+      <%= link_to "Semanal", weekly_reports_path,
+        class: "nav-link #{'is-active' if controller_name == 'reports' && action_name == 'weekly'}" %>
+      <%= link_to "Cadastro", establishments_path,
+        class: "nav-link #{'is-active' if controller_name == 'establishments'}" %>
+      <%= link_to "Importar", import_batches_path,
+        class: "nav-link #{'is-active' if controller_name == 'import_batches'}" %>
+      <%= link_to "Metabase", metabase_path,
+        class: "nav-link #{'is-active' if controller_name == 'metabase'}" %>
+    </nav>
+  </div>
+</header>

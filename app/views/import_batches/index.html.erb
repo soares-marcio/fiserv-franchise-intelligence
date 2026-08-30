@@ -1,0 +1,60 @@
+<% content_for :title, "Importar arquivo BIN" %>
+
+<section class="page-hero">
+    <p class="eyebrow">Entrada de dados</p>
+    <h1 class="page-title">Importar arquivo BIN</h1>
+    <p class="page-description">
+      Cada arquivo válido vira um snapshot imutável. Reenvio do mesmo arquivo
+      (mesmo checksum) é rejeitado.
+    </p>
+
+    <%= form_with url: import_batches_path, method: :post, multipart: true,
+      class: "relative z-10 mt-6 grid max-w-3xl gap-3 sm:grid-cols-[1fr_auto] sm:items-end" do %>
+      <label class="grid gap-1.5">
+        <span class="section-label">Arquivo XLSX</span>
+        <%= file_field_tag :file, accept: ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", class: "file-input file-input-bordered w-full max-w-md", required: true %>
+      </label>
+      <%= submit_tag "Iniciar importação", class: "btn btn-primary",
+        data: { turbo_confirm: "Importar este arquivo agora?" } %>
+    <% end %>
+</section>
+
+<section class="table-frame mt-5">
+  <div class="table-toolbar">
+    <div>
+      <p class="section-label">Histórico</p>
+      <h2 class="table-title">Lotes recentes</h2>
+    </div>
+  </div>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Arquivo</th>
+            <th>Canal</th>
+            <th>Corte</th>
+            <th>Status</th>
+            <th>Quando</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @import_batches.each do |batch| %>
+            <tr>
+              <td><%= link_to batch.source_filename, batch, class: "link" %></td>
+              <td><%= batch.channel.canal %></td>
+              <td><%= batch.dia_corte_mes_atual ? "dia #{batch.dia_corte_mes_atual}" : "—" %></td>
+              <td>
+                <span class="badge <%= batch.status == 'validated' ? 'badge-success' : batch.status == 'failed' ? 'badge-error' : 'badge-ghost' %>">
+                  <%= batch.status %>
+                </span>
+              </td>
+              <td><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @import_batches.empty? %>
+        <div class="empty-state">Nenhum lote importado.</div>
+      <% end %>
+    </div>
+</section>

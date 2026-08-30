@@ -1,0 +1,48 @@
+<% content_for :title, "Clientes parados" %>
+
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Sinal de atenção</p>
+    <h1 class="page-title">Clientes parados</h1>
+    <p class="page-description">
+      CNPJs sem venda há pelo menos 7 dias no mês atual,
+      considerando o corte no dia <%= @cutoff_day || "informado" %>.
+    </p>
+  </section>
+  <section class="table-frame">
+    <div class="table-toolbar">
+      <div>
+        <p class="section-label">Acompanhamento</p>
+        <h2 class="table-title">Carteiras sem movimento recente</h2>
+      </div>
+      <span class="badge badge-ghost"><%= @reports.size %> clientes</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>CNPJ</th>
+            <th>Sub-canal</th>
+            <th class="text-right">Dias sem venda</th>
+            <th class="text-right">Mês anterior</th>
+            <th class="text-right">Mês atual</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @reports.each do |report| %>
+            <tr>
+              <td class="font-mono"><%= report["cnpj"] %></td>
+              <td><%= report["sub_canal"] %></td>
+              <td class="text-right"><%= report["dias_sem_venda"] %></td>
+              <td class="text-right tabular-nums"><%= brl(report["faturamento_m1"]) %></td>
+              <td class="text-right tabular-nums"><%= brl(report["faturamento_atual"]) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @reports.empty? %>
+        <div class="empty-state">Nenhum cliente está parado no recorte atual.</div>
+      <% end %>
+    </div>
+  </section>
+</div>
