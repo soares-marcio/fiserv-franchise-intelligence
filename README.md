@@ -19,6 +19,21 @@ em períodos de mesma duração.
 Quando o recorte cobre mais de um canal, usa-se o **menor** dia de corte disponível: comparar
 períodos de durações diferentes entre canais distorceria a variação.
 
+## Onde ficam as coisas
+
+O repositório não guarda planilha de cliente. O layout esperado é:
+
+```
+fiserv/
+├── franchise-intelligence/   este repositório
+└── franchise-storage/
+    ├── storage/              planilhas BIN da Fiserv
+    └── images/               material de apoio
+```
+
+O teste de referência procura a planilha em `../franchise-storage/storage/` e é pulado
+quando ela não está lá. `BIN_REFERENCE_FILE` sobrescreve o caminho.
+
 ## Requisitos
 
 - Ruby 4.0.6 (`.ruby-version`)

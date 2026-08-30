@@ -2,9 +2,11 @@ require "test_helper"
 require "caxlsx"
 
 class BinImport::ImporterTest < ActiveSupport::TestCase
-  # A planilha real da Fiserv não é versionada; quando ela existe localmente,
-  # o teste de referência no fim deste arquivo roda contra ela.
-  REFERENCE_FILE = Rails.root.join("1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx")
+  # A planilha real da Fiserv não é versionada: fica no franchise-storage ao lado do
+  # repositório. Quando existe, o teste de referência no fim deste arquivo roda contra ela.
+  REFERENCE_FILE = Pathname.new(ENV.fetch("BIN_REFERENCE_FILE", Rails.root.join(
+    "../franchise-storage/storage/1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx"
+  ).to_s))
 
   setup do
     @lojas = BinWorkbook.default_lojas

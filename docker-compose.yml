@@ -1,3 +1,7 @@
+# Nome fixo do projeto: os volumes existentes são fiserv-franchise-intelligence_*.
+# Sem isto o compose derivaria o nome da pasta e subiria uma stack vazia.
+name: fiserv-franchise-intelligence
+
 services:
   db:
     image: pgvector/pgvector:pg16

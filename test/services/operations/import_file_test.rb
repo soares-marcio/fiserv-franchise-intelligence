@@ -1,8 +1,9 @@
 require "test_helper"
 
 class Operations::ImportFileTest < ActiveJob::TestCase
-  test "stores the upload in Active Storage and enqueues its signed identifier" do
-    path = Rails.root.join("1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx")
+  test "guarda o upload no Active Storage e enfileira o identificador assinado" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-upload.xlsx")
+    BinWorkbook.write(path)
     upload = Rack::Test::UploadedFile.new(
       path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
@@ -14,5 +15,7 @@ class Operations::ImportFileTest < ActiveJob::TestCase
     blob = ActiveStorage::Blob.last
     assert_equal path.basename.to_s, blob.filename.to_s
     assert blob.service.exist?(blob.key)
+  ensure
+    File.delete(path) if path && File.exist?(path)
   end
 end
