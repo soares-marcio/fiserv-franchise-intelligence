@@ -1,3 +1,4 @@
+<%= turbo_stream_from "import_batches" %>
 <% content_for :title, @import_batch.source_filename %>
 
 <section class="page-hero">
@@ -5,11 +6,32 @@
     <p class="eyebrow">Detalhes do lote</p>
     <h1 class="page-title break-words"><%= @import_batch.source_filename %></h1>
     <p class="page-description">
-      <%= @import_batch.channel.canal %> · status <%= @import_batch.status %>
+      <%= @import_batch.channel&.canal || "canal ainda não identificado" %> ·
+      <%= import_status_badge(@import_batch) %>
       <% if @import_batch.dia_corte_mes_atual %>
         · corte dia <%= @import_batch.dia_corte_mes_atual %>
       <% end %>
     </p>
+
+    <% if @import_batch.validation_errors.any? %>
+      <div class="alert alert-error mt-4" role="alert">
+        <div>
+          <p class="font-semibold">A importação falhou</p>
+          <ul class="mt-1 list-disc pl-5 text-sm">
+            <% @import_batch.validation_errors.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @import_batch.running? %>
+      <div class="alert alert-info mt-4" role="status" aria-live="polite">
+        <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+        <span>Importando… esta tela avisa sozinha quando terminar.</span>
+      </div>
+    <% end %>
 
     <%= form_with url: update_cutoff_import_batch_path(@import_batch), method: :patch,
       class: "relative z-10 mt-6 flex flex-wrap items-end gap-3" do %>

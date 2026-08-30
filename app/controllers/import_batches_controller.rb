@@ -1,6 +1,9 @@
 class ImportBatchesController < ApplicationController
   def index
     @import_batches = ImportBatch.includes(:channel).order(created_at: :desc).limit(50)
+    @days_since_last_file = ImportBatch.days_since_last_file
+    @running_batch = @import_batches.find(&:running?)
+    @stuck_batches = @import_batches.select(&:stuck?)
   end
 
   def show
@@ -18,6 +21,8 @@ class ImportBatchesController < ApplicationController
     redirect_to import_batches_path, notice: "Importação enfileirada."
   rescue ActionController::ParameterMissing
     redirect_to import_batches_path, alert: "Selecione um arquivo."
+  rescue ArgumentError => error
+    redirect_to import_batches_path, alert: error.message
   end
 
   def update_cutoff

@@ -19,6 +19,36 @@
     <% end %>
 </section>
 
+<%= turbo_stream_from "import_batches" %>
+
+<div class="metric-grid mt-5">
+  <article class="metric-card" data-tone="<%= ImportBatch.stale? ? "rose" : "green" %>">
+    <p class="metric-label">Último arquivo recebido</p>
+    <p class="metric-value"><%= last_file_headline(@days_since_last_file) %></p>
+    <p class="metric-hint"><%= last_file_hint(@days_since_last_file) %></p>
+  </article>
+</div>
+
+<% if @running_batch %>
+  <div class="alert alert-info mt-5" role="status" aria-live="polite">
+    <span class="loading loading-spinner loading-sm" aria-hidden="true"></span>
+    <span>
+      Importando <strong><%= @running_batch.source_filename %></strong>… esta tela avisa
+      sozinha quando terminar, não precisa recarregar.
+    </span>
+  </div>
+<% end %>
+
+<% @stuck_batches.each do |batch| %>
+  <div class="alert alert-warning mt-5" role="alert">
+    <span>
+      <strong><%= batch.source_filename %></strong> está pendente desde
+      <%= batch.created_at.strftime("%d/%m/%Y %H:%M") %>. Importação não costuma demorar tanto:
+      verifique se o worker está no ar.
+    </span>
+  </div>
+<% end %>
+
 <section class="table-frame mt-5">
   <div class="table-toolbar">
     <div>
@@ -41,12 +71,13 @@
           <% @import_batches.each do |batch| %>
             <tr>
               <td><%= link_to batch.source_filename, batch, class: "link" %></td>
-              <td><%= batch.channel.canal %></td>
+              <td><%= batch.channel&.canal || "—" %></td>
               <td><%= batch.dia_corte_mes_atual ? "dia #{batch.dia_corte_mes_atual}" : "—" %></td>
               <td>
-                <span class="badge <%= batch.status == 'validated' ? 'badge-success' : batch.status == 'failed' ? 'badge-error' : 'badge-ghost' %>">
-                  <%= batch.status %>
-                </span>
+                <%= import_status_badge(batch) %>
+                <% if batch.validation_errors.any? %>
+                  <p class="mt-1 text-xs opacity-70"><%= batch.validation_errors.first %></p>
+                <% end %>
               </td>
               <td><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></td>
             </tr>

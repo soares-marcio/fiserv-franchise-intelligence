@@ -448,14 +448,14 @@ CREATE TABLE public.daily_revenues_consolidated (
 
 CREATE TABLE public.import_batches (
     id bigint NOT NULL,
-    channel_id bigint NOT NULL,
+    channel_id bigint,
     competencia_atual date,
     competencia_m1 date,
     competencias_cobertas jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     dia_corte_mes_atual integer,
     file_checksum character varying NOT NULL,
-    import_template_id bigint NOT NULL,
+    import_template_id bigint,
     source_file_date date,
     source_filename character varying NOT NULL,
     status character varying DEFAULT 'pending'::character varying NOT NULL,
@@ -3494,6 +3494,7 @@ ALTER TABLE ONLY public.monthly_volumes_consolidated
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260830070000'),
 ('20260830060000'),
 ('20260830050000'),
 ('20260830040000'),

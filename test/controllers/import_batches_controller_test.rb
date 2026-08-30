@@ -92,6 +92,100 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Só é possível reprocessar lote validado", flash[:alert]
   end
 
+  test "upload cria o lote antes do parse, para a falha ter onde aparecer" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-upload.xlsx")
+    BinWorkbook.write(path)
+
+    assert_difference -> { ImportBatch.count }, 1 do
+      post import_batches_path, params: { file: upload(path) }
+    end
+    batch = ImportBatch.last
+
+    assert_equal "pending", batch.status
+    assert_equal path.basename.to_s, batch.source_filename
+    assert_nil batch.channel_id
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "falha antes do parse marca o lote e mostra o motivo na tela" do
+    batch = ImportBatch.create!(
+      source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "pending"
+    )
+
+    assert_raises(ActiveSupport::MessageVerifier::InvalidSignature) do
+      ImportBinFileJob.perform_now(batch.id, "assinatura-invalida")
+    end
+
+    assert_equal "failed", batch.reload.status
+    assert_predicate batch.validation_errors, :any?
+
+    get import_batch_path(batch)
+    assert_response :success
+    assert_select "div.alert-error", text: /A importação falhou/
+    assert_select "li", text: /#{Regexp.escape(batch.validation_errors.first)}/
+  end
+
+  test "recusa reenviar um arquivo já importado" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-upload.xlsx")
+    BinWorkbook.write(path)
+    post import_batches_path, params: { file: upload(path) }
+    ImportBatch.last.update!(status: "validated")
+
+    assert_no_difference -> { ImportBatch.count } do
+      post import_batches_path, params: { file: upload(path) }
+    end
+    assert_equal "Arquivo já importado", flash[:alert]
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "avisa que a importação está em curso e que a tela atualiza sozinha" do
+    ImportBatch.create!(
+      source_filename: "em-curso.xlsx", file_checksum: "checksum-em-curso", status: "pending"
+    )
+
+    get import_batches_path
+
+    assert_select "div.alert-info", text: /esta tela avisa\s+sozinha quando terminar/
+    assert_select "turbo-cable-stream-source"
+  end
+
+  test "avisa quando um lote pendente passou do tempo esperado" do
+    batch = ImportBatch.create!(
+      source_filename: "travado.xlsx", file_checksum: "checksum-travado", status: "pending"
+    )
+    batch.update_column(:created_at, 20.minutes.ago)
+
+    get import_batches_path
+
+    assert_select "div.alert-warning", text: /verifique se o worker está no ar/
+  end
+
+  test "mostra há quantos dias não chega arquivo e alerta a partir de 12" do
+    recente = import_synthetic_workbook
+    recente.update_column(:created_at, 3.days.ago)
+
+    get import_batches_path
+    assert_select ".metric-value", text: "há 3 dias"
+    assert_select ".metric-card[data-tone=?]", "green"
+    assert_not ImportBatch.stale?
+
+    recente.update_column(:created_at, ImportBatch::STALE_AFTER_DAYS.days.ago)
+
+    get import_batches_path
+    assert_select ".metric-value", text: "há #{ImportBatch::STALE_AFTER_DAYS} dias"
+    assert_select ".metric-card[data-tone=?]", "rose"
+    assert ImportBatch.stale?
+  end
+
+  test "sem nenhum lote validado a carteira já conta como desatualizada" do
+    get import_batches_path
+
+    assert_select ".metric-value", text: "Nunca"
+    assert ImportBatch.stale?
+  end
+
   private
 
   def upload(path, content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
