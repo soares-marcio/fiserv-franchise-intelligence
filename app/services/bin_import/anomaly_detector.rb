@@ -25,12 +25,16 @@ module BinImport
     end
 
     def detect_duplicate_candidates!
-      snapshots.includes(establishment: :company).find_each do |snapshot|
-        establishment = snapshot.establishment
-        next unless establishment.ec.start_with?("3")
+      candidates = snapshots.includes(establishment: :company).select do |snapshot|
+        snapshot.establishment.ec.start_with?("3")
+      end
+      return if candidates.empty?
 
-        paired_ec = "9#{establishment.ec[1..]}"
-        next unless Establishment.exists?(ec: paired_ec, company_id: establishment.company_id)
+      pairs = candidates.to_h { |snapshot| [ snapshot, paired_ec(snapshot) ] }
+      existing = Establishment.where(ec: pairs.values).pluck(:ec, :company_id).to_set
+      pairs.each do |snapshot, paired_ec|
+        establishment = snapshot.establishment
+        next unless existing.include?([ paired_ec, establishment.company_id ])
 
         Anomalies.record!(
           batch: @batch, type: "ec_duplicate_candidate", severity: "atencao",
@@ -38,6 +42,10 @@ module BinImport
           details: { paired_ec: }
         )
       end
+    end
+
+    def paired_ec(snapshot)
+      "9#{snapshot.establishment.ec[1..]}"
     end
 
     def detect_companies_in_multiple_sub_channels!
@@ -55,9 +63,14 @@ module BinImport
     end
 
     def detect_changed_sub_channels!
-      snapshots.includes(:establishment, :sub_channel).find_each do |snapshot|
-        previous = MapSnapshot.where(establishment: snapshot.establishment)
-          .where.not(import_batch: @batch).order(id: :desc).first
+      current = snapshots.includes(:establishment, :sub_channel).to_a
+      # ordem crescente + index_by mantém o snapshot mais recente de cada estabelecimento
+      previous_by_establishment = MapSnapshot.where(establishment_id: current.map(&:establishment_id))
+        .where.not(import_batch: @batch).order(:id).includes(:sub_channel)
+        .index_by(&:establishment_id)
+
+      current.each do |snapshot|
+        previous = previous_by_establishment[snapshot.establishment_id]
         next unless previous && previous.sub_channel_id != snapshot.sub_channel_id
 
         Anomalies.record!(

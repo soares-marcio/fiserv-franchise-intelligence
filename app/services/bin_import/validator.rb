@@ -49,10 +49,10 @@ module BinImport
       identities = Hash.new { |hash, key| hash[key] = [] }
       @rows.each_value do |sheet_rows|
         sheet_rows.each do |row|
-          ec = Normalizer.digits(row["EC"])
+          ec = Normalizer.ec(row["EC"])
           next if ec.blank?
 
-          identities[ec] << Normalizer.digits(row["CNPJ"])
+          identities[ec] << Normalizer.cnpj(row["CNPJ"])
         end
       end
       changed = identities.find { |_ec, cnpjs| cnpjs.uniq.many? }
@@ -60,9 +60,9 @@ module BinImport
     end
 
     def validate_revenue_membership!
-      map_ecs = @map_rows.to_set { |row| Normalizer.digits(row["EC"]) }
+      map_ecs = @map_rows.to_set { |row| Normalizer.ec(row["EC"]) }
       missing = @revenue_rows.filter_map do |row|
-        ec = Normalizer.digits(row["EC"])
+        ec = Normalizer.ec(row["EC"])
         ec unless map_ecs.include?(ec)
       end
       raise ArgumentError, "ECs de Faturamento ausentes no Mapa: #{missing.join(', ')}" if missing.any?
@@ -85,7 +85,7 @@ module BinImport
 
     def derive_competencies!
       @competencias_cobertas = Template::VOLUME_MONTHS.map { |month| Date.strptime(month, "%Y%m") }
-      map_by_ec = @map_rows.index_by { |row| Normalizer.digits(row["EC"]) }
+      map_by_ec = @map_rows.index_by { |row| Normalizer.ec(row["EC"]) }
       @competencia_m1 = matching_competencia(map_by_ec, "fat_total_m1")
       @competencia_atual = matching_competencia(map_by_ec, "FATURAMENTO TOTAL DESTE MÊS")
       return if @competencia_atual == @competencia_m1.next_month
@@ -97,7 +97,7 @@ module BinImport
       scores = @competencias_cobertas.to_h do |competencia|
         volume_header = "VOLUME DE FATURAMENTO TOTAL #{competencia.strftime('%Y%m')}"
         score = @revenue_rows.count do |row|
-          map_value = map_by_ec[Normalizer.digits(row["EC"])]&.fetch(volume_header, nil)
+          map_value = map_by_ec[Normalizer.ec(row["EC"])]&.fetch(volume_header, nil)
           map_value.present? && Normalizer.decimal(map_value) == (Normalizer.decimal(row[revenue_header]) || 0)
         end
         [ competencia, score ]

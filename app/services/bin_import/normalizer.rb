@@ -1,12 +1,35 @@
 module BinImport
   class Normalizer
     class << self
-      def digits(value)
+      # Célula numérica do Excel chega sem os zeros à esquerda; identificadores de
+      # largura fixa precisam ser repostos ao tamanho original.
+      WIDTHS = { ec: 8, cnpj: 14, cep: 8 }.freeze
+
+      def digits(value, width: nil)
         case value
-        when Integer then value.to_s
-        when Float then value.to_i.to_s
+        when Integer then pad(value.to_s, width)
+        when Float then pad(value.to_i.to_s, width)
         else value.to_s.gsub(/\D/, "")
         end
+      end
+
+      # Só o valor numérico perdeu zeros; texto já veio com o que a origem tinha.
+      def pad(digits, width)
+        return digits if width.nil? || digits.empty? || digits.length >= width
+
+        digits.rjust(width, "0")
+      end
+
+      def ec(value)
+        digits(value, width: WIDTHS[:ec])
+      end
+
+      def cnpj(value)
+        digits(value, width: WIDTHS[:cnpj])
+      end
+
+      def cep(value)
+        digits(value, width: WIDTHS[:cep])
       end
 
       def decimal(value)
