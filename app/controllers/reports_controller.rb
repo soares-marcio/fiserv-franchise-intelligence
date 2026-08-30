@@ -40,11 +40,11 @@ class ReportsController < ApplicationController
     @to_date = parse_filter_date(params[:to_date])
     @query = params[:q].to_s.strip
     @window = @scope.establishment_window(
-      competencia: params[:competencia], from_day: params[:from_day], to_day: params[:to_day]
+      period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
     )
     @from_day = @window&.from_day
     @to_day = @window&.to_day
-    @competencia = @window&.competencia_atual
+    @period = @window&.current_period
     @status_options = (
       @scope.contract_statuses(sub_channel_id: @sub_channel.id) |
         EstablishmentsHelper::CONTRACT_STATUSES
@@ -52,7 +52,7 @@ class ReportsController < ApplicationController
     @listing = @scope.revenue_by_establishment(
       sub_channel_id: @sub_channel.id,
       statuses: @selected_statuses,
-      competencia: params[:competencia],
+      period: params[:period],
       from_day: params[:from_day],
       to_day: params[:to_day],
       date_kinds: @selected_date_kinds,
@@ -73,7 +73,7 @@ class ReportsController < ApplicationController
   private
 
   def load_scope
-    @channels = Channel.order(:canal)
+    @channels = Channel.order(:name)
     @selected_channel = Channel.find_param!(params[:channel_id]) if params[:channel_id].present?
     @scope = ReportScope.new(channel_id: @selected_channel&.id)
     @cutoff_day = @scope.cutoff_day
@@ -99,7 +99,7 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       q: @query,
-      competencia: @competencia,
+      period: @period,
       from_day: @from_day,
       to_day: @to_day,
       per_page: @per_page,

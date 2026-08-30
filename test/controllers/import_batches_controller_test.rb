@@ -57,22 +57,22 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   test "ajusta o dia de corte e propaga para a cobertura" do
     batch = import_synthetic_workbook
 
-    patch update_cutoff_import_batch_path(batch), params: { max_dia_conhecido: 15 }
+    patch update_cutoff_import_batch_path(batch), params: { max_known_day: 15 }
 
     assert_equal "Dia de corte atualizado.", flash[:notice]
-    assert_equal 15, batch.reload.dia_corte_mes_atual
-    assert_equal 15, CompetenciaCoverage.find_by!(
-      channel_id: batch.channel_id, competencia: batch.competencia_atual
-    ).max_dia_conhecido
+    assert_equal 15, batch.reload.current_month_cutoff_day
+    assert_equal 15, PeriodCoverage.find_by!(
+      channel_id: batch.channel_id, period: batch.current_period
+    ).max_known_day
   end
 
   test "recusa dia de corte fora do intervalo" do
     batch = import_synthetic_workbook
 
-    patch update_cutoff_import_batch_path(batch), params: { max_dia_conhecido: 40 }
+    patch update_cutoff_import_batch_path(batch), params: { max_known_day: 40 }
 
     assert_equal "Dia de corte deve estar entre 1 e 31", flash[:alert]
-    assert_equal BinWorkbook.cutoff_day, batch.reload.dia_corte_mes_atual
+    assert_equal BinWorkbook.cutoff_day, batch.reload.current_month_cutoff_day
   end
 
   test "reprocessa um lote validado" do

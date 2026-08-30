@@ -45,10 +45,10 @@ class AuditViews
   def self.revenue_by_sub_channel_sql(cutoff:, channel_predicate: "TRUE")
     <<~SQL
       WITH open_cover AS (
-        SELECT channel_id, competencia AS competencia_atual, max_dia_conhecido,
-          (competencia - INTERVAL '1 month')::date AS competencia_m1
-        FROM competencia_coverages
-        WHERE NOT fechado AND #{channel_predicate}
+        SELECT channel_id, period AS current_period, max_known_day,
+          (period - INTERVAL '1 month')::date AS previous_period
+        FROM period_coverages
+        WHERE NOT closed AND #{channel_predicate}
       ), latest_batches AS (
         SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
         FROM import_batches ib
@@ -58,16 +58,16 @@ class AuditViews
           )
         GROUP BY ib.channel_id
       )
-      SELECT snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.sub_canal,
-        cover.competencia_m1, cover.competencia_atual, #{cutoff} AS max_dia_conhecido,
+      SELECT snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name AS sub_channel_name,
+        cover.previous_period, cover.current_period, #{cutoff} AS max_known_day,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = cover.competencia_m1
+          WHERE revenue.period = cover.previous_period
         ), 0) AS faturamento_m1_cheio,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = cover.competencia_m1 AND revenue.day <= #{cutoff}
+          WHERE revenue.period = cover.previous_period AND revenue.day <= #{cutoff}
         ), 0) AS faturamento_m1,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = cover.competencia_atual AND revenue.day <= #{cutoff}
+          WHERE revenue.period = cover.current_period AND revenue.day <= #{cutoff}
         ), 0) AS faturamento_atual,
         COUNT(DISTINCT snapshot.establishment_id) FILTER (
           WHERE establishment.primary_establishment_id IS NULL
@@ -80,38 +80,38 @@ class AuditViews
       LEFT JOIN daily_revenues_consolidated revenue
         ON revenue.channel_id = snapshot.channel_id
         AND revenue.establishment_id = snapshot.establishment_id
-        AND revenue.competencia IN (cover.competencia_m1, cover.competencia_atual)
-      GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.sub_canal,
-        cover.competencia_m1, cover.competencia_atual, cover.max_dia_conhecido
+        AND revenue.period IN (cover.previous_period, cover.current_period)
+      GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name,
+        cover.previous_period, cover.current_period, cover.max_known_day
     SQL
   end
 
   def self.create_sql
     <<~SQL
       CREATE MATERIALIZED VIEW audit_revenue_by_sub_channel AS
-      #{revenue_by_sub_channel_sql(cutoff: 'cover.max_dia_conhecido')};
+      #{revenue_by_sub_channel_sql(cutoff: 'cover.max_known_day')};
       CREATE UNIQUE INDEX index_audit_revenue_by_sub_channel
         ON audit_revenue_by_sub_channel (channel_id, sub_channel_id);
 
       CREATE MATERIALIZED VIEW audit_revenue_by_company AS
       SELECT sub_channel.channel_id, sub_channel.sub_channel_id, establishment.company_id,
-        company.cnpj, sub_channel.max_dia_conhecido, sub_channel.competencia_m1,
-        sub_channel.competencia_atual,
+        company.cnpj, sub_channel.max_known_day, sub_channel.previous_period,
+        sub_channel.current_period,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = sub_channel.competencia_m1
+          WHERE revenue.period = sub_channel.previous_period
         ), 0) AS faturamento_m1_cheio,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = sub_channel.competencia_m1
-            AND revenue.day <= sub_channel.max_dia_conhecido
+          WHERE revenue.period = sub_channel.previous_period
+            AND revenue.day <= sub_channel.max_known_day
         ), 0) AS faturamento_m1,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = sub_channel.competencia_atual
-            AND revenue.day <= sub_channel.max_dia_conhecido
+          WHERE revenue.period = sub_channel.current_period
+            AND revenue.day <= sub_channel.max_known_day
         ), 0) AS faturamento_atual,
         MAX(revenue.day) FILTER (
-          WHERE revenue.competencia = sub_channel.competencia_atual
-            AND revenue.day <= sub_channel.max_dia_conhecido AND revenue.amount <> 0
-        ) AS ultimo_dia_com_venda
+          WHERE revenue.period = sub_channel.current_period
+            AND revenue.day <= sub_channel.max_known_day AND revenue.amount <> 0
+        ) AS last_sale_day
       FROM audit_revenue_by_sub_channel sub_channel
       JOIN revenue_snapshots snapshot
         ON snapshot.channel_id = sub_channel.channel_id
@@ -121,7 +121,7 @@ class AuditViews
       LEFT JOIN daily_revenues_consolidated revenue
         ON revenue.channel_id = sub_channel.channel_id
         AND revenue.establishment_id = snapshot.establishment_id
-        AND revenue.competencia IN (sub_channel.competencia_m1, sub_channel.competencia_atual)
+        AND revenue.period IN (sub_channel.previous_period, sub_channel.current_period)
       WHERE snapshot.import_batch_id = (
         SELECT MAX(ib.id) FROM import_batches ib
         WHERE ib.channel_id = snapshot.channel_id
@@ -131,22 +131,22 @@ class AuditViews
           )
       )
       GROUP BY sub_channel.channel_id, sub_channel.sub_channel_id, establishment.company_id,
-        company.cnpj, sub_channel.max_dia_conhecido, sub_channel.competencia_m1,
-        sub_channel.competencia_atual;
+        company.cnpj, sub_channel.max_known_day, sub_channel.previous_period,
+        sub_channel.current_period;
       CREATE UNIQUE INDEX index_audit_revenue_by_company
         ON audit_revenue_by_company (channel_id, sub_channel_id, company_id);
 
       CREATE MATERIALIZED VIEW audit_stalled_companies AS
-      SELECT company_view.channel_id, company_view.sub_channel_id, sub_channel.sub_canal,
-        company_view.company_id, company_view.cnpj, company_view.max_dia_conhecido,
-        company_view.ultimo_dia_com_venda AS last_sale_day,
-        company_view.max_dia_conhecido - COALESCE(company_view.ultimo_dia_com_venda, 0)
+      SELECT company_view.channel_id, company_view.sub_channel_id, sub_channel.name AS sub_channel_name,
+        company_view.company_id, company_view.cnpj, company_view.max_known_day,
+        company_view.last_sale_day,
+        company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)
           AS dias_sem_venda,
         company_view.faturamento_m1_cheio, company_view.faturamento_m1,
         company_view.faturamento_atual
       FROM audit_revenue_by_company company_view
       JOIN sub_channels sub_channel ON sub_channel.id = company_view.sub_channel_id
-      WHERE company_view.max_dia_conhecido - COALESCE(company_view.ultimo_dia_com_venda, 0)
+      WHERE company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)
         >= #{STALLED_THRESHOLD};
       CREATE UNIQUE INDEX index_audit_stalled_companies
         ON audit_stalled_companies (channel_id, sub_channel_id, company_id);

@@ -5,10 +5,10 @@ require "roo"
 class ReportsExporterTest < ActiveSupport::TestCase
   setup do
     @rows = [
-      { "sub_canal" => "MIC ALFA", "max_dia_conhecido" => 10,
+      { "sub_channel_name" => "MIC ALFA", "max_known_day" => 10,
         "faturamento_m1_cheio" => "1000.0", "faturamento_m1" => "400.0",
         "faturamento_atual" => "500.0" },
-      { "sub_canal" => "MIC BETA", "max_dia_conhecido" => 10,
+      { "sub_channel_name" => "MIC BETA", "max_known_day" => 10,
         "faturamento_m1_cheio" => "800.0", "faturamento_m1" => "200.0",
         "faturamento_atual" => "100.0" }
     ]

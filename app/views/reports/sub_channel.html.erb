@@ -1,17 +1,17 @@
-<% content_for :title, @sub_channel.sub_canal %>
+<% content_for :title, @sub_channel.name %>
 
 <div class="grid gap-5" data-controller="revenue-days-modal">
   <section class="page-hero">
     <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
       <div>
         <p class="eyebrow">Visão comercial</p>
-        <h1 class="page-title"><%= @sub_channel.sub_canal %></h1>
+        <h1 class="page-title"><%= @sub_channel.name %></h1>
         <% if @window %>
           <p class="page-description">
             Estabelecimentos deste subcanal. O mês anterior aparece completo. A variação
             compara períodos equivalentes
             <strong><%= day_range_label(@from_day, @to_day) %></strong>
-            da competência <%= competencia_option_label(@competencia) %>.
+            da competência <%= period_option_label(@period) %>.
             Os lançamentos diários abrem no detalhe de cada estabelecimento.
           </p>
         <% else %>
@@ -39,7 +39,7 @@
         <article class="metric-card" data-tone="green">
           <p class="metric-label">Mês atual</p>
           <p class="metric-value"><%= brl(@totals[:faturamento_atual]) %></p>
-          <p class="metric-hint"><%= competencia_option_label(@competencia) %>,
+          <p class="metric-hint"><%= period_option_label(@period) %>,
             <%= day_range_label(@from_day, @to_day) %></p>
         </article>
         <article class="metric-card"
@@ -175,7 +175,7 @@
             placeholder: "EC, CNPJ ou nome", autocomplete: "off" %>
         </div>
 
-        <%= hidden_field_tag :competencia, @competencia %>
+        <%= hidden_field_tag :period, @period %>
         <%= hidden_field_tag :from_day, @from_day %>
         <%= hidden_field_tag :to_day, @to_day %>
         <%= hidden_field_tag :per_page, @per_page %>
@@ -193,7 +193,7 @@
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por estabelecimento</p>
-        <h2 class="table-title"><%= @sub_channel.channel.canal %></h2>
+        <h2 class="table-title"><%= @sub_channel.channel.name %></h2>
       </div>
       <% if @total_count.to_i.positive? %>
         <div class="table-toolbar__meta">
@@ -253,27 +253,27 @@
               <td class="font-mono"><%= report["ec"] %></td>
               <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></td>
               <td>
-                <p class="font-semibold"><%= report["nome_fantasia"].presence || report["razao_social"] %></p>
-                <% if report["razao_social"].present? && report["razao_social"] != report["nome_fantasia"] %>
-                  <p class="text-xs opacity-60"><%= report["razao_social"] %></p>
+                <p class="font-semibold"><%= report["trade_name"].presence || report["legal_name"] %></p>
+                <% if report["legal_name"].present? && report["legal_name"] != report["trade_name"] %>
+                  <p class="text-xs opacity-60"><%= report["legal_name"] %></p>
                 <% end %>
-                <% if report["status_contrato"].present? %>
-                  <div class="mt-1"><%= contract_status_badge(report["status_contrato"]) %></div>
+                <% if report["contract_status"].present? %>
+                  <div class="mt-1"><%= contract_status_badge(report["contract_status"]) %></div>
                 <% end %>
               </td>
               <td>
                 <dl class="lifecycle-dates">
                   <div>
                     <dt>Cred.</dt>
-                    <dd><%= format_date(report["data_credenciamento"]) %></dd>
+                    <dd><%= format_date(report["accredited_on"]) %></dd>
                   </div>
                   <div>
                     <dt>Ativ.</dt>
-                    <dd><%= format_date(report["data_ativacao"]) %></dd>
+                    <dd><%= format_date(report["activated_on"]) %></dd>
                   </div>
                   <div>
                     <dt>Susp.</dt>
-                    <dd><%= format_date(report["data_suspensao"]) %></dd>
+                    <dd><%= format_date(report["suspended_on"]) %></dd>
                   </div>
                 </dl>
               </td>
@@ -289,7 +289,7 @@
                     action: "click->revenue-days-modal#open",
                     ec: report["ec"],
                     cnpj: formatted_cnpj(report["cnpj"]),
-                    nome: report["nome_fantasia"].presence || report["razao_social"],
+                    nome: report["trade_name"].presence || report["legal_name"],
                     cutoff: @to_day,
                     from_day: @from_day,
                     dias_m1: revenue_days_json(report["dias_m1"]),

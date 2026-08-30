@@ -86,9 +86,9 @@ module BinImport
 
     # Cabeçalho de origem para cada campo de nome, respeitando a inversão por aba.
     def self.name_columns(sheet_name)
-      return { razao_social: "NOME FANTASIA", nome_fantasia: "RAZÃO SOCIAL" } if INVERTED_NAME_SHEETS.include?(sheet_name)
+      return { legal_name: "NOME FANTASIA", trade_name: "RAZÃO SOCIAL" } if INVERTED_NAME_SHEETS.include?(sheet_name)
 
-      { razao_social: "RAZÃO SOCIAL", nome_fantasia: "NOME FANTASIA" }
+      { legal_name: "RAZÃO SOCIAL", trade_name: "NOME FANTASIA" }
     end
 
     def self.rule_for(sheet_name, header)

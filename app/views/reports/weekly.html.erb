@@ -29,7 +29,7 @@
         <tbody>
           <% @reports.each do |report| %>
             <tr>
-              <td><%= Date.parse(report["competencia"].to_s).strftime("%m/%Y") %></td>
+              <td><%= Date.parse(report["period"].to_s).strftime("%m/%Y") %></td>
               <td><%= report["semana"] %></td>
               <td class="text-right tabular-nums"><%= brl(report["faturamento"]) %></td>
               <td class="text-right"><%= report["estabelecimentos"] %></td>

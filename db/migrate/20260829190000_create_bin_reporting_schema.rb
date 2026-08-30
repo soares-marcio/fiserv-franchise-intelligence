@@ -9,23 +9,23 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
     create_table :channels do |t|
       t.uuid :uuid, null: false, default: -> { 'gen_random_uuid()' }
       t.string :external_id, null: false
-      t.string :canal, null: false
+      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba todas as abas"
       t.timestamps
     end
     add_index :channels, :uuid, unique: true
     add_index :channels, :external_id, unique: true
-    add_index :channels, :canal, using: :gin, opclass: :gin_trgm_ops
+    add_index :channels, :name, using: :gin, opclass: :gin_trgm_ops
 
     create_table :sub_channels do |t|
       t.uuid :uuid, null: false, default: -> { 'gen_random_uuid()' }
       t.references :channel, null: false, foreign_key: true
-      t.string :sub_canal, null: false
+      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba todas as abas"
       t.timestamps
     end
     add_index :sub_channels, :uuid, unique: true
-    add_index :sub_channels, %i[channel_id sub_canal], unique: true
+    add_index :sub_channels, %i[channel_id name], unique: true
     add_index :sub_channels, %i[id channel_id], unique: true
-    add_index :sub_channels, :sub_canal, using: :gin, opclass: :gin_trgm_ops
+    add_index :sub_channels, :name, using: :gin, opclass: :gin_trgm_ops
 
     create_table :companies do |t|
       t.uuid :uuid, null: false, default: -> { 'gen_random_uuid()' }
@@ -56,7 +56,7 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       name: 'establishments_not_self_primary'
 
     create_table :import_templates do |t|
-      t.string :name, null: false
+      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba planilha BIN"
       t.jsonb :sheet_names, null: false, default: []
       t.timestamps
     end
@@ -82,20 +82,20 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.string :source_filename, null: false
       t.date :source_file_date
       t.string :file_checksum, null: false
-      t.date :competencia_m1
-      t.date :competencia_atual
-      t.jsonb :competencias_cobertas, null: false, default: []
-      t.integer :dia_corte_mes_atual
+      t.date :previous_period
+      t.date :current_period
+      t.jsonb :covered_periods, null: false, default: []
+      t.integer :current_month_cutoff_day
       t.string :status, null: false, default: 'pending'
       t.jsonb :validation_errors, null: false, default: []
       t.timestamps
     end
     add_index :import_batches, :uuid, unique: true
     add_index :import_batches, :file_checksum, unique: true
-    add_index :import_batches, %i[channel_id competencia_atual]
+    add_index :import_batches, %i[channel_id current_period]
     add_check_constraint :import_batches, "status IN ('pending', 'validated', 'failed', 'superseded')",
       name: 'import_batches_valid_status'
-    add_check_constraint :import_batches, 'dia_corte_mes_atual BETWEEN 1 AND 31',
+    add_check_constraint :import_batches, 'current_month_cutoff_day BETWEEN 1 AND 31',
       name: 'import_batches_valid_cutoff'
 
     create_table :revenue_snapshots do |t|
@@ -103,24 +103,24 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.references :channel, null: false, foreign_key: true
       t.references :establishment, null: false, foreign_key: true
       t.references :sub_channel, null: false, foreign_key: true
-      t.string :hierarquia_origem
-      t.string :razao_social
-      t.string :nome_fantasia
-      t.string :status_contrato
-      t.date :data_suspensao
-      t.date :data_ult_transacao
-      t.boolean :ativo_ultimos_60_dias
-      t.string :endereco
+      t.string :source_hierarchy, comment: "Origem: coluna \"HIERARQUIA\" da aba Faturamento"
+      t.string :legal_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Faturamento"
+      t.string :trade_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Faturamento"
+      t.string :contract_status, comment: "Origem: coluna \"STATUS DO CONTRATO\" da aba Faturamento"
+      t.date :suspended_on, comment: "Origem: coluna \"DATA DE SUSPENSÃO\" da aba Faturamento"
+      t.date :last_transaction_on, comment: "Origem: coluna \"DATA DA ÚLT TRANSAÇÃO\" da aba Faturamento"
+      t.boolean :active_last_60_days, comment: "Origem: coluna \"ATIVO NOS ÚLTIMOS 60 DIAS?\" da aba Faturamento"
+      t.string :street_address, comment: "Origem: coluna \"ENDEREÇO\" da aba Faturamento"
       t.string :cep
-      t.string :cep_raw
-      t.string :cidade
-      t.string :estado
-      t.string :telefone_trabalho
-      t.string :telefone_raw
-      t.string :cnae_codigo
-      t.string :cnae_descricao
-      t.decimal :fat_total_m1, precision: 18, scale: 2, null: false, default: 0
-      t.decimal :fat_total_mes_atual, precision: 18, scale: 2, null: false, default: 0
+      t.string :cep_raw, comment: "Origem: coluna \"CEP\" da aba Faturamento"
+      t.string :city, comment: "Origem: coluna \"CIDADE\" da aba Faturamento"
+      t.string :state, comment: "Origem: coluna \"ESTADO\" da aba Faturamento"
+      t.string :work_phone, comment: "Origem: coluna \"TELEFONE DO TRABALHO\" da aba Faturamento"
+      t.string :work_phone_raw, comment: "Origem: coluna \"TELEFONE DO TRABALHO\" da aba Faturamento"
+      t.string :cnae_code, comment: "Origem: coluna \"CÓDIGO DO CNAE\" da aba Faturamento"
+      t.string :cnae_description, comment: "Origem: coluna \"DESCRIÇÃO DO CNAE\" da aba Faturamento"
+      t.decimal :previous_month_total, precision: 18, scale: 2, null: false, default: 0, comment: "Origem: coluna \"fat_total_m1\" da aba Faturamento"
+      t.decimal :current_month_total, precision: 18, scale: 2, null: false, default: 0, comment: "Origem: coluna \"FATURAMENTO TOTAL DESTE MÊS\" da aba Faturamento"
       t.timestamps
     end
     add_index :revenue_snapshots, %i[import_batch_id establishment_id], unique: true
@@ -131,61 +131,67 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.references :channel, null: false, foreign_key: true
       t.references :establishment, null: false, foreign_key: true
       t.references :sub_channel, null: false, foreign_key: true
-      t.string :hierarquia_origem
-      t.string :tipo_pessoa
-      t.string :razao_social
-      t.string :nome_fantasia
-      t.string :ramo_atividade
-      t.string :cnae_codigo
-      t.string :cnae_descricao
-      t.string :status_contrato
-      t.text :melhor_conversa_raw
-      t.string :telefone_trabalho
-      t.string :endereco
+      t.string :source_hierarchy, comment: "Origem: coluna \"HIERARQUIA\" da aba Mapa de Clientes BIN"
+      t.string :entity_type, comment: "Origem: coluna \"TIPO DE PESSOA\" da aba Mapa de Clientes BIN"
+      t.string :legal_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Mapa de Clientes BIN"
+      t.string :trade_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Mapa de Clientes BIN"
+      t.string :business_line, comment: "Origem: coluna \"RAMO DE ATIVIDADE\" da aba Mapa de Clientes BIN"
+      t.string :cnae_code, comment: "Origem: coluna \"CÓDIGO DO CNAE\" da aba Mapa de Clientes BIN"
+      t.string :cnae_description, comment: "Origem: coluna \"DESCRIÇÃO DO CNAE\" da aba Mapa de Clientes BIN"
+      t.string :contract_status, comment: "Origem: coluna \"STATUS DO CONTRATO\" da aba Mapa de Clientes BIN"
+      t.text :best_conversation_raw, comment: "Origem: coluna \"MELHOR CONVERSA\" da aba Mapa de Clientes BIN"
+      t.string :work_phone, comment: "Origem: coluna \"TELEFONE DO TRABALHO\" da aba Mapa de Clientes BIN"
+      t.string :street_address, comment: "Origem: coluna \"ENDEREÇO\" da aba Mapa de Clientes BIN"
       t.string :cep
-      t.string :nome_contato_1
-      t.string :nome_contato_2
-      t.string :cidade
-      t.string :estado
-      t.boolean :ilha_pj_mais
+      t.string :contact_name_1, comment: "Origem: coluna \"NOME CONTATO 1\" da aba Mapa de Clientes BIN"
+      t.string :contact_name_2, comment: "Origem: coluna \"NOME CONTATO 2\" da aba Mapa de Clientes BIN"
+      t.string :city, comment: "Origem: coluna \"CIDADE\" da aba Mapa de Clientes BIN"
+      t.string :state, comment: "Origem: coluna \"ESTADO\" da aba Mapa de Clientes BIN"
+      t.boolean :pj_mais_island, comment: "Origem: coluna \"Ilha PJ+\" da aba Mapa de Clientes BIN"
       t.datetime :vip_boarding_date
-      t.string :motivo_entrada_vip
-      t.string :segmento_presumido
-      t.string :segmento_performado
-      t.string :status_reciprocidade
-      t.decimal :faturamento_medio_3m, precision: 18, scale: 2
-      t.decimal :maior_faturamento, precision: 18, scale: 2
-      t.decimal :diferenca_fat_m1_m2, precision: 18, scale: 2
-      t.decimal :diferenca_fat_pct, precision: 12, scale: 4
-      t.string :cluster_queda_fat
-      t.boolean :ativo_mes_atual
-      t.boolean :ativo_ultimo_mes
-      t.boolean :ativo_ultimos_30_dias
-      t.date :data_ult_transacao
-      t.date :data_credenciamento
-      t.date :data_instalacao
-      t.date :data_ativacao
-      t.date :data_suspensao
-      t.datetime :ultimo_acesso_app
-      t.string :solucoes_financeiras
-      t.string :status_antecip_auto_boarding
-      t.string :status_antecip_auto_boarding_2
-      t.decimal :volume_pre_aprovado, precision: 18, scale: 2
-      t.integer :prazo_pre_aprovado
-      t.decimal :taxa_pre_aprovada, precision: 12, scale: 4
-      t.decimal :parcela_pre_aprovada, precision: 18, scale: 2
-      t.boolean :possui_link_pgto
-      %i[tap_on_phone smart_pos demais_pos mps pin tef outros_terminais total_terminais].each do |terminal|
-        t.integer "qtde_#{terminal}"
+      t.string :vip_entry_reason, comment: "Origem: coluna \"motivo_entrada_vip\" da aba Mapa de Clientes BIN"
+      t.string :presumed_segment, comment: "Origem: coluna \"SEGMENTO PRESUMIDO\" da aba Mapa de Clientes BIN"
+      t.string :performed_segment, comment: "Origem: coluna \"SEGMENTO PERFORMADO\" da aba Mapa de Clientes BIN"
+      t.string :reciprocity_status, comment: "Origem: coluna \"STATUS DE RECIPROCIDADE\" da aba Mapa de Clientes BIN"
+      t.decimal :average_revenue_3m, precision: 18, scale: 2, comment: "Origem: coluna \"FATURAMENTO MÉDIO ÚLTIMOS 3 MESES\" da aba Mapa de Clientes BIN"
+      t.decimal :peak_revenue, precision: 18, scale: 2, comment: "Origem: coluna \"MAIOR FATURAMENTO\" da aba Mapa de Clientes BIN"
+      t.decimal :revenue_diff_m1_m2, precision: 18, scale: 2, comment: "Origem: coluna \"Diferença Fat M-1 x M-2\" da aba Mapa de Clientes BIN"
+      t.decimal :revenue_diff_pct, precision: 12, scale: 4, comment: "Origem: coluna \"Diferença Fat %\" da aba Mapa de Clientes BIN"
+      t.string :revenue_drop_cluster, comment: "Origem: coluna \"Cluster Queda Fat\" da aba Mapa de Clientes BIN"
+      t.boolean :active_current_month, comment: "Origem: coluna \"ATIVO NO MÊS ATUAL?\" da aba Mapa de Clientes BIN"
+      t.boolean :active_previous_month, comment: "Origem: coluna \"ATIVO NO ULTIMO MÊS?\" da aba Mapa de Clientes BIN"
+      t.boolean :active_last_30_days, comment: "Origem: coluna \"ATIVO NOS ÚLTIMOS 30 DIAS?\" da aba Mapa de Clientes BIN"
+      t.date :last_transaction_on, comment: "Origem: coluna \"DATA DA ÚLT TRANSAÇÃO\" da aba Mapa de Clientes BIN"
+      t.date :accredited_on, comment: "Origem: coluna \"DATA DE CREDENCIAMENTO\" da aba Mapa de Clientes BIN"
+      t.date :installed_on, comment: "Origem: coluna \"DATA DE INSTALAÇÃO\" da aba Mapa de Clientes BIN"
+      t.date :activated_on, comment: "Origem: coluna \"DATA DE ATIVAÇÃO\" da aba Mapa de Clientes BIN"
+      t.date :suspended_on, comment: "Origem: coluna \"DATA DE SUSPENSÃO\" da aba Mapa de Clientes BIN"
+      t.datetime :last_app_access_at, comment: "Origem: coluna \"ULTIMO ACESSO NO APP\" da aba Mapa de Clientes BIN"
+      t.string :financial_solutions, comment: "Origem: coluna \"SOLUÇÕES FINANCEIRAS\" da aba Mapa de Clientes BIN"
+      t.string :auto_advance_boarding_status, comment: "Origem: coluna \"STATUS ANTECIP AUTO NO BOARDING\" da aba Mapa de Clientes BIN"
+      t.string :auto_advance_boarding_status_2, comment: "Origem: coluna \"STATUS ANTECIP AUTO NO BOARDING.1\" da aba Mapa de Clientes BIN"
+      t.decimal :preapproved_volume, precision: 18, scale: 2, comment: "Origem: coluna \"VOLUME_PRE_APROVADO\" da aba Mapa de Clientes BIN"
+      t.integer :preapproved_term, comment: "Origem: coluna \"PRAZO_PRE_APROVADO\" da aba Mapa de Clientes BIN"
+      t.decimal :preapproved_rate, precision: 12, scale: 4, comment: "Origem: coluna \"TAXA_PRE_APROVADA\" da aba Mapa de Clientes BIN"
+      t.decimal :preapproved_installment, precision: 18, scale: 2, comment: "Origem: coluna \"PARCELA_PRE_APROVADA\" da aba Mapa de Clientes BIN"
+      t.boolean :has_payment_link, comment: "Origem: coluna \"POSSUI LINK PGTO\" da aba Mapa de Clientes BIN"
+      # Contagem de terminais por tipo; todas vêm da aba Mapa de Clientes BIN.
+      {
+        tap_on_phone_count: "QTDE TAP ON PHONE", smart_pos_count: "QTDE SMART POS",
+        other_pos_count: "QTDE DEMAIS POS", mps_count: "QTDE MPS", pin_count: "QTDE PIN",
+        tef_count: "QTDE TEF", other_terminals_count: "QTDE OUTROS TERMINAIS",
+        total_terminals_count: "QTDE TOTAL TERMINAIS"
+      }.each do |column, header|
+        t.integer column, comment: "Origem: coluna \"#{header}\" da aba Mapa de Clientes BIN"
       end
       t.decimal :net_mdr, precision: 12, scale: 4
       t.string :net_mdr_status
-      t.string :agenda_semanal
+      t.string :weekly_schedule, comment: "Origem: coluna \"agenda_semanal\" da aba Mapa de Clientes BIN"
       t.timestamps
     end
     add_index :map_snapshots, %i[import_batch_id establishment_id], unique: true
     add_index :map_snapshots, %i[channel_id sub_channel_id]
-    %i[razao_social nome_fantasia cidade].each { |column| add_index :map_snapshots, column, using: :gin, opclass: :gin_trgm_ops }
+    %i[legal_name trade_name city].each { |column| add_index :map_snapshots, column, using: :gin, opclass: :gin_trgm_ops }
 
     create_table :activation_proposals do |t|
       t.references :import_batch, null: false, foreign_key: true
@@ -193,34 +199,34 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.references :sub_channel, null: false, foreign_key: true
       t.references :company, null: false, foreign_key: true
       t.references :establishment, foreign_key: true
-      t.string :hierarquia_origem
-      t.string :nr_da_proposta, null: false
-      t.string :razao_social
-      t.string :nome_fantasia
-      t.string :status_proposta
-      t.date :data_proposta
-      t.date :data_afiliacao
-      t.date :data_instalacao
-      t.date :data_ativacao
-      t.decimal :ticket_medio, precision: 18, scale: 2
-      t.decimal :faturamento_anual_previsto, precision: 18, scale: 2
+      t.string :source_hierarchy, comment: "Origem: coluna \"HIERARQUIA\" da aba Ativacao"
+      t.string :proposal_number, null: false, comment: "Origem: coluna \"NR DA PROPOSTA\" da aba Ativacao"
+      t.string :legal_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Ativacao"
+      t.string :trade_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Ativacao"
+      t.string :proposal_status, comment: "Origem: coluna \"STATUS DA PROPOSTA\" da aba Ativacao"
+      t.date :proposed_on, comment: "Origem: coluna \"DATA DA PROPOSTA\" da aba Ativacao"
+      t.date :affiliated_on, comment: "Origem: coluna \"DATA DE AFILIAÇÃO\" da aba Ativacao"
+      t.date :installed_on, comment: "Origem: coluna \"DATA DE INSTALAÇÃO\" da aba Ativacao"
+      t.date :activated_on, comment: "Origem: coluna \"DATA DE ATIVAÇÃO\" da aba Ativacao"
+      t.decimal :average_ticket, precision: 18, scale: 2, comment: "Origem: coluna \"TICKET MÉDIO\" da aba Ativacao"
+      t.decimal :forecast_annual_revenue, precision: 18, scale: 2, comment: "Origem: coluna \"FATURAMENTO ANUAL PREVISTO\" da aba Ativacao"
       t.timestamps
     end
-    add_index :activation_proposals, %i[import_batch_id nr_da_proposta], unique: true
-    add_index :activation_proposals, :nr_da_proposta
+    add_index :activation_proposals, %i[import_batch_id proposal_number], unique: true
+    add_index :activation_proposals, :proposal_number
 
     create_table :monthly_volumes do |t|
       t.references :import_batch, null: false, foreign_key: true
       t.references :channel, null: false, foreign_key: true
       t.references :establishment, null: false, foreign_key: true
-      t.date :competencia, null: false
-      t.string :metrica, null: false
+      t.date :period, null: false
+      t.string :metric, null: false
       t.decimal :amount, precision: 18, scale: 2, null: false
       t.timestamps
     end
-    add_index :monthly_volumes, %i[import_batch_id establishment_id competencia metrica], unique: true,
-      name: 'index_monthly_volumes_on_batch_establishment_competencia_metric'
-    add_index :monthly_volumes, %i[channel_id competencia]
+    add_index :monthly_volumes, %i[import_batch_id establishment_id period metric], unique: true,
+      name: 'index_monthly_volumes_on_batch_establishment_period_metric'
+    add_index :monthly_volumes, %i[channel_id period]
 
     execute <<~SQL
       CREATE TABLE daily_revenues (
@@ -228,19 +234,19 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
         import_batch_id bigint NOT NULL REFERENCES import_batches(id),
         channel_id bigint NOT NULL REFERENCES channels(id),
         establishment_id bigint NOT NULL REFERENCES establishments(id),
-        competencia date NOT NULL,
+        period date NOT NULL,
         day integer NOT NULL,
         amount numeric(18,2) NOT NULL,
         provisional boolean NOT NULL,
         created_at timestamp(6) without time zone NOT NULL,
         updated_at timestamp(6) without time zone NOT NULL,
         CONSTRAINT daily_revenues_valid_day CHECK (day BETWEEN 1 AND 31)
-      ) PARTITION BY RANGE (competencia);
+      ) PARTITION BY RANGE (period);
       CREATE TABLE daily_revenues_default PARTITION OF daily_revenues DEFAULT;
     SQL
-    add_index :daily_revenues, %i[import_batch_id establishment_id competencia day], unique: true,
+    add_index :daily_revenues, %i[import_batch_id establishment_id period day], unique: true,
       name: 'index_daily_revenues_unique_snapshot_day'
-    add_index :daily_revenues, %i[channel_id competencia day]
+    add_index :daily_revenues, %i[channel_id period day]
     add_index :daily_revenues, :import_batch_id
     add_index :daily_revenues, :channel_id
     add_index :daily_revenues, :establishment_id
@@ -248,7 +254,7 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
     create_table :daily_revenues_consolidated, id: false do |t|
       t.references :establishment, null: false, foreign_key: true
       t.references :channel, null: false, foreign_key: true
-      t.date :competencia, null: false
+      t.date :period, null: false
       t.integer :day, null: false
       t.decimal :amount, precision: 18, scale: 2, null: false
       t.boolean :provisional, null: false
@@ -256,32 +262,32 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.integer :revised_count, null: false, default: 0
       t.timestamps
     end
-    add_index :daily_revenues_consolidated, %i[establishment_id competencia day], unique: true,
+    add_index :daily_revenues_consolidated, %i[establishment_id period day], unique: true,
       name: 'index_daily_revenues_consolidated_primary'
-    add_index :daily_revenues_consolidated, %i[channel_id competencia day]
+    add_index :daily_revenues_consolidated, %i[channel_id period day]
 
     create_table :monthly_volumes_consolidated, id: false do |t|
       t.references :channel, null: false, foreign_key: true
       t.references :establishment, null: false, foreign_key: true
-      t.date :competencia, null: false
-      t.string :metrica, null: false
+      t.date :period, null: false
+      t.string :metric, null: false
       t.decimal :amount, precision: 18, scale: 2, null: false
       t.references :source_import_batch, null: false, foreign_key: { to_table: :import_batches }
       t.timestamps
     end
-    add_index :monthly_volumes_consolidated, %i[establishment_id competencia metrica], unique: true,
+    add_index :monthly_volumes_consolidated, %i[establishment_id period metric], unique: true,
       name: 'index_monthly_volumes_consolidated_primary'
-    add_index :monthly_volumes_consolidated, %i[channel_id competencia]
+    add_index :monthly_volumes_consolidated, %i[channel_id period]
 
-    create_table :competencia_coverages, id: false do |t|
+    create_table :period_coverages, id: false do |t|
       t.references :channel, null: false, foreign_key: true
-      t.date :competencia, null: false
-      t.integer :max_dia_conhecido, null: false
-      t.boolean :fechado, null: false, default: false
-      t.references :ultimo_import_batch, null: false, foreign_key: { to_table: :import_batches }
+      t.date :period, null: false
+      t.integer :max_known_day, null: false
+      t.boolean :closed, null: false, default: false
+      t.references :last_import_batch, null: false, foreign_key: { to_table: :import_batches }
       t.timestamps
     end
-    add_index :competencia_coverages, %i[channel_id competencia], unique: true
+    add_index :period_coverages, %i[channel_id period], unique: true
 
     add_foreign_key :revenue_snapshots, :sub_channels,
       column: %i[sub_channel_id channel_id], primary_key: %i[id channel_id],
@@ -295,24 +301,24 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
 
     create_table :daily_revenue_revisions do |t|
       t.references :establishment, null: false, foreign_key: true
-      t.date :competencia, null: false
+      t.date :period, null: false
       t.integer :day, null: false
-      t.decimal :amount_anterior, precision: 18, scale: 2, null: false
-      t.decimal :amount_novo, precision: 18, scale: 2, null: false
+      t.decimal :previous_amount, precision: 18, scale: 2, null: false
+      t.decimal :new_amount, precision: 18, scale: 2, null: false
       t.references :import_batch, null: false, foreign_key: true
       t.datetime :detected_at, null: false
     end
 
     create_table :conversation_actions do |t|
-      t.string :texto, null: false
+      t.string :text, null: false, comment: "Origem: coluna \"MELHOR CONVERSA\" da aba Mapa de Clientes BIN"
       t.timestamps
     end
-    add_index :conversation_actions, :texto, unique: true
+    add_index :conversation_actions, :text, unique: true
 
     create_table :map_snapshot_actions do |t|
       t.references :map_snapshot, null: false, foreign_key: true
       t.references :conversation_action, null: false, foreign_key: true
-      t.integer :posicao, null: false
+      t.integer :position, null: false, comment: "Origem: coluna \"MELHOR CONVERSA\" da aba Mapa de Clientes BIN"
     end
     add_index :map_snapshot_actions, %i[map_snapshot_id conversation_action_id], unique: true,
       name: 'index_map_snapshot_actions_unique_action'

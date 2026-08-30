@@ -17,9 +17,9 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     batch = import_synthetic_workbook(lojas: @lojas)
 
     assert_equal "validated", batch.status
-    assert_equal BinWorkbook::COMPETENCIA_M1, batch.competencia_m1
-    assert_equal BinWorkbook::COMPETENCIA_ATUAL, batch.competencia_atual
-    assert_equal @cutoff, batch.dia_corte_mes_atual
+    assert_equal BinWorkbook::COMPETENCIA_M1, batch.previous_period
+    assert_equal BinWorkbook::COMPETENCIA_ATUAL, batch.current_period
+    assert_equal @cutoff, batch.current_month_cutoff_day
     assert_equal @lojas.size, MapSnapshot.count
     assert_equal @lojas.size, RevenueSnapshot.count
     assert_equal @lojas.count(&:proposta), ActivationProposal.count
@@ -36,8 +36,8 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     ativacao = ActivationProposal.joins(:establishment).find_by!(establishments: { ec: loja.ec })
 
     [ mapa, faturamento, ativacao ].each do |registro|
-      assert_equal loja.razao_social, registro.razao_social, "#{registro.class}: razão social"
-      assert_equal loja.nome_fantasia, registro.nome_fantasia, "#{registro.class}: nome fantasia"
+      assert_equal loja.legal_name, registro.legal_name, "#{registro.class}: razão social"
+      assert_equal loja.trade_name, registro.trade_name, "#{registro.class}: nome fantasia"
     end
   end
 
@@ -107,15 +107,15 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     estendidas.first.dias_atual = estendidas.first.dias_atual.merge(11 => 90, 12 => 60)
     second = import_synthetic_workbook(lojas: estendidas, filename: "BIN_TESTE_20260813.xlsx")
 
-    coverage = CompetenciaCoverage.find_by!(channel: first.channel, competencia: first.competencia_atual)
+    coverage = PeriodCoverage.find_by!(channel: first.channel, period: first.current_period)
     establishment = Establishment.find_by!(ec: estendidas.first.ec)
 
-    assert_equal 12, coverage.max_dia_conhecido
+    assert_equal 12, coverage.max_known_day
     assert_equal 1, DailyRevenueConsolidated.where(
-      establishment:, competencia: first.competencia_atual, day: 10
+      establishment:, period: first.current_period, day: 10
     ).count
     assert_equal 60, DailyRevenueConsolidated.find_by!(
-      establishment:, competencia: first.competencia_atual, day: 12
+      establishment:, period: first.current_period, day: 12
     ).amount
   end
 
@@ -125,15 +125,15 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     batch = BinImport::Importer.new(REFERENCE_FILE).call
 
     assert_equal "validated", batch.status
-    assert_equal Date.new(2026, 7, 1), batch.competencia_m1
-    assert_equal Date.new(2026, 8, 1), batch.competencia_atual
-    assert_equal 24, batch.dia_corte_mes_atual
+    assert_equal Date.new(2026, 7, 1), batch.previous_period
+    assert_equal Date.new(2026, 8, 1), batch.current_period
+    assert_equal 24, batch.current_month_cutoff_day
     assert_equal 457, RevenueSnapshot.count
     assert_equal 552, MapSnapshot.count
 
     mapa = MapSnapshot.joins(:establishment).find_by!(establishments: { ec: "92540262" })
-    assert_equal "MAGAO NA BRASA COMERCIO E SERVICOS DE AL", mapa.razao_social
-    assert_equal "MAGAO NA BRASA", mapa.nome_fantasia
+    assert_equal "MAGAO NA BRASA COMERCIO E SERVICOS DE AL", mapa.legal_name
+    assert_equal "MAGAO NA BRASA", mapa.trade_name
   end
 
   private

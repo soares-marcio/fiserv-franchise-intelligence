@@ -12,7 +12,7 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
 
     assert_equal esperado, DailyRevenueConsolidated.count
     assert_equal @loja.dias_m1.fetch(1), DailyRevenueConsolidated.find_by!(
-      establishment: @establishment, competencia: @primeiro.competencia_m1, day: 1
+      establishment: @establishment, period: @primeiro.previous_period, day: 1
     ).amount
   end
 
@@ -22,12 +22,12 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
     import_synthetic_workbook(lojas: revisadas, filename: "BIN_TESTE_20260812.xlsx")
 
     revisao = DailyRevenueRevision.find_by!(
-      establishment_id: @establishment.id, competencia: @primeiro.competencia_m1, day: 1
+      establishment_id: @establishment.id, period: @primeiro.previous_period, day: 1
     )
-    assert_equal @loja.dias_m1.fetch(1), revisao.amount_anterior
-    assert_equal 150, revisao.amount_novo
+    assert_equal @loja.dias_m1.fetch(1), revisao.previous_amount
+    assert_equal 150, revisao.new_amount
     assert_equal 150, DailyRevenueConsolidated.find_by!(
-      establishment: @establishment, competencia: @primeiro.competencia_m1, day: 1
+      establishment: @establishment, period: @primeiro.previous_period, day: 1
     ).amount
   end
 
@@ -36,10 +36,10 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
     revisadas.first.dias_m1 = revisadas.first.dias_m1.merge(1 => 150)
     import_synthetic_workbook(lojas: revisadas, filename: "BIN_TESTE_20260812.xlsx")
 
-    anomalia = DataAnomaly.find_by(anomaly_type: "closed_competencia_revised")
-    assert anomalia, "mudança em mês fechado precisa virar anomalia"
+    anomalia = DataAnomaly.find_by(anomaly_type: "closed_period_revised")
+    assert anomalia, "mudança em mês closed precisa virar anomalia"
     assert_equal "atencao", anomalia.severity
-    assert_equal @primeiro.competencia_m1.to_s, anomalia.details["competencia"]
+    assert_equal @primeiro.previous_period.to_s, anomalia.details["period"]
   end
 
   test "não regride a cobertura quando o lote novo cobre menos dias" do
@@ -47,21 +47,21 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
     curtas.each { |loja| loja.dias_atual = loja.dias_atual.reject { |day, _| day > 2 } }
     import_synthetic_workbook(lojas: curtas, filename: "BIN_TESTE_20260805.xlsx")
 
-    coverage = CompetenciaCoverage.find_by!(
-      channel_id: @primeiro.channel_id, competencia: @primeiro.competencia_atual
+    coverage = PeriodCoverage.find_by!(
+      channel_id: @primeiro.channel_id, period: @primeiro.current_period
     )
-    assert_equal BinWorkbook.cutoff_day, coverage.max_dia_conhecido
+    assert_equal BinWorkbook.cutoff_day, coverage.max_known_day
     assert DataAnomaly.find_by(anomaly_type: "batch_covers_fewer_days"),
       "lote mais curto precisa ser registrado"
   end
 
-  test "marca o mês anterior como fechado e o atual como aberto" do
-    coberturas = CompetenciaCoverage.where(channel_id: @primeiro.channel_id).index_by(&:competencia)
+  test "marca o mês anterior como closed e o atual como aberto" do
+    coberturas = PeriodCoverage.where(channel_id: @primeiro.channel_id).index_by(&:period)
 
-    assert coberturas.fetch(@primeiro.competencia_m1).fechado
-    assert_equal 31, coberturas.fetch(@primeiro.competencia_m1).max_dia_conhecido
-    assert_not coberturas.fetch(@primeiro.competencia_atual).fechado
-    assert_equal BinWorkbook.cutoff_day, coberturas.fetch(@primeiro.competencia_atual).max_dia_conhecido
+    assert coberturas.fetch(@primeiro.previous_period).closed
+    assert_equal 31, coberturas.fetch(@primeiro.previous_period).max_known_day
+    assert_not coberturas.fetch(@primeiro.current_period).closed
+    assert_equal BinWorkbook.cutoff_day, coberturas.fetch(@primeiro.current_period).max_known_day
   end
 
   test "consolida os volumes mensais de todas as competências do arquivo" do

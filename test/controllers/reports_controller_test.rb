@@ -30,8 +30,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "selects a channel and preserves it in exports" do
-    selected = Channel.create!(external_id: "1", canal: "CANAL A")
-    Channel.create!(external_id: "2", canal: "CANAL B")
+    selected = Channel.create!(external_id: "1", name: "CANAL A")
+    Channel.create!(external_id: "2", name: "CANAL B")
 
     get reports_path(channel_id: selected.uuid)
 
@@ -109,8 +109,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     )
     RevenueSnapshot.create!(
       import_batch: ImportBatch.find_by!(channel:), channel:, sub_channel:,
-      establishment: suspended, razao_social: "LOJA DOIS LTDA", nome_fantasia: "LOJA DOIS",
-      status_contrato: "Suspended", fat_total_m1: 20, fat_total_mes_atual: 30
+      establishment: suspended, legal_name: "LOJA DOIS LTDA", trade_name: "LOJA DOIS",
+      contract_status: "Suspended", previous_month_total: 20, current_month_total: 30
     )
 
     get sub_channel_report_path(
@@ -134,8 +134,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     )
     RevenueSnapshot.create!(
       import_batch: ImportBatch.find_by!(channel:), channel:, sub_channel:,
-      establishment: second, razao_social: "LOJA DOIS LTDA", nome_fantasia: "LOJA DOIS",
-      status_contrato: "Active", fat_total_m1: 20, fat_total_mes_atual: 30
+      establishment: second, legal_name: "LOJA DOIS LTDA", trade_name: "LOJA DOIS",
+      contract_status: "Active", previous_month_total: 20, current_month_total: 30
     )
 
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid, q: "loja dois")
@@ -164,49 +164,49 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def seed_subchannel_revenue(template)
-    channel = Channel.create!(external_id: "A", canal: "CANAL A")
+    channel = Channel.create!(external_id: "A", name: "CANAL A")
     company = Company.create!(cnpj: "12345678000191")
     establishment = Establishment.create!(ec: "11111111", company:, channel:)
-    sub_channel = channel.sub_channels.create!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.create!(name: "MIC A")
     batch = ImportBatch.create!(
       channel:, import_template: template, source_filename: "a.xlsx",
       file_checksum: "checksum-reports-#{SecureRandom.hex(4)}",
-      competencia_m1: Date.new(2026, 7, 1), competencia_atual: Date.new(2026, 8, 1),
-      dia_corte_mes_atual: 24, status: "validated"
+      previous_period: Date.new(2026, 7, 1), current_period: Date.new(2026, 8, 1),
+      current_month_cutoff_day: 24, status: "validated"
     )
     RevenueSnapshot.create!(
       import_batch: batch, channel:, sub_channel:, establishment:,
-      razao_social: "LOJA UM LTDA", nome_fantasia: "LOJA UM", status_contrato: "Active",
-      fat_total_m1: 80, fat_total_mes_atual: 100
+      legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
+      previous_month_total: 80, current_month_total: 100
     )
     MapSnapshot.create!(
       import_batch: batch, channel:, sub_channel:, establishment:,
-      razao_social: "LOJA UM LTDA", nome_fantasia: "LOJA UM", status_contrato: "Active",
-      data_credenciamento: Date.new(2024, 3, 15), data_ativacao: Date.new(2024, 4, 2)
+      legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
+      accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2)
     )
     now = Time.current
-    CompetenciaCoverage.upsert_all(
+    PeriodCoverage.upsert_all(
       [
         {
-          channel_id: channel.id, competencia: Date.new(2026, 7, 1), max_dia_conhecido: 31, fechado: true,
-          ultimo_import_batch_id: batch.id, created_at: now, updated_at: now
+          channel_id: channel.id, period: Date.new(2026, 7, 1), max_known_day: 31, closed: true,
+          last_import_batch_id: batch.id, created_at: now, updated_at: now
         },
         {
-          channel_id: channel.id, competencia: Date.new(2026, 8, 1), max_dia_conhecido: 24, fechado: false,
-          ultimo_import_batch_id: batch.id, created_at: now, updated_at: now
+          channel_id: channel.id, period: Date.new(2026, 8, 1), max_known_day: 24, closed: false,
+          last_import_batch_id: batch.id, created_at: now, updated_at: now
         }
       ],
-      unique_by: "index_competencia_coverages_on_channel_id_and_competencia"
+      unique_by: "index_period_coverages_on_channel_id_and_period"
     )
     DailyRevenueConsolidated.upsert_all(
       [
         {
-          establishment_id: establishment.id, channel_id: channel.id, competencia: Date.new(2026, 7, 1),
+          establishment_id: establishment.id, channel_id: channel.id, period: Date.new(2026, 7, 1),
           day: 24, amount: 80, provisional: false, source_import_batch_id: batch.id, revised_count: 0,
           created_at: now, updated_at: now
         },
         {
-          establishment_id: establishment.id, channel_id: channel.id, competencia: Date.new(2026, 8, 1),
+          establishment_id: establishment.id, channel_id: channel.id, period: Date.new(2026, 8, 1),
           day: 24, amount: 100, provisional: true, source_import_batch_id: batch.id, revised_count: 0,
           created_at: now, updated_at: now
         }

@@ -13,8 +13,8 @@ class ReportScope
     @revenue_by_sub_channel ||= aligned_revenue_by_sub_channel
   end
 
-  def revenue_by_establishment(sub_channel_id:, competencia: nil, from_day: nil, to_day: nil, **filters)
-    window = establishment_window(competencia:, from_day:, to_day:)
+  def revenue_by_establishment(sub_channel_id:, period: nil, from_day: nil, to_day: nil, **filters)
+    window = establishment_window(period:, from_day:, to_day:)
     return EstablishmentListingQuery.empty_page unless window
 
     EstablishmentListingQuery.new(
@@ -29,22 +29,22 @@ class ReportScope
       .joins(:revenue_snapshots).maximum(:id)
     return [] unless import_batch_id
 
-    RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(status_contrato: [ nil, "" ])
-      .distinct.order(:status_contrato).pluck(:status_contrato)
+    RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(contract_status: [ nil, "" ])
+      .distinct.order(:contract_status).pluck(:contract_status)
   end
 
-  def available_competencias
+  def available_periods
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
-      SELECT competencia, max_dia_conhecido, fechado
-      FROM competencia_coverages
+      SELECT period, max_known_day, closed
+      FROM period_coverages
       WHERE #{CHANNEL_PREDICATE}
-      ORDER BY competencia DESC
+      ORDER BY period DESC
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
-  def establishment_window(competencia: nil, from_day: nil, to_day: nil)
-    CompetenciaWindow.from_coverages(available_competencias, competencia:, from_day:, to_day:)
+  def establishment_window(period: nil, from_day: nil, to_day: nil)
+    PeriodWindow.from_coverages(available_periods, period:, from_day:, to_day:)
   end
 
   def stalled_companies
@@ -52,17 +52,17 @@ class ReportScope
   end
 
   def weekly_revenue
-    query(:weekly_revenue, "competencia, semana")
+    query(:weekly_revenue, "period, semana")
   end
 
   # Menor corte entre os canais do recorte: comparar períodos de durações diferentes
   # entre canais distorceria a variação.
   def cutoff_day
-    coverages.map { |row| row["max_dia_conhecido"].to_i }.min
+    coverages.map { |row| row["max_known_day"].to_i }.min
   end
 
   def mixed_cutoffs?
-    coverages.map { |row| row["max_dia_conhecido"].to_i }.uniq.size > 1
+    coverages.map { |row| row["max_known_day"].to_i }.uniq.size > 1
   end
 
   def totals
@@ -71,22 +71,22 @@ class ReportScope
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id, cutoff: cutoff.to_i } ])
       WITH open_cover AS (
-        SELECT channel_id, competencia, max_dia_conhecido,
-          (competencia - INTERVAL '1 month')::date AS competencia_m1
-        FROM competencia_coverages
-        WHERE NOT fechado AND #{CHANNEL_PREDICATE}
+        SELECT channel_id, period, max_known_day,
+          (period - INTERVAL '1 month')::date AS previous_period
+        FROM period_coverages
+        WHERE NOT closed AND #{CHANNEL_PREDICATE}
       )
-      SELECT COALESCE(SUM(dr.amount) FILTER (WHERE dr.competencia = oc.competencia_m1), 0)
+      SELECT COALESCE(SUM(dr.amount) FILTER (WHERE dr.period = oc.previous_period), 0)
                AS faturamento_m1_cheio,
              COALESCE(SUM(dr.amount) FILTER (
-               WHERE dr.competencia = oc.competencia_m1 AND dr.day <= :cutoff), 0)
+               WHERE dr.period = oc.previous_period AND dr.day <= :cutoff), 0)
                AS faturamento_m1,
              COALESCE(SUM(dr.amount) FILTER (
-               WHERE dr.competencia = oc.competencia AND dr.day <= :cutoff), 0)
+               WHERE dr.period = oc.period AND dr.day <= :cutoff), 0)
                AS faturamento_atual
       FROM daily_revenues_consolidated dr
       JOIN open_cover oc ON oc.channel_id = dr.channel_id
-      WHERE dr.competencia IN (oc.competencia_m1, oc.competencia)
+      WHERE dr.period IN (oc.previous_period, oc.period)
     SQL
     row = ApplicationRecord.connection.exec_query(sql).first || {}
     {
@@ -108,7 +108,7 @@ class ReportScope
 
     sql = ApplicationRecord.sanitize_sql_array([
       "#{AuditViews.revenue_by_sub_channel_sql(cutoff: ':cutoff', channel_predicate: CHANNEL_PREDICATE)} " \
-        "ORDER BY sub_channel.sub_canal",
+        "ORDER BY sub_channel.name",
       { channel_id: @channel_id, cutoff: cutoff.to_i }
     ])
     ApplicationRecord.connection.exec_query(sql).to_a
@@ -117,8 +117,8 @@ class ReportScope
   def coverages
     @coverages ||= begin
       sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
-        SELECT channel_id, max_dia_conhecido FROM competencia_coverages
-        WHERE NOT fechado AND #{CHANNEL_PREDICATE}
+        SELECT channel_id, max_known_day FROM period_coverages
+        WHERE NOT closed AND #{CHANNEL_PREDICATE}
       SQL
       ApplicationRecord.connection.exec_query(sql).to_a
     end

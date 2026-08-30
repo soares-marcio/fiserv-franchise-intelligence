@@ -35,26 +35,26 @@ class EstablishmentsController < ApplicationController
     like = "%#{ActiveRecord::Base.sanitize_sql_like(@query)}%"
     scope.left_joins(:company, current_map_snapshot: :sub_channel).where(
       "establishments.ec ILIKE :q OR companies.cnpj ILIKE :q OR " \
-      "map_snapshots.nome_fantasia ILIKE :q OR map_snapshots.razao_social ILIKE :q OR " \
-      "map_snapshots.cidade ILIKE :q OR map_snapshots.cnae_codigo ILIKE :q OR " \
-      "map_snapshots.cnae_descricao ILIKE :q OR sub_channels.sub_canal ILIKE :q",
+      "map_snapshots.trade_name ILIKE :q OR map_snapshots.legal_name ILIKE :q OR " \
+      "map_snapshots.city ILIKE :q OR map_snapshots.cnae_code ILIKE :q OR " \
+      "map_snapshots.cnae_description ILIKE :q OR sub_channels.name ILIKE :q",
       q: like
     ).distinct
   end
 
   def load_form_options
-    @channels = Channel.order(:canal)
-    @sub_canals = SubChannel.order(:sub_canal).pluck(:sub_canal).uniq
+    @channels = Channel.order(:name)
+    @sub_channel_names = SubChannel.order(:name).pluck(:name).uniq
   end
 
   def manual_params
     params.require(:manual_entry).permit(
-      :report_id, :canal, :sub_canal, :ec, :cnpj, :status_contrato,
-      :razao_social, :nome_fantasia, :tipo_pessoa, :ramo_atividade,
-      :cnae_codigo, :cnae_descricao, :endereco, :cep, :cidade, :estado,
-      :telefone_trabalho, :nome_contato_1, :nome_contato_2,
-      :segmento_presumido, :segmento_performado,
-      :competencia_m1, :competencia_atual, :fat_total_m1, :fat_total_mes_atual,
+      :report_id, :channel_name, :sub_channel_name, :ec, :cnpj, :contract_status,
+      :legal_name, :trade_name, :entity_type, :business_line,
+      :cnae_code, :cnae_description, :street_address, :cep, :city, :state,
+      :work_phone, :contact_name_1, :contact_name_2,
+      :presumed_segment, :performed_segment,
+      :previous_period, :current_period, :previous_month_total, :current_month_total,
       *(1..31).flat_map { |day| [ format("dia_%02d", day), format("dia_%02d_m1", day) ] }
     )
   end

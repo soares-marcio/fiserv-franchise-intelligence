@@ -17,7 +17,7 @@ module Operations
       validate_competencies!
       rows = sheet_rows
       BinImport::Validator.new(rows).validate_identity!
-      channel = BinImport::ChannelResolver.call(report_id:, canal:)
+      channel = BinImport::ChannelResolver.call(report_id:, name: channel_name)
       BinImport::IdentityGuard.assert_existing!(channel, rows)
 
       batch = nil
@@ -25,15 +25,17 @@ module Operations
         template = BinImport::Template.register!
         batch = ImportBatch.create!(
           channel:, import_template: template, source_filename: "manual",
-          file_checksum: checksum, competencia_m1:, competencia_atual:,
-          dia_corte_mes_atual: cutoff_day, status: "pending"
+          file_checksum: checksum, previous_period:, current_period:,
+          current_month_cutoff_day: cutoff_day, status: "pending"
         )
-        persist!(batch, channel, rows)
+        # As partições precisam existir antes do insert: linha que cai na partição
+        # default impede a criação da partição do mês depois.
         if revenue_row.present?
-          DailyRevenuePartitions.ensure!(competencia_m1)
-          DailyRevenuePartitions.ensure!(competencia_atual)
-          BinImport::Consolidator.new(batch).call
+          DailyRevenuePartitions.ensure!(previous_period)
+          DailyRevenuePartitions.ensure!(current_period)
         end
+        persist!(batch, channel, rows)
+        BinImport::Consolidator.new(batch).call if revenue_row.present?
         batch.update!(status: "validated")
       end
       AuditViews.refresh!
@@ -54,10 +56,10 @@ module Operations
 
     def validate_competencies!
       return unless revenue_requested?
-      if competencia_m1.blank? || competencia_atual.blank?
+      if previous_period.blank? || current_period.blank?
         raise ArgumentError, "Competências são obrigatórias no cadastro com faturamento"
       end
-      return if competencia_atual == competencia_m1.next_month
+      return if current_period == previous_period.next_month
 
       raise ArgumentError, "Competências devem ser meses consecutivos"
     end
@@ -73,24 +75,24 @@ module Operations
     # Cada aba tem sua própria convenção de cabeçalho para os nomes (ver Template).
     def name_headers(sheet_name)
       columns = BinImport::Template.name_columns(sheet_name)
-      { columns[:razao_social] => @attrs["razao_social"], columns[:nome_fantasia] => @attrs["nome_fantasia"] }
+      { columns[:legal_name] => @attrs["legal_name"], columns[:trade_name] => @attrs["trade_name"] }
     end
 
     def map_row
       {
-        "_row_number" => 2, "REPORT_ID" => report_id, "CANAL" => canal, "SUB-CANAL" => sub_canal,
+        "_row_number" => 2, "REPORT_ID" => report_id, "CANAL" => channel_name, "SUB-CANAL" => sub_channel_name,
         "EC" => @attrs.fetch("ec"), "CNPJ" => @attrs.fetch("cnpj"),
-        "STATUS DO CONTRATO" => @attrs.fetch("status_contrato"),
+        "STATUS DO CONTRATO" => @attrs.fetch("contract_status"),
         **name_headers("Mapa de Clientes BIN"),
-        "TIPO DE PESSOA" => @attrs["tipo_pessoa"], "RAMO DE ATIVIDADE" => @attrs["ramo_atividade"],
-        "CÓDIGO DO CNAE" => @attrs["cnae_codigo"], "DESCRIÇÃO DO CNAE" => @attrs["cnae_descricao"],
-        "ENDEREÇO" => @attrs["endereco"], "CEP" => @attrs["cep"],
-        "CIDADE" => @attrs["cidade"], "ESTADO" => @attrs["estado"],
-        "TELEFONE DO TRABALHO" => @attrs["telefone_trabalho"],
-        "NOME CONTATO 1" => @attrs["nome_contato_1"], "NOME CONTATO 2" => @attrs["nome_contato_2"],
-        "SEGMENTO PRESUMIDO" => @attrs["segmento_presumido"],
-        "SEGMENTO PERFORMADO" => @attrs["segmento_performado"],
-        "HIERARQUIA" => canal
+        "TIPO DE PESSOA" => @attrs["entity_type"], "RAMO DE ATIVIDADE" => @attrs["business_line"],
+        "CÓDIGO DO CNAE" => @attrs["cnae_code"], "DESCRIÇÃO DO CNAE" => @attrs["cnae_description"],
+        "ENDEREÇO" => @attrs["street_address"], "CEP" => @attrs["cep"],
+        "CIDADE" => @attrs["city"], "ESTADO" => @attrs["state"],
+        "TELEFONE DO TRABALHO" => @attrs["work_phone"],
+        "NOME CONTATO 1" => @attrs["contact_name_1"], "NOME CONTATO 2" => @attrs["contact_name_2"],
+        "SEGMENTO PRESUMIDO" => @attrs["presumed_segment"],
+        "SEGMENTO PERFORMADO" => @attrs["performed_segment"],
+        "HIERARQUIA" => channel_name
       }
     end
 
@@ -99,8 +101,8 @@ module Operations
 
       row = map_row.merge(
         **name_headers("Faturamento"),
-        "fat_total_m1" => @attrs["fat_total_m1"],
-        "FATURAMENTO TOTAL DESTE MÊS" => @attrs["fat_total_mes_atual"],
+        "fat_total_m1" => @attrs["previous_month_total"],
+        "FATURAMENTO TOTAL DESTE MÊS" => @attrs["current_month_total"],
         "CNAE" => @attrs["cnae"]
       )
       (1..31).each do |day|
@@ -112,7 +114,7 @@ module Operations
 
     def persist!(batch, channel, rows)
       map = rows.fetch("Mapa de Clientes BIN").first
-      sub_channel = channel.sub_channels.find_or_create_by!(sub_canal: sub_canal)
+      sub_channel = channel.sub_channels.find_or_create_by!(name: sub_channel_name)
       company = Company.find_or_create_by!(cnpj: BinImport::Normalizer.cnpj(map["CNPJ"]))
       establishment = Establishment.find_or_create_by!(ec: BinImport::Normalizer.ec(map["EC"])) do |record|
         record.company = company
@@ -120,40 +122,40 @@ module Operations
       end
       MapSnapshot.create!(
         import_batch: batch, channel:, sub_channel:, establishment:,
-        hierarquia_origem: canal, status_contrato: map["STATUS DO CONTRATO"],
-        razao_social: @attrs["razao_social"], nome_fantasia: @attrs["nome_fantasia"],
-        tipo_pessoa: map["TIPO DE PESSOA"], ramo_atividade: map["RAMO DE ATIVIDADE"],
-        cnae_codigo: map["CÓDIGO DO CNAE"], cnae_descricao: map["DESCRIÇÃO DO CNAE"],
-        endereco: map["ENDEREÇO"], cep: BinImport::Normalizer.cep(map["CEP"]),
-        cidade: map["CIDADE"], estado: map["ESTADO"],
-        telefone_trabalho: BinImport::Normalizer.digits(map["TELEFONE DO TRABALHO"]),
-        nome_contato_1: map["NOME CONTATO 1"], nome_contato_2: map["NOME CONTATO 2"],
-        segmento_presumido: map["SEGMENTO PRESUMIDO"],
-        segmento_performado: map["SEGMENTO PERFORMADO"]
+        source_hierarchy: channel_name, contract_status: map["STATUS DO CONTRATO"],
+        legal_name: @attrs["legal_name"], trade_name: @attrs["trade_name"],
+        entity_type: map["TIPO DE PESSOA"], business_line: map["RAMO DE ATIVIDADE"],
+        cnae_code: map["CÓDIGO DO CNAE"], cnae_description: map["DESCRIÇÃO DO CNAE"],
+        street_address: map["ENDEREÇO"], cep: BinImport::Normalizer.cep(map["CEP"]),
+        city: map["CIDADE"], state: map["ESTADO"],
+        work_phone: BinImport::Normalizer.digits(map["TELEFONE DO TRABALHO"]),
+        contact_name_1: map["NOME CONTATO 1"], contact_name_2: map["NOME CONTATO 2"],
+        presumed_segment: map["SEGMENTO PRESUMIDO"],
+        performed_segment: map["SEGMENTO PERFORMADO"]
       )
       return if rows.fetch("Faturamento").empty?
 
       revenue = rows.fetch("Faturamento").first
       RevenueSnapshot.create!(
         import_batch: batch, channel:, establishment:, sub_channel:,
-        hierarquia_origem: canal, status_contrato: map["STATUS DO CONTRATO"],
-        razao_social: @attrs["razao_social"], nome_fantasia: @attrs["nome_fantasia"],
-        fat_total_m1: BinImport::Normalizer.decimal(revenue["fat_total_m1"]) || 0,
-        fat_total_mes_atual: BinImport::Normalizer.decimal(revenue["FATURAMENTO TOTAL DESTE MÊS"]) || 0
+        source_hierarchy: channel_name, contract_status: map["STATUS DO CONTRATO"],
+        legal_name: @attrs["legal_name"], trade_name: @attrs["trade_name"],
+        previous_month_total: BinImport::Normalizer.decimal(revenue["fat_total_m1"]) || 0,
+        current_month_total: BinImport::Normalizer.decimal(revenue["FATURAMENTO TOTAL DESTE MÊS"]) || 0
       )
       daily = daily_rows(batch, establishment, revenue)
       DailyRevenue.insert_all!(daily) if daily.any?
     end
 
     def daily_rows(batch, establishment, row)
-      [ [ competencia_m1, "_M_1", false ], [ competencia_atual, "", true ] ].flat_map do |competencia, suffix, provisional|
+      [ [ previous_period, "_M_1", false ], [ current_period, "", true ] ].flat_map do |period, suffix, provisional|
         (1..31).filter_map do |day|
           amount = BinImport::Normalizer.decimal(row[format("DIA %02d%s", day, suffix)]) || 0
           next unless amount.nonzero?
 
           {
             import_batch_id: batch.id, channel_id: batch.channel_id, establishment_id: establishment.id,
-            competencia:, day:, amount:, provisional:, created_at: Time.current, updated_at: Time.current
+            period:, day:, amount:, provisional:, created_at: Time.current, updated_at: Time.current
           }
         end
       end
@@ -163,20 +165,20 @@ module Operations
       @attrs.fetch("report_id").to_s.strip
     end
 
-    def canal
-      @attrs.fetch("canal").to_s.strip
+    def channel_name
+      @attrs.fetch("channel_name").to_s.strip
     end
 
-    def sub_canal
-      @attrs.fetch("sub_canal").to_s.strip
+    def sub_channel_name
+      @attrs.fetch("sub_channel_name").to_s.strip
     end
 
-    def competencia_m1
-      parse_date(@attrs["competencia_m1"])
+    def previous_period
+      parse_date(@attrs["previous_period"])
     end
 
-    def competencia_atual
-      parse_date(@attrs["competencia_atual"])
+    def current_period
+      parse_date(@attrs["current_period"])
     end
 
     def cutoff_day
@@ -186,7 +188,7 @@ module Operations
     end
 
     def revenue_requested?
-      money?("fat_total_m1") || money?("fat_total_mes_atual") ||
+      money?("previous_month_total") || money?("current_month_total") ||
         (1..31).any? { |day| money?(format("dia_%02d", day)) || money?(format("dia_%02d_m1", day)) }
     end
 

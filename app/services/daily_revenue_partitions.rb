@@ -1,6 +1,6 @@
 class DailyRevenuePartitions
-  def self.ensure!(competencia)
-    start_date = competencia.beginning_of_month
+  def self.ensure!(period)
+    start_date = period.beginning_of_month
     end_date = start_date.next_month
     suffix = start_date.strftime("%Y%m")
     connection = ApplicationRecord.connection

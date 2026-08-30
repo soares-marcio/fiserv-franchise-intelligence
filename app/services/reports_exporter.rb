@@ -41,8 +41,8 @@ class ReportsExporter
     previous_full = row["faturamento_m1_cheio"].to_d
     current = row["faturamento_atual"].to_d
     [
-      row["sub_canal"],
-      row["max_dia_conhecido"],
+      row["sub_channel_name"],
+      row["max_known_day"],
       previous_full,
       previous,
       current,

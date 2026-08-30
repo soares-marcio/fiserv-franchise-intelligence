@@ -35,13 +35,13 @@ class FixSwappedBusinessNames < ActiveRecord::Migration[8.1]
 
   def swap_names!
     execute <<~SQL
-      UPDATE map_snapshots SET razao_social = nome_fantasia, nome_fantasia = razao_social
+      UPDATE map_snapshots SET legal_name = trade_name, trade_name = legal_name
       WHERE #{IMPORTED_BATCHES};
 
-      UPDATE revenue_snapshots SET razao_social = nome_fantasia, nome_fantasia = razao_social
+      UPDATE revenue_snapshots SET legal_name = trade_name, trade_name = legal_name
       WHERE #{IMPORTED_BATCHES};
 
-      UPDATE activation_proposals SET razao_social = nome_fantasia, nome_fantasia = razao_social;
+      UPDATE activation_proposals SET legal_name = trade_name, trade_name = legal_name;
     SQL
   end
 end

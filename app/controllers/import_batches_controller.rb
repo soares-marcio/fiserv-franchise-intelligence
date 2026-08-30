@@ -27,7 +27,7 @@ class ImportBatchesController < ApplicationController
 
   def update_cutoff
     batch = ImportBatch.find_param!(params[:id])
-    Operations::AdjustCutoff.call(batch:, max_dia_conhecido: params.require(:max_dia_conhecido))
+    Operations::AdjustCutoff.call(batch:, max_known_day: params.require(:max_known_day))
     redirect_to import_batch_path(batch), notice: "Dia de corte atualizado."
   rescue ArgumentError => error
     redirect_to import_batch_path(params[:id]), alert: error.message

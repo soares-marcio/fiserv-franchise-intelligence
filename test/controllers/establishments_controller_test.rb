@@ -42,10 +42,10 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   test "creates a manual client and shows the cadastro" do
     post establishments_path, params: {
       manual_entry: {
-        report_id: "1478", canal: "MASTER", sub_canal: "MIC TESTE",
-        ec: "12345678", cnpj: "12345678000195", status_contrato: "Active",
-        razao_social: "RAZAO", nome_fantasia: "FANTASIA",
-        endereco: "RUA B 20", cnae_codigo: "5611201"
+        report_id: "1478", channel_name: "MASTER", sub_channel_name: "MIC TESTE",
+        ec: "12345678", cnpj: "12345678000195", contract_status: "Active",
+        legal_name: "RAZAO", trade_name: "FANTASIA",
+        street_address: "RUA B 20", cnae_code: "5611201"
       }
     }
 
@@ -60,8 +60,8 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   test "rejects an invalid CNPJ on the form" do
     post establishments_path, params: {
       manual_entry: {
-        report_id: "1478", canal: "MASTER", sub_canal: "MIC TESTE",
-        ec: "12345678", cnpj: "123", status_contrato: "Active"
+        report_id: "1478", channel_name: "MASTER", sub_channel_name: "MIC TESTE",
+        ec: "12345678", cnpj: "123", contract_status: "Active"
       }
     }
 
@@ -72,8 +72,8 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def seed_establishment
-    channel = Channel.create!(external_id: "1478", canal: "MASTER")
-    sub_channel = channel.sub_channels.create!(sub_canal: "MIC GOIANIA 4")
+    channel = Channel.create!(external_id: "1478", name: "MASTER")
+    sub_channel = channel.sub_channels.create!(name: "MIC GOIANIA 4")
     company = Company.create!(cnpj: "12345678000195")
     establishment = Establishment.create!(ec: "12345678", company:, channel:)
     template = BinImport::Template.register!
@@ -83,10 +83,10 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     )
     MapSnapshot.create!(
       import_batch: batch, channel:, sub_channel:, establishment:,
-      nome_fantasia: "PADARIA CENTRAL", razao_social: "PADARIA CENTRAL LTDA",
-      endereco: "RUA A 100", cidade: "GOIANIA", estado: "GO", cep: "74000000",
-      cnae_codigo: "5611201", cnae_descricao: "Restaurantes e similares",
-      status_contrato: "Active", segmento_performado: "PJ3"
+      trade_name: "PADARIA CENTRAL", legal_name: "PADARIA CENTRAL LTDA",
+      street_address: "RUA A 100", city: "GOIANIA", state: "GO", cep: "74000000",
+      cnae_code: "5611201", cnae_description: "Restaurantes e similares",
+      contract_status: "Active", performed_segment: "PJ3"
     )
   end
 end

@@ -61,7 +61,7 @@
       <label class="grid gap-1.5">
         <span class="section-label">Canal da carteira</span>
         <%= select_tag :channel_id,
-          options_for_select([["Todos os canais", ""]] + @channels.map { |channel| [channel.canal, channel.uuid] },
+          options_for_select([["Todos os canais", ""]] + @channels.map { |channel| [channel.name, channel.uuid] },
             @selected_channel&.uuid),
           class: "select select-bordered w-full" %>
       </label>
@@ -73,7 +73,7 @@
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por carteira</p>
-        <h2 class="table-title"><%= @selected_channel&.canal || "Todos os subcanais" %></h2>
+        <h2 class="table-title"><%= @selected_channel&.name || "Todos os subcanais" %></h2>
       </div>
       <% if @reports.any? %>
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "subcanal", "subcanais") %></span>
@@ -111,7 +111,7 @@
             <% current = report["faturamento_atual"].to_d %>
             <tr class="is-clickable">
               <td class="font-semibold">
-                <%= link_to report["sub_canal"],
+                <%= link_to report["sub_channel_name"],
                   sub_channel_report_path(report["uuid"], { channel_id: @selected_channel&.uuid }.compact),
                   class: "subchannel-link font-semibold", data: { turbo: false } %>
               </td>

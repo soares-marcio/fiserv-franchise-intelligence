@@ -28,12 +28,12 @@ module BinImport
 
       validation = Validator.new(rows).validate!
       validate_existing_establishments!(channel, rows)
-      DailyRevenuePartitions.ensure!(validation.competencia_m1)
-      DailyRevenuePartitions.ensure!(validation.competencia_atual)
+      DailyRevenuePartitions.ensure!(validation.previous_period)
+      DailyRevenuePartitions.ensure!(validation.current_period)
       batch.update!(
-        competencia_m1: validation.competencia_m1, competencia_atual: validation.competencia_atual,
-        competencias_cobertas: validation.competencias_cobertas.map(&:to_s),
-        dia_corte_mes_atual: Cutoff.day(rows.fetch("Faturamento"))
+        previous_period: validation.previous_period, current_period: validation.current_period,
+        covered_periods: validation.covered_periods.map(&:to_s),
+        current_month_cutoff_day: Cutoff.day(rows.fetch("Faturamento"))
       )
       detect_short_cutoff!(batch)
 
@@ -57,7 +57,7 @@ module BinImport
 
     def name_attributes(sheet_name, row)
       columns = Template.name_columns(sheet_name)
-      { razao_social: row[columns[:razao_social]], nome_fantasia: row[columns[:nome_fantasia]] }
+      { legal_name: row[columns[:legal_name]], trade_name: row[columns[:trade_name]] }
     end
 
     def rows_for(sheet_name)
@@ -77,7 +77,7 @@ module BinImport
       raise ArgumentError, "Arquivo deve conter exatamente um REPORT_ID" unless report_ids.one?
       raise ArgumentError, "Arquivo deve conter exatamente um CANAL" unless canals.one?
 
-      ChannelResolver.call(report_id: report_ids.first, canal: canals.first)
+      ChannelResolver.call(report_id: report_ids.first, name: canals.first)
     end
 
     def source_file_date
@@ -133,7 +133,7 @@ module BinImport
 
     def find_sub_channel(channel, value)
       name = value.to_s.strip
-      (@sub_channels ||= {})[name] ||= channel.sub_channels.find_or_create_by!(sub_canal: name)
+      (@sub_channels ||= {})[name] ||= channel.sub_channels.find_or_create_by!(name: name)
     end
 
     def find_company(cnpj)
@@ -156,47 +156,47 @@ module BinImport
       {
         import_batch_id: batch.id, channel_id: batch.channel_id,
         sub_channel_id: sub_channel.id, establishment_id: establishment.id,
-        hierarquia_origem: row["HIERARQUIA"], tipo_pessoa: row["TIPO DE PESSOA"],
+        source_hierarchy: row["HIERARQUIA"], entity_type: row["TIPO DE PESSOA"],
         **name_attributes("Mapa de Clientes BIN", row),
-        ramo_atividade: row["RAMO DE ATIVIDADE"], cnae_codigo: row["CÓDIGO DO CNAE"],
-        cnae_descricao: row["DESCRIÇÃO DO CNAE"], status_contrato: row["STATUS DO CONTRATO"],
-        melhor_conversa_raw: row["MELHOR CONVERSA"], telefone_trabalho: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
-        endereco: row["ENDEREÇO"], cep: Normalizer.cep(row["CEP"]), cidade: row["CIDADE"], estado: row["ESTADO"],
-        nome_contato_1: row["NOME CONTATO 1"], nome_contato_2: row["NOME CONTATO 2"],
-        ilha_pj_mais: Normalizer.boolean(row["Ilha PJ+"]),
+        business_line: row["RAMO DE ATIVIDADE"], cnae_code: row["CÓDIGO DO CNAE"],
+        cnae_description: row["DESCRIÇÃO DO CNAE"], contract_status: row["STATUS DO CONTRATO"],
+        best_conversation_raw: row["MELHOR CONVERSA"], work_phone: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
+        street_address: row["ENDEREÇO"], cep: Normalizer.cep(row["CEP"]), city: row["CIDADE"], state: row["ESTADO"],
+        contact_name_1: row["NOME CONTATO 1"], contact_name_2: row["NOME CONTATO 2"],
+        pj_mais_island: Normalizer.boolean(row["Ilha PJ+"]),
         vip_boarding_date: Normalizer.datetime(row["vip_boarding_date"]),
-        motivo_entrada_vip: row["motivo_entrada_vip"],
-        segmento_presumido: row["SEGMENTO PRESUMIDO"], segmento_performado: row["SEGMENTO PERFORMADO"],
-        status_reciprocidade: row["STATUS DE RECIPROCIDADE"], cluster_queda_fat: row["Cluster Queda Fat"],
-        faturamento_medio_3m: Normalizer.decimal(row["FATURAMENTO MÉDIO ÚLTIMOS 3 MESES"]),
-        maior_faturamento: Normalizer.decimal(row["MAIOR FATURAMENTO"]),
-        diferenca_fat_m1_m2: Normalizer.decimal(row["Diferença Fat M-1 x M-2"]),
-        diferenca_fat_pct: Normalizer.decimal(row["Diferença Fat %"]),
-        ativo_mes_atual: Normalizer.boolean(row["ATIVO NO MÊS ATUAL?"]),
-        ativo_ultimo_mes: Normalizer.boolean(row["ATIVO NO ULTIMO MÊS?"]),
-        ativo_ultimos_30_dias: Normalizer.boolean(row["ATIVO NOS ÚLTIMOS 30 DIAS?"]),
-        data_ult_transacao: Normalizer.date(row["DATA DA ÚLT TRANSAÇÃO"]),
-        data_credenciamento: Normalizer.date(row["DATA DE CREDENCIAMENTO"]),
-        data_instalacao: Normalizer.date(row["DATA DE INSTALAÇÃO"]), data_ativacao: Normalizer.date(row["DATA DE ATIVAÇÃO"]),
-        data_suspensao: Normalizer.date(row["DATA DE SUSPENSÃO"]),
-        ultimo_acesso_app: Normalizer.datetime(row["ULTIMO ACESSO NO APP"]),
-        solucoes_financeiras: row["SOLUÇÕES FINANCEIRAS"],
-        status_antecip_auto_boarding: row["STATUS ANTECIP AUTO NO BOARDING"],
-        status_antecip_auto_boarding_2: row["STATUS ANTECIP AUTO NO BOARDING.1"],
-        volume_pre_aprovado: Normalizer.decimal(row["VOLUME_PRE_APROVADO"]),
-        prazo_pre_aprovado: Normalizer.integer(row["PRAZO_PRE_APROVADO"]),
-        taxa_pre_aprovada: Normalizer.decimal(row["TAXA_PRE_APROVADA"]),
-        parcela_pre_aprovada: Normalizer.decimal(row["PARCELA_PRE_APROVADA"]),
-        possui_link_pgto: Normalizer.boolean(row["POSSUI LINK PGTO"]),
-        qtde_tap_on_phone: Normalizer.integer(row["QTDE TAP ON PHONE"]),
-        qtde_smart_pos: Normalizer.integer(row["QTDE SMART POS"]),
-        qtde_demais_pos: Normalizer.integer(row["QTDE DEMAIS POS"]),
-        qtde_mps: Normalizer.integer(row["QTDE MPS"]), qtde_pin: Normalizer.integer(row["QTDE PIN"]),
-        qtde_tef: Normalizer.integer(row["QTDE TEF"]),
-        qtde_outros_terminais: Normalizer.integer(row["QTDE OUTROS TERMINAIS"]),
-        qtde_total_terminais: Normalizer.integer(row["QTDE TOTAL TERMINAIS"]),
+        vip_entry_reason: row["motivo_entrada_vip"],
+        presumed_segment: row["SEGMENTO PRESUMIDO"], performed_segment: row["SEGMENTO PERFORMADO"],
+        reciprocity_status: row["STATUS DE RECIPROCIDADE"], revenue_drop_cluster: row["Cluster Queda Fat"],
+        average_revenue_3m: Normalizer.decimal(row["FATURAMENTO MÉDIO ÚLTIMOS 3 MESES"]),
+        peak_revenue: Normalizer.decimal(row["MAIOR FATURAMENTO"]),
+        revenue_diff_m1_m2: Normalizer.decimal(row["Diferença Fat M-1 x M-2"]),
+        revenue_diff_pct: Normalizer.decimal(row["Diferença Fat %"]),
+        active_current_month: Normalizer.boolean(row["ATIVO NO MÊS ATUAL?"]),
+        active_previous_month: Normalizer.boolean(row["ATIVO NO ULTIMO MÊS?"]),
+        active_last_30_days: Normalizer.boolean(row["ATIVO NOS ÚLTIMOS 30 DIAS?"]),
+        last_transaction_on: Normalizer.date(row["DATA DA ÚLT TRANSAÇÃO"]),
+        accredited_on: Normalizer.date(row["DATA DE CREDENCIAMENTO"]),
+        installed_on: Normalizer.date(row["DATA DE INSTALAÇÃO"]), activated_on: Normalizer.date(row["DATA DE ATIVAÇÃO"]),
+        suspended_on: Normalizer.date(row["DATA DE SUSPENSÃO"]),
+        last_app_access_at: Normalizer.datetime(row["ULTIMO ACESSO NO APP"]),
+        financial_solutions: row["SOLUÇÕES FINANCEIRAS"],
+        auto_advance_boarding_status: row["STATUS ANTECIP AUTO NO BOARDING"],
+        auto_advance_boarding_status_2: row["STATUS ANTECIP AUTO NO BOARDING.1"],
+        preapproved_volume: Normalizer.decimal(row["VOLUME_PRE_APROVADO"]),
+        preapproved_term: Normalizer.integer(row["PRAZO_PRE_APROVADO"]),
+        preapproved_rate: Normalizer.decimal(row["TAXA_PRE_APROVADA"]),
+        preapproved_installment: Normalizer.decimal(row["PARCELA_PRE_APROVADA"]),
+        has_payment_link: Normalizer.boolean(row["POSSUI LINK PGTO"]),
+        tap_on_phone_count: Normalizer.integer(row["QTDE TAP ON PHONE"]),
+        smart_pos_count: Normalizer.integer(row["QTDE SMART POS"]),
+        other_pos_count: Normalizer.integer(row["QTDE DEMAIS POS"]),
+        mps_count: Normalizer.integer(row["QTDE MPS"]), pin_count: Normalizer.integer(row["QTDE PIN"]),
+        tef_count: Normalizer.integer(row["QTDE TEF"]),
+        other_terminals_count: Normalizer.integer(row["QTDE OUTROS TERMINAIS"]),
+        total_terminals_count: Normalizer.integer(row["QTDE TOTAL TERMINAIS"]),
         net_mdr: Normalizer.decimal(row["NET MDR"]),
-        net_mdr_status: row["NET MDR"].to_s == "Inativo" ? "Inativo" : nil, agenda_semanal: row["agenda_semanal"]
+        net_mdr_status: row["NET MDR"].to_s == "Inativo" ? "Inativo" : nil, weekly_schedule: row["agenda_semanal"]
       }
     end
 
@@ -210,17 +210,17 @@ module BinImport
 
       now = Time.current
       action_rows = specifications.map(&:second).uniq.map do |text|
-        { texto: text, created_at: now, updated_at: now }
+        { text: text, created_at: now, updated_at: now }
       end
-      ConversationAction.insert_all(action_rows, unique_by: "index_conversation_actions_on_texto")
-      actions = ConversationAction.where(texto: specifications.map(&:second)).index_by(&:texto)
+      ConversationAction.insert_all(action_rows, unique_by: "index_conversation_actions_on_text")
+      actions = ConversationAction.where(text: specifications.map(&:second)).index_by(&:text)
       snapshots = MapSnapshot.where(import_batch: batch).includes(:establishment)
         .index_by { |snapshot| snapshot.establishment.ec }
       MapSnapshotAction.insert_all!(specifications.map do |ec, text, position|
         {
           map_snapshot_id: snapshots.fetch(ec).id,
           conversation_action_id: actions.fetch(text).id,
-          posicao: position
+          position: position
         }
       end)
     end
@@ -231,8 +231,8 @@ module BinImport
         next unless match && (amount = Normalizer.decimal(value))
 
         { import_batch_id: batch.id, channel_id: batch.channel_id, establishment_id: establishment.id,
-          competencia: Date.strptime(match[2], "%Y%m"),
-          metrica: { "FATURAMENTO TOTAL" => "total", "FATURAMENTO CRÉDITO" => "credito", "FATURAMENTO DÉBITO" => "debito", "ANTECIPAÇÃO" => "antecipacao" }.fetch(match[1]),
+          period: Date.strptime(match[2], "%Y%m"),
+          metric: { "FATURAMENTO TOTAL" => "total", "FATURAMENTO CRÉDITO" => "credito", "FATURAMENTO DÉBITO" => "debito", "ANTECIPAÇÃO" => "antecipacao" }.fetch(match[1]),
           amount:, created_at: Time.current, updated_at: Time.current }
       end
     end
@@ -247,18 +247,18 @@ module BinImport
         snapshot_rows << {
           import_batch_id: batch.id, channel_id: batch.channel_id,
           establishment_id: establishment.id, sub_channel_id: sub_channel.id,
-          hierarquia_origem: row["HIERARQUIA"], **name_attributes("Faturamento", row),
-          status_contrato: row["STATUS DO CONTRATO"],
-          data_suspensao: Normalizer.date(row["DATA DE SUSPENSÃO"]),
-          data_ult_transacao: Normalizer.date(row["DATA DA ÚLT TRANSAÇÃO"]),
-          ativo_ultimos_60_dias: Normalizer.boolean(row["ATIVO NOS ÚLTIMOS 60 DIAS?"]),
-          endereco: row["ENDEREÇO"], cidade: row["CIDADE"], estado: row["ESTADO"],
+          source_hierarchy: row["HIERARQUIA"], **name_attributes("Faturamento", row),
+          contract_status: row["STATUS DO CONTRATO"],
+          suspended_on: Normalizer.date(row["DATA DE SUSPENSÃO"]),
+          last_transaction_on: Normalizer.date(row["DATA DA ÚLT TRANSAÇÃO"]),
+          active_last_60_days: Normalizer.boolean(row["ATIVO NOS ÚLTIMOS 60 DIAS?"]),
+          street_address: row["ENDEREÇO"], city: row["CIDADE"], state: row["ESTADO"],
           cep: Normalizer.cep(row["CEP"]), cep_raw: row["CEP"].to_s,
-          telefone_trabalho: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
-          telefone_raw: row["TELEFONE DO TRABALHO"].to_s,
-          cnae_codigo: row["CNAE"], cnae_descricao: row["DESCRIÇÃO DO CNAE"],
-          fat_total_m1: Normalizer.decimal(row["fat_total_m1"]) || 0,
-          fat_total_mes_atual: Normalizer.decimal(row["FATURAMENTO TOTAL DESTE MÊS"]) || 0,
+          work_phone: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
+          work_phone_raw: row["TELEFONE DO TRABALHO"].to_s,
+          cnae_code: row["CNAE"], cnae_description: row["DESCRIÇÃO DO CNAE"],
+          previous_month_total: Normalizer.decimal(row["previous_month_total"]) || 0,
+          current_month_total: Normalizer.decimal(row["FATURAMENTO TOTAL DESTE MÊS"]) || 0,
           created_at: now, updated_at: now
         }
         daily_rows.concat(daily_revenue_rows(batch, establishment, row))
@@ -268,11 +268,11 @@ module BinImport
     end
 
     def daily_revenue_rows(batch, establishment, row)
-      [ [ batch.competencia_m1, "_M_1", false ], [ batch.competencia_atual, "", true ] ].flat_map do |competencia, suffix, provisional|
+      [ [ batch.previous_period, "_M_1", false ], [ batch.current_period, "", true ] ].flat_map do |period, suffix, provisional|
         (1..31).filter_map do |day|
           amount = Normalizer.decimal(row["DIA #{format('%02d', day)}#{suffix}"]) || 0
           { import_batch_id: batch.id, channel_id: batch.channel_id, establishment_id: establishment.id,
-            competencia:, day:, amount:, provisional:, created_at: Time.current, updated_at: Time.current } if amount.nonzero?
+            period:, day:, amount:, provisional:, created_at: Time.current, updated_at: Time.current } if amount.nonzero?
         end
       end
     end
@@ -290,15 +290,15 @@ module BinImport
         {
           import_batch_id: batch.id, channel_id: batch.channel_id,
           sub_channel_id: sub_channel.id, company_id: company.id,
-          establishment_id: establishment&.id, nr_da_proposta: row["NR DA PROPOSTA"].to_s,
-          hierarquia_origem: row["HIERARQUIA"], **name_attributes("Ativacao", row),
-          status_proposta: row["STATUS DA PROPOSTA"],
-          data_proposta: Normalizer.date(row["DATA DA PROPOSTA"]),
-          data_afiliacao: Normalizer.date(row["DATA DE AFILIAÇÃO"]),
-          data_instalacao: Normalizer.date(row["DATA DE INSTALAÇÃO"]),
-          data_ativacao: Normalizer.date(row["DATA DE ATIVAÇÃO"]),
-          ticket_medio: Normalizer.decimal(row["TICKET MÉDIO"]),
-          faturamento_anual_previsto: Normalizer.decimal(row["FATURAMENTO ANUAL PREVISTO"]),
+          establishment_id: establishment&.id, proposal_number: row["NR DA PROPOSTA"].to_s,
+          source_hierarchy: row["HIERARQUIA"], **name_attributes("Ativacao", row),
+          proposal_status: row["STATUS DA PROPOSTA"],
+          proposed_on: Normalizer.date(row["DATA DA PROPOSTA"]),
+          affiliated_on: Normalizer.date(row["DATA DE AFILIAÇÃO"]),
+          installed_on: Normalizer.date(row["DATA DE INSTALAÇÃO"]),
+          activated_on: Normalizer.date(row["DATA DE ATIVAÇÃO"]),
+          average_ticket: Normalizer.decimal(row["TICKET MÉDIO"]),
+          forecast_annual_revenue: Normalizer.decimal(row["FATURAMENTO ANUAL PREVISTO"]),
           created_at: now, updated_at: now
         }
       end
@@ -314,15 +314,15 @@ module BinImport
     # Operations::AdjustCutoff — nunca estende a cobertura por conta própria.
     def detect_short_cutoff!(batch)
       file_date = batch.source_file_date
-      return if file_date.blank? || batch.competencia_atual.blank?
-      return unless file_date.beginning_of_month == batch.competencia_atual
+      return if file_date.blank? || batch.current_period.blank?
+      return unless file_date.beginning_of_month == batch.current_period
 
       expected = file_date.day - 1
-      return if expected <= batch.dia_corte_mes_atual.to_i
+      return if expected <= batch.current_month_cutoff_day.to_i
 
       Anomalies.record!(
         batch:, type: "cutoff_below_file_date", severity: "info",
-        details: { corte_observado: batch.dia_corte_mes_atual, dia_do_arquivo: file_date.day,
+        details: { corte_observado: batch.current_month_cutoff_day, dia_do_arquivo: file_date.day,
                    corte_esperado: expected }
       )
     end

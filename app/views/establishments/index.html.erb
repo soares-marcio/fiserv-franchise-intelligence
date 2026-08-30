@@ -49,39 +49,39 @@
                 <%= link_to establishment, class: "link link-hover font-medium" do %>
                   EC <%= establishment.ec %>
                 <% end %>
-                <p class="mt-0.5 max-w-xs"><%= present_or_dash(snapshot&.nome_fantasia.presence || snapshot&.razao_social) %></p>
-                <% if snapshot&.razao_social.present? && snapshot.razao_social != snapshot.nome_fantasia %>
-                  <p class="max-w-xs text-xs opacity-60"><%= snapshot.razao_social %></p>
+                <p class="mt-0.5 max-w-xs"><%= present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name) %></p>
+                <% if snapshot&.legal_name.present? && snapshot.legal_name != snapshot.trade_name %>
+                  <p class="max-w-xs text-xs opacity-60"><%= snapshot.legal_name %></p>
                 <% end %>
               </td>
               <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(establishment.company.cnpj) %></td>
               <td>
-                <p><%= present_or_dash(snapshot&.sub_channel&.sub_canal) %></p>
-                <p class="text-xs opacity-60"><%= establishment.channel.canal %></p>
+                <p><%= present_or_dash(snapshot&.sub_channel&.name) %></p>
+                <p class="text-xs opacity-60"><%= establishment.channel.name %></p>
               </td>
               <td>
-                <p class="max-w-xs"><%= present_or_dash(snapshot&.endereco) %></p>
+                <p class="max-w-xs"><%= present_or_dash(snapshot&.street_address) %></p>
                 <p class="text-xs opacity-70">
-                  <%= [ snapshot&.cidade, snapshot&.estado ].compact_blank.join(" · ").presence || "—" %>
+                  <%= [ snapshot&.city, snapshot&.state ].compact_blank.join(" · ").presence || "—" %>
                   <% if snapshot&.cep.present? %>
                     · <%= formatted_cep(snapshot.cep) %>
                   <% end %>
                 </p>
               </td>
               <td>
-                <p class="font-mono text-xs"><%= present_or_dash(snapshot&.cnae_codigo) %></p>
-                <p class="max-w-xs text-xs opacity-70"><%= present_or_dash(snapshot&.cnae_descricao) %></p>
+                <p class="font-mono text-xs"><%= present_or_dash(snapshot&.cnae_code) %></p>
+                <p class="max-w-xs text-xs opacity-70"><%= present_or_dash(snapshot&.cnae_description) %></p>
               </td>
               <td>
-                <%= contract_status_badge(snapshot&.status_contrato) %>
+                <%= contract_status_badge(snapshot&.contract_status) %>
                 <% if establishment.primary_establishment %>
                   <p class="mt-1 text-xs opacity-60">Principal <%= establishment.primary_establishment.ec %></p>
                 <% end %>
               </td>
               <td>
-                <p><%= present_or_dash(snapshot&.segmento_performado) %></p>
-                <% if snapshot&.ramo_atividade.present? %>
-                  <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.ramo_atividade %></p>
+                <p><%= present_or_dash(snapshot&.performed_segment) %></p>
+                <% if snapshot&.business_line.present? %>
+                  <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.business_line %></p>
                 <% end %>
               </td>
             </tr>

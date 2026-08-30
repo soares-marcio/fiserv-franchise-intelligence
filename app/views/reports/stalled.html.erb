@@ -32,7 +32,7 @@
           <% @reports.each do |report| %>
             <tr>
               <td class="font-mono"><%= report["cnpj"] %></td>
-              <td><%= report["sub_canal"] %></td>
+              <td><%= report["sub_channel_name"] %></td>
               <td class="text-right"><%= report["dias_sem_venda"] %></td>
               <td class="text-right tabular-nums"><%= brl(report["faturamento_m1"]) %></td>
               <td class="text-right tabular-nums"><%= brl(report["faturamento_atual"]) %></td>

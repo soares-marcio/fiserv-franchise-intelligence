@@ -54,7 +54,7 @@ module BinImport
         company = Company.find(company_id)
         sub_channels = snapshots.joins(:establishment)
           .where(establishments: { company_id: }).joins(:sub_channel)
-          .distinct.order("sub_channels.sub_canal").pluck("sub_channels.sub_canal")
+          .distinct.order("sub_channels.name").pluck("sub_channels.name")
         Anomalies.record!(
           batch: @batch, type: "company_in_multiple_sub_channels", severity: "atencao",
           company:, details: { sub_channels: }
@@ -76,7 +76,7 @@ module BinImport
         Anomalies.record!(
           batch: @batch, type: "ec_changed_sub_channel", severity: "info",
           company: snapshot.establishment.company, establishment: snapshot.establishment,
-          details: { previous: previous.sub_channel.sub_canal, current: snapshot.sub_channel.sub_canal }
+          details: { previous: previous.sub_channel.name, current: snapshot.sub_channel.name }
         )
       end
     end

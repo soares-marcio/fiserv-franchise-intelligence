@@ -18,7 +18,7 @@ module BinImport
       establishment_ids = revenues.map(&:establishment_id).uniq
       existing = existing_daily(establishment_ids).index_by { |row| daily_key(row) }
       incoming = revenues.index_by { |row| daily_key(row) }
-      previous_coverages = coverages_by_competencia
+      previous_coverages = coverages_by_period
       revisions = daily_revisions(existing, incoming, previous_coverages, establishment_ids)
       DailyRevenueRevision.insert_all!(revisions) if revisions.any?
       replace_daily_rows!(incoming, existing, establishment_ids)
@@ -28,7 +28,7 @@ module BinImport
       DailyRevenueConsolidated.where(
         channel_id: @batch.channel_id,
         establishment_id: establishment_ids,
-        competencia: [ @batch.competencia_m1, @batch.competencia_atual ]
+        period: [ @batch.previous_period, @batch.current_period ]
       ).to_a
     end
 
@@ -43,37 +43,37 @@ module BinImport
         new_amount = new_row&.amount || 0
         next unless old_known && old_amount != new_amount
 
-        { establishment_id: key[0], competencia: key[1], day: key[2], amount_anterior: old_amount,
-          amount_novo: new_amount, import_batch_id: @batch.id, detected_at: @now }
+        { establishment_id: key[0], period: key[1], day: key[2], previous_amount: old_amount,
+          new_amount: new_amount, import_batch_id: @batch.id, detected_at: @now }
       end
     end
 
     def covered_keys(existing, incoming, establishment_ids)
       keys = incoming.keys
       existing.each_key do |key|
-        cutoff = key[1] == @batch.competencia_atual ? @batch.dia_corte_mes_atual : 31
+        cutoff = key[1] == @batch.current_period ? @batch.current_month_cutoff_day : 31
         keys << key if establishment_ids.include?(key[0]) && key[2] <= cutoff
       end
       keys.uniq
     end
 
     def replace_daily_rows!(incoming, existing, establishment_ids)
-      delete_daily_scope(@batch.competencia_m1, 31, establishment_ids)
-      delete_daily_scope(@batch.competencia_atual, @batch.dia_corte_mes_atual, establishment_ids, provisional: true)
+      delete_daily_scope(@batch.previous_period, 31, establishment_ids)
+      delete_daily_scope(@batch.current_period, @batch.current_month_cutoff_day, establishment_ids, provisional: true)
       rows = incoming.filter_map do |key, row|
         next if existing[key]&.provisional == false && row.provisional
 
         { establishment_id: row.establishment_id, channel_id: row.channel_id,
-          competencia: row.competencia, day: row.day, amount: row.amount, provisional: row.provisional,
+          period: row.period, day: row.day, amount: row.amount, provisional: row.provisional,
           source_import_batch_id: @batch.id, revised_count: revision_count(existing[key], row),
           created_at: @now, updated_at: @now }
       end
       DailyRevenueConsolidated.upsert_all(rows, unique_by: "index_daily_revenues_consolidated_primary") if rows.any?
     end
 
-    def delete_daily_scope(competencia, cutoff, establishment_ids, provisional: nil)
+    def delete_daily_scope(period, cutoff, establishment_ids, provisional: nil)
       scope = DailyRevenueConsolidated.where(
-        channel_id: @batch.channel_id, competencia:, establishment_id: establishment_ids, day: 1..cutoff
+        channel_id: @batch.channel_id, period:, establishment_id: establishment_ids, day: 1..cutoff
       )
       scope = scope.where(provisional:) unless provisional.nil?
       scope.delete_all
@@ -88,7 +88,7 @@ module BinImport
       rows = MonthlyVolume.where(import_batch: @batch).to_a
       existing = MonthlyVolumeConsolidated.where(
         channel_id: @batch.channel_id, establishment_id: rows.map(&:establishment_id).uniq,
-        competencia: rows.map(&:competencia).uniq
+        period: rows.map(&:period).uniq
       ).index_by { |row| monthly_key(row) }
       record_closed_month_revisions(rows, existing)
       upserts = monthly_upserts(rows)
@@ -99,60 +99,60 @@ module BinImport
     def record_closed_month_revisions(rows, existing)
       rows.each do |row|
         old = existing[monthly_key(row)]
-        next unless old && old.amount != row.amount && row.competencia < @batch.competencia_atual
+        next unless old && old.amount != row.amount && row.period < @batch.current_period
 
-        Anomalies.record!(batch: @batch, type: "closed_competencia_revised", severity: "atencao",
+        Anomalies.record!(batch: @batch, type: "closed_period_revised", severity: "atencao",
           establishment: row.establishment,
-          details: { competencia: row.competencia, metrica: row.metrica, anterior: old.amount, novo: row.amount })
+          details: { period: row.period, metric: row.metric, anterior: old.amount, novo: row.amount })
       end
     end
 
     def monthly_upserts(rows)
       rows.map do |row|
         { channel_id: row.channel_id, establishment_id: row.establishment_id,
-          competencia: row.competencia, metrica: row.metrica, amount: row.amount,
+          period: row.period, metric: row.metric, amount: row.amount,
           source_import_batch_id: @batch.id, created_at: @now, updated_at: @now }
       end
     end
 
     def update_coverages!
-      [ [ @batch.competencia_m1, 31, true ],
-        [ @batch.competencia_atual, @batch.dia_corte_mes_atual, false ] ].each do |competencia, cutoff, closed|
-        current = CompetenciaCoverage.find_by(channel_id: @batch.channel_id, competencia:)
-        record_shorter_batch!(current, cutoff) if current && cutoff < current.max_dia_conhecido
-        CompetenciaCoverage.upsert(
-          { channel_id: @batch.channel_id, competencia:,
-            max_dia_conhecido: [ current&.max_dia_conhecido.to_i, cutoff ].max,
-            fechado: current&.fechado || closed,
-            ultimo_import_batch_id: coverage_batch_id(current, cutoff, closed),
+      [ [ @batch.previous_period, 31, true ],
+        [ @batch.current_period, @batch.current_month_cutoff_day, false ] ].each do |period, cutoff, closed|
+        current = PeriodCoverage.find_by(channel_id: @batch.channel_id, period:)
+        record_shorter_batch!(current, cutoff) if current && cutoff < current.max_known_day
+        PeriodCoverage.upsert(
+          { channel_id: @batch.channel_id, period:,
+            max_known_day: [ current&.max_known_day.to_i, cutoff ].max,
+            closed: current&.closed || closed,
+            last_import_batch_id: coverage_batch_id(current, cutoff, closed),
             created_at: current&.created_at || @now, updated_at: @now },
-          unique_by: "index_competencia_coverages_on_channel_id_and_competencia"
+          unique_by: "index_period_coverages_on_channel_id_and_period"
         )
       end
     end
 
     def record_shorter_batch!(coverage, cutoff)
       Anomalies.record!(batch: @batch, type: "batch_covers_fewer_days", severity: "info",
-        details: { competencia: coverage.competencia, anterior: coverage.max_dia_conhecido, novo: cutoff })
+        details: { period: coverage.period, anterior: coverage.max_known_day, novo: cutoff })
     end
 
     def coverage_batch_id(current, cutoff, closed)
-      return @batch.id if current.nil? || cutoff > current.max_dia_conhecido || (closed && !current.fechado)
+      return @batch.id if current.nil? || cutoff > current.max_known_day || (closed && !current.closed)
 
-      current.ultimo_import_batch_id
+      current.last_import_batch_id
     end
 
-    def coverages_by_competencia
-      CompetenciaCoverage.where(channel_id: @batch.channel_id,
-        competencia: [ @batch.competencia_m1, @batch.competencia_atual ]).pluck(:competencia, :max_dia_conhecido).to_h
+    def coverages_by_period
+      PeriodCoverage.where(channel_id: @batch.channel_id,
+        period: [ @batch.previous_period, @batch.current_period ]).pluck(:period, :max_known_day).to_h
     end
 
     def daily_key(row)
-      [ row.establishment_id, row.competencia, row.day ]
+      [ row.establishment_id, row.period, row.day ]
     end
 
     def monthly_key(row)
-      [ row.establishment_id, row.competencia, row.metrica ]
+      [ row.establishment_id, row.period, row.metric ]
     end
   end
 end

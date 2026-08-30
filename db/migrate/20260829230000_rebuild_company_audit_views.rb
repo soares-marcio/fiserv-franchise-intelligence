@@ -5,11 +5,11 @@ class RebuildCompanyAuditViews < ActiveRecord::Migration[8.1]
       DROP MATERIALIZED VIEW IF EXISTS audit_revenue_by_company CASCADE;
 
       CREATE MATERIALIZED VIEW audit_revenue_by_company AS
-      SELECT ars.channel_id, ars.sub_channel_id, e.company_id, c.cnpj, ars.max_dia_conhecido,
-        ars.competencia_m1, ars.competencia_atual,
-        COALESCE(SUM(CASE WHEN dr.competencia = ars.competencia_m1 THEN dr.amount END), 0)
+      SELECT ars.channel_id, ars.sub_channel_id, e.company_id, c.cnpj, ars.max_known_day,
+        ars.previous_period, ars.current_period,
+        COALESCE(SUM(CASE WHEN dr.period = ars.previous_period THEN dr.amount END), 0)
           AS faturamento_m1,
-        COALESCE(SUM(CASE WHEN dr.competencia = ars.competencia_atual THEN dr.amount END), 0)
+        COALESCE(SUM(CASE WHEN dr.period = ars.current_period THEN dr.amount END), 0)
           AS faturamento_atual
       FROM audit_revenue_by_sub_channel ars
       JOIN revenue_snapshots rs
@@ -19,20 +19,20 @@ class RebuildCompanyAuditViews < ActiveRecord::Migration[8.1]
       LEFT JOIN daily_revenues_consolidated dr
         ON dr.establishment_id = rs.establishment_id
         AND dr.channel_id = ars.channel_id
-        AND dr.competencia IN (ars.competencia_m1, ars.competencia_atual)
-        AND dr.day <= ars.max_dia_conhecido
+        AND dr.period IN (ars.previous_period, ars.current_period)
+        AND dr.day <= ars.max_known_day
       WHERE rs.import_batch_id = (
         SELECT MAX(ib.id) FROM import_batches ib
         WHERE ib.channel_id = ars.channel_id AND ib.status = 'validated'
       )
       GROUP BY ars.channel_id, ars.sub_channel_id, e.company_id, c.cnpj,
-        ars.max_dia_conhecido, ars.competencia_m1, ars.competencia_atual;
+        ars.max_known_day, ars.previous_period, ars.current_period;
       CREATE UNIQUE INDEX index_audit_revenue_by_company
         ON audit_revenue_by_company (channel_id, sub_channel_id, company_id);
 
       CREATE MATERIALIZED VIEW audit_stalled_companies AS
-      SELECT arc.channel_id, arc.sub_channel_id, sc.sub_canal, arc.company_id, arc.cnpj,
-        arc.max_dia_conhecido, arc.faturamento_m1, arc.faturamento_atual
+      SELECT arc.channel_id, arc.sub_channel_id, sc.name AS sub_channel_name, arc.company_id, arc.cnpj,
+        arc.max_known_day, arc.faturamento_m1, arc.faturamento_atual
       FROM audit_revenue_by_company arc
       JOIN sub_channels sc ON sc.id = arc.sub_channel_id
       WHERE arc.faturamento_m1 > 0 AND arc.faturamento_atual = 0;

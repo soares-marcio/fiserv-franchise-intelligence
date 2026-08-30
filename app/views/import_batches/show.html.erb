@@ -6,10 +6,10 @@
     <p class="eyebrow">Detalhes do lote</p>
     <h1 class="page-title break-words"><%= @import_batch.source_filename %></h1>
     <p class="page-description">
-      <%= @import_batch.channel&.canal || "canal ainda não identificado" %> ·
+      <%= @import_batch.channel&.name || "canal ainda não identificado" %> ·
       <%= import_status_badge(@import_batch) %>
-      <% if @import_batch.dia_corte_mes_atual %>
-        · corte dia <%= @import_batch.dia_corte_mes_atual %>
+      <% if @import_batch.current_month_cutoff_day %>
+        · corte dia <%= @import_batch.current_month_cutoff_day %>
       <% end %>
     </p>
 
@@ -37,7 +37,7 @@
       class: "relative z-10 mt-6 flex flex-wrap items-end gap-3" do %>
       <label class="form-control">
         <span class="label-text">Ajustar dia de corte</span>
-        <%= number_field_tag :max_dia_conhecido, @import_batch.dia_corte_mes_atual, min: 1, max: 31, class: "input input-bordered w-24" %>
+        <%= number_field_tag :max_known_day, @import_batch.current_month_cutoff_day, min: 1, max: 31, class: "input input-bordered w-24" %>
       </label>
       <%= submit_tag "Ajustar corte", class: "btn btn-outline" %>
     <% end %>

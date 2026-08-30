@@ -7,15 +7,15 @@
       <div>
         <p class="eyebrow">EC <%= @establishment.ec %></p>
         <h1 class="page-title">
-          <%= present_or_dash(@snapshot&.nome_fantasia.presence || @snapshot&.razao_social) %>
+          <%= present_or_dash(@snapshot&.trade_name.presence || @snapshot&.legal_name) %>
         </h1>
         <p class="page-description">
           <%= formatted_cnpj(@establishment.company.cnpj) %>
-          · <%= present_or_dash(@snapshot&.sub_channel&.sub_canal) %>
+          · <%= present_or_dash(@snapshot&.sub_channel&.name) %>
         </p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <%= contract_status_badge(@snapshot&.status_contrato) %>
+        <%= contract_status_badge(@snapshot&.contract_status) %>
         <%= link_to "Voltar à lista", establishments_path, class: "btn btn-ghost btn-sm" %>
       </div>
     </div>
@@ -29,53 +29,53 @@
     <%= render "detail_group", title: "Identidade", rows: [
       [ "EC", @establishment.ec ],
       [ "CNPJ", formatted_cnpj(@establishment.company.cnpj) ],
-      [ "Canal", @establishment.channel.canal ],
-      [ "Sub-canal", @snapshot&.sub_channel&.sub_canal ],
-      [ "Status do contrato", @snapshot&.status_contrato ],
-      [ "Tipo de pessoa", @snapshot&.tipo_pessoa ]
+      [ "Canal", @establishment.channel.name ],
+      [ "Sub-canal", @snapshot&.sub_channel&.name ],
+      [ "Status do contrato", @snapshot&.contract_status ],
+      [ "Tipo de pessoa", @snapshot&.entity_type ]
     ] %>
 
     <%= render "detail_group", title: "Nome e atividade", rows: [
-      [ "Nome fantasia", @snapshot&.nome_fantasia ],
-      [ "Razão social", @snapshot&.razao_social ],
-      [ "Ramo de atividade", @snapshot&.ramo_atividade ],
-      [ "CNAE", @snapshot&.cnae_codigo ],
-      [ "Descrição do CNAE", @snapshot&.cnae_descricao ],
-      [ "Segmento presumido", @snapshot&.segmento_presumido ],
-      [ "Segmento performado", @snapshot&.segmento_performado ],
-      [ "Status de reciprocidade", @snapshot&.status_reciprocidade ]
+      [ "Nome fantasia", @snapshot&.trade_name ],
+      [ "Razão social", @snapshot&.legal_name ],
+      [ "Ramo de atividade", @snapshot&.business_line ],
+      [ "CNAE", @snapshot&.cnae_code ],
+      [ "Descrição do CNAE", @snapshot&.cnae_description ],
+      [ "Segmento presumido", @snapshot&.presumed_segment ],
+      [ "Segmento performado", @snapshot&.performed_segment ],
+      [ "Status de reciprocidade", @snapshot&.reciprocity_status ]
     ] %>
 
     <%= render "detail_group", title: "Endereço e contato", rows: [
-      [ "Endereço", @snapshot&.endereco ],
+      [ "Endereço", @snapshot&.street_address ],
       [ "CEP", formatted_cep(@snapshot&.cep) ],
-      [ "Cidade", @snapshot&.cidade ],
-      [ "UF", @snapshot&.estado ],
-      [ "Telefone", @snapshot&.telefone_trabalho ],
-      [ "Contato 1", @snapshot&.nome_contato_1 ],
-      [ "Contato 2", @snapshot&.nome_contato_2 ]
+      [ "Cidade", @snapshot&.city ],
+      [ "UF", @snapshot&.state ],
+      [ "Telefone", @snapshot&.work_phone ],
+      [ "Contato 1", @snapshot&.contact_name_1 ],
+      [ "Contato 2", @snapshot&.contact_name_2 ]
     ] %>
 
     <%= render "detail_group", title: "Atividade", rows: [
-      [ "Ativo no mês atual", boolean_label(@snapshot&.ativo_mes_atual) ],
-      [ "Ativo no último mês", boolean_label(@snapshot&.ativo_ultimo_mes) ],
-      [ "Ativo nos últimos 30 dias", boolean_label(@snapshot&.ativo_ultimos_30_dias) ],
-      [ "Última transação", format_date(@snapshot&.data_ult_transacao) ],
-      [ "Credenciamento", format_date(@snapshot&.data_credenciamento) ],
-      [ "Instalação", format_date(@snapshot&.data_instalacao) ],
-      [ "Ativação", format_date(@snapshot&.data_ativacao) ],
-      [ "Suspensão", format_date(@snapshot&.data_suspensao) ]
+      [ "Ativo no mês atual", boolean_label(@snapshot&.active_current_month) ],
+      [ "Ativo no último mês", boolean_label(@snapshot&.active_previous_month) ],
+      [ "Ativo nos últimos 30 dias", boolean_label(@snapshot&.active_last_30_days) ],
+      [ "Última transação", format_date(@snapshot&.last_transaction_on) ],
+      [ "Credenciamento", format_date(@snapshot&.accredited_on) ],
+      [ "Instalação", format_date(@snapshot&.installed_on) ],
+      [ "Ativação", format_date(@snapshot&.activated_on) ],
+      [ "Suspensão", format_date(@snapshot&.suspended_on) ]
     ] %>
 
     <%= render "detail_group", title: "Produtos e terminais", rows: [
-      [ "Soluções financeiras", @snapshot&.solucoes_financeiras ],
-      [ "Link de pagamento", boolean_label(@snapshot&.possui_link_pgto) ],
-      [ "Total de terminais", @snapshot&.qtde_total_terminais ],
-      [ "Smart POS", @snapshot&.qtde_smart_pos ],
-      [ "TEF", @snapshot&.qtde_tef ],
-      [ "TAP on phone", @snapshot&.qtde_tap_on_phone ],
-      [ "Agenda semanal", @snapshot&.agenda_semanal ],
-      [ "Melhor conversa", @snapshot&.melhor_conversa_raw ]
+      [ "Soluções financeiras", @snapshot&.financial_solutions ],
+      [ "Link de pagamento", boolean_label(@snapshot&.has_payment_link) ],
+      [ "Total de terminais", @snapshot&.total_terminals_count ],
+      [ "Smart POS", @snapshot&.smart_pos_count ],
+      [ "TEF", @snapshot&.tef_count ],
+      [ "TAP on phone", @snapshot&.tap_on_phone_count ],
+      [ "Agenda semanal", @snapshot&.weekly_schedule ],
+      [ "Melhor conversa", @snapshot&.best_conversation_raw ]
     ] %>
 
   </div>

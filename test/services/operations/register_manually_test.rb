@@ -8,29 +8,29 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     establishment = Establishment.find_by(ec: "12345678")
     snapshot = establishment.current_map_snapshot
     assert_equal "12345678000195", establishment.company.cnpj
-    assert_equal "MASTER", establishment.channel.canal
-    assert_equal "RUA TESTE 10", snapshot.endereco
-    assert_equal "5611201", snapshot.cnae_codigo
-    assert_equal "MIC TESTE", snapshot.sub_channel.sub_canal
+    assert_equal "MASTER", establishment.channel.name
+    assert_equal "RUA TESTE 10", snapshot.street_address
+    assert_equal "5611201", snapshot.cnae_code
+    assert_equal "MIC TESTE", snapshot.sub_channel.name
   end
 
   test "grava razão social e nome fantasia sem inverter" do
     Operations::RegisterManually.call(valid_attrs)
     snapshot = Establishment.find_by!(ec: "12345678").current_map_snapshot
 
-    assert_equal "RAZAO", snapshot.razao_social
-    assert_equal "FANTASIA", snapshot.nome_fantasia
+    assert_equal "RAZAO", snapshot.legal_name
+    assert_equal "FANTASIA", snapshot.trade_name
   end
 
   test "propaga os nomes para o snapshot de faturamento" do
     Operations::RegisterManually.call(valid_attrs.merge(
-      "competencia_m1" => "2026-07-01", "competencia_atual" => "2026-08-01",
-      "fat_total_mes_atual" => "100", "dia_01" => "100"
+      "previous_period" => "2026-07-01", "current_period" => "2026-08-01",
+      "current_month_total" => "100", "dia_01" => "100"
     ))
     snapshot = RevenueSnapshot.joins(:establishment).find_by!(establishments: { ec: "12345678" })
 
-    assert_equal "RAZAO", snapshot.razao_social
-    assert_equal "FANTASIA", snapshot.nome_fantasia
+    assert_equal "RAZAO", snapshot.legal_name
+    assert_equal "FANTASIA", snapshot.trade_name
   end
 
   test "rejects an invalid CNPJ" do
@@ -52,7 +52,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
   end
 
   test "rejects a REPORT_ID associated with another channel name" do
-    Channel.create!(external_id: "1478", canal: "OUTRO MASTER")
+    Channel.create!(external_id: "1478", name: "OUTRO MASTER")
 
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs) }
 
@@ -63,9 +63,9 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(
         valid_attrs.merge(
-          "competencia_m1" => "2026-07-01",
-          "competencia_atual" => "2026-08-01",
-          "fat_total_mes_atual" => "100",
+          "previous_period" => "2026-07-01",
+          "current_period" => "2026-08-01",
+          "current_month_total" => "100",
           "dia_01" => "10"
         )
       )
@@ -77,8 +77,8 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(
         valid_attrs.merge(
-          "competencia_m1" => "2026-06-01", "competencia_atual" => "2026-08-01",
-          "fat_total_mes_atual" => "10", "dia_01" => "10"
+          "previous_period" => "2026-06-01", "current_period" => "2026-08-01",
+          "current_month_total" => "10", "dia_01" => "10"
         )
       )
     end
@@ -90,7 +90,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
       "Mapa de Clientes BIN" => [ { "_row_number" => 2, "REPORT_ID" => "1", "CANAL" => "A",
         "SUB-CANAL" => "S", "EC" => "12345678", "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active" } ],
       "Faturamento" => [ { "_row_number" => 2, "CANAL" => "A", "SUB-CANAL" => "S", "EC" => "99999999",
-        "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active", "fat_total_m1" => 0,
+        "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active", "previous_month_total" => 0,
         "FATURAMENTO TOTAL DESTE MÊS" => 0 } ],
       "Ativacao" => []
     }
@@ -107,10 +107,10 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
 
   def valid_attrs
     {
-      "report_id" => "1478", "canal" => "MASTER", "sub_canal" => "MIC TESTE",
-      "ec" => "12345678", "cnpj" => "12345678000195", "status_contrato" => "Active",
-      "razao_social" => "RAZAO", "nome_fantasia" => "FANTASIA",
-      "endereco" => "RUA TESTE 10", "cnae_codigo" => "5611201", "cidade" => "GOIANIA", "estado" => "GO"
+      "report_id" => "1478", "channel_name" => "MASTER", "sub_channel_name" => "MIC TESTE",
+      "ec" => "12345678", "cnpj" => "12345678000195", "contract_status" => "Active",
+      "legal_name" => "RAZAO", "trade_name" => "FANTASIA",
+      "street_address" => "RUA TESTE 10", "cnae_code" => "5611201", "city" => "GOIANIA", "state" => "GO"
     }
   end
 end

@@ -14,7 +14,7 @@ module BinWorkbook
   OUTROS_VOLUMES = { "202604" => 7, "202605" => 11, "202606" => 13 }.freeze
 
   Loja = Struct.new(
-    :ec, :cnpj, :sub_canal, :razao_social, :nome_fantasia, :status_contrato,
+    :ec, :cnpj, :name, :legal_name, :trade_name, :contract_status,
     :dias_m1, :dias_atual, :melhor_conversa, :proposta,
     keyword_init: true
   ) do
@@ -27,22 +27,22 @@ module BinWorkbook
   def self.default_lojas
     [
       Loja.new(
-        ec: "30000001", cnpj: "11222333000181", sub_canal: "MIC ALFA",
-        razao_social: "ALFA COMERCIO DE ALIMENTOS LTDA", nome_fantasia: "ALFA LANCHES",
-        status_contrato: "Active", dias_m1: { 1 => 100, 2 => 200, 25 => 700 },
+        ec: "30000001", cnpj: "11222333000181", name: "MIC ALFA",
+        legal_name: "ALFA COMERCIO DE ALIMENTOS LTDA", trade_name: "ALFA LANCHES",
+        contract_status: "Active", dias_m1: { 1 => 100, 2 => 200, 25 => 700 },
         dias_atual: { 1 => 150, 2 => 50, 10 => 300 },
         melhor_conversa: "Ligar > Enviar proposta", proposta: true
       ),
       Loja.new(
-        ec: "90000001", cnpj: "11222333000181", sub_canal: "MIC ALFA",
-        razao_social: "ALFA COMERCIO DE ALIMENTOS LTDA", nome_fantasia: "ALFA EXPRESS",
-        status_contrato: "Active", dias_m1: { 1 => 50 }, dias_atual: { 1 => 10, 2 => 20 },
+        ec: "90000001", cnpj: "11222333000181", name: "MIC ALFA",
+        legal_name: "ALFA COMERCIO DE ALIMENTOS LTDA", trade_name: "ALFA EXPRESS",
+        contract_status: "Active", dias_m1: { 1 => 50 }, dias_atual: { 1 => 10, 2 => 20 },
         melhor_conversa: nil, proposta: false
       ),
       Loja.new(
-        ec: "30000002", cnpj: "44555666000172", sub_canal: "MIC BETA",
-        razao_social: "BETA SERVICOS LTDA", nome_fantasia: "BETA CAFE",
-        status_contrato: "Suspended", dias_m1: { 1 => 400 }, dias_atual: {},
+        ec: "30000002", cnpj: "44555666000172", name: "MIC BETA",
+        legal_name: "BETA SERVICOS LTDA", trade_name: "BETA CAFE",
+        contract_status: "Suspended", dias_m1: { 1 => 400 }, dias_atual: {},
         melhor_conversa: nil, proposta: false
       )
     ]
@@ -79,9 +79,9 @@ module BinWorkbook
   def self.mapa_row(loja)
     {
       "REPORT_ID" => REPORT_ID, "HIERARQUIA" => CANAL, "CANAL" => CANAL,
-      "SUB-CANAL" => loja.sub_canal, "EC" => loja.ec, "CNPJ" => loja.cnpj,
-      "TIPO DE PESSOA" => "PJ", "RAZÃO SOCIAL" => loja.razao_social,
-      "NOME FANTASIA" => loja.nome_fantasia, "STATUS DO CONTRATO" => loja.status_contrato,
+      "SUB-CANAL" => loja.name, "EC" => loja.ec, "CNPJ" => loja.cnpj,
+      "TIPO DE PESSOA" => "PJ", "RAZÃO SOCIAL" => loja.legal_name,
+      "NOME FANTASIA" => loja.trade_name, "STATUS DO CONTRATO" => loja.contract_status,
       "MELHOR CONVERSA" => loja.melhor_conversa, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
       "CEP" => "74000000", "TELEFONE DO TRABALHO" => "6230000000",
       "DATA DE CREDENCIAMENTO" => "01/02/2026", "DATA DE ATIVAÇÃO" => "05/02/2026"
@@ -96,10 +96,10 @@ module BinWorkbook
       [ format("DIA %02d_M_1", day), loja.dias_m1.fetch(day, 0) ]
     end)
     {
-      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.sub_canal,
+      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.name,
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
-      "RAZÃO SOCIAL" => loja.nome_fantasia, "NOME FANTASIA" => loja.razao_social,
-      "STATUS DO CONTRATO" => loja.status_contrato, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
+      "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,
+      "STATUS DO CONTRATO" => loja.contract_status, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
       "CEP" => "74000000", "TELEFONE DO TRABALHO" => "6230000000",
       "fat_total_m1" => loja.total_m1, "FATURAMENTO TOTAL DESTE MÊS" => loja.total_atual
     }.merge(dias)
@@ -107,10 +107,10 @@ module BinWorkbook
 
   def self.ativacao_row(loja)
     {
-      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.sub_canal,
+      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.name,
       "NR DA PROPOSTA" => "P#{loja.ec}", "DATA DA PROPOSTA" => "2026-01-10",
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
-      "RAZÃO SOCIAL" => loja.nome_fantasia, "NOME FANTASIA" => loja.razao_social,
+      "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,
       "STATUS DA PROPOSTA" => "Aprovada", "DATA DE ATIVAÇÃO" => "2026-02-05",
       "TICKET MÉDIO" => 120, "FATURAMENTO ANUAL PREVISTO" => 90_000
     }

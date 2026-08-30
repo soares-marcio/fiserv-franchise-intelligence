@@ -8,7 +8,7 @@ Rails.application.config.filter_parameters += [
 ]
 
 # Dados pessoais e cadastrais das planilhas BIN não podem vazar para o log.
-# :ec usa regex ancorada porque o match parcial pegaria "endereco", "record", etc.
+# :ec usa regex ancorada porque o match parcial pegaria "record", "checksum", etc.
 Rails.application.config.filter_parameters += [
-  :cnpj, :cpf, :telefone, :cep, :endereco, :nome_contato, :razao_social, :nome_fantasia, /\Aec\z/
+  :cnpj, :cpf, :work_phone, :cep, :street_address, :contact_name, :legal_name, :trade_name, /\Aec\z/
 ]

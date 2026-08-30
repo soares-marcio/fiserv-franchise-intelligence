@@ -4,8 +4,8 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "builds comparable establishment totals from known daily amounts" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
-    other = channel.sub_channels.find_by!(sub_canal: "MIC B")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
+    other = channel.sub_channels.find_by!(name: "MIC B")
     AuditViews.refresh!
 
     scope = ReportScope.new
@@ -14,12 +14,12 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
 
     assert_equal [ "11111111", "22222222" ], rows.map { |row| row["ec"] }
     assert_equal "12345678000191", rows.first["cnpj"]
-    assert_equal "LOJA UM", rows.first["nome_fantasia"]
-    assert_equal "LOJA UM LTDA", rows.first["razao_social"]
-    assert_equal "Active", rows.first["status_contrato"]
-    assert_equal Date.new(2024, 3, 15), rows.first["data_credenciamento"]
-    assert_equal Date.new(2024, 4, 2), rows.first["data_ativacao"]
-    assert_nil rows.first["data_suspensao"]
+    assert_equal "LOJA UM", rows.first["trade_name"]
+    assert_equal "LOJA UM LTDA", rows.first["legal_name"]
+    assert_equal "Active", rows.first["contract_status"]
+    assert_equal Date.new(2024, 3, 15), rows.first["accredited_on"]
+    assert_equal Date.new(2024, 4, 2), rows.first["activated_on"]
+    assert_nil rows.first["suspended_on"]
 
     first = rows.find { |row| row["ec"] == "11111111" }
     assert_equal 120, first["faturamento_m1_cheio"].to_d
@@ -41,9 +41,9 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "filters establishments by more than one contract status" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     RevenueSnapshot.find_by!(establishment: Establishment.find_by!(ec: "22222222"))
-      .update!(status_contrato: "Suspended")
+      .update!(contract_status: "Suspended")
     scope = ReportScope.new(channel_id: channel.id)
 
     active = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, statuses: [ "Active" ])
@@ -58,10 +58,10 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "filters establishments by credentialing activation and suspension dates" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     MapSnapshot.find_by!(establishment: Establishment.find_by!(ec: "22222222"))
-      .update!(data_credenciamento: Date.new(2024, 5, 1), data_ativacao: nil,
-        data_suspensao: Date.new(2024, 6, 10))
+      .update!(accredited_on: Date.new(2024, 5, 1), activated_on: nil,
+        suspended_on: Date.new(2024, 6, 10))
     scope = ReportScope.new(channel_id: channel.id)
 
     credentialed = scope.revenue_by_establishment(
@@ -89,39 +89,39 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "uses lifecycle dates from the same batch as the revenue snapshot" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     establishment = Establishment.find_by!(ec: "11111111")
     newer_map_batch = ImportBatch.create!(
       channel:, import_template: template, source_filename: "mapa.xlsx",
-      file_checksum: "checksum-map", competencia_m1: Date.new(2026, 7, 1),
-      competencia_atual: Date.new(2026, 8, 1), dia_corte_mes_atual: 24, status: "validated"
+      file_checksum: "checksum-map", previous_period: Date.new(2026, 7, 1),
+      current_period: Date.new(2026, 8, 1), current_month_cutoff_day: 24, status: "validated"
     )
     MapSnapshot.create!(
       import_batch: newer_map_batch, channel:, sub_channel:, establishment:,
-      razao_social: "LOJA UM LTDA", nome_fantasia: "LOJA UM", status_contrato: "Active",
-      data_credenciamento: Date.new(2025, 1, 10), data_ativacao: Date.new(2025, 2, 20)
+      legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
+      accredited_on: Date.new(2025, 1, 10), activated_on: Date.new(2025, 2, 20)
     )
 
     row = ReportScope.new(channel_id: channel.id)
       .revenue_by_establishment(sub_channel_id: sub_channel.id).first
 
-    assert_equal Date.new(2024, 3, 15), row["data_credenciamento"]
-    assert_equal Date.new(2024, 4, 2), row["data_ativacao"]
+    assert_equal Date.new(2024, 3, 15), row["accredited_on"]
+    assert_equal Date.new(2024, 4, 2), row["activated_on"]
   end
 
   test "lists contract statuses only from the latest revenue batch" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     latest_batch = ImportBatch.create!(
       channel:, import_template: template, source_filename: "latest.xlsx",
-      file_checksum: "checksum-latest", competencia_m1: Date.new(2026, 7, 1),
-      competencia_atual: Date.new(2026, 8, 1), dia_corte_mes_atual: 24, status: "validated"
+      file_checksum: "checksum-latest", previous_period: Date.new(2026, 7, 1),
+      current_period: Date.new(2026, 8, 1), current_month_cutoff_day: 24, status: "validated"
     )
     RevenueSnapshot.create!(
       import_batch: latest_batch, channel:, sub_channel:,
       establishment: Establishment.find_by!(ec: "11111111"),
-      razao_social: "LOJA UM LTDA", nome_fantasia: "LOJA UM", status_contrato: "Suspended"
+      legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Suspended"
     )
 
     statuses = ReportScope.new(channel_id: channel.id).contract_statuses(sub_channel_id: sub_channel.id)
@@ -132,14 +132,14 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "filters establishment totals by selected month and day range" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     scope = ReportScope.new(channel_id: channel.id)
 
     day_31 = scope.revenue_by_establishment(
       sub_channel_id: sub_channel.id, from_day: 31, to_day: 31
     ).find { |row| row["ec"] == "11111111" }
     july = scope.revenue_by_establishment(
-      sub_channel_id: sub_channel.id, competencia: Date.new(2026, 7, 1), from_day: 24, to_day: 24
+      sub_channel_id: sub_channel.id, period: Date.new(2026, 7, 1), from_day: 24, to_day: 24
     ).find { |row| row["ec"] == "11111111" }
 
     assert_equal 40, day_31["faturamento_m1"].to_d
@@ -151,7 +151,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "filters establishments by name ec or cnpj" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     scope = ReportScope.new(channel_id: channel.id)
 
     by_name = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, query: "loja um")
@@ -166,7 +166,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   test "pages establishments without shrinking the selection totals" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
-    sub_channel = channel.sub_channels.find_by!(sub_canal: "MIC A")
+    sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     scope = ReportScope.new(channel_id: channel.id)
 
     first_page = scope.revenue_by_establishment(
@@ -192,61 +192,61 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
   end
 
   def seed_channel(template)
-    channel = Channel.create!(external_id: "A", canal: "CANAL A")
+    channel = Channel.create!(external_id: "A", name: "CANAL A")
     company = Company.create!(cnpj: "12345678000191")
     other_company = Company.create!(cnpj: "12345678000192")
     first = Establishment.create!(ec: "11111111", company:, channel:)
     second = Establishment.create!(ec: "22222222", company:, channel:)
     outsider = Establishment.create!(ec: "33333333", company: other_company, channel:)
-    sub_a = channel.sub_channels.create!(sub_canal: "MIC A")
-    sub_b = channel.sub_channels.create!(sub_canal: "MIC B")
+    sub_a = channel.sub_channels.create!(name: "MIC A")
+    sub_b = channel.sub_channels.create!(name: "MIC B")
     batch = ImportBatch.create!(
       channel:, import_template: template, source_filename: "a.xlsx",
-      file_checksum: "checksum-a", competencia_m1: Date.new(2026, 7, 1),
-      competencia_atual: Date.new(2026, 8, 1), dia_corte_mes_atual: 24, status: "validated"
+      file_checksum: "checksum-a", previous_period: Date.new(2026, 7, 1),
+      current_period: Date.new(2026, 8, 1), current_month_cutoff_day: 24, status: "validated"
     )
     [
       [ first, sub_a, "LOJA UM LTDA", "LOJA UM", { 24 => 80, 31 => 40 }, { 24 => 100 } ],
       [ second, sub_a, "LOJA DOIS LTDA", "LOJA DOIS", { 24 => 20 }, { 24 => 30 } ],
       [ outsider, sub_b, "OUTRA LTDA", "OUTRA", { 24 => 10 }, { 24 => 50, 27 => 9 } ]
-    ].each do |establishment, sub_channel, razao_social, nome_fantasia, previous, current|
+    ].each do |establishment, sub_channel, legal_name, trade_name, previous, current|
       RevenueSnapshot.create!(
         import_batch: batch, channel:, sub_channel:, establishment:,
-        razao_social:, nome_fantasia:, status_contrato: "Active",
-        fat_total_m1: previous.values.sum, fat_total_mes_atual: current.values.sum
+        legal_name:, trade_name:, contract_status: "Active",
+        previous_month_total: previous.values.sum, current_month_total: current.values.sum
       )
       MapSnapshot.create!(
         import_batch: batch, channel:, sub_channel:, establishment:,
-        razao_social:, nome_fantasia:, status_contrato: "Active",
-        data_credenciamento: Date.new(2024, 3, 15), data_ativacao: Date.new(2024, 4, 2)
+        legal_name:, trade_name:, contract_status: "Active",
+        accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2)
       )
       persist_days(establishment, channel, batch, Date.new(2026, 7, 1), previous, false)
       persist_days(establishment, channel, batch, Date.new(2026, 8, 1), current, true)
     end
     now = Time.current
-    CompetenciaCoverage.upsert_all(
+    PeriodCoverage.upsert_all(
       [
         {
-          channel_id: channel.id, competencia: Date.new(2026, 7, 1), max_dia_conhecido: 31, fechado: true,
-          ultimo_import_batch_id: batch.id, created_at: now, updated_at: now
+          channel_id: channel.id, period: Date.new(2026, 7, 1), max_known_day: 31, closed: true,
+          last_import_batch_id: batch.id, created_at: now, updated_at: now
         },
         {
-          channel_id: channel.id, competencia: Date.new(2026, 8, 1), max_dia_conhecido: 24, fechado: false,
-          ultimo_import_batch_id: batch.id, created_at: now, updated_at: now
+          channel_id: channel.id, period: Date.new(2026, 8, 1), max_known_day: 24, closed: false,
+          last_import_batch_id: batch.id, created_at: now, updated_at: now
         }
       ],
-      unique_by: "index_competencia_coverages_on_channel_id_and_competencia"
+      unique_by: "index_period_coverages_on_channel_id_and_period"
     )
     channel
   end
 
-  def persist_days(establishment, channel, batch, competencia, amounts, provisional)
+  def persist_days(establishment, channel, batch, period, amounts, provisional)
     return if amounts.empty?
 
     DailyRevenueConsolidated.upsert_all(
       amounts.map do |day, amount|
         {
-          establishment_id: establishment.id, channel_id: channel.id, competencia:,
+          establishment_id: establishment.id, channel_id: channel.id, period:,
           day:, amount:, provisional:, source_import_batch_id: batch.id, revised_count: 0,
           created_at: Time.current, updated_at: Time.current
         }

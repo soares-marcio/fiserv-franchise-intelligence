@@ -1,6 +1,6 @@
 module BinImport
   class Validator
-    attr_reader :competencia_m1, :competencia_atual, :competencias_cobertas
+    attr_reader :previous_period, :current_period, :covered_periods
 
     def initialize(rows)
       @rows = rows
@@ -84,25 +84,25 @@ module BinImport
     end
 
     def derive_competencies!
-      @competencias_cobertas = Template::VOLUME_MONTHS.map { |month| Date.strptime(month, "%Y%m") }
+      @covered_periods = Template::VOLUME_MONTHS.map { |month| Date.strptime(month, "%Y%m") }
       map_by_ec = @map_rows.index_by { |row| Normalizer.ec(row["EC"]) }
-      @competencia_m1 = matching_competencia(map_by_ec, "fat_total_m1")
-      @competencia_atual = matching_competencia(map_by_ec, "FATURAMENTO TOTAL DESTE MÊS")
-      return if @competencia_atual == @competencia_m1.next_month
+      @previous_period = matching_period(map_by_ec, "fat_total_m1")
+      @current_period = matching_period(map_by_ec, "FATURAMENTO TOTAL DESTE MÊS")
+      return if @current_period == @previous_period.next_month
 
       raise ArgumentError, "Competências reconciliadas não são consecutivas"
     end
 
-    def matching_competencia(map_by_ec, revenue_header)
-      scores = @competencias_cobertas.to_h do |competencia|
-        volume_header = "VOLUME DE FATURAMENTO TOTAL #{competencia.strftime('%Y%m')}"
+    def matching_period(map_by_ec, revenue_header)
+      scores = @covered_periods.to_h do |period|
+        volume_header = "VOLUME DE FATURAMENTO TOTAL #{period.strftime('%Y%m')}"
         score = @revenue_rows.count do |row|
           map_value = map_by_ec[Normalizer.ec(row["EC"])]&.fetch(volume_header, nil)
           map_value.present? && Normalizer.decimal(map_value) == (Normalizer.decimal(row[revenue_header]) || 0)
         end
-        [ competencia, score ]
+        [ period, score ]
       end
-      best = scores.max_by { |_competencia, score| score }
+      best = scores.max_by { |_period, score| score }
       raise ArgumentError, "Não foi possível reconciliar #{revenue_header} com os volumes mensais" if best.last.zero?
       raise ArgumentError, "Reconciliação ambígua para #{revenue_header}" if scores.values.count(best.last) > 1
 

@@ -71,8 +71,8 @@
           <% @import_batches.each do |batch| %>
             <tr>
               <td><%= link_to batch.source_filename, batch, class: "link" %></td>
-              <td><%= batch.channel&.canal || "—" %></td>
-              <td><%= batch.dia_corte_mes_atual ? "dia #{batch.dia_corte_mes_atual}" : "—" %></td>
+              <td><%= batch.channel&.name || "—" %></td>
+              <td><%= batch.current_month_cutoff_day ? "dia #{batch.current_month_cutoff_day}" : "—" %></td>
               <td>
                 <%= import_status_badge(batch) %>
                 <% if batch.validation_errors.any? %>

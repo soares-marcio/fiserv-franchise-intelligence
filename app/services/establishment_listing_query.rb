@@ -3,9 +3,9 @@
 # que só a página precisa.
 class EstablishmentListingQuery
   DATE_KINDS = {
-    "credenciamento" => "mapa.data_credenciamento",
-    "ativacao" => "mapa.data_ativacao",
-    "suspensao" => "mapa.data_suspensao"
+    "credenciamento" => "mapa.accredited_on",
+    "ativacao" => "mapa.activated_on",
+    "suspensao" => "mapa.suspended_on"
   }.freeze
   PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
   DEFAULT_PER_PAGE = 20
@@ -129,20 +129,20 @@ class EstablishmentListingQuery
         GROUP BY ib.channel_id
       )
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
-        establishment.ec, company.cnpj, snapshot.razao_social, snapshot.nome_fantasia,
-        snapshot.status_contrato, mapa.data_credenciamento, mapa.data_ativacao,
-        mapa.data_suspensao, snapshot.fat_total_m1, snapshot.fat_total_mes_atual,
-        :competencia_m1 AS competencia_m1, :competencia_atual AS competencia_atual,
-        :to_day AS max_dia_conhecido,
+        establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
+        snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
+        mapa.suspended_on, snapshot.previous_month_total, snapshot.current_month_total,
+        :previous_period AS previous_period, :current_period AS current_period,
+        :to_day AS max_known_day,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = :competencia_m1
+          WHERE revenue.period = :previous_period
         ), 0) AS faturamento_m1_cheio,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = :competencia_m1
+          WHERE revenue.period = :previous_period
             AND revenue.day BETWEEN :from_day AND :to_day
         ), 0) AS faturamento_m1,
         COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = :competencia_atual
+          WHERE revenue.period = :current_period
             AND revenue.day BETWEEN :from_day AND :to_day
         ), 0) AS faturamento_atual#{daily_columns(include_days)}
       FROM revenue_snapshots snapshot
@@ -150,7 +150,7 @@ class EstablishmentListingQuery
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
       LEFT JOIN LATERAL (
-        SELECT mapa.data_credenciamento, mapa.data_ativacao, mapa.data_suspensao
+        SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on
         FROM map_snapshots mapa
         WHERE mapa.establishment_id = establishment.id
           AND mapa.import_batch_id = snapshot.import_batch_id
@@ -160,15 +160,15 @@ class EstablishmentListingQuery
       LEFT JOIN daily_revenues_consolidated revenue
         ON revenue.channel_id = snapshot.channel_id
         AND revenue.establishment_id = snapshot.establishment_id
-        AND revenue.competencia IN (:competencia_m1, :competencia_atual)
+        AND revenue.period IN (:previous_period, :current_period)
       WHERE snapshot.sub_channel_id = :sub_channel_id
         #{status_clause}
         #{lifecycle_clause}
         #{search_clause}
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, establishment.id, establishment.ec,
-        company.cnpj, snapshot.razao_social, snapshot.nome_fantasia, snapshot.status_contrato,
-        mapa.data_credenciamento, mapa.data_ativacao, mapa.data_suspensao, snapshot.fat_total_m1,
-        snapshot.fat_total_mes_atual
+        company.cnpj, snapshot.legal_name, snapshot.trade_name, snapshot.contract_status,
+        mapa.accredited_on, mapa.activated_on, mapa.suspended_on, snapshot.previous_month_total,
+        snapshot.current_month_total
     SQL
   end
 
@@ -179,17 +179,17 @@ class EstablishmentListingQuery
     <<~SQL.chomp
       ,
         COALESCE(jsonb_object_agg(revenue.day::text, revenue.amount) FILTER (
-          WHERE revenue.competencia = :competencia_m1
+          WHERE revenue.period = :previous_period
         ), '{}'::jsonb) AS dias_m1,
         COALESCE(jsonb_object_agg(revenue.day::text, revenue.amount) FILTER (
-          WHERE revenue.competencia = :competencia_atual
+          WHERE revenue.period = :current_period
             AND revenue.day BETWEEN :from_day AND :to_day
         ), '{}'::jsonb) AS dias_atual
     SQL
   end
 
   def status_clause
-    @statuses.any? ? "AND snapshot.status_contrato IN (:statuses)" : ""
+    @statuses.any? ? "AND snapshot.contract_status IN (:statuses)" : ""
   end
 
   def lifecycle_clause
@@ -205,8 +205,8 @@ class EstablishmentListingQuery
     <<~SQL.squish
       AND (
         establishment.ec ILIKE :query
-        OR snapshot.razao_social ILIKE :query
-        OR snapshot.nome_fantasia ILIKE :query
+        OR snapshot.legal_name ILIKE :query
+        OR snapshot.trade_name ILIKE :query
         OR company.cnpj ILIKE :query
         OR (
           :query_digits IS NOT NULL

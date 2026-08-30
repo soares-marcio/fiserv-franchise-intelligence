@@ -70,7 +70,7 @@ module ApplicationHelper
     safe_join([ variation_icon_tip(direction, verb), signed_variation(previous, current) ], " ")
   end
 
-  def competencia_option_label(date)
+  def period_option_label(date)
     I18n.l(date.to_date, format: "%B de %Y")
   end
 
@@ -82,8 +82,8 @@ module ApplicationHelper
     "dias #{from_day} a #{to_day}"
   end
 
-  def period_picker_label(competencia, from_day, to_day)
-    month = competencia_option_label(competencia)
+  def period_picker_label(period, from_day, to_day)
+    month = period_option_label(period)
     from_day = from_day.to_i
     to_day = to_day.to_i
     return "#{from_day} de #{month}" if from_day == to_day

@@ -75,25 +75,102 @@ SET default_table_access_method = heap;
 
 CREATE TABLE public.activation_proposals (
     id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    company_id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    data_afiliacao date,
-    data_ativacao date,
-    data_instalacao date,
-    data_proposta date,
-    establishment_id bigint,
-    faturamento_anual_previsto numeric(18,2),
-    hierarquia_origem character varying,
     import_batch_id bigint NOT NULL,
-    nome_fantasia character varying,
-    nr_da_proposta character varying NOT NULL,
-    razao_social character varying,
-    status_proposta character varying,
+    channel_id bigint NOT NULL,
     sub_channel_id bigint NOT NULL,
-    ticket_medio numeric(18,2),
+    company_id bigint NOT NULL,
+    establishment_id bigint,
+    source_hierarchy character varying,
+    proposal_number character varying NOT NULL,
+    legal_name character varying,
+    trade_name character varying,
+    proposal_status character varying,
+    proposed_on date,
+    affiliated_on date,
+    installed_on date,
+    activated_on date,
+    average_ticket numeric(18,2),
+    forecast_annual_revenue numeric(18,2),
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN activation_proposals.source_hierarchy; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.source_hierarchy IS 'Origem: coluna "HIERARQUIA" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.proposal_number; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.proposal_number IS 'Origem: coluna "NR DA PROPOSTA" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.legal_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.legal_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.trade_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.trade_name IS 'Origem: coluna "NOME FANTASIA" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.proposal_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.proposal_status IS 'Origem: coluna "STATUS DA PROPOSTA" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.proposed_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.proposed_on IS 'Origem: coluna "DATA DA PROPOSTA" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.affiliated_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.affiliated_on IS 'Origem: coluna "DATA DE AFILIAÇÃO" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.installed_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.installed_on IS 'Origem: coluna "DATA DE INSTALAÇÃO" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.activated_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.activated_on IS 'Origem: coluna "DATA DE ATIVAÇÃO" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.average_ticket; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.average_ticket IS 'Origem: coluna "TICKET MÉDIO" da aba Ativacao';
+
+
+--
+-- Name: COLUMN activation_proposals.forecast_annual_revenue; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.activation_proposals.forecast_annual_revenue IS 'Origem: coluna "FATURAMENTO ANUAL PREVISTO" da aba Ativacao';
 
 
 --
@@ -232,16 +309,16 @@ CREATE TABLE public.ar_internal_metadata (
 
 CREATE TABLE public.establishments (
     id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    company_id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    duplicate_confirmed_at timestamp(6) without time zone,
-    duplicate_confirmed_by character varying,
-    duplicate_reason character varying,
-    ec character varying(8) NOT NULL,
-    primary_establishment_id bigint,
-    updated_at timestamp(6) without time zone NOT NULL,
     uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    ec character varying(8) NOT NULL,
+    company_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    primary_establishment_id bigint,
+    duplicate_reason character varying,
+    duplicate_confirmed_by character varying,
+    duplicate_confirmed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
     CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
 );
@@ -253,68 +330,425 @@ CREATE TABLE public.establishments (
 
 CREATE TABLE public.map_snapshots (
     id bigint NOT NULL,
-    agenda_semanal character varying,
-    ativo_mes_atual boolean,
-    ativo_ultimo_mes boolean,
-    ativo_ultimos_30_dias boolean,
-    cep character varying,
-    channel_id bigint NOT NULL,
-    cidade character varying,
-    cluster_queda_fat character varying,
-    cnae_codigo character varying,
-    cnae_descricao character varying,
-    created_at timestamp(6) without time zone NOT NULL,
-    data_ativacao date,
-    data_credenciamento date,
-    data_instalacao date,
-    data_suspensao date,
-    data_ult_transacao date,
-    diferenca_fat_m1_m2 numeric(18,2),
-    diferenca_fat_pct numeric(12,4),
-    endereco character varying,
-    establishment_id bigint NOT NULL,
-    estado character varying,
-    faturamento_medio_3m numeric(18,2),
-    hierarquia_origem character varying,
-    ilha_pj_mais boolean,
     import_batch_id bigint NOT NULL,
-    maior_faturamento numeric(18,2),
-    melhor_conversa_raw text,
-    motivo_entrada_vip character varying,
+    channel_id bigint NOT NULL,
+    establishment_id bigint NOT NULL,
+    sub_channel_id bigint NOT NULL,
+    source_hierarchy character varying,
+    entity_type character varying,
+    legal_name character varying,
+    trade_name character varying,
+    business_line character varying,
+    cnae_code character varying,
+    cnae_description character varying,
+    contract_status character varying,
+    best_conversation_raw text,
+    work_phone character varying,
+    street_address character varying,
+    cep character varying,
+    contact_name_1 character varying,
+    contact_name_2 character varying,
+    city character varying,
+    state character varying,
+    pj_mais_island boolean,
+    vip_boarding_date timestamp(6) without time zone,
+    vip_entry_reason character varying,
+    presumed_segment character varying,
+    performed_segment character varying,
+    reciprocity_status character varying,
+    average_revenue_3m numeric(18,2),
+    peak_revenue numeric(18,2),
+    revenue_diff_m1_m2 numeric(18,2),
+    revenue_diff_pct numeric(12,4),
+    revenue_drop_cluster character varying,
+    active_current_month boolean,
+    active_previous_month boolean,
+    active_last_30_days boolean,
+    last_transaction_on date,
+    accredited_on date,
+    installed_on date,
+    activated_on date,
+    suspended_on date,
+    last_app_access_at timestamp(6) without time zone,
+    financial_solutions character varying,
+    auto_advance_boarding_status character varying,
+    auto_advance_boarding_status_2 character varying,
+    preapproved_volume numeric(18,2),
+    preapproved_term integer,
+    preapproved_rate numeric(12,4),
+    preapproved_installment numeric(18,2),
+    has_payment_link boolean,
+    tap_on_phone_count integer,
+    smart_pos_count integer,
+    other_pos_count integer,
+    mps_count integer,
+    pin_count integer,
+    tef_count integer,
+    other_terminals_count integer,
+    total_terminals_count integer,
     net_mdr numeric(12,4),
     net_mdr_status character varying,
-    nome_contato_1 character varying,
-    nome_contato_2 character varying,
-    nome_fantasia character varying,
-    parcela_pre_aprovada numeric(18,2),
-    possui_link_pgto boolean,
-    prazo_pre_aprovado integer,
-    qtde_demais_pos integer,
-    qtde_mps integer,
-    qtde_outros_terminais integer,
-    qtde_pin integer,
-    qtde_smart_pos integer,
-    qtde_tap_on_phone integer,
-    qtde_tef integer,
-    qtde_total_terminais integer,
-    ramo_atividade character varying,
-    razao_social character varying,
-    segmento_performado character varying,
-    segmento_presumido character varying,
-    solucoes_financeiras character varying,
-    status_antecip_auto_boarding character varying,
-    status_antecip_auto_boarding_2 character varying,
-    status_contrato character varying,
-    status_reciprocidade character varying,
-    sub_channel_id bigint NOT NULL,
-    taxa_pre_aprovada numeric(12,4),
-    telefone_trabalho character varying,
-    tipo_pessoa character varying,
-    ultimo_acesso_app timestamp(6) without time zone,
-    updated_at timestamp(6) without time zone NOT NULL,
-    vip_boarding_date timestamp(6) without time zone,
-    volume_pre_aprovado numeric(18,2)
+    weekly_schedule character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN map_snapshots.source_hierarchy; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.source_hierarchy IS 'Origem: coluna "HIERARQUIA" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.entity_type; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.entity_type IS 'Origem: coluna "TIPO DE PESSOA" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.legal_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.legal_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.trade_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.trade_name IS 'Origem: coluna "NOME FANTASIA" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.business_line; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.business_line IS 'Origem: coluna "RAMO DE ATIVIDADE" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.cnae_code; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.cnae_code IS 'Origem: coluna "CÓDIGO DO CNAE" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.cnae_description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.cnae_description IS 'Origem: coluna "DESCRIÇÃO DO CNAE" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.contract_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.contract_status IS 'Origem: coluna "STATUS DO CONTRATO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.best_conversation_raw; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.best_conversation_raw IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.work_phone; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.work_phone IS 'Origem: coluna "TELEFONE DO TRABALHO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.street_address; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.street_address IS 'Origem: coluna "ENDEREÇO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.contact_name_1; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.contact_name_1 IS 'Origem: coluna "NOME CONTATO 1" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.contact_name_2; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.contact_name_2 IS 'Origem: coluna "NOME CONTATO 2" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.city; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.city IS 'Origem: coluna "CIDADE" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.state; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.state IS 'Origem: coluna "ESTADO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.pj_mais_island; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.pj_mais_island IS 'Origem: coluna "Ilha PJ+" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.vip_entry_reason; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.vip_entry_reason IS 'Origem: coluna "motivo_entrada_vip" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.presumed_segment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.presumed_segment IS 'Origem: coluna "SEGMENTO PRESUMIDO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.performed_segment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.performed_segment IS 'Origem: coluna "SEGMENTO PERFORMADO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.reciprocity_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.reciprocity_status IS 'Origem: coluna "STATUS DE RECIPROCIDADE" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.average_revenue_3m; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.average_revenue_3m IS 'Origem: coluna "FATURAMENTO MÉDIO ÚLTIMOS 3 MESES" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.peak_revenue; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.peak_revenue IS 'Origem: coluna "MAIOR FATURAMENTO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.revenue_diff_m1_m2; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.revenue_diff_m1_m2 IS 'Origem: coluna "Diferença Fat M-1 x M-2" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.revenue_diff_pct; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.revenue_diff_pct IS 'Origem: coluna "Diferença Fat %" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.revenue_drop_cluster; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.revenue_drop_cluster IS 'Origem: coluna "Cluster Queda Fat" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.active_current_month; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.active_current_month IS 'Origem: coluna "ATIVO NO MÊS ATUAL?" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.active_previous_month; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.active_previous_month IS 'Origem: coluna "ATIVO NO ULTIMO MÊS?" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.active_last_30_days; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.active_last_30_days IS 'Origem: coluna "ATIVO NOS ÚLTIMOS 30 DIAS?" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.last_transaction_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.last_transaction_on IS 'Origem: coluna "DATA DA ÚLT TRANSAÇÃO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.accredited_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.accredited_on IS 'Origem: coluna "DATA DE CREDENCIAMENTO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.installed_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.installed_on IS 'Origem: coluna "DATA DE INSTALAÇÃO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.activated_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.activated_on IS 'Origem: coluna "DATA DE ATIVAÇÃO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.suspended_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.suspended_on IS 'Origem: coluna "DATA DE SUSPENSÃO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.last_app_access_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.last_app_access_at IS 'Origem: coluna "ULTIMO ACESSO NO APP" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.financial_solutions; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.financial_solutions IS 'Origem: coluna "SOLUÇÕES FINANCEIRAS" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.auto_advance_boarding_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.auto_advance_boarding_status IS 'Origem: coluna "STATUS ANTECIP AUTO NO BOARDING" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.auto_advance_boarding_status_2; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.auto_advance_boarding_status_2 IS 'Origem: coluna "STATUS ANTECIP AUTO NO BOARDING.1" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.preapproved_volume; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.preapproved_volume IS 'Origem: coluna "VOLUME_PRE_APROVADO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.preapproved_term; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.preapproved_term IS 'Origem: coluna "PRAZO_PRE_APROVADO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.preapproved_rate; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.preapproved_rate IS 'Origem: coluna "TAXA_PRE_APROVADA" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.preapproved_installment; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.preapproved_installment IS 'Origem: coluna "PARCELA_PRE_APROVADA" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.has_payment_link; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.has_payment_link IS 'Origem: coluna "POSSUI LINK PGTO" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.tap_on_phone_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.tap_on_phone_count IS 'Origem: coluna "QTDE TAP ON PHONE" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.smart_pos_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.smart_pos_count IS 'Origem: coluna "QTDE SMART POS" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.other_pos_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.other_pos_count IS 'Origem: coluna "QTDE DEMAIS POS" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.mps_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.mps_count IS 'Origem: coluna "QTDE MPS" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.pin_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.pin_count IS 'Origem: coluna "QTDE PIN" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.tef_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.tef_count IS 'Origem: coluna "QTDE TEF" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.other_terminals_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.other_terminals_count IS 'Origem: coluna "QTDE OUTROS TERMINAIS" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.total_terminals_count; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.total_terminals_count IS 'Origem: coluna "QTDE TOTAL TERMINAIS" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.weekly_schedule; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.weekly_schedule IS 'Origem: coluna "agenda_semanal" da aba Mapa de Clientes BIN';
 
 
 --
@@ -323,31 +757,150 @@ CREATE TABLE public.map_snapshots (
 
 CREATE TABLE public.revenue_snapshots (
     id bigint NOT NULL,
-    ativo_ultimos_60_dias boolean,
+    import_batch_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    establishment_id bigint NOT NULL,
+    sub_channel_id bigint NOT NULL,
+    source_hierarchy character varying,
+    legal_name character varying,
+    trade_name character varying,
+    contract_status character varying,
+    suspended_on date,
+    last_transaction_on date,
+    active_last_60_days boolean,
+    street_address character varying,
     cep character varying,
     cep_raw character varying,
-    channel_id bigint NOT NULL,
-    cidade character varying,
-    cnae_codigo character varying,
-    cnae_descricao character varying,
+    city character varying,
+    state character varying,
+    work_phone character varying,
+    work_phone_raw character varying,
+    cnae_code character varying,
+    cnae_description character varying,
+    previous_month_total numeric(18,2) DEFAULT 0.0 NOT NULL,
+    current_month_total numeric(18,2) DEFAULT 0.0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    data_suspensao date,
-    data_ult_transacao date,
-    endereco character varying,
-    establishment_id bigint NOT NULL,
-    estado character varying,
-    fat_total_m1 numeric(18,2) DEFAULT 0.0 NOT NULL,
-    fat_total_mes_atual numeric(18,2) DEFAULT 0.0 NOT NULL,
-    hierarquia_origem character varying,
-    import_batch_id bigint NOT NULL,
-    nome_fantasia character varying,
-    razao_social character varying,
-    status_contrato character varying,
-    sub_channel_id bigint NOT NULL,
-    telefone_raw character varying,
-    telefone_trabalho character varying,
     updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN revenue_snapshots.source_hierarchy; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.source_hierarchy IS 'Origem: coluna "HIERARQUIA" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.legal_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.legal_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.trade_name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.trade_name IS 'Origem: coluna "NOME FANTASIA" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.contract_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.contract_status IS 'Origem: coluna "STATUS DO CONTRATO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.suspended_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.suspended_on IS 'Origem: coluna "DATA DE SUSPENSÃO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.last_transaction_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.last_transaction_on IS 'Origem: coluna "DATA DA ÚLT TRANSAÇÃO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.active_last_60_days; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.active_last_60_days IS 'Origem: coluna "ATIVO NOS ÚLTIMOS 60 DIAS?" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.street_address; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.street_address IS 'Origem: coluna "ENDEREÇO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.cep_raw; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.cep_raw IS 'Origem: coluna "CEP" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.city; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.city IS 'Origem: coluna "CIDADE" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.state; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.state IS 'Origem: coluna "ESTADO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.work_phone; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.work_phone IS 'Origem: coluna "TELEFONE DO TRABALHO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.work_phone_raw; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.work_phone_raw IS 'Origem: coluna "TELEFONE DO TRABALHO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.cnae_code; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.cnae_code IS 'Origem: coluna "CÓDIGO DO CNAE" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.cnae_description; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.cnae_description IS 'Origem: coluna "DESCRIÇÃO DO CNAE" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.previous_month_total; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.previous_month_total IS 'Origem: coluna "fat_total_m1" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.current_month_total; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.current_month_total IS 'Origem: coluna "FATURAMENTO TOTAL DESTE MÊS" da aba Faturamento';
 
 
 --
@@ -357,13 +910,13 @@ CREATE TABLE public.revenue_snapshots (
 CREATE MATERIALIZED VIEW public.audit_company_ec_divergence AS
  SELECT rs.channel_id,
     e.company_id,
-    count(DISTINCT rs.status_contrato) AS status_contrato_distintos,
-    count(DISTINCT ms.segmento_performado) AS segmento_performado_distintos
+    count(DISTINCT rs.contract_status) AS status_contrato_distintos,
+    count(DISTINCT ms.performed_segment) AS segmento_performado_distintos
    FROM ((public.revenue_snapshots rs
      JOIN public.establishments e ON ((e.id = rs.establishment_id)))
      LEFT JOIN public.map_snapshots ms ON (((ms.import_batch_id = rs.import_batch_id) AND (ms.establishment_id = rs.establishment_id))))
   GROUP BY rs.channel_id, e.company_id
- HAVING ((count(DISTINCT rs.status_contrato) > 1) OR (count(DISTINCT ms.segmento_performado) > 1))
+ HAVING ((count(DISTINCT rs.contract_status) > 1) OR (count(DISTINCT ms.performed_segment) > 1))
   WITH NO DATA;
 
 
@@ -373,10 +926,17 @@ CREATE MATERIALIZED VIEW public.audit_company_ec_divergence AS
 
 CREATE TABLE public.conversation_actions (
     id bigint NOT NULL,
+    text character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    texto character varying NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN conversation_actions.text; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conversation_actions.text IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
 
 
 --
@@ -385,10 +945,17 @@ CREATE TABLE public.conversation_actions (
 
 CREATE TABLE public.map_snapshot_actions (
     id bigint NOT NULL,
-    conversation_action_id bigint NOT NULL,
     map_snapshot_id bigint NOT NULL,
-    posicao integer NOT NULL
+    conversation_action_id bigint NOT NULL,
+    "position" integer NOT NULL
 );
+
+
+--
+-- Name: COLUMN map_snapshot_actions."position"; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshot_actions."position" IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
 
 
 --
@@ -399,29 +966,14 @@ CREATE MATERIALIZED VIEW public.audit_pending_actions AS
  SELECT ms.channel_id,
     ms.sub_channel_id,
     e.company_id,
-    ca.texto,
+    ca.text,
     count(*) AS total
    FROM (((public.map_snapshot_actions msa
      JOIN public.map_snapshots ms ON ((ms.id = msa.map_snapshot_id)))
      JOIN public.establishments e ON ((e.id = ms.establishment_id)))
      JOIN public.conversation_actions ca ON ((ca.id = msa.conversation_action_id)))
-  GROUP BY ms.channel_id, ms.sub_channel_id, e.company_id, ca.texto
+  GROUP BY ms.channel_id, ms.sub_channel_id, e.company_id, ca.text
   WITH NO DATA;
-
-
---
--- Name: competencia_coverages; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.competencia_coverages (
-    channel_id bigint NOT NULL,
-    competencia date NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    fechado boolean DEFAULT false NOT NULL,
-    max_dia_conhecido integer NOT NULL,
-    ultimo_import_batch_id bigint NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
 
 
 --
@@ -429,15 +981,15 @@ CREATE TABLE public.competencia_coverages (
 --
 
 CREATE TABLE public.daily_revenues_consolidated (
-    amount numeric(18,2) NOT NULL,
-    channel_id bigint NOT NULL,
-    competencia date NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    day integer NOT NULL,
     establishment_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    day integer NOT NULL,
+    amount numeric(18,2) NOT NULL,
     provisional boolean NOT NULL,
-    revised_count integer DEFAULT 0 NOT NULL,
     source_import_batch_id bigint NOT NULL,
+    revised_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
 
@@ -448,22 +1000,37 @@ CREATE TABLE public.daily_revenues_consolidated (
 
 CREATE TABLE public.import_batches (
     id bigint NOT NULL,
-    channel_id bigint,
-    competencia_atual date,
-    competencia_m1 date,
-    competencias_cobertas jsonb DEFAULT '[]'::jsonb NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    dia_corte_mes_atual integer,
-    file_checksum character varying NOT NULL,
-    import_template_id bigint,
-    source_file_date date,
-    source_filename character varying NOT NULL,
-    status character varying DEFAULT 'pending'::character varying NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
     uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    channel_id bigint,
+    import_template_id bigint,
+    source_filename character varying NOT NULL,
+    source_file_date date,
+    file_checksum character varying NOT NULL,
+    previous_period date,
+    current_period date,
+    covered_periods jsonb DEFAULT '[]'::jsonb NOT NULL,
+    current_month_cutoff_day integer,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
     validation_errors jsonb DEFAULT '[]'::jsonb NOT NULL,
-    CONSTRAINT import_batches_valid_cutoff CHECK (((dia_corte_mes_atual >= 1) AND (dia_corte_mes_atual <= 31))),
-    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text])))
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
+    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'validated'::character varying, 'failed'::character varying, 'superseded'::character varying])::text[])))
+);
+
+
+--
+-- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.period_coverages (
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    max_known_day integer NOT NULL,
+    closed boolean DEFAULT false NOT NULL,
+    last_import_batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -473,12 +1040,19 @@ CREATE TABLE public.import_batches (
 
 CREATE TABLE public.sub_channels (
     id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     channel_id bigint NOT NULL,
+    name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    sub_canal character varying NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    uuid uuid DEFAULT gen_random_uuid() NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN sub_channels.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.sub_channels.name IS 'Origem: coluna "CANAL" da aba todas as abas';
 
 
 --
@@ -487,12 +1061,12 @@ CREATE TABLE public.sub_channels (
 
 CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
  WITH open_cover AS (
-         SELECT competencia_coverages.channel_id,
-            competencia_coverages.competencia AS competencia_atual,
-            competencia_coverages.max_dia_conhecido,
-            ((competencia_coverages.competencia - '1 mon'::interval))::date AS competencia_m1
-           FROM public.competencia_coverages
-          WHERE ((NOT competencia_coverages.fechado) AND true)
+         SELECT period_coverages.channel_id,
+            period_coverages.period AS current_period,
+            period_coverages.max_known_day,
+            ((period_coverages.period - '1 mon'::interval))::date AS previous_period
+           FROM public.period_coverages
+          WHERE ((NOT period_coverages.closed) AND true)
         ), latest_batches AS (
          SELECT ib.channel_id,
             max(ib.id) AS import_batch_id
@@ -505,21 +1079,21 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
  SELECT snapshot.channel_id,
     snapshot.sub_channel_id,
     sub_channel.uuid,
-    sub_channel.sub_canal,
-    cover.competencia_m1,
-    cover.competencia_atual,
-    cover.max_dia_conhecido,
-    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.competencia = cover.competencia_m1)), (0)::numeric) AS faturamento_m1_cheio,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = cover.competencia_m1) AND (revenue.day <= cover.max_dia_conhecido))), (0)::numeric) AS faturamento_m1,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = cover.competencia_atual) AND (revenue.day <= cover.max_dia_conhecido))), (0)::numeric) AS faturamento_atual,
+    sub_channel.name AS sub_channel_name,
+    cover.previous_period,
+    cover.current_period,
+    cover.max_known_day,
+    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = cover.previous_period)), (0)::numeric) AS faturamento_m1_cheio,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS faturamento_m1,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS faturamento_atual,
     count(DISTINCT snapshot.establishment_id) FILTER (WHERE (establishment.primary_establishment_id IS NULL)) AS estabelecimentos_principais
    FROM (((((public.revenue_snapshots snapshot
      JOIN latest_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
      JOIN open_cover cover ON ((cover.channel_id = snapshot.channel_id)))
      JOIN public.sub_channels sub_channel ON ((sub_channel.id = snapshot.sub_channel_id)))
      JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
-     LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = snapshot.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.competencia = cover.competencia_m1) OR (revenue.competencia = cover.competencia_atual)))))
-  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.sub_canal, cover.competencia_m1, cover.competencia_atual, cover.max_dia_conhecido
+     LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = snapshot.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.period = cover.previous_period) OR (revenue.period = cover.current_period)))))
+  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name, cover.previous_period, cover.current_period, cover.max_known_day
   WITH NO DATA;
 
 
@@ -529,10 +1103,10 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
 
 CREATE TABLE public.companies (
     id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     cnpj character varying(14) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     CONSTRAINT companies_cnpj_format CHECK (((cnpj)::text ~ '^[0-9]{14}$'::text))
 );
 
@@ -546,24 +1120,24 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
     sub_channel.sub_channel_id,
     establishment.company_id,
     company.cnpj,
-    sub_channel.max_dia_conhecido,
-    sub_channel.competencia_m1,
-    sub_channel.competencia_atual,
-    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.competencia = sub_channel.competencia_m1)), (0)::numeric) AS faturamento_m1_cheio,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = sub_channel.competencia_m1) AND (revenue.day <= sub_channel.max_dia_conhecido))), (0)::numeric) AS faturamento_m1,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = sub_channel.competencia_atual) AND (revenue.day <= sub_channel.max_dia_conhecido))), (0)::numeric) AS faturamento_atual,
-    max(revenue.day) FILTER (WHERE ((revenue.competencia = sub_channel.competencia_atual) AND (revenue.day <= sub_channel.max_dia_conhecido) AND (revenue.amount <> (0)::numeric))) AS ultimo_dia_com_venda
+    sub_channel.max_known_day,
+    sub_channel.previous_period,
+    sub_channel.current_period,
+    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = sub_channel.previous_period)), (0)::numeric) AS faturamento_m1_cheio,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.previous_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS faturamento_m1,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS faturamento_atual,
+    max(revenue.day) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day) AND (revenue.amount <> (0)::numeric))) AS last_sale_day
    FROM ((((public.audit_revenue_by_sub_channel sub_channel
      JOIN public.revenue_snapshots snapshot ON (((snapshot.channel_id = sub_channel.channel_id) AND (snapshot.sub_channel_id = sub_channel.sub_channel_id))))
      JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
      JOIN public.companies company ON ((company.id = establishment.company_id)))
-     LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = sub_channel.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.competencia = sub_channel.competencia_m1) OR (revenue.competencia = sub_channel.competencia_atual)))))
+     LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = sub_channel.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.period = sub_channel.previous_period) OR (revenue.period = sub_channel.current_period)))))
   WHERE (snapshot.import_batch_id = ( SELECT max(ib.id) AS max
            FROM public.import_batches ib
           WHERE ((ib.channel_id = snapshot.channel_id) AND ((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
                    FROM public.revenue_snapshots latest
                   WHERE (latest.import_batch_id = ib.id))))))
-  GROUP BY sub_channel.channel_id, sub_channel.sub_channel_id, establishment.company_id, company.cnpj, sub_channel.max_dia_conhecido, sub_channel.competencia_m1, sub_channel.competencia_atual
+  GROUP BY sub_channel.channel_id, sub_channel.sub_channel_id, establishment.company_id, company.cnpj, sub_channel.max_known_day, sub_channel.previous_period, sub_channel.current_period
   WITH NO DATA;
 
 
@@ -574,18 +1148,18 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
 CREATE MATERIALIZED VIEW public.audit_stalled_companies AS
  SELECT company_view.channel_id,
     company_view.sub_channel_id,
-    sub_channel.sub_canal,
+    sub_channel.name AS sub_channel_name,
     company_view.company_id,
     company_view.cnpj,
-    company_view.max_dia_conhecido,
-    company_view.ultimo_dia_com_venda AS last_sale_day,
-    (company_view.max_dia_conhecido - COALESCE(company_view.ultimo_dia_com_venda, 0)) AS dias_sem_venda,
+    company_view.max_known_day,
+    company_view.last_sale_day,
+    (company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)) AS dias_sem_venda,
     company_view.faturamento_m1_cheio,
     company_view.faturamento_m1,
     company_view.faturamento_atual
    FROM (public.audit_revenue_by_company company_view
      JOIN public.sub_channels sub_channel ON ((sub_channel.id = company_view.sub_channel_id)))
-  WHERE ((company_view.max_dia_conhecido - COALESCE(company_view.ultimo_dia_com_venda, 0)) >= 7)
+  WHERE ((company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)) >= 7)
   WITH NO DATA;
 
 
@@ -595,12 +1169,12 @@ CREATE MATERIALIZED VIEW public.audit_stalled_companies AS
 
 CREATE MATERIALIZED VIEW public.audit_weekly_revenue AS
  SELECT channel_id,
-    competencia,
+    period,
     (((day - 1) / 7) + 1) AS semana,
     sum(amount) AS faturamento,
     count(DISTINCT establishment_id) AS estabelecimentos
    FROM public.daily_revenues_consolidated
-  GROUP BY channel_id, competencia, (((day - 1) / 7) + 1)
+  GROUP BY channel_id, period, (((day - 1) / 7) + 1)
   WITH NO DATA;
 
 
@@ -610,12 +1184,19 @@ CREATE MATERIALIZED VIEW public.audit_weekly_revenue AS
 
 CREATE TABLE public.channels (
     id bigint NOT NULL,
-    canal character varying NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     external_id character varying NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    uuid uuid DEFAULT gen_random_uuid() NOT NULL
+    name character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN channels.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.channels.name IS 'Origem: coluna "CANAL" da aba todas as abas';
 
 
 --
@@ -681,13 +1262,13 @@ ALTER SEQUENCE public.conversation_actions_id_seq OWNED BY public.conversation_a
 
 CREATE TABLE public.daily_revenue_revisions (
     id bigint NOT NULL,
-    amount_anterior numeric(18,2) NOT NULL,
-    amount_novo numeric(18,2) NOT NULL,
-    competencia date NOT NULL,
-    day integer NOT NULL,
-    detected_at timestamp(6) without time zone NOT NULL,
     establishment_id bigint NOT NULL,
-    import_batch_id bigint NOT NULL
+    period date NOT NULL,
+    day integer NOT NULL,
+    previous_amount numeric(18,2) NOT NULL,
+    new_amount numeric(18,2) NOT NULL,
+    import_batch_id bigint NOT NULL,
+    detected_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -719,7 +1300,7 @@ CREATE TABLE public.daily_revenues (
     import_batch_id bigint NOT NULL,
     channel_id bigint NOT NULL,
     establishment_id bigint NOT NULL,
-    competencia date NOT NULL,
+    period date NOT NULL,
     day integer NOT NULL,
     amount numeric(18,2) NOT NULL,
     provisional boolean NOT NULL,
@@ -727,7 +1308,7 @@ CREATE TABLE public.daily_revenues (
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT daily_revenues_valid_day CHECK (((day >= 1) AND (day <= 31)))
 )
-PARTITION BY RANGE (competencia);
+PARTITION BY RANGE (period);
 
 
 --
@@ -750,44 +1331,6 @@ ALTER SEQUENCE public.daily_revenues_id_seq OWNED BY public.daily_revenues.id;
 
 
 --
--- Name: daily_revenues_202607; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.daily_revenues_202607 (
-    id bigint DEFAULT nextval('public.daily_revenues_id_seq'::regclass) NOT NULL,
-    import_batch_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    establishment_id bigint NOT NULL,
-    competencia date NOT NULL,
-    day integer NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    provisional boolean NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT daily_revenues_valid_day CHECK (((day >= 1) AND (day <= 31)))
-);
-
-
---
--- Name: daily_revenues_202608; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.daily_revenues_202608 (
-    id bigint DEFAULT nextval('public.daily_revenues_id_seq'::regclass) NOT NULL,
-    import_batch_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    establishment_id bigint NOT NULL,
-    competencia date NOT NULL,
-    day integer NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    provisional boolean NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT daily_revenues_valid_day CHECK (((day >= 1) AND (day <= 31)))
-);
-
-
---
 -- Name: daily_revenues_default; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -796,7 +1339,7 @@ CREATE TABLE public.daily_revenues_default (
     import_batch_id bigint NOT NULL,
     channel_id bigint NOT NULL,
     establishment_id bigint NOT NULL,
-    competencia date NOT NULL,
+    period date NOT NULL,
     day integer NOT NULL,
     amount numeric(18,2) NOT NULL,
     provisional boolean NOT NULL,
@@ -812,24 +1355,26 @@ CREATE TABLE public.daily_revenues_default (
 
 CREATE TABLE public.data_anomalies (
     id bigint NOT NULL,
-    anomaly_type character varying NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
     channel_id bigint NOT NULL,
-    company_id bigint,
-    created_at timestamp(6) without time zone NOT NULL,
-    details jsonb DEFAULT '{}'::jsonb NOT NULL,
-    establishment_id bigint,
-    first_detected_at timestamp(6) without time zone NOT NULL,
-    first_import_batch_id bigint NOT NULL,
-    last_detected_at timestamp(6) without time zone NOT NULL,
-    last_import_batch_id bigint NOT NULL,
-    occurrences integer DEFAULT 1 NOT NULL,
-    resolution_note text,
-    resolved_at timestamp(6) without time zone,
-    resolved_by character varying,
+    anomaly_type character varying NOT NULL,
     severity character varying NOT NULL,
+    company_id bigint,
+    establishment_id bigint,
+    details jsonb DEFAULT '{}'::jsonb NOT NULL,
     status character varying DEFAULT 'aberta'::character varying NOT NULL,
+    first_detected_at timestamp(6) without time zone NOT NULL,
+    last_detected_at timestamp(6) without time zone NOT NULL,
+    occurrences integer DEFAULT 1 NOT NULL,
+    first_import_batch_id bigint NOT NULL,
+    last_import_batch_id bigint NOT NULL,
+    resolved_by character varying,
+    resolved_at timestamp(6) without time zone,
+    resolution_note text,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    uuid uuid DEFAULT gen_random_uuid() NOT NULL
+    CONSTRAINT data_anomalies_valid_severity CHECK (((severity)::text = ANY ((ARRAY['info'::character varying, 'atencao'::character varying, 'erro'::character varying])::text[]))),
+    CONSTRAINT data_anomalies_valid_status CHECK (((status)::text = ANY ((ARRAY['aberta'::character varying, 'em_analise'::character varying, 'resolvida'::character varying, 'esperada'::character varying])::text[])))
 );
 
 
@@ -896,14 +1441,14 @@ ALTER SEQUENCE public.import_batches_id_seq OWNED BY public.import_batches.id;
 
 CREATE TABLE public.import_template_columns (
     id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
     import_template_id bigint NOT NULL,
-    normalization_rule character varying,
-    required boolean DEFAULT false NOT NULL,
     sheet_name character varying NOT NULL,
     source_header character varying NOT NULL,
-    target_field character varying,
     target_table character varying,
+    target_field character varying,
+    required boolean DEFAULT false NOT NULL,
+    normalization_rule character varying,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
 
@@ -933,11 +1478,18 @@ ALTER SEQUENCE public.import_template_columns_id_seq OWNED BY public.import_temp
 
 CREATE TABLE public.import_templates (
     id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
     name character varying NOT NULL,
     sheet_names jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
+
+
+--
+-- Name: COLUMN import_templates.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.import_templates.name IS 'Origem: coluna "CANAL" da aba planilha BIN';
 
 
 --
@@ -1003,13 +1555,13 @@ ALTER SEQUENCE public.map_snapshots_id_seq OWNED BY public.map_snapshots.id;
 
 CREATE TABLE public.monthly_volumes (
     id bigint NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    channel_id bigint NOT NULL,
-    competencia date NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    establishment_id bigint NOT NULL,
     import_batch_id bigint NOT NULL,
-    metrica character varying NOT NULL,
+    channel_id bigint NOT NULL,
+    establishment_id bigint NOT NULL,
+    period date NOT NULL,
+    metric character varying NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
 
@@ -1019,13 +1571,13 @@ CREATE TABLE public.monthly_volumes (
 --
 
 CREATE TABLE public.monthly_volumes_consolidated (
-    amount numeric(18,2) NOT NULL,
     channel_id bigint NOT NULL,
-    competencia date NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
     establishment_id bigint NOT NULL,
-    metrica character varying NOT NULL,
+    period date NOT NULL,
+    metric character varying NOT NULL,
+    amount numeric(18,2) NOT NULL,
     source_import_batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
 
@@ -1055,11 +1607,11 @@ ALTER SEQUENCE public.monthly_volumes_id_seq OWNED BY public.monthly_volumes.id;
 
 CREATE TABLE public.raw_import_rows (
     id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
     import_batch_id bigint NOT NULL,
-    payload jsonb NOT NULL,
-    row_number integer NOT NULL,
     sheet_name character varying NOT NULL,
+    row_number integer NOT NULL,
+    payload jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
 
@@ -1497,20 +2049,6 @@ CREATE SEQUENCE public.sub_channels_id_seq
 --
 
 ALTER SEQUENCE public.sub_channels_id_seq OWNED BY public.sub_channels.id;
-
-
---
--- Name: daily_revenues_202607; Type: TABLE ATTACH; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_202607 FOR VALUES FROM ('2026-07-01') TO ('2026-08-01');
-
-
---
--- Name: daily_revenues_202608; Type: TABLE ATTACH; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_202608 FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
 
 
 --
@@ -1994,115 +2532,10 @@ ALTER TABLE ONLY public.sub_channels
 
 
 --
--- Name: index_daily_revenues_on_channel_id_and_competencia_and_day; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_daily_revenues_on_channel_id_and_competencia_and_day ON ONLY public.daily_revenues USING btree (channel_id, competencia, day);
-
-
---
--- Name: daily_revenues_202607_channel_id_competencia_day_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202607_channel_id_competencia_day_idx ON public.daily_revenues_202607 USING btree (channel_id, competencia, day);
-
-
---
 -- Name: index_daily_revenues_on_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_daily_revenues_on_channel_id ON ONLY public.daily_revenues USING btree (channel_id);
-
-
---
--- Name: daily_revenues_202607_channel_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202607_channel_id_idx ON public.daily_revenues_202607 USING btree (channel_id);
-
-
---
--- Name: index_daily_revenues_on_establishment_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_daily_revenues_on_establishment_id ON ONLY public.daily_revenues USING btree (establishment_id);
-
-
---
--- Name: daily_revenues_202607_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202607_establishment_id_idx ON public.daily_revenues_202607 USING btree (establishment_id);
-
-
---
--- Name: index_daily_revenues_unique_snapshot_day; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_daily_revenues_unique_snapshot_day ON ONLY public.daily_revenues USING btree (import_batch_id, establishment_id, competencia, day);
-
-
---
--- Name: daily_revenues_202607_import_batch_id_establishment_id_comp_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX daily_revenues_202607_import_batch_id_establishment_id_comp_idx ON public.daily_revenues_202607 USING btree (import_batch_id, establishment_id, competencia, day);
-
-
---
--- Name: index_daily_revenues_on_import_batch_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_daily_revenues_on_import_batch_id ON ONLY public.daily_revenues USING btree (import_batch_id);
-
-
---
--- Name: daily_revenues_202607_import_batch_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202607_import_batch_id_idx ON public.daily_revenues_202607 USING btree (import_batch_id);
-
-
---
--- Name: daily_revenues_202608_channel_id_competencia_day_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202608_channel_id_competencia_day_idx ON public.daily_revenues_202608 USING btree (channel_id, competencia, day);
-
-
---
--- Name: daily_revenues_202608_channel_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202608_channel_id_idx ON public.daily_revenues_202608 USING btree (channel_id);
-
-
---
--- Name: daily_revenues_202608_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202608_establishment_id_idx ON public.daily_revenues_202608 USING btree (establishment_id);
-
-
---
--- Name: daily_revenues_202608_import_batch_id_establishment_id_comp_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX daily_revenues_202608_import_batch_id_establishment_id_comp_idx ON public.daily_revenues_202608 USING btree (import_batch_id, establishment_id, competencia, day);
-
-
---
--- Name: daily_revenues_202608_import_batch_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_202608_import_batch_id_idx ON public.daily_revenues_202608 USING btree (import_batch_id);
-
-
---
--- Name: daily_revenues_default_channel_id_competencia_day_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX daily_revenues_default_channel_id_competencia_day_idx ON public.daily_revenues_default USING btree (channel_id, competencia, day);
 
 
 --
@@ -2113,6 +2546,27 @@ CREATE INDEX daily_revenues_default_channel_id_idx ON public.daily_revenues_defa
 
 
 --
+-- Name: index_daily_revenues_on_channel_id_and_period_and_day; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_daily_revenues_on_channel_id_and_period_and_day ON ONLY public.daily_revenues USING btree (channel_id, period, day);
+
+
+--
+-- Name: daily_revenues_default_channel_id_period_day_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_default_channel_id_period_day_idx ON public.daily_revenues_default USING btree (channel_id, period, day);
+
+
+--
+-- Name: index_daily_revenues_on_establishment_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_daily_revenues_on_establishment_id ON ONLY public.daily_revenues USING btree (establishment_id);
+
+
+--
 -- Name: daily_revenues_default_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2120,10 +2574,24 @@ CREATE INDEX daily_revenues_default_establishment_id_idx ON public.daily_revenue
 
 
 --
--- Name: daily_revenues_default_import_batch_id_establishment_id_com_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: index_daily_revenues_unique_snapshot_day; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX daily_revenues_default_import_batch_id_establishment_id_com_idx ON public.daily_revenues_default USING btree (import_batch_id, establishment_id, competencia, day);
+CREATE UNIQUE INDEX index_daily_revenues_unique_snapshot_day ON ONLY public.daily_revenues USING btree (import_batch_id, establishment_id, period, day);
+
+
+--
+-- Name: daily_revenues_default_import_batch_id_establishment_id_per_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX daily_revenues_default_import_batch_id_establishment_id_per_idx ON public.daily_revenues_default USING btree (import_batch_id, establishment_id, period, day);
+
+
+--
+-- Name: index_daily_revenues_on_import_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_daily_revenues_on_import_batch_id ON ONLY public.daily_revenues USING btree (import_batch_id);
 
 
 --
@@ -2134,17 +2602,10 @@ CREATE INDEX daily_revenues_default_import_batch_id_idx ON public.daily_revenues
 
 
 --
--- Name: idx_on_channel_id_competencia_1e171e2307; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_on_channel_id_period_day_39f7a9071f; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_on_channel_id_competencia_1e171e2307 ON public.monthly_volumes_consolidated USING btree (channel_id, competencia);
-
-
---
--- Name: idx_on_channel_id_competencia_day_d976e5a0fc; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_on_channel_id_competencia_day_d976e5a0fc ON public.daily_revenues_consolidated USING btree (channel_id, competencia, day);
+CREATE INDEX idx_on_channel_id_period_day_39f7a9071f ON public.daily_revenues_consolidated USING btree (channel_id, period, day);
 
 
 --
@@ -2155,10 +2616,10 @@ CREATE UNIQUE INDEX idx_on_import_batch_id_establishment_id_1c09c84b4a ON public
 
 
 --
--- Name: idx_on_import_batch_id_nr_da_proposta_532af95e97; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_on_import_batch_id_proposal_number_cee2420935; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_on_import_batch_id_nr_da_proposta_532af95e97 ON public.activation_proposals USING btree (import_batch_id, nr_da_proposta);
+CREATE UNIQUE INDEX idx_on_import_batch_id_proposal_number_cee2420935 ON public.activation_proposals USING btree (import_batch_id, proposal_number);
 
 
 --
@@ -2190,10 +2651,10 @@ CREATE INDEX index_activation_proposals_on_import_batch_id ON public.activation_
 
 
 --
--- Name: index_activation_proposals_on_nr_da_proposta; Type: INDEX; Schema: public; Owner: -
+-- Name: index_activation_proposals_on_proposal_number; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_activation_proposals_on_nr_da_proposta ON public.activation_proposals USING btree (nr_da_proposta);
+CREATE INDEX index_activation_proposals_on_proposal_number ON public.activation_proposals USING btree (proposal_number);
 
 
 --
@@ -2242,7 +2703,7 @@ CREATE UNIQUE INDEX index_audit_company_ec_divergence ON public.audit_company_ec
 -- Name: index_audit_pending_actions; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_audit_pending_actions ON public.audit_pending_actions USING btree (channel_id, sub_channel_id, company_id, texto);
+CREATE UNIQUE INDEX index_audit_pending_actions ON public.audit_pending_actions USING btree (channel_id, sub_channel_id, company_id, text);
 
 
 --
@@ -2270,14 +2731,7 @@ CREATE UNIQUE INDEX index_audit_stalled_companies ON public.audit_stalled_compan
 -- Name: index_audit_weekly_revenue; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_audit_weekly_revenue ON public.audit_weekly_revenue USING btree (channel_id, competencia, semana);
-
-
---
--- Name: index_channels_on_canal; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_channels_on_canal ON public.channels USING gin (canal public.gin_trgm_ops);
+CREATE UNIQUE INDEX index_audit_weekly_revenue ON public.audit_weekly_revenue USING btree (channel_id, period, semana);
 
 
 --
@@ -2285,6 +2739,13 @@ CREATE INDEX index_channels_on_canal ON public.channels USING gin (canal public.
 --
 
 CREATE UNIQUE INDEX index_channels_on_external_id ON public.channels USING btree (external_id);
+
+
+--
+-- Name: index_channels_on_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_channels_on_name ON public.channels USING gin (name public.gin_trgm_ops);
 
 
 --
@@ -2316,31 +2777,10 @@ CREATE UNIQUE INDEX index_companies_on_uuid ON public.companies USING btree (uui
 
 
 --
--- Name: index_competencia_coverages_on_channel_id; Type: INDEX; Schema: public; Owner: -
+-- Name: index_conversation_actions_on_text; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_competencia_coverages_on_channel_id ON public.competencia_coverages USING btree (channel_id);
-
-
---
--- Name: index_competencia_coverages_on_channel_id_and_competencia; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_competencia_coverages_on_channel_id_and_competencia ON public.competencia_coverages USING btree (channel_id, competencia);
-
-
---
--- Name: index_competencia_coverages_on_ultimo_import_batch_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_competencia_coverages_on_ultimo_import_batch_id ON public.competencia_coverages USING btree (ultimo_import_batch_id);
-
-
---
--- Name: index_conversation_actions_on_texto; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_conversation_actions_on_texto ON public.conversation_actions USING btree (texto);
+CREATE UNIQUE INDEX index_conversation_actions_on_text ON public.conversation_actions USING btree (text);
 
 
 --
@@ -2382,14 +2822,14 @@ CREATE INDEX index_daily_revenues_consolidated_on_source_import_batch_id ON publ
 -- Name: index_daily_revenues_consolidated_primary; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_daily_revenues_consolidated_primary ON public.daily_revenues_consolidated USING btree (establishment_id, competencia, day);
+CREATE UNIQUE INDEX index_daily_revenues_consolidated_primary ON public.daily_revenues_consolidated USING btree (establishment_id, period, day);
 
 
 --
 -- Name: index_data_anomalies_deduplication; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_data_anomalies_deduplication ON public.data_anomalies USING btree (channel_id, anomaly_type, company_id, establishment_id);
+CREATE UNIQUE INDEX index_data_anomalies_deduplication ON public.data_anomalies USING btree (channel_id, anomaly_type, company_id, establishment_id) NULLS NOT DISTINCT;
 
 
 --
@@ -2491,10 +2931,10 @@ CREATE INDEX index_import_batches_on_channel_id ON public.import_batches USING b
 
 
 --
--- Name: index_import_batches_on_channel_id_and_competencia_atual; Type: INDEX; Schema: public; Owner: -
+-- Name: index_import_batches_on_channel_id_and_current_period; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_import_batches_on_channel_id_and_competencia_atual ON public.import_batches USING btree (channel_id, competencia_atual);
+CREATE INDEX index_import_batches_on_channel_id_and_current_period ON public.import_batches USING btree (channel_id, current_period);
 
 
 --
@@ -2568,10 +3008,10 @@ CREATE INDEX index_map_snapshots_on_channel_id_and_sub_channel_id ON public.map_
 
 
 --
--- Name: index_map_snapshots_on_cidade; Type: INDEX; Schema: public; Owner: -
+-- Name: index_map_snapshots_on_city; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_map_snapshots_on_cidade ON public.map_snapshots USING gin (cidade public.gin_trgm_ops);
+CREATE INDEX index_map_snapshots_on_city ON public.map_snapshots USING gin (city public.gin_trgm_ops);
 
 
 --
@@ -2596,17 +3036,10 @@ CREATE UNIQUE INDEX index_map_snapshots_on_import_batch_id_and_establishment_id 
 
 
 --
--- Name: index_map_snapshots_on_nome_fantasia; Type: INDEX; Schema: public; Owner: -
+-- Name: index_map_snapshots_on_legal_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_map_snapshots_on_nome_fantasia ON public.map_snapshots USING gin (nome_fantasia public.gin_trgm_ops);
-
-
---
--- Name: index_map_snapshots_on_razao_social; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_map_snapshots_on_razao_social ON public.map_snapshots USING gin (razao_social public.gin_trgm_ops);
+CREATE INDEX index_map_snapshots_on_legal_name ON public.map_snapshots USING gin (legal_name public.gin_trgm_ops);
 
 
 --
@@ -2617,10 +3050,24 @@ CREATE INDEX index_map_snapshots_on_sub_channel_id ON public.map_snapshots USING
 
 
 --
+-- Name: index_map_snapshots_on_trade_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_map_snapshots_on_trade_name ON public.map_snapshots USING gin (trade_name public.gin_trgm_ops);
+
+
+--
 -- Name: index_monthly_volumes_consolidated_on_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_monthly_volumes_consolidated_on_channel_id ON public.monthly_volumes_consolidated USING btree (channel_id);
+
+
+--
+-- Name: index_monthly_volumes_consolidated_on_channel_id_and_period; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_monthly_volumes_consolidated_on_channel_id_and_period ON public.monthly_volumes_consolidated USING btree (channel_id, period);
 
 
 --
@@ -2641,14 +3088,14 @@ CREATE INDEX index_monthly_volumes_consolidated_on_source_import_batch_id ON pub
 -- Name: index_monthly_volumes_consolidated_primary; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_monthly_volumes_consolidated_primary ON public.monthly_volumes_consolidated USING btree (establishment_id, competencia, metrica);
+CREATE UNIQUE INDEX index_monthly_volumes_consolidated_primary ON public.monthly_volumes_consolidated USING btree (establishment_id, period, metric);
 
 
 --
--- Name: index_monthly_volumes_on_batch_establishment_competencia_metric; Type: INDEX; Schema: public; Owner: -
+-- Name: index_monthly_volumes_on_batch_establishment_period_metric; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_monthly_volumes_on_batch_establishment_competencia_metric ON public.monthly_volumes USING btree (import_batch_id, establishment_id, competencia, metrica);
+CREATE UNIQUE INDEX index_monthly_volumes_on_batch_establishment_period_metric ON public.monthly_volumes USING btree (import_batch_id, establishment_id, period, metric);
 
 
 --
@@ -2659,10 +3106,10 @@ CREATE INDEX index_monthly_volumes_on_channel_id ON public.monthly_volumes USING
 
 
 --
--- Name: index_monthly_volumes_on_channel_id_and_competencia; Type: INDEX; Schema: public; Owner: -
+-- Name: index_monthly_volumes_on_channel_id_and_period; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_monthly_volumes_on_channel_id_and_competencia ON public.monthly_volumes USING btree (channel_id, competencia);
+CREATE INDEX index_monthly_volumes_on_channel_id_and_period ON public.monthly_volumes USING btree (channel_id, period);
 
 
 --
@@ -2677,6 +3124,27 @@ CREATE INDEX index_monthly_volumes_on_establishment_id ON public.monthly_volumes
 --
 
 CREATE INDEX index_monthly_volumes_on_import_batch_id ON public.monthly_volumes USING btree (import_batch_id);
+
+
+--
+-- Name: index_period_coverages_on_channel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_period_coverages_on_channel_id ON public.period_coverages USING btree (channel_id);
+
+
+--
+-- Name: index_period_coverages_on_channel_id_and_period; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_period_coverages_on_channel_id_and_period ON public.period_coverages USING btree (channel_id, period);
+
+
+--
+-- Name: index_period_coverages_on_last_import_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_period_coverages_on_last_import_batch_id ON public.period_coverages USING btree (last_import_batch_id);
 
 
 --
@@ -2722,17 +3190,10 @@ CREATE INDEX index_revenue_snapshots_on_import_batch_id ON public.revenue_snapsh
 
 
 --
--- Name: index_revenue_snapshots_on_nome_fantasia; Type: INDEX; Schema: public; Owner: -
+-- Name: index_revenue_snapshots_on_legal_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_revenue_snapshots_on_nome_fantasia ON public.revenue_snapshots USING gin (nome_fantasia public.gin_trgm_ops);
-
-
---
--- Name: index_revenue_snapshots_on_razao_social; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_revenue_snapshots_on_razao_social ON public.revenue_snapshots USING gin (razao_social public.gin_trgm_ops);
+CREATE INDEX index_revenue_snapshots_on_legal_name ON public.revenue_snapshots USING gin (legal_name public.gin_trgm_ops);
 
 
 --
@@ -2740,6 +3201,13 @@ CREATE INDEX index_revenue_snapshots_on_razao_social ON public.revenue_snapshots
 --
 
 CREATE INDEX index_revenue_snapshots_on_sub_channel_id ON public.revenue_snapshots USING btree (sub_channel_id);
+
+
+--
+-- Name: index_revenue_snapshots_on_trade_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_revenue_snapshots_on_trade_name ON public.revenue_snapshots USING gin (trade_name public.gin_trgm_ops);
 
 
 --
@@ -2939,17 +3407,24 @@ CREATE INDEX index_sub_channels_on_channel_id ON public.sub_channels USING btree
 
 
 --
--- Name: index_sub_channels_on_channel_id_and_sub_canal; Type: INDEX; Schema: public; Owner: -
+-- Name: index_sub_channels_on_channel_id_and_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_sub_channels_on_channel_id_and_sub_canal ON public.sub_channels USING btree (channel_id, sub_canal);
+CREATE UNIQUE INDEX index_sub_channels_on_channel_id_and_name ON public.sub_channels USING btree (channel_id, name);
 
 
 --
--- Name: index_sub_channels_on_sub_canal; Type: INDEX; Schema: public; Owner: -
+-- Name: index_sub_channels_on_id_and_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_sub_channels_on_sub_canal ON public.sub_channels USING gin (sub_canal public.gin_trgm_ops);
+CREATE UNIQUE INDEX index_sub_channels_on_id_and_channel_id ON public.sub_channels USING btree (id, channel_id);
+
+
+--
+-- Name: index_sub_channels_on_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sub_channels_on_name ON public.sub_channels USING gin (name public.gin_trgm_ops);
 
 
 --
@@ -2967,87 +3442,17 @@ CREATE UNIQUE INDEX index_template_columns_on_template_sheet_header ON public.im
 
 
 --
--- Name: daily_revenues_202607_channel_id_competencia_day_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_channel_id_and_competencia_and_day ATTACH PARTITION public.daily_revenues_202607_channel_id_competencia_day_idx;
-
-
---
--- Name: daily_revenues_202607_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_channel_id ATTACH PARTITION public.daily_revenues_202607_channel_id_idx;
-
-
---
--- Name: daily_revenues_202607_establishment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_establishment_id ATTACH PARTITION public.daily_revenues_202607_establishment_id_idx;
-
-
---
--- Name: daily_revenues_202607_import_batch_id_establishment_id_comp_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION public.daily_revenues_202607_import_batch_id_establishment_id_comp_idx;
-
-
---
--- Name: daily_revenues_202607_import_batch_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION public.daily_revenues_202607_import_batch_id_idx;
-
-
---
--- Name: daily_revenues_202608_channel_id_competencia_day_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_channel_id_and_competencia_and_day ATTACH PARTITION public.daily_revenues_202608_channel_id_competencia_day_idx;
-
-
---
--- Name: daily_revenues_202608_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_channel_id ATTACH PARTITION public.daily_revenues_202608_channel_id_idx;
-
-
---
--- Name: daily_revenues_202608_establishment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_establishment_id ATTACH PARTITION public.daily_revenues_202608_establishment_id_idx;
-
-
---
--- Name: daily_revenues_202608_import_batch_id_establishment_id_comp_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION public.daily_revenues_202608_import_batch_id_establishment_id_comp_idx;
-
-
---
--- Name: daily_revenues_202608_import_batch_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION public.daily_revenues_202608_import_batch_id_idx;
-
-
---
--- Name: daily_revenues_default_channel_id_competencia_day_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX public.index_daily_revenues_on_channel_id_and_competencia_and_day ATTACH PARTITION public.daily_revenues_default_channel_id_competencia_day_idx;
-
-
---
 -- Name: daily_revenues_default_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
 ALTER INDEX public.index_daily_revenues_on_channel_id ATTACH PARTITION public.daily_revenues_default_channel_id_idx;
+
+
+--
+-- Name: daily_revenues_default_channel_id_period_day_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_channel_id_and_period_and_day ATTACH PARTITION public.daily_revenues_default_channel_id_period_day_idx;
 
 
 --
@@ -3058,10 +3463,10 @@ ALTER INDEX public.index_daily_revenues_on_establishment_id ATTACH PARTITION pub
 
 
 --
--- Name: daily_revenues_default_import_batch_id_establishment_id_com_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: daily_revenues_default_import_batch_id_establishment_id_per_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION public.daily_revenues_default_import_batch_id_establishment_id_com_idx;
+ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION public.daily_revenues_default_import_batch_id_establishment_id_per_idx;
 
 
 --
@@ -3069,6 +3474,14 @@ ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION pub
 --
 
 ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION public.daily_revenues_default_import_batch_id_idx;
+
+
+--
+-- Name: activation_proposals activation_proposals_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.activation_proposals
+    ADD CONSTRAINT activation_proposals_channel_matches_sub_channel FOREIGN KEY (sub_channel_id, channel_id) REFERENCES public.sub_channels(id, channel_id);
 
 
 --
@@ -3093,14 +3506,6 @@ ALTER TABLE public.daily_revenues
 
 ALTER TABLE public.daily_revenues
     ADD CONSTRAINT daily_revenues_import_batch_id_fkey FOREIGN KEY (import_batch_id) REFERENCES public.import_batches(id);
-
-
---
--- Name: competencia_coverages fk_rails_000bcb485e; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.competencia_coverages
-    ADD CONSTRAINT fk_rails_000bcb485e FOREIGN KEY (ultimo_import_batch_id) REFERENCES public.import_batches(id);
 
 
 --
@@ -3253,14 +3658,6 @@ ALTER TABLE ONLY public.monthly_volumes
 
 ALTER TABLE ONLY public.data_anomalies
     ADD CONSTRAINT fk_rails_4f62a6a025 FOREIGN KEY (channel_id) REFERENCES public.channels(id);
-
-
---
--- Name: competencia_coverages fk_rails_50ae0ba67c; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.competencia_coverages
-    ADD CONSTRAINT fk_rails_50ae0ba67c FOREIGN KEY (channel_id) REFERENCES public.channels(id);
 
 
 --
@@ -3456,6 +3853,22 @@ ALTER TABLE ONLY public.activation_proposals
 
 
 --
+-- Name: period_coverages fk_rails_cd45dcdcc3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.period_coverages
+    ADD CONSTRAINT fk_rails_cd45dcdcc3 FOREIGN KEY (last_import_batch_id) REFERENCES public.import_batches(id);
+
+
+--
+-- Name: period_coverages fk_rails_d9919fe216; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.period_coverages
+    ADD CONSTRAINT fk_rails_d9919fe216 FOREIGN KEY (channel_id) REFERENCES public.channels(id);
+
+
+--
 -- Name: revenue_snapshots fk_rails_dfba7bbb40; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3485,6 +3898,22 @@ ALTER TABLE ONLY public.daily_revenue_revisions
 
 ALTER TABLE ONLY public.monthly_volumes_consolidated
     ADD CONSTRAINT fk_rails_f7ad3184cf FOREIGN KEY (channel_id) REFERENCES public.channels(id);
+
+
+--
+-- Name: map_snapshots map_snapshots_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.map_snapshots
+    ADD CONSTRAINT map_snapshots_channel_matches_sub_channel FOREIGN KEY (sub_channel_id, channel_id) REFERENCES public.sub_channels(id, channel_id);
+
+
+--
+-- Name: revenue_snapshots revenue_snapshots_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.revenue_snapshots
+    ADD CONSTRAINT revenue_snapshots_channel_matches_sub_channel FOREIGN KEY (sub_channel_id, channel_id) REFERENCES public.sub_channels(id, channel_id);
 
 
 --

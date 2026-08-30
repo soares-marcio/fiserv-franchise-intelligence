@@ -25,13 +25,13 @@ class AuditViewsTest < ActiveSupport::TestCase
   end
 
   test "a view por subcanal separa o mês anterior cheio da base comparável" do
-    linhas = view_rows("audit_revenue_by_sub_channel").index_by { |row| row["sub_canal"] }
+    linhas = view_rows("audit_revenue_by_sub_channel").index_by { |row| row["sub_channel_name"] }
 
-    @lojas.group_by(&:sub_canal).each do |sub_canal, lojas|
-      linha = linhas.fetch(sub_canal)
-      assert_equal soma(lojas, :dias_m1), linha["faturamento_m1_cheio"].to_d, sub_canal
-      assert_equal soma(lojas, :dias_m1, ate: @cutoff), linha["faturamento_m1"].to_d, sub_canal
-      assert_equal soma(lojas, :dias_atual, ate: @cutoff), linha["faturamento_atual"].to_d, sub_canal
+    @lojas.group_by(&:name).each do |sub_channel_name, lojas|
+      linha = linhas.fetch(sub_channel_name)
+      assert_equal soma(lojas, :dias_m1), linha["faturamento_m1_cheio"].to_d, sub_channel_name
+      assert_equal soma(lojas, :dias_m1, ate: @cutoff), linha["faturamento_m1"].to_d, sub_channel_name
+      assert_equal soma(lojas, :dias_atual, ate: @cutoff), linha["faturamento_atual"].to_d, sub_channel_name
     end
   end
 
