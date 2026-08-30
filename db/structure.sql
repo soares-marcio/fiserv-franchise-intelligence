@@ -486,34 +486,40 @@ CREATE TABLE public.sub_channels (
 --
 
 CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
- WITH periods AS (
+ WITH open_cover AS (
          SELECT competencia_coverages.channel_id,
             competencia_coverages.competencia AS competencia_atual,
             competencia_coverages.max_dia_conhecido,
             ((competencia_coverages.competencia - '1 mon'::interval))::date AS competencia_m1
            FROM public.competencia_coverages
-          WHERE (NOT competencia_coverages.fechado)
-        )
- SELECT rs.channel_id,
-    rs.sub_channel_id,
-    sc.sub_canal,
-    periods.competencia_m1,
-    periods.competencia_atual,
-    periods.max_dia_conhecido,
-    COALESCE(sum(dr.amount) FILTER (WHERE (dr.competencia = periods.competencia_m1)), (0)::numeric) AS faturamento_m1,
-    COALESCE(sum(dr.amount) FILTER (WHERE (dr.competencia = periods.competencia_atual)), (0)::numeric) AS faturamento_atual,
-    count(DISTINCT rs.establishment_id) FILTER (WHERE (e.primary_establishment_id IS NULL)) AS estabelecimentos_principais
-   FROM ((((public.revenue_snapshots rs
-     JOIN public.sub_channels sc ON ((sc.id = rs.sub_channel_id)))
-     JOIN public.establishments e ON ((e.id = rs.establishment_id)))
-     JOIN periods ON ((periods.channel_id = rs.channel_id)))
-     LEFT JOIN public.daily_revenues_consolidated dr ON (((dr.channel_id = rs.channel_id) AND (dr.establishment_id = rs.establishment_id) AND ((dr.competencia = periods.competencia_m1) OR (dr.competencia = periods.competencia_atual)) AND (dr.day <= periods.max_dia_conhecido))))
-  WHERE (rs.import_batch_id = ( SELECT max(ib.id) AS max
+          WHERE ((NOT competencia_coverages.fechado) AND true)
+        ), latest_batches AS (
+         SELECT ib.channel_id,
+            max(ib.id) AS import_batch_id
            FROM public.import_batches ib
-          WHERE ((ib.channel_id = rs.channel_id) AND ((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
-                   FROM public.revenue_snapshots latest
-                  WHERE (latest.import_batch_id = ib.id))))))
-  GROUP BY rs.channel_id, rs.sub_channel_id, sc.sub_canal, periods.competencia_m1, periods.competencia_atual, periods.max_dia_conhecido
+          WHERE (((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
+                   FROM public.revenue_snapshots snapshot_1
+                  WHERE (snapshot_1.import_batch_id = ib.id))))
+          GROUP BY ib.channel_id
+        )
+ SELECT snapshot.channel_id,
+    snapshot.sub_channel_id,
+    sub_channel.uuid,
+    sub_channel.sub_canal,
+    cover.competencia_m1,
+    cover.competencia_atual,
+    cover.max_dia_conhecido,
+    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.competencia = cover.competencia_m1)), (0)::numeric) AS faturamento_m1_cheio,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = cover.competencia_m1) AND (revenue.day <= cover.max_dia_conhecido))), (0)::numeric) AS faturamento_m1,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = cover.competencia_atual) AND (revenue.day <= cover.max_dia_conhecido))), (0)::numeric) AS faturamento_atual,
+    count(DISTINCT snapshot.establishment_id) FILTER (WHERE (establishment.primary_establishment_id IS NULL)) AS estabelecimentos_principais
+   FROM (((((public.revenue_snapshots snapshot
+     JOIN latest_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
+     JOIN open_cover cover ON ((cover.channel_id = snapshot.channel_id)))
+     JOIN public.sub_channels sub_channel ON ((sub_channel.id = snapshot.sub_channel_id)))
+     JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
+     LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = snapshot.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.competencia = cover.competencia_m1) OR (revenue.competencia = cover.competencia_atual)))))
+  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.sub_canal, cover.competencia_m1, cover.competencia_atual, cover.max_dia_conhecido
   WITH NO DATA;
 
 
@@ -538,24 +544,26 @@ CREATE TABLE public.companies (
 CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
  SELECT sub_channel.channel_id,
     sub_channel.sub_channel_id,
-    e.company_id,
-    c.cnpj,
+    establishment.company_id,
+    company.cnpj,
     sub_channel.max_dia_conhecido,
     sub_channel.competencia_m1,
     sub_channel.competencia_atual,
-    COALESCE(sum(dr.amount) FILTER (WHERE (dr.competencia = sub_channel.competencia_m1)), (0)::numeric) AS faturamento_m1,
-    COALESCE(sum(dr.amount) FILTER (WHERE (dr.competencia = sub_channel.competencia_atual)), (0)::numeric) AS faturamento_atual
+    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.competencia = sub_channel.competencia_m1)), (0)::numeric) AS faturamento_m1_cheio,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = sub_channel.competencia_m1) AND (revenue.day <= sub_channel.max_dia_conhecido))), (0)::numeric) AS faturamento_m1,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.competencia = sub_channel.competencia_atual) AND (revenue.day <= sub_channel.max_dia_conhecido))), (0)::numeric) AS faturamento_atual,
+    max(revenue.day) FILTER (WHERE ((revenue.competencia = sub_channel.competencia_atual) AND (revenue.day <= sub_channel.max_dia_conhecido) AND (revenue.amount <> (0)::numeric))) AS ultimo_dia_com_venda
    FROM ((((public.audit_revenue_by_sub_channel sub_channel
-     JOIN public.revenue_snapshots rs ON (((rs.channel_id = sub_channel.channel_id) AND (rs.sub_channel_id = sub_channel.sub_channel_id))))
-     JOIN public.establishments e ON ((e.id = rs.establishment_id)))
-     JOIN public.companies c ON ((c.id = e.company_id)))
-     LEFT JOIN public.daily_revenues_consolidated dr ON (((dr.channel_id = sub_channel.channel_id) AND (dr.establishment_id = rs.establishment_id) AND ((dr.competencia = sub_channel.competencia_m1) OR (dr.competencia = sub_channel.competencia_atual)) AND (dr.day <= sub_channel.max_dia_conhecido))))
-  WHERE (rs.import_batch_id = ( SELECT max(ib.id) AS max
+     JOIN public.revenue_snapshots snapshot ON (((snapshot.channel_id = sub_channel.channel_id) AND (snapshot.sub_channel_id = sub_channel.sub_channel_id))))
+     JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
+     JOIN public.companies company ON ((company.id = establishment.company_id)))
+     LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = sub_channel.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.competencia = sub_channel.competencia_m1) OR (revenue.competencia = sub_channel.competencia_atual)))))
+  WHERE (snapshot.import_batch_id = ( SELECT max(ib.id) AS max
            FROM public.import_batches ib
-          WHERE ((ib.channel_id = sub_channel.channel_id) AND ((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
+          WHERE ((ib.channel_id = snapshot.channel_id) AND ((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
                    FROM public.revenue_snapshots latest
                   WHERE (latest.import_batch_id = ib.id))))))
-  GROUP BY sub_channel.channel_id, sub_channel.sub_channel_id, e.company_id, c.cnpj, sub_channel.max_dia_conhecido, sub_channel.competencia_m1, sub_channel.competencia_atual
+  GROUP BY sub_channel.channel_id, sub_channel.sub_channel_id, establishment.company_id, company.cnpj, sub_channel.max_dia_conhecido, sub_channel.competencia_m1, sub_channel.competencia_atual
   WITH NO DATA;
 
 
@@ -564,30 +572,20 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
 --
 
 CREATE MATERIALIZED VIEW public.audit_stalled_companies AS
- WITH current_activity AS (
-         SELECT company_view_1.channel_id,
-            company_view_1.sub_channel_id,
-            company_view_1.company_id,
-            max(dr.day) AS last_sale_day
-           FROM ((public.audit_revenue_by_company company_view_1
-             JOIN public.establishments e ON (((e.company_id = company_view_1.company_id) AND (e.channel_id = company_view_1.channel_id))))
-             JOIN public.daily_revenues_consolidated dr ON (((dr.establishment_id = e.id) AND (dr.channel_id = company_view_1.channel_id) AND (dr.competencia = company_view_1.competencia_atual) AND (dr.day <= company_view_1.max_dia_conhecido))))
-          GROUP BY company_view_1.channel_id, company_view_1.sub_channel_id, company_view_1.company_id
-        )
  SELECT company_view.channel_id,
     company_view.sub_channel_id,
-    sc.sub_canal,
+    sub_channel.sub_canal,
     company_view.company_id,
     company_view.cnpj,
     company_view.max_dia_conhecido,
-    activity.last_sale_day,
-    (company_view.max_dia_conhecido - activity.last_sale_day) AS dias_sem_venda,
+    company_view.ultimo_dia_com_venda AS last_sale_day,
+    (company_view.max_dia_conhecido - COALESCE(company_view.ultimo_dia_com_venda, 0)) AS dias_sem_venda,
+    company_view.faturamento_m1_cheio,
     company_view.faturamento_m1,
     company_view.faturamento_atual
-   FROM ((public.audit_revenue_by_company company_view
-     JOIN current_activity activity ON (((activity.channel_id = company_view.channel_id) AND (activity.sub_channel_id = company_view.sub_channel_id) AND (activity.company_id = company_view.company_id))))
-     JOIN public.sub_channels sc ON ((sc.id = company_view.sub_channel_id)))
-  WHERE ((company_view.max_dia_conhecido - activity.last_sale_day) >= 7)
+   FROM (public.audit_revenue_by_company company_view
+     JOIN public.sub_channels sub_channel ON ((sub_channel.id = company_view.sub_channel_id)))
+  WHERE ((company_view.max_dia_conhecido - COALESCE(company_view.ultimo_dia_com_venda, 0)) >= 7)
   WITH NO DATA;
 
 
@@ -2304,6 +2302,13 @@ CREATE UNIQUE INDEX index_companies_on_cnpj ON public.companies USING btree (cnp
 
 
 --
+-- Name: index_companies_on_cnpj_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_companies_on_cnpj_trgm ON public.companies USING gin (cnpj public.gin_trgm_ops);
+
+
+--
 -- Name: index_companies_on_uuid; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2455,6 +2460,13 @@ CREATE INDEX index_establishments_on_company_id ON public.establishments USING b
 --
 
 CREATE UNIQUE INDEX index_establishments_on_ec ON public.establishments USING btree (ec);
+
+
+--
+-- Name: index_establishments_on_ec_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_establishments_on_ec_trgm ON public.establishments USING gin (ec public.gin_trgm_ops);
 
 
 --
@@ -2707,6 +2719,20 @@ CREATE INDEX index_revenue_snapshots_on_establishment_id ON public.revenue_snaps
 --
 
 CREATE INDEX index_revenue_snapshots_on_import_batch_id ON public.revenue_snapshots USING btree (import_batch_id);
+
+
+--
+-- Name: index_revenue_snapshots_on_nome_fantasia; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_revenue_snapshots_on_nome_fantasia ON public.revenue_snapshots USING gin (nome_fantasia public.gin_trgm_ops);
+
+
+--
+-- Name: index_revenue_snapshots_on_razao_social; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_revenue_snapshots_on_razao_social ON public.revenue_snapshots USING gin (razao_social public.gin_trgm_ops);
 
 
 --
@@ -3468,6 +3494,9 @@ ALTER TABLE ONLY public.monthly_volumes_consolidated
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260830060000'),
+('20260830050000'),
+('20260830040000'),
 ('20260830030000'),
 ('20260830020000'),
 ('20260830010000'),
