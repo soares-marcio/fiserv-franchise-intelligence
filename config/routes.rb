@@ -8,6 +8,7 @@ Rails.application.routes.draw do
       get :weekly
     end
   end
+  get "reports/sub_channels/:id", to: "reports#sub_channel", as: :sub_channel_report
   resources :import_batches, only: %i[index show create] do
     member do
       patch :update_cutoff

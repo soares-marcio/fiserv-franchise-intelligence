@@ -1,0 +1,393 @@
+<% content_for :title, @sub_channel.sub_canal %>
+
+<div class="grid gap-5" data-controller="revenue-days-modal">
+  <section class="page-hero">
+    <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
+      <div>
+        <p class="eyebrow">Visão comercial</p>
+        <h1 class="page-title"><%= @sub_channel.sub_canal %></h1>
+        <% if @window %>
+          <p class="page-description">
+            Estabelecimentos deste subcanal. O mês anterior aparece completo. A variação
+            compara períodos equivalentes
+            <strong><%= day_range_label(@from_day, @to_day) %></strong>
+            da competência <%= competencia_option_label(@competencia) %>.
+            Os lançamentos diários abrem no detalhe de cada estabelecimento.
+          </p>
+        <% else %>
+          <p class="page-description">Importe um arquivo validado para começar a acompanhar a carteira.</p>
+        <% end %>
+      </div>
+      <div class="relative z-10 flex flex-wrap gap-2">
+        <%= link_to "Voltar à listagem", reports_path(channel_id: @selected_channel&.uuid),
+          class: "btn btn-outline" %>
+      </div>
+    </div>
+
+    <% if @window %>
+      <div class="metric-grid relative z-10">
+        <article class="metric-card" data-tone="teal">
+          <p class="metric-label">Mês anterior cheio</p>
+          <p class="metric-value"><%= brl(@totals[:faturamento_m1_cheio]) %></p>
+          <p class="metric-hint">Competência fechada</p>
+        </article>
+        <article class="metric-card" data-tone="gold">
+          <p class="metric-label">Base comparável</p>
+          <p class="metric-value"><%= brl(@totals[:faturamento_m1]) %></p>
+          <p class="metric-hint">Mês anterior <%= day_range_label(@from_day, @to_day) %></p>
+        </article>
+        <article class="metric-card" data-tone="green">
+          <p class="metric-label">Mês atual</p>
+          <p class="metric-value"><%= brl(@totals[:faturamento_atual]) %></p>
+          <p class="metric-hint"><%= competencia_option_label(@competencia) %>,
+            <%= day_range_label(@from_day, @to_day) %></p>
+        </article>
+        <article class="metric-card"
+          data-tone="<%= variation_metric_tone(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>">
+          <p class="metric-label">Variação alinhada</p>
+          <p class="metric-value">
+            <%= variation_headline(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>
+          </p>
+          <p class="metric-hint">Períodos com a mesma duração</p>
+        </article>
+      </div>
+    <% end %>
+  </section>
+
+  <% if @window %>
+    <section class="filter-panel">
+      <%= form_with url: sub_channel_report_path(@sub_channel), method: :get, class: "filter-bar" do %>
+        <% if @selected_channel %>
+          <%= hidden_field_tag :channel_id, @selected_channel.uuid %>
+        <% end %>
+
+        <div class="filter-field" data-controller="tag-select">
+          <span class="section-label">Status do contrato</span>
+          <div id="status_filter_trigger" class="tag-select" role="combobox" tabindex="0"
+            data-tag-select-target="trigger" aria-haspopup="listbox" aria-expanded="false"
+            aria-controls="status_filter_menu"
+            data-action="click->tag-select#toggle keydown->tag-select#keydown">
+            <span class="tag-select__chips" data-tag-select-target="chips"></span>
+            <span class="tag-select__placeholder" data-tag-select-target="placeholder">
+              Todos os status
+            </span>
+            <span class="tag-select__chevron" aria-hidden="true">⌄</span>
+          </div>
+          <div id="status_filter_menu" class="tag-select__menu" data-tag-select-target="menu"
+            hidden role="listbox" aria-multiselectable="true"
+            aria-labelledby="status_filter_trigger">
+            <% @status_options.each do |status| %>
+              <label class="tag-select__option <%= "is-selected" if @selected_statuses.include?(status) %>">
+                <%= check_box_tag "status[]", status, @selected_statuses.include?(status),
+                  id: "status_#{status}",
+                  data: {
+                    action: "change->tag-select#sync",
+                    label: contract_status_label(status),
+                    tone: contract_status_tone(status)
+                  } %>
+                <span><%= contract_status_label(status) %></span>
+              </label>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="filter-field" data-controller="tag-select">
+          <span class="section-label">Tipo de data</span>
+          <div id="date_kind_filter_trigger" class="tag-select" role="combobox" tabindex="0"
+            data-tag-select-target="trigger" aria-haspopup="listbox" aria-expanded="false"
+            aria-controls="date_kind_filter_menu"
+            data-action="click->tag-select#toggle keydown->tag-select#keydown">
+            <span class="tag-select__chips" data-tag-select-target="chips"></span>
+            <span class="tag-select__placeholder" data-tag-select-target="placeholder">
+              Todas as datas
+            </span>
+            <span class="tag-select__chevron" aria-hidden="true">⌄</span>
+          </div>
+          <div id="date_kind_filter_menu" class="tag-select__menu" data-tag-select-target="menu"
+            hidden role="listbox" aria-multiselectable="true"
+            aria-labelledby="date_kind_filter_trigger">
+            <% EstablishmentsHelper::DATE_KIND_OPTIONS.each do |value, label| %>
+              <label class="tag-select__option <%= "is-selected" if @selected_date_kinds.include?(value) %>">
+                <%= check_box_tag "date_kind[]", value, @selected_date_kinds.include?(value),
+                  id: "date_kind_#{value}",
+                  data: {
+                    action: "change->tag-select#sync",
+                    label:,
+                    tone: EstablishmentsHelper::DATE_KIND_TONES.fetch(value)
+                  } %>
+                <span><%= label %></span>
+              </label>
+            <% end %>
+          </div>
+        </div>
+
+        <div class="filter-field" data-controller="date-range-picker"
+          data-date-range-picker-from-date-value="<%= @from_date %>"
+          data-date-range-picker-to-date-value="<%= @to_date %>">
+          <span class="section-label">Intervalo da data</span>
+          <%= hidden_field_tag :from_date, @from_date,
+            data: { date_range_picker_target: "fromDate" } %>
+          <%= hidden_field_tag :to_date, @to_date,
+            data: { date_range_picker_target: "toDate" } %>
+          <button type="button" id="date_range_trigger" class="date-range"
+            data-date-range-picker-target="trigger" aria-haspopup="dialog" aria-expanded="false"
+            aria-controls="date_range_panel" data-action="click->date-range-picker#toggle">
+            <span class="date-range__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/>
+                <path d="M8 3.5v3.5M16 3.5v3.5M3.5 10h17"/>
+              </svg>
+            </span>
+            <span class="date-range__label" data-date-range-picker-target="triggerLabel">
+              <%= iso_range_label(@from_date, @to_date) %>
+            </span>
+            <span class="tag-select__chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div id="date_range_panel" class="datepicker" data-date-range-picker-target="panel"
+            hidden role="dialog" aria-label="Escolher intervalo de datas">
+            <div class="datepicker__nav">
+              <button type="button" class="datepicker__nav-btn"
+                data-action="click->date-range-picker#prevMonth" aria-label="Mês anterior">
+                ‹
+              </button>
+              <p class="datepicker__month" data-date-range-picker-target="monthLabel"
+                aria-live="polite"></p>
+              <button type="button" class="datepicker__nav-btn"
+                data-action="click->date-range-picker#nextMonth" aria-label="Próximo mês">
+                ›
+              </button>
+            </div>
+            <div class="datepicker__grid" data-date-range-picker-target="grid"
+              data-action="click->date-range-picker#pick keydown->date-range-picker#navigate"></div>
+            <p class="datepicker__hint" data-date-range-picker-target="hint" aria-live="polite"></p>
+            <div class="datepicker__actions">
+              <button type="button" class="btn btn-ghost btn-sm"
+                data-action="click->date-range-picker#clear">Limpar datas</button>
+              <button type="button" class="btn btn-primary btn-sm"
+                data-action="click->date-range-picker#finish">Concluir</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-field">
+          <label class="section-label" for="establishment_query">Buscar estabelecimento</label>
+          <%= search_field_tag :q, @query, id: "establishment_query", class: "filter-search",
+            placeholder: "EC, CNPJ ou nome", autocomplete: "off" %>
+        </div>
+
+        <%= hidden_field_tag :competencia, @competencia %>
+        <%= hidden_field_tag :from_day, @from_day %>
+        <%= hidden_field_tag :to_day, @to_day %>
+        <%= hidden_field_tag :per_page, @per_page %>
+
+        <div class="filter-actions">
+          <%= submit_tag "Filtrar", class: "btn btn-primary" %>
+          <%= link_to "Limpar", sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
+            class: "btn btn-outline" %>
+        </div>
+      <% end %>
+    </section>
+  <% end %>
+
+  <section class="table-frame">
+    <div class="table-toolbar">
+      <div>
+        <p class="section-label">Desempenho por estabelecimento</p>
+        <h2 class="table-title"><%= @sub_channel.channel.canal %></h2>
+      </div>
+      <% if @total_count.to_i.positive? %>
+        <div class="table-toolbar__meta">
+          <span class="badge badge-ghost">
+            <%= pluralize(@total_count, "estabelecimento", "estabelecimentos") %>
+          </span>
+          <div class="per-page">
+            <span class="section-label">Por página</span>
+            <div class="join">
+              <% EstablishmentListingQuery::PER_PAGE_OPTIONS.each do |size| %>
+                <%= link_to size,
+                  sub_channel_report_path(@sub_channel, sub_channel_listing_params(per_page: size, page: 1)),
+                  class: "join-item btn btn-sm #{size == @per_page ? "btn-primary" : "btn-outline"}" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <p class="table-scroll-hint">Deslize a tabela para ver todos os dados.</p>
+
+    <div class="overflow-x-auto">
+      <table class="table establishment-revenue-table">
+        <thead>
+          <tr>
+            <th>EC</th>
+            <th>CNPJ</th>
+            <th>Estabelecimento</th>
+            <th>Datas do ciclo</th>
+            <th class="text-right">
+              Mês anterior cheio
+              <span class="block font-normal normal-case tracking-normal opacity-60">competência fechada</span>
+            </th>
+            <th class="text-right">
+              Mês anterior comparável
+              <% if @window %>
+                <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
+              <% end %>
+            </th>
+            <th class="text-right">
+              Mês atual
+              <% if @window %>
+                <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
+              <% end %>
+            </th>
+            <th class="text-right">Variação</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @reports.each do |report| %>
+            <% previous = report["faturamento_m1"].to_d %>
+            <% previous_full = report["faturamento_m1_cheio"].to_d %>
+            <% current = report["faturamento_atual"].to_d %>
+            <tr>
+              <td class="font-mono"><%= report["ec"] %></td>
+              <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></td>
+              <td>
+                <p class="font-semibold"><%= report["nome_fantasia"].presence || report["razao_social"] %></p>
+                <% if report["razao_social"].present? && report["razao_social"] != report["nome_fantasia"] %>
+                  <p class="text-xs opacity-60"><%= report["razao_social"] %></p>
+                <% end %>
+                <% if report["status_contrato"].present? %>
+                  <div class="mt-1"><%= contract_status_badge(report["status_contrato"]) %></div>
+                <% end %>
+              </td>
+              <td>
+                <dl class="lifecycle-dates">
+                  <div>
+                    <dt>Cred.</dt>
+                    <dd><%= format_date(report["data_credenciamento"]) %></dd>
+                  </div>
+                  <div>
+                    <dt>Ativ.</dt>
+                    <dd><%= format_date(report["data_ativacao"]) %></dd>
+                  </div>
+                  <div>
+                    <dt>Susp.</dt>
+                    <dd><%= format_date(report["data_suspensao"]) %></dd>
+                  </div>
+                </dl>
+              </td>
+              <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
+              <td class="text-right tabular-nums"><%= brl(previous) %></td>
+              <td class="text-right tabular-nums"><%= brl(current) %></td>
+              <td class="text-right">
+                <%= variation_chip(previous, current) %>
+              </td>
+              <td class="text-right">
+                <%= tag.button "Lançamentos", type: "button", class: "btn btn-outline btn-sm",
+                  data: {
+                    action: "click->revenue-days-modal#open",
+                    ec: report["ec"],
+                    cnpj: formatted_cnpj(report["cnpj"]),
+                    nome: report["nome_fantasia"].presence || report["razao_social"],
+                    cutoff: @to_day,
+                    from_day: @from_day,
+                    dias_m1: revenue_days_json(report["dias_m1"]),
+                    dias_atual: revenue_days_json(report["dias_atual"]),
+                    faturamento_m1_cheio: previous_full.to_s,
+                    faturamento_m1: previous.to_s,
+                    faturamento_atual: current.to_s
+                  } %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if @reports.empty? %>
+      <div class="empty-state">
+        <% if @query.present? %>
+          Nenhum estabelecimento encontrado para “<%= @query %>”.
+        <% else %>
+          Nenhum faturamento disponível para esta seleção.
+        <% end %>
+      </div>
+    <% elsif @total_pages > 1 %>
+      <nav class="pagination-bar" aria-label="Paginação">
+        <%= link_to "Anterior",
+          sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: [ @page - 1, 1 ].max)),
+          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page <= 1}",
+          aria: { disabled: @page <= 1 } %>
+        <span class="pagination-bar__status">Página <%= @page %> de <%= @total_pages %></span>
+        <%= link_to "Próxima",
+          sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: [ @page + 1, @total_pages ].min)),
+          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page >= @total_pages}",
+          aria: { disabled: @page >= @total_pages } %>
+      </nav>
+    <% end %>
+  </section>
+
+  <div hidden>
+    <template data-revenue-days-modal-target="iconUp"><%= phosphor_icon(:up) %></template>
+    <template data-revenue-days-modal-target="iconDown"><%= phosphor_icon(:down) %></template>
+    <template data-revenue-days-modal-target="iconFlat"><%= phosphor_icon(:flat) %></template>
+  </div>
+
+  <dialog class="modal" data-revenue-days-modal-target="dialog">
+    <div class="modal-box max-w-4xl max-h-[90vh]">
+      <p class="eyebrow">Lançamentos diários</p>
+      <h3 class="page-title text-2xl" data-revenue-days-modal-target="title"></h3>
+      <p class="page-description" data-revenue-days-modal-target="identity"></p>
+      <p class="mt-2 text-sm opacity-70">
+        <span data-revenue-days-modal-target="cutoffHint"></span>
+      </p>
+
+      <div class="mt-4 grid gap-3 md:grid-cols-3">
+        <article class="metric-card" data-tone="teal">
+          <p class="metric-label">Mês anterior cheio</p>
+          <p class="metric-value" data-revenue-days-modal-target="previousTotal"></p>
+          <p class="metric-hint">Competência fechada</p>
+        </article>
+        <article class="metric-card" data-tone="gold">
+          <p class="metric-label">Base comparável</p>
+          <p class="metric-value" data-revenue-days-modal-target="comparableTotal"></p>
+          <p class="metric-hint" data-revenue-days-modal-target="comparableHint"></p>
+        </article>
+        <article class="metric-card" data-tone="green">
+          <p class="metric-label">Mês atual</p>
+          <p class="metric-value" data-revenue-days-modal-target="currentTotal"></p>
+          <p class="metric-hint" data-revenue-days-modal-target="currentHint"></p>
+        </article>
+      </div>
+
+      <section class="table-frame mt-5">
+        <div class="table-toolbar">
+          <h4 class="table-title">Mesmo dia nos dois meses</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th class="text-right">Mês anterior</th>
+                <th class="text-right">Mês atual</th>
+                <th class="text-right">Variação</th>
+              </tr>
+            </thead>
+            <tbody data-revenue-days-modal-target="daysBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="modal-action">
+        <form method="dialog">
+          <button type="submit" class="btn">Fechar</button>
+        </form>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button type="submit">Fechar</button>
+    </form>
+  </dialog>
+</div>

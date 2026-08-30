@@ -43,9 +43,12 @@
           <p class="metric-value"><%= brl(@totals[:faturamento_atual]) %></p>
           <p class="metric-hint">Movimento até dia <%= @cutoff_day %></p>
         </article>
-        <article class="metric-card">
+        <article class="metric-card"
+          data-tone="<%= variation_metric_tone(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>">
           <p class="metric-label">Variação alinhada</p>
-          <p class="metric-value"><%= aligned_variation(@totals[:faturamento_m1], @totals[:faturamento_atual]) %></p>
+          <p class="metric-value">
+            <%= variation_headline(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>
+          </p>
           <p class="metric-hint">Períodos com a mesma duração</p>
         </article>
       </div>
@@ -106,15 +109,17 @@
             <% previous = report["faturamento_m1"].to_d %>
             <% previous_full = report["faturamento_m1_cheio"].to_d %>
             <% current = report["faturamento_atual"].to_d %>
-            <tr>
-              <td class="font-semibold"><%= report["sub_canal"] %></td>
+            <tr class="is-clickable">
+              <td class="font-semibold">
+                <%= link_to report["sub_canal"],
+                  sub_channel_report_path(report["uuid"], { channel_id: @selected_channel&.uuid }.compact),
+                  class: "subchannel-link font-semibold", data: { turbo: false } %>
+              </td>
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
               <td class="text-right">
-                <span class="<%= variation_badge_class(previous, current) %>">
-                  <%= aligned_variation(previous, current) %>
-                </span>
+                <%= variation_chip(previous, current) %>
               </td>
             </tr>
           <% end %>
@@ -127,9 +132,7 @@
               <td class="text-right tabular-nums"><%= brl(@totals[:faturamento_m1]) %></td>
               <td class="text-right tabular-nums"><%= brl(@totals[:faturamento_atual]) %></td>
               <td class="text-right">
-                <span class="<%= variation_badge_class(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>">
-                  <%= aligned_variation(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>
-                </span>
+                <%= variation_chip(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>
               </td>
             </tr>
           </tfoot>

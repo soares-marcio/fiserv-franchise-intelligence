@@ -270,6 +270,15 @@
   .metric-card[data-tone="green"] { --metric-color: var(--color-success); }
   .metric-card[data-tone="teal"] { --metric-color: var(--color-secondary); }
   .metric-card[data-tone="gold"] { --metric-color: var(--color-warning); }
+  .metric-card[data-tone="rose"] { --metric-color: var(--color-error); }
+
+  .metric-card[data-tone="green"] .metric-value {
+    color: var(--color-success-content);
+  }
+
+  .metric-card[data-tone="rose"] .metric-value {
+    color: var(--color-error);
+  }
 
   .metric-label {
     color: color-mix(in oklab, var(--color-base-content) 58%, transparent);
@@ -313,8 +322,382 @@
   }
 
   .filter-panel {
+    padding: 1.1rem 1.15rem;
+    border-radius: 1.15rem 1.15rem 1.15rem 0.35rem;
+    overflow: visible;
+  }
+
+  .filter-bar {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.95fr) minmax(12rem, 0.95fr)
+      minmax(14rem, 1fr) minmax(13rem, 1fr) auto;
+    gap: 0.9rem 1.1rem;
+    align-items: end;
+  }
+
+  .filter-field {
+    position: relative;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  [data-controller="tag-select"],
+  [data-controller="date-range-picker"] {
+    position: relative;
+  }
+
+  .filter-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .filter-search {
+    min-height: 2.85rem;
+    width: 100%;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid color-mix(in oklab, var(--color-base-content) 16%, transparent);
+    border-radius: 0.85rem 0.85rem 0.85rem 0.28rem;
+    background: color-mix(in oklab, var(--color-base-200) 55%, white);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 72%);
+    color: inherit;
+  }
+
+  .filter-search:focus {
+    border-color: var(--color-primary);
+    outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  .filter-search::placeholder {
+    color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
+  }
+
+  .tag-select,
+  .date-range {
+    display: flex;
+    min-height: 2.85rem;
+    padding: 0.35rem 0.7rem;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid color-mix(in oklab, var(--color-base-content) 16%, transparent);
+    border-radius: 0.85rem 0.85rem 0.85rem 0.28rem;
+    background: color-mix(in oklab, var(--color-base-200) 55%, white);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 72%);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .tag-select:focus,
+  .date-range:focus-visible,
+  .tag-select:focus-visible {
+    border-color: var(--color-primary);
+    outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  .tag-select__chips {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .tag-select__placeholder {
+    color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
+    font-size: 0.9rem;
+  }
+
+  .status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-height: 1.7rem;
+    padding: 0.1rem 0.25rem 0.1rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--color-primary) 18%, transparent);
+    background: color-mix(in oklab, var(--color-primary) 12%, white);
+    color: var(--color-neutral);
+    font-size: 0.78rem;
+    font-weight: 750;
+  }
+
+  .status-tag[data-tone="success"] {
+    border-color: color-mix(in oklab, var(--color-success) 24%, transparent);
+    background: color-mix(in oklab, var(--color-success) 14%, white);
+    color: var(--color-success-content);
+  }
+
+  .status-tag[data-tone="warning"] {
+    border-color: color-mix(in oklab, var(--color-warning) 34%, transparent);
+    background: color-mix(in oklab, var(--color-warning) 18%, white);
+    color: color-mix(in oklab, var(--color-neutral) 82%, var(--color-warning));
+  }
+
+  .status-tag[data-tone="teal"] {
+    border-color: color-mix(in oklab, var(--color-secondary) 28%, transparent);
+    background: color-mix(in oklab, var(--color-secondary) 13%, white);
+    color: color-mix(in oklab, var(--color-neutral) 82%, var(--color-secondary));
+  }
+
+  .status-tag[data-tone="rose"] {
+    border-color: color-mix(in oklab, var(--color-error) 24%, transparent);
+    background: color-mix(in oklab, var(--color-error) 12%, white);
+    color: var(--color-error);
+  }
+
+  .status-tag__remove {
+    display: grid;
+    width: 1.4rem;
+    height: 1.4rem;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  .status-tag__remove:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+  }
+
+  .tag-select__chevron {
+    margin-left: auto;
+    flex: none;
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    font-size: 1.15rem;
+    line-height: 1;
+    transition: transform 140ms ease;
+  }
+
+  .tag-select.is-open .tag-select__chevron,
+  .date-range.is-open .tag-select__chevron {
+    transform: rotate(180deg);
+  }
+
+  .status-tag__remove:hover {
+    background: color-mix(in oklab, var(--color-primary) 22%, white);
+  }
+
+  .tag-select__menu {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    right: 0;
+    display: grid;
+    padding: 0.4rem;
+    gap: 0.2rem;
+    border: 1px solid color-mix(in oklab, var(--color-base-300) 86%, white);
+    border-radius: 0.95rem 0.95rem 0.95rem 0.3rem;
+    background: var(--color-base-100);
+    box-shadow: 0 18px 40px rgb(68 47 34 / 14%);
+  }
+
+  .tag-select__option {
+    display: flex;
+    padding: 0.55rem 0.7rem;
+    align-items: center;
+    gap: 0.65rem;
+    border-radius: 0.7rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 650;
+  }
+
+  .tag-select__option:hover {
+    background: color-mix(in oklab, var(--color-primary) 8%, white);
+  }
+
+  .tag-select__option.is-selected {
+    background: color-mix(in oklab, var(--color-primary) 14%, white);
+  }
+
+  .tag-select__option input {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: none;
+    accent-color: var(--color-primary);
+  }
+
+  .date-range {
+    width: 100%;
+    color: inherit;
+    font-weight: 700;
+  }
+
+  .date-range__label {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .date-range__icon {
+    display: grid;
+    width: 1.7rem;
+    height: 1.7rem;
+    flex: none;
+    place-items: center;
+    border-radius: 0.55rem;
+    background: color-mix(in oklab, var(--color-primary) 16%, white);
+    color: var(--color-primary);
+  }
+
+  .date-range__icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .tag-select__menu[hidden],
+  .datepicker[hidden] {
+    display: none;
+  }
+
+  .datepicker {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    width: min(22rem, calc(100vw - 2rem));
     padding: 1rem;
-    border-radius: 1rem;
+    border: 1px solid color-mix(in oklab, var(--color-base-300) 86%, white);
+    border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
+    background: var(--color-base-100);
+    box-shadow: 0 22px 48px rgb(68 47 34 / 16%);
+  }
+
+  .datepicker__nav {
+    display: flex;
+    margin-bottom: 0.85rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .datepicker__month {
+    color: var(--color-neutral);
+    font-size: 0.92rem;
+    font-weight: 780;
+    letter-spacing: -0.02em;
+  }
+
+  .datepicker__nav-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 0.6rem;
+    background: var(--color-base-200);
+    color: var(--color-neutral);
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+
+  .datepicker__nav-btn:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--color-primary) 16%, white);
+    color: var(--color-primary);
+  }
+
+  .datepicker__nav-btn:disabled {
+    opacity: 0.35;
+  }
+
+  .datepicker__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    column-gap: 0;
+    row-gap: 0.2rem;
+  }
+
+  .datepicker__dow {
+    padding-bottom: 0.25rem;
+    color: color-mix(in oklab, var(--color-base-content) 46%, transparent);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  .datepicker__cell {
+    display: grid;
+    width: 100%;
+    aspect-ratio: 1;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .datepicker__cell.is-empty {
+    pointer-events: none;
+  }
+
+  .datepicker__cell:hover:not(.is-empty) {
+    background: color-mix(in oklab, var(--color-primary) 12%, white);
+  }
+
+  .datepicker__cell:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+  }
+
+  .datepicker__cell.is-today:not(.is-start, .is-end) {
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--color-primary) 55%, transparent);
+  }
+
+  .datepicker__cell.is-in-range {
+    border-radius: 0;
+    background: color-mix(in oklab, var(--color-primary) 12%, white);
+  }
+
+  .datepicker__cell.is-start,
+  .datepicker__cell.is-end {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+  }
+
+  .datepicker__cell.is-start {
+    border-radius: 999px 0 0 999px;
+  }
+
+  .datepicker__cell.is-end {
+    border-radius: 0 999px 999px 0;
+  }
+
+  .datepicker__cell.is-start.is-end {
+    border-radius: 999px;
+  }
+
+  .datepicker__cell.is-beyond {
+    color: color-mix(in oklab, var(--color-base-content) 38%, transparent);
+  }
+
+  .datepicker__hint {
+    margin-top: 0.7rem;
+    color: color-mix(in oklab, var(--color-base-content) 52%, transparent);
+    font-size: 0.75rem;
+  }
+
+  .datepicker__actions {
+    display: flex;
+    margin: 0.85rem -1rem -1rem;
+    padding: 0.75rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-top: 1px solid var(--color-base-300);
+    background: color-mix(in oklab, var(--color-base-200) 44%, white);
+    border-radius: 0 0 1.05rem 0.3rem;
   }
 
   .table-frame {
@@ -332,6 +715,45 @@
     justify-content: space-between;
     gap: 1rem;
     border-bottom: 1px solid var(--color-base-300);
+  }
+
+  .table-toolbar__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem 1rem;
+  }
+
+  .per-page {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .per-page .section-label {
+    margin: 0;
+  }
+
+  .pagination-bar {
+    display: flex;
+    padding: 0.9rem 1.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .pagination-bar__status {
+    min-width: 8rem;
+    color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+    font-size: 0.85rem;
+    font-weight: 650;
+    text-align: center;
+  }
+
+  .table-scroll-hint {
+    display: none;
   }
 
   .table-title {
@@ -362,11 +784,69 @@
   }
 
   .table tbody tr {
+    position: relative;
     transition: background-color 140ms ease;
+  }
+
+  .table tbody tr.is-clickable {
+    cursor: pointer;
   }
 
   .table tbody tr:hover {
     background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
+  }
+
+  .table tbody tr.is-clickable .subchannel-link {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .table tbody tr.is-clickable .subchannel-link::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+  }
+
+  .establishment-revenue-table :where(th:last-child, td:last-child) {
+    position: sticky;
+    z-index: 2;
+    right: 0;
+    min-width: 7.8rem;
+    background: var(--color-base-100);
+    box-shadow: -14px 0 22px -22px rgb(68 47 34 / 55%);
+  }
+
+  .establishment-revenue-table th:last-child {
+    z-index: 3;
+    background: color-mix(in oklab, var(--color-base-200) 74%, white);
+  }
+
+  .establishment-revenue-table tbody tr:hover td:last-child {
+    background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
+  }
+
+  .lifecycle-dates {
+    display: grid;
+    min-width: 9.5rem;
+    gap: 0.18rem;
+    font-size: 0.75rem;
+  }
+
+  .lifecycle-dates > div {
+    display: grid;
+    grid-template-columns: 2.8rem auto;
+    gap: 0.35rem;
+  }
+
+  .lifecycle-dates dt {
+    color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
+    font-weight: 750;
+  }
+
+  .lifecycle-dates dd {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .table tfoot tr {
@@ -435,6 +915,67 @@
     color: color-mix(in oklab, var(--color-base-content) 65%, transparent);
   }
 
+  .variation-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.7rem;
+    padding: 0.15rem 0.5rem 0.15rem 0.3rem;
+    border-radius: 0.5rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .variation-icon-tip {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .variation-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+  }
+
+  .metric-value:has(.variation-icon) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .metric-value .variation-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .variation-chip__value {
+    font-size: 0.8rem;
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .variation-chip--up {
+    background: color-mix(in oklab, var(--color-success) 12%, white);
+    color: var(--color-success-content);
+  }
+
+  .variation-chip--down {
+    background: color-mix(in oklab, var(--color-error) 12%, white);
+    color: var(--color-error);
+  }
+
+  .variation-chip--flat,
+  .variation-chip--empty {
+    background: var(--color-base-200);
+    color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+  }
+
+  .variation-chip--empty {
+    padding-inline: 0.65rem;
+  }
+
   .app-alert {
     border: 1px solid color-mix(in oklab, currentColor 20%, transparent);
     border-radius: 1rem 1rem 1rem 0.3rem;
@@ -478,6 +1019,16 @@
   }
 }
 
+@media (max-width: 1200px) {
+  .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-actions {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 900px) {
   .topbar-inner {
     align-items: flex-start;
@@ -492,6 +1043,10 @@
 
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-bar {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -510,6 +1065,40 @@
 
   .page-hero {
     border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
+  }
+
+  .table-toolbar,
+  .table-toolbar__meta,
+  .per-page {
+    align-items: flex-start;
+  }
+
+  .table-toolbar {
+    flex-direction: column;
+  }
+
+  .table-toolbar__meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .per-page {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .table-scroll-hint {
+    display: block;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--color-base-300);
+    background: color-mix(in oklab, var(--color-primary) 6%, white);
+    color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+    font-size: 0.75rem;
+  }
+
+  .establishment-revenue-table :where(th:last-child, td:last-child) {
+    position: static;
+    box-shadow: none;
   }
 }
 

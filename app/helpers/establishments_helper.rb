@@ -3,6 +3,20 @@ module EstablishmentsHelper
     AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO
   ].freeze
   CONTRACT_STATUSES = %w[Active Suspended].freeze
+  CONTRACT_STATUS_PRESENTATION = {
+    "Active" => { label: "Ativo", tone: "success" },
+    "Suspended" => { label: "Suspenso", tone: "warning" }
+  }.freeze
+  DATE_KIND_OPTIONS = [
+    [ "credenciamento", "Credenciamento" ],
+    [ "ativacao", "Ativação" ],
+    [ "suspensao", "Suspensão" ]
+  ].freeze
+  DATE_KIND_TONES = {
+    "credenciamento" => "teal",
+    "ativacao" => "success",
+    "suspensao" => "rose"
+  }.freeze
 
   def formatted_cnpj(cnpj)
     digits = cnpj.to_s.gsub(/\D/, "")
@@ -39,12 +53,17 @@ module EstablishmentsHelper
   def contract_status_badge(status)
     return content_tag(:span, "—", class: "opacity-50") if status.blank?
 
-    css = case status.to_s
-    when "Active" then "badge badge-success badge-sm"
-    when "Suspended" then "badge badge-warning badge-sm"
-    else "badge badge-ghost badge-sm"
-    end
-    content_tag(:span, status, class: css)
+    presentation = CONTRACT_STATUS_PRESENTATION[status.to_s]
+    css = presentation ? "badge badge-#{presentation[:tone]} badge-sm" : "badge badge-ghost badge-sm"
+    content_tag(:span, contract_status_label(status), class: css)
+  end
+
+  def contract_status_label(status)
+    CONTRACT_STATUS_PRESENTATION.dig(status.to_s, :label) || status.to_s
+  end
+
+  def contract_status_tone(status)
+    CONTRACT_STATUS_PRESENTATION.dig(status.to_s, :tone) || "neutral"
   end
 
   def manual_entry_value(name)
