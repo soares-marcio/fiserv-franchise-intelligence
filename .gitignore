@@ -41,3 +41,8 @@
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Planilhas BIN da Fiserv contêm dados de clientes (CNPJ, telefone, endereço, faturamento).
+# Nunca versionar: o arquivo fica só no disco local até termos armazenamento de objetos.
+/*.xlsx
+/*.xls

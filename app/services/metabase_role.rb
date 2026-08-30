@@ -5,7 +5,7 @@ class MetabaseRole
 
   def self.ensure!
     connection = ApplicationRecord.connection
-    password = connection.quote(ENV.fetch("METABASE_RO_PASSWORD", "metabase_ro"))
+    password = connection.quote(readonly_password)
     create_role!(connection, password)
     connection.execute("ALTER ROLE #{NAME} WITH LOGIN PASSWORD #{password}")
     connection.execute(
@@ -16,6 +16,15 @@ class MetabaseRole
     VIEWS.each do |view|
       connection.execute("GRANT SELECT ON #{connection.quote_table_name(view)} TO #{NAME}")
     end
+  end
+
+  # Em produção a senha é obrigatória; fora dela cai no default para não travar setup/CI.
+  def self.readonly_password
+    password = ENV["METABASE_RO_PASSWORD"]
+    return password if password.present?
+    raise KeyError, "METABASE_RO_PASSWORD é obrigatória em produção" if Rails.env.production?
+
+    "metabase_ro"
   end
 
   def self.role_exists?
