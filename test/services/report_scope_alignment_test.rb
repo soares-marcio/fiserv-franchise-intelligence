@@ -8,7 +8,7 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     AuditViews.refresh!
 
     scope = ReportScope.new
-    totals = scope.aligned_totals
+    totals = scope.totals
     rows = scope.revenue_by_sub_channel
     channel_b = Channel.find_by!(external_id: "B")
 

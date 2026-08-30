@@ -1,12 +1,9 @@
 class ReportScope
   VIEWS = {
-    revenue_by_sub_channel: "audit_revenue_by_sub_channel",
-    revenue_by_company: "audit_revenue_by_company",
     stalled_companies: "audit_stalled_companies",
-    weekly_revenue: "audit_weekly_revenue",
-    pending_actions: "audit_pending_actions",
-    company_ec_divergence: "audit_company_ec_divergence"
+    weekly_revenue: "audit_weekly_revenue"
   }.freeze
+  CHANNEL_PREDICATE = "(:channel_id IS NULL OR channel_id = :channel_id)".freeze
 
   def initialize(channel_id: nil)
     @channel_id = channel_id
@@ -16,8 +13,38 @@ class ReportScope
     @revenue_by_sub_channel ||= aligned_revenue_by_sub_channel
   end
 
-  def revenue_by_company
-    query(:revenue_by_company, "cnpj")
+  def revenue_by_establishment(sub_channel_id:, competencia: nil, from_day: nil, to_day: nil, **filters)
+    window = establishment_window(competencia:, from_day:, to_day:)
+    return EstablishmentListingQuery.empty_page unless window
+
+    EstablishmentListingQuery.new(
+      channel_id: @channel_id, sub_channel_id:, window:, **filters
+    ).call
+  end
+
+  def contract_statuses(sub_channel_id:)
+    sub_channel = SubChannel.find(sub_channel_id)
+    channel_id = @channel_id || sub_channel.channel_id
+    import_batch_id = ImportBatch.where(channel_id:, status: "validated")
+      .joins(:revenue_snapshots).maximum(:id)
+    return [] unless import_batch_id
+
+    RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(status_contrato: [ nil, "" ])
+      .distinct.order(:status_contrato).pluck(:status_contrato)
+  end
+
+  def available_competencias
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+      SELECT competencia, max_dia_conhecido, fechado
+      FROM competencia_coverages
+      WHERE #{CHANNEL_PREDICATE}
+      ORDER BY competencia DESC
+    SQL
+    ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  def establishment_window(competencia: nil, from_day: nil, to_day: nil)
+    CompetenciaWindow.from_coverages(available_competencias, competencia:, from_day:, to_day:)
   end
 
   def stalled_companies
@@ -28,14 +55,8 @@ class ReportScope
     query(:weekly_revenue, "competencia, semana")
   end
 
-  def pending_actions
-    query(:pending_actions, "texto")
-  end
-
-  def company_ec_divergence
-    query(:company_ec_divergence)
-  end
-
+  # Menor corte entre os canais do recorte: comparar períodos de durações diferentes
+  # entre canais distorceria a variação.
   def cutoff_day
     coverages.map { |row| row["max_dia_conhecido"].to_i }.min
   end
@@ -45,31 +66,23 @@ class ReportScope
   end
 
   def totals
-    comparison_totals
-  end
-
-  def aligned_totals
-    comparison_totals
-  end
-
-  def comparison_totals
     cutoff = cutoff_day
-    return { faturamento_m1: 0.to_d, faturamento_atual: 0.to_d } unless cutoff
+    return empty_totals unless cutoff
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id, cutoff: cutoff.to_i } ])
       WITH open_cover AS (
         SELECT channel_id, competencia, max_dia_conhecido,
           (competencia - INTERVAL '1 month')::date AS competencia_m1
         FROM competencia_coverages
-        WHERE NOT fechado AND (:channel_id IS NULL OR channel_id = :channel_id)
+        WHERE NOT fechado AND #{CHANNEL_PREDICATE}
       )
-      SELECT COALESCE(SUM(CASE WHEN dr.competencia = oc.competencia_m1 THEN dr.amount END), 0)
+      SELECT COALESCE(SUM(dr.amount) FILTER (WHERE dr.competencia = oc.competencia_m1), 0)
                AS faturamento_m1_cheio,
-             COALESCE(SUM(CASE WHEN dr.competencia = oc.competencia_m1 AND dr.day <= :cutoff
-               THEN dr.amount END), 0)
+             COALESCE(SUM(dr.amount) FILTER (
+               WHERE dr.competencia = oc.competencia_m1 AND dr.day <= :cutoff), 0)
                AS faturamento_m1,
-             COALESCE(SUM(CASE WHEN dr.competencia = oc.competencia AND dr.day <= :cutoff
-               THEN dr.amount END), 0)
+             COALESCE(SUM(dr.amount) FILTER (
+               WHERE dr.competencia = oc.competencia AND dr.day <= :cutoff), 0)
                AS faturamento_atual
       FROM daily_revenues_consolidated dr
       JOIN open_cover oc ON oc.channel_id = dr.channel_id
@@ -85,72 +98,35 @@ class ReportScope
 
   private
 
+  def empty_totals
+    { faturamento_m1_cheio: 0.to_d, faturamento_m1: 0.to_d, faturamento_atual: 0.to_d }
+  end
+
   def aligned_revenue_by_sub_channel
     cutoff = cutoff_day
     return [] unless cutoff
 
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id, cutoff: cutoff.to_i } ])
-      WITH open_cover AS (
-        SELECT channel_id, competencia AS competencia_atual,
-          (competencia - INTERVAL '1 month')::date AS competencia_m1
-        FROM competencia_coverages
-        WHERE NOT fechado AND (:channel_id IS NULL OR channel_id = :channel_id)
-      ), latest_batches AS (
-        SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND EXISTS (
-            SELECT 1 FROM revenue_snapshots snapshot WHERE snapshot.import_batch_id = ib.id
-          )
-        GROUP BY ib.channel_id
-      )
-      SELECT snapshot.channel_id, snapshot.sub_channel_id, sub_channel.sub_canal,
-        cover.competencia_m1, cover.competencia_atual, :cutoff AS max_dia_conhecido,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = cover.competencia_m1
-        ), 0) AS faturamento_m1_cheio,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = cover.competencia_m1 AND revenue.day <= :cutoff
-        ), 0) AS faturamento_m1,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.competencia = cover.competencia_atual AND revenue.day <= :cutoff
-        ), 0) AS faturamento_atual,
-        COUNT(DISTINCT snapshot.establishment_id) FILTER (
-          WHERE establishment.primary_establishment_id IS NULL
-        ) AS estabelecimentos_principais
-      FROM revenue_snapshots snapshot
-      JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
-      JOIN open_cover cover ON cover.channel_id = snapshot.channel_id
-      JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
-      JOIN establishments establishment ON establishment.id = snapshot.establishment_id
-      LEFT JOIN daily_revenues_consolidated revenue
-        ON revenue.channel_id = snapshot.channel_id
-        AND revenue.establishment_id = snapshot.establishment_id
-        AND revenue.competencia IN (cover.competencia_m1, cover.competencia_atual)
-      GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.sub_canal,
-        cover.competencia_m1, cover.competencia_atual
-      ORDER BY sub_channel.sub_canal
-    SQL
+    sql = ApplicationRecord.sanitize_sql_array([
+      "#{AuditViews.revenue_by_sub_channel_sql(cutoff: ':cutoff', channel_predicate: CHANNEL_PREDICATE)} " \
+        "ORDER BY sub_channel.sub_canal",
+      { channel_id: @channel_id, cutoff: cutoff.to_i }
+    ])
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
   def coverages
     @coverages ||= begin
-      sql = + "SELECT channel_id, max_dia_conhecido FROM competencia_coverages WHERE NOT fechado"
-      sql << channel_predicate
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+        SELECT channel_id, max_dia_conhecido FROM competencia_coverages
+        WHERE NOT fechado AND #{CHANNEL_PREDICATE}
+      SQL
       ApplicationRecord.connection.exec_query(sql).to_a
     end
   end
 
-  def channel_predicate
-    return "" unless @channel_id
-
-    " AND channel_id = #{ApplicationRecord.connection.quote(@channel_id)}"
-  end
-
   def query(name, order_by = nil)
     table = VIEWS.fetch(name)
-    sql = + "SELECT * FROM #{table}"
+    sql = +"SELECT * FROM #{table}"
     sql << " WHERE channel_id = #{ApplicationRecord.connection.quote(@channel_id)}" if @channel_id
     sql << " ORDER BY #{order_by}" if order_by
     ApplicationRecord.connection.exec_query(sql).to_a
