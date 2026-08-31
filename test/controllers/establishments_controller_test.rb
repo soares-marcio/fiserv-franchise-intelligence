@@ -1,7 +1,7 @@
 require "test_helper"
 
 class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
-  test "lists cadastro fields from the current map snapshot" do
+  test "lista os campos de cadastro do snapshot atual do mapa" do
     seed_establishment
 
     get establishments_path
@@ -15,7 +15,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /5611201/
   end
 
-  test "filters establishments by name" do
+  test "filtra estabelecimentos por nome" do
     seed_establishment
 
     get establishments_path, params: { q: "PADARIA" }
@@ -25,7 +25,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /Nenhum estabelecimento encontrado/
   end
 
-  test "renders a grouped new form" do
+  test "renderiza o formulário de cadastro agrupado" do
     get new_establishment_path
 
     assert_response :success
@@ -39,7 +39,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "label", text: "Report", count: 0
   end
 
-  test "creates a manual client and shows the cadastro" do
+  test "cria um cliente manual e mostra o cadastro" do
     post establishments_path, params: {
       manual_entry: {
         report_id: "1478", channel_name: "MASTER", sub_channel_name: "MIC TESTE",
@@ -57,7 +57,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "5611201"
   end
 
-  test "rejects an invalid CNPJ on the form" do
+  test "recusa CNPJ inválido no formulário" do
     post establishments_path, params: {
       manual_entry: {
         report_id: "1478", channel_name: "MASTER", sub_channel_name: "MIC TESTE",

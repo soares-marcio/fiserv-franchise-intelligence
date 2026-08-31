@@ -1,7 +1,7 @@
 require "test_helper"
 
 class ReportScopeAlignmentTest < ActiveSupport::TestCase
-  test "aligns two channels by the smallest known day" do
+  test "alinha dois canais pelo menor dia conhecido" do
     template = BinImport::Template.register!
     seed_channel("A", template, cutoff: 24, amounts: { 24 => 100 }, previous: { 24 => 80, 31 => 40 })
     seed_channel("B", template, cutoff: 27, amounts: { 24 => 100, 27 => 50 }, previous: { 24 => 80, 31 => 40 })

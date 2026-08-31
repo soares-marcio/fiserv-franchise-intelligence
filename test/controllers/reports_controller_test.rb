@@ -13,7 +13,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "renders the audit page without data" do
+  test "renderiza a página de auditoria sem dados" do
     get reports_path
     assert_response :success
     assert_select "h1", text: "Auditoria de faturamento"
@@ -21,7 +21,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", text: /Mês anterior comparável/
   end
 
-  test "exports csv" do
+  test "exporta CSV" do
     get reports_path(format: :csv)
     assert_response :success
     assert_equal "text/csv", response.media_type
@@ -29,7 +29,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Mês anterior comparável"
   end
 
-  test "selects a channel and preserves it in exports" do
+  test "seleciona um canal e o preserva nas exportações" do
     selected = Channel.create!(external_id: "1", name: "CANAL A")
     Channel.create!(external_id: "2", name: "CANAL B")
 
@@ -42,7 +42,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{reports_path(format: :xlsx, channel_id: selected.uuid)}']", text: "Exportar XLSX"
   end
 
-  test "links each subchannel to its establishment listing" do
+  test "liga cada subcanal à sua listagem de estabelecimentos" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -52,7 +52,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{sub_channel_report_path(sub_channel)}']", text: "MIC A"
   end
 
-  test "shows establishments that compose the subchannel totals" do
+  test "mostra os estabelecimentos que compõem os totais do subcanal" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -101,7 +101,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table tbody td span.block", false
   end
 
-  test "filters the establishment listing by status and day range" do
+  test "filtra a listagem de estabelecimentos por status e faixa de dias" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
     suspended = Establishment.create!(
@@ -126,7 +126,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name='from_date'][value='2024-03-01']"
   end
 
-  test "searches and pages the establishment listing" do
+  test "busca e pagina a listagem de estabelecimentos" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
     second = Establishment.create!(
@@ -156,7 +156,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Próxima"
   end
 
-  test "returns not found for an unknown subchannel" do
+  test "responde não encontrado para subcanal desconhecido" do
     get sub_channel_report_path(id: SecureRandom.uuid)
     assert_response :not_found
   end

@@ -1,7 +1,7 @@
 require "test_helper"
 
 class Operations::ConfirmDuplicateTest < ActiveSupport::TestCase
-  test "links a duplicate EC without merging" do
+  test "vincula um EC duplicado sem mesclar" do
     channel = Channel.create!(external_id: "1", name: "MASTER")
     company = Company.create!(cnpj: "12345678000195")
     primary = Establishment.create!(ec: "32546997", company:, channel:)
@@ -13,7 +13,7 @@ class Operations::ConfirmDuplicateTest < ActiveSupport::TestCase
     assert_equal 2, Establishment.where(company:).count
   end
 
-  test "rejects a principal from another CNPJ" do
+  test "recusa um principal de outro CNPJ" do
     channel = Channel.create!(external_id: "1", name: "MASTER")
     one = Establishment.create!(ec: "12345678", company: Company.create!(cnpj: "12345678000195"), channel:)
     other = Establishment.create!(ec: "12345679", company: Company.create!(cnpj: "99945678000195"), channel:)

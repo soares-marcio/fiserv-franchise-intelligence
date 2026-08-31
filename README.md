@@ -11,7 +11,7 @@ em períodos de mesma duração.
 | **EC** | Código do estabelecimento comercial (8 dígitos). |
 | **Competência** | Mês de referência do faturamento, sempre no primeiro dia do mês. |
 | **M-1** | Competência anterior à que está aberta. |
-| **Dia de corte** (`max_dia_conhecido`) | Último dia do mês atual coberto pelo arquivo. |
+| **Dia de corte** (`max_known_day`) | Último dia do mês atual coberto pelo arquivo. |
 | **Mês anterior cheio** | Faturamento do M-1 sem recorte — o mês fechado inteiro. |
 | **Base comparável** | Faturamento do M-1 recortado no mesmo dia de corte do mês atual. |
 | **Variação alinhada** | Mês atual ÷ base comparável. Comparar com o mês cheio subestima a carteira. |

@@ -1,7 +1,7 @@
 require "test_helper"
 
 class BinImport::ValidatorTest < ActiveSupport::TestCase
-  test "rejects more than one REPORT_ID" do
+  test "recusa mais de um REPORT_ID" do
     rows = {
       "Mapa de Clientes BIN" => [
         required_map.merge("REPORT_ID" => "1478", "EC" => "12345678"),

@@ -1,7 +1,7 @@
 require "test_helper"
 
 class MetabaseControllerTest < ActionDispatch::IntegrationTest
-  test "shows the readonly connection" do
+  test "mostra a conexão somente leitura" do
     get metabase_path
 
     assert_response :success

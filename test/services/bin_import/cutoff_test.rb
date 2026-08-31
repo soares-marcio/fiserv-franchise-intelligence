@@ -1,11 +1,11 @@
 require "test_helper"
 
 class BinImport::CutoffTest < ActiveSupport::TestCase
-  test "uses the last day with value in a partial month" do
+  test "usa o último dia com valor em mês parcial" do
     assert_equal 24, BinImport::Cutoff.day([ revenue_row(24) ])
   end
 
-  test "uses day 31 when the month has value through its last day" do
+  test "usa o dia 31 quando o mês tem valor até o último dia" do
     assert_equal 31, BinImport::Cutoff.day([ revenue_row(31) ])
   end
 

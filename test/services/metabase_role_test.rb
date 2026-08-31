@@ -3,7 +3,7 @@ require "test_helper"
 class MetabaseRoleTest < ActiveSupport::TestCase
   setup { MetabaseRole.ensure! }
 
-  test "can select audit views and cannot select writable tables" do
+  test "consegue ler as views de auditoria e não consegue ler as tabelas graváveis" do
     connection = ApplicationRecord.connection
 
     AuditViews::NAMES.each do |view|

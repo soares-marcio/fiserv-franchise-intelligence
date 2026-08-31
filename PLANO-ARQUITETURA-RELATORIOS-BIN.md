@@ -1,5 +1,11 @@
 # Arquitetura da aplicação de relatórios BIN
 
+> **Nota (2026-08-30):** os identificadores de schema e código citados neste plano
+> (`competencia_coverages`, `max_dia_conhecido`, `sub_canal`, `razao_social`, `dia_corte_mes_atual`…)
+> foram renomeados para inglês depois da escrita (`period_coverages`, `max_known_day`, `name`,
+> `legal_name`, `current_month_cutoff_day`…). O plano fica como registro histórico; a convenção
+> vigente está em `CLAUDE.md`.
+
 Fonte única deste plano: o arquivo [1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx](./1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx). Nada abaixo vem de outro sistema (search-company, Hermes, Receita Federal). Toda contagem citada foi medida no arquivo.
 
 ## Eixo do modelo

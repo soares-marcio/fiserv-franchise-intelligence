@@ -1,7 +1,7 @@
 require "test_helper"
 
 class AuditViewsLatestRevenueBatchTest < ActiveSupport::TestCase
-  test "map-only cadastro does not hide the last faturamento batch" do
+  test "cadastro só de mapa não esconde o último lote de faturamento" do
     template = BinImport::Template.register!
     channel = Channel.create!(external_id: "1478", name: "MASTER")
     sub_channel = channel.sub_channels.create!(name: "MIC A")

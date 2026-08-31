@@ -1,7 +1,7 @@
 require "test_helper"
 
 class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
-  test "builds comparable establishment totals from known daily amounts" do
+  test "monta totais comparáveis por estabelecimento a partir dos valores diários conhecidos" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -38,7 +38,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal({ "24" => 50.to_d }, stringify_days(other_rows.first["current_days"]))
   end
 
-  test "filters establishments by more than one contract status" do
+  test "filtra estabelecimentos por mais de um status de contrato" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -55,7 +55,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal [ "11111111", "22222222" ], both.map { |row| row["ec"] }
   end
 
-  test "filters establishments by credentialing activation and suspension dates" do
+  test "filtra estabelecimentos por datas de credenciamento, ativação e suspensão" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -86,7 +86,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal [ "22222222" ], all_date_kinds.map { |row| row["ec"] }
   end
 
-  test "uses lifecycle dates from the same batch as the revenue snapshot" do
+  test "usa as datas de ciclo de vida do mesmo lote do snapshot de faturamento" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -109,7 +109,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal Date.new(2024, 4, 2), row["activated_on"]
   end
 
-  test "lists contract statuses only from the latest revenue batch" do
+  test "lista os status de contrato só do último lote de faturamento" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -129,7 +129,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal [ "Suspended" ], statuses
   end
 
-  test "filters establishment totals by selected month and day range" do
+  test "filtra os totais por estabelecimento pelo mês e faixa de dias selecionados" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -148,7 +148,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal 0, july["previous_revenue"].to_d
   end
 
-  test "filters establishments by name ec or cnpj" do
+  test "filtra estabelecimentos por nome, EC ou CNPJ" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
@@ -163,7 +163,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal [ "11111111", "22222222" ], by_cnpj.map { |row| row["ec"] }
   end
 
-  test "pages establishments without shrinking the selection totals" do
+  test "pagina estabelecimentos sem encolher os totais da seleção" do
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")

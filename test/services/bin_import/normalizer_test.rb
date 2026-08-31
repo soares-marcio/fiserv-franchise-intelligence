@@ -7,7 +7,7 @@ class BinImport::NormalizerTest < ActiveSupport::TestCase
     assert_equal "00123456000199", BinImport::Normalizer.cnpj(123_456_000_199)
   end
 
-  test "não completa zeros em text: o que veio como string já tem o tamanho da origem" do
+  test "não completa zeros em texto: o que veio como string já tem o tamanho da origem" do
     assert_equal "12", BinImport::Normalizer.ec("12")
     assert_equal "123", BinImport::Normalizer.cnpj("123")
     assert_equal "1234567", BinImport::Normalizer.cep("1234-567")

@@ -1,7 +1,7 @@
 require "test_helper"
 
 class Operations::RegisterManuallyTest < ActiveSupport::TestCase
-  test "creates a client with the same identity rules as import" do
+  test "cria um cliente com as mesmas regras de identidade do import" do
     batch = Operations::RegisterManually.call(valid_attrs)
 
     assert_equal "validated", batch.status
@@ -51,12 +51,12 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_equal "CNPJ inválido", error.message
   end
 
-  test "rejects an invalid EC" do
+  test "recusa EC inválido" do
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs.merge("ec" => "12")) }
     assert_equal "EC inválido", error.message
   end
 
-  test "rejects an EC that changes CNPJ" do
+  test "recusa EC que muda de CNPJ" do
     Operations::RegisterManually.call(valid_attrs)
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(valid_attrs.merge("cnpj" => "99999978000195", "report_id" => "1479"))
@@ -64,7 +64,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_match(/mudou de CNPJ/, error.message)
   end
 
-  test "rejects a REPORT_ID associated with another channel name" do
+  test "recusa REPORT_ID associado a outro nome de canal" do
     Channel.create!(external_id: "1478", name: "OUTRO MASTER")
 
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs) }
@@ -72,7 +72,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_equal "REPORT_ID 1478 associado a outro CANAL", error.message
   end
 
-  test "rejects revenue days that do not reconcile with the declared total" do
+  test "recusa dias de faturamento que não fecham com o total declarado" do
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(
         valid_attrs.merge(
@@ -86,7 +86,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_match(/dias não reconciliam/, error.message)
   end
 
-  test "rejects nonconsecutive revenue competencies" do
+  test "recusa competências de faturamento não consecutivas" do
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(
         valid_attrs.merge(
@@ -98,7 +98,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_equal "Competências devem ser meses consecutivos", error.message
   end
 
-  test "rejects faturamento EC that is not in the map row" do
+  test "recusa EC de Faturamento que não está na linha do Mapa" do
     rows = {
       "Mapa de Clientes BIN" => [ { "_row_number" => 2, "REPORT_ID" => "1", "CANAL" => "A",
         "SUB-CANAL" => "S", "EC" => "12345678", "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active" } ],

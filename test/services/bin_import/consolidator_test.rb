@@ -37,7 +37,7 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
     import_synthetic_workbook(lojas: revisadas, filename: "BIN_TESTE_20260812.xlsx")
 
     anomalia = DataAnomaly.find_by(anomaly_type: "closed_period_revised")
-    assert anomalia, "mudança em mês closed precisa virar anomalia"
+    assert anomalia, "mudança em mês fechado precisa virar anomalia"
     assert_equal "atencao", anomalia.severity
     assert_equal @primeiro.previous_period.to_s, anomalia.details["period"]
   end
@@ -55,7 +55,7 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
       "lote mais curto precisa ser registrado"
   end
 
-  test "marca o mês anterior como closed e o atual como aberto" do
+  test "marca o mês anterior como fechado e o atual como aberto" do
     coberturas = PeriodCoverage.where(channel_id: @primeiro.channel_id).index_by(&:period)
 
     assert coberturas.fetch(@primeiro.previous_period).closed

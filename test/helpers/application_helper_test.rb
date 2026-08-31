@@ -1,7 +1,7 @@
 require "test_helper"
 
 class ApplicationHelperTest < ActionView::TestCase
-  test "variation chip names an increase" do
+  test "chip de variação nomeia um aumento" do
     html = variation_chip(80, 100)
 
     assert_includes html, "variation-chip--up"
@@ -11,7 +11,7 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "variation-chip__verb"
   end
 
-  test "variation chip names a decrease" do
+  test "chip de variação nomeia uma queda" do
     html = variation_chip(100, 60)
 
     assert_includes html, "variation-chip--down"
@@ -20,7 +20,7 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "variation-chip__verb"
   end
 
-  test "variation chip stays empty without a comparable base" do
+  test "chip de variação fica vazio sem base comparável" do
     html = variation_chip(0, 40)
 
     assert_includes html, "variation-chip--empty"
@@ -29,20 +29,20 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "caiu"
   end
 
-  test "period picker names the selected month range" do
+  test "seletor de período nomeia a faixa do mês selecionado" do
     assert_equal "10 a 20 de agosto de 2026",
       period_picker_label(Date.new(2026, 8, 1), 10, 20)
     assert_equal "24 de agosto de 2026",
       period_picker_label(Date.new(2026, 8, 1), 24, 24)
   end
 
-  test "iso range label names a calendar interval" do
+  test "rótulo de faixa ISO nomeia um intervalo de calendário" do
     assert_equal "12/05/2026 a 13/05/2026",
       iso_range_label(Date.new(2026, 5, 12), Date.new(2026, 5, 13))
     assert_equal "Escolher intervalo", iso_range_label(nil, nil)
   end
 
-  test "ignores malformed daily revenue payloads" do
+  test "ignora payloads malformados de faturamento diário" do
     assert_equal({}, revenue_days_hash("not-json"))
   end
 end
