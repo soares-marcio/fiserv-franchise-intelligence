@@ -90,7 +90,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
       "Mapa de Clientes BIN" => [ { "_row_number" => 2, "REPORT_ID" => "1", "CANAL" => "A",
         "SUB-CANAL" => "S", "EC" => "12345678", "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active" } ],
       "Faturamento" => [ { "_row_number" => 2, "CANAL" => "A", "SUB-CANAL" => "S", "EC" => "99999999",
-        "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active", "previous_month_total" => 0,
+        "CNPJ" => "12345678000195", "STATUS DO CONTRATO" => "Active", "fat_total_m1" => 0,
         "FATURAMENTO TOTAL DESTE MÊS" => 0 } ],
       "Ativacao" => []
     }

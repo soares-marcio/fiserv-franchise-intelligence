@@ -257,7 +257,7 @@ module BinImport
           work_phone: Normalizer.digits(row["TELEFONE DO TRABALHO"]),
           work_phone_raw: row["TELEFONE DO TRABALHO"].to_s,
           cnae_code: row["CNAE"], cnae_description: row["DESCRIÇÃO DO CNAE"],
-          previous_month_total: Normalizer.decimal(row["previous_month_total"]) || 0,
+          previous_month_total: Normalizer.decimal(row["fat_total_m1"]) || 0,
           current_month_total: Normalizer.decimal(row["FATURAMENTO TOTAL DESTE MÊS"]) || 0,
           created_at: now, updated_at: now
         }

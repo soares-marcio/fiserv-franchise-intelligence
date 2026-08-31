@@ -27,6 +27,15 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     assert_equal volumes_esperados, MonthlyVolume.count
   end
 
+  test "grava os totais mensais da aba Faturamento no snapshot" do
+    import_synthetic_workbook(lojas: @lojas)
+    loja = @lojas.first
+    snapshot = RevenueSnapshot.joins(:establishment).find_by!(establishments: { ec: loja.ec })
+
+    assert_equal loja.total_m1, snapshot.previous_month_total
+    assert_equal loja.total_atual, snapshot.current_month_total
+  end
+
   test "grava razão social e nome fantasia nos campos certos nas três abas" do
     import_synthetic_workbook(lojas: @lojas)
     loja = @lojas.first
