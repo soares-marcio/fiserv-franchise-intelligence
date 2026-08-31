@@ -14,7 +14,7 @@
         <span class="section-label">Arquivo XLSX</span>
         <%= file_field_tag :file, accept: ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", class: "file-input file-input-bordered w-full", required: true %>
       </label>
-      <%= submit_tag "Iniciar importação", class: "btn btn-primary btn--field",
+      <%= button_tag icon_label("upload-simple", "Iniciar importação"), type: "submit", class: "btn btn-primary btn--field",
         data: { turbo_confirm: "Importar este arquivo agora?" } %>
       <p class="basis-full text-xs opacity-70">
         Precisa ter as abas <strong>Faturamento</strong>, <strong>Ativacao</strong> e
@@ -27,14 +27,14 @@
 
 <div class="metric-grid metric-grid--3 mt-5">
   <article class="metric-card" data-tone="<%= ImportBatch.stale? ? "rose" : "green" %>">
-    <p class="metric-label">Último arquivo recebido</p>
+    <p class="metric-label"><%= icon("calendar-check", css: "metric-icon") %>Último arquivo recebido</p>
     <p class="metric-value"><%= last_file_headline(@days_since_last_file) %></p>
     <p class="metric-hint"><%= last_file_hint(@days_since_last_file) %></p>
   </article>
 
   <% if @running_batch %>
     <article class="metric-card" data-tone="teal" role="status" aria-live="polite">
-      <p class="metric-label">Importação</p>
+      <p class="metric-label"><%= icon("file-arrow-up", css: "metric-icon") %>Importação</p>
       <p class="metric-value">
         <span class="loading loading-spinner loading-sm" aria-hidden="true"></span> Importando
       </p>
@@ -44,7 +44,7 @@
     </article>
   <% elsif @stuck_batches.any? %>
     <article class="metric-card" data-tone="gold" role="alert">
-      <p class="metric-label">Importação</p>
+      <p class="metric-label"><%= icon("file-arrow-up", css: "metric-icon") %>Importação</p>
       <p class="metric-value">Pendente</p>
       <p class="metric-hint">
         <strong><%= @stuck_batches.first.source_filename %></strong> está pendente desde
@@ -53,7 +53,7 @@
     </article>
   <% elsif @last_batch&.status == "failed" %>
     <article class="metric-card" data-tone="rose" role="alert">
-      <p class="metric-label">Última importação</p>
+      <p class="metric-label"><%= icon("file-arrow-up", css: "metric-icon") %>Última importação</p>
       <p class="metric-value">Falhou</p>
       <p class="metric-hint">
         <%= link_to @last_batch.source_filename, @last_batch, class: "link" %> —
@@ -62,7 +62,7 @@
     </article>
   <% elsif @last_batch %>
     <article class="metric-card" data-tone="green">
-      <p class="metric-label">Última importação</p>
+      <p class="metric-label"><%= icon("file-arrow-up", css: "metric-icon") %>Última importação</p>
       <p class="metric-value">Importado</p>
       <p class="metric-hint">
         <%= link_to @last_batch.source_filename, @last_batch, class: "link" %>
@@ -72,14 +72,14 @@
     </article>
   <% else %>
     <article class="metric-card">
-      <p class="metric-label">Última importação</p>
+      <p class="metric-label"><%= icon("file-arrow-up", css: "metric-icon") %>Última importação</p>
       <p class="metric-value">Nenhuma</p>
       <p class="metric-hint">O primeiro lote aparece aqui assim que for enviado.</p>
     </article>
   <% end %>
 
   <article class="metric-card" data-tone="<%= @worker_alive ? "green" : "rose" %>">
-    <p class="metric-label">Worker de importação</p>
+    <p class="metric-label"><%= icon("cpu", css: "metric-icon") %>Worker de importação</p>
     <p class="metric-value"><%= @worker_alive ? "Ativo" : "Parado" %></p>
     <p class="metric-hint">
       <% if @worker_heartbeat_at %>
@@ -92,14 +92,14 @@
   </article>
 </div>
 
-<section class="table-frame mt-5">
+<section class="table-frame mt-5" data-controller="sticky-table">
   <div class="table-toolbar">
     <div>
       <p class="section-label">Histórico</p>
       <h2 class="table-title">Lotes recentes</h2>
     </div>
   </div>
-    <div class="overflow-x-auto">
+    <div class="table-scroll">
       <table class="table">
         <thead>
           <tr>
@@ -126,7 +126,7 @@
               <td><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></td>
               <td class="text-right">
                 <% if batch.discardable? %>
-                  <%= button_to "Descartar", import_batch_path(batch), method: :delete,
+                  <%= button_to icon_label("trash", "Descartar"), import_batch_path(batch), method: :delete,
                     class: "btn btn-ghost btn-sm",
                     form: { data: { turbo_confirm: "Descartar o lote #{batch.source_filename}?" } } %>
                 <% end %>

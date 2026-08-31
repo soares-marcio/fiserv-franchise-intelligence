@@ -9,7 +9,7 @@
       considerando o corte no dia <%= @cutoff_day || "informado" %>.
     </p>
   </section>
-  <section class="table-frame">
+  <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Acompanhamento</p>
@@ -17,7 +17,7 @@
       </div>
       <span class="badge badge-ghost"><%= @reports.size %> clientes</span>
     </div>
-    <div class="overflow-x-auto">
+    <div class="table-scroll">
       <table class="table">
         <thead>
           <tr>

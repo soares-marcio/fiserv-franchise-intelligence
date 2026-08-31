@@ -19,9 +19,9 @@
         <% end %>
       </div>
       <div class="relative z-10 flex flex-wrap gap-2">
-        <%= link_to "Exportar CSV", reports_path(format: :csv, channel_id: @selected_channel&.uuid),
+        <%= link_to icon_label("download-simple", "Exportar CSV"), reports_path(format: :csv, channel_id: @selected_channel&.uuid),
           class: "btn btn-outline" %>
-        <%= link_to "Exportar XLSX", reports_path(format: :xlsx, channel_id: @selected_channel&.uuid),
+        <%= link_to icon_label("download-simple", "Exportar XLSX"), reports_path(format: :xlsx, channel_id: @selected_channel&.uuid),
           class: "btn btn-neutral" %>
       </div>
     </div>
@@ -66,11 +66,11 @@
             @selected_channel&.uuid),
           class: "select select-bordered w-auto min-w-52 max-w-full" %>
       </label>
-      <%= submit_tag "Aplicar filtro", class: "btn btn-primary btn--field" %>
+      <%= button_tag icon_label("funnel", "Aplicar filtro"), type: "submit", class: "btn btn-primary btn--field" %>
     <% end %>
   </section>
 
-  <section class="table-frame">
+  <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por carteira</p>
@@ -81,7 +81,7 @@
       <% end %>
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="table-scroll">
       <table class="table">
         <thead>
           <tr>

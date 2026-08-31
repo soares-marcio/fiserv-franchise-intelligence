@@ -181,15 +181,15 @@
         <%= hidden_field_tag :per_page, @per_page %>
 
         <div class="filter-actions">
-          <%= submit_tag "Filtrar", class: "btn btn-primary btn--field" %>
-          <%= link_to "Limpar", sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
+          <%= button_tag icon_label("funnel", "Filtrar"), type: "submit", class: "btn btn-primary btn--field" %>
+          <%= link_to icon_label("eraser", "Limpar"), sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
             class: "btn btn-outline btn--field" %>
         </div>
       <% end %>
     </section>
   <% end %>
 
-  <section class="table-frame">
+  <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por estabelecimento</p>
@@ -216,7 +216,7 @@
 
     <p class="table-scroll-hint">Deslize a tabela para ver todos os dados.</p>
 
-    <div class="overflow-x-auto">
+    <div class="table-scroll">
       <table class="table establishment-revenue-table">
         <thead>
           <tr>
@@ -284,7 +284,7 @@
                 <%= variation_chip(previous, current) %>
               </td>
               <td class="text-right">
-                <%= tag.button "Lançamentos", type: "button", class: "btn btn-outline btn-sm",
+                <%= tag.button icon_label("list-bullets", "Lançamentos"), type: "button", class: "btn btn-outline btn-sm",
                   data: {
                     action: "click->revenue-days-modal#open",
                     ec: report["ec"],
@@ -365,7 +365,7 @@
         <div class="table-toolbar">
           <h4 class="table-title">Mesmo dia nos dois meses</h4>
         </div>
-        <div class="overflow-x-auto">
+        <div class="table-scroll">
           <table class="table table-sm">
             <thead>
               <tr>

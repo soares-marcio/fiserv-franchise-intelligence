@@ -44,12 +44,12 @@
       <%= submit_tag "Ajustar corte", class: "btn btn-outline btn--field" %>
     <% end %>
 
-    <%= button_to "Reprocessar lote", reprocess_import_batch_path(@import_batch), method: :post,
+    <%= button_to icon_label("arrow-counter-clockwise", "Reprocessar lote"), reprocess_import_batch_path(@import_batch), method: :post,
       class: "btn btn-outline mt-4",
       data: { turbo_confirm: "Reprocessar consolidação e views deste lote?" } %>
 
     <% if @import_batch.discardable? %>
-      <%= button_to "Descartar lote", import_batch_path(@import_batch), method: :delete,
+      <%= button_to icon_label("trash", "Descartar lote"), import_batch_path(@import_batch), method: :delete,
         class: "btn btn-ghost mt-4",
         form: { data: { turbo_confirm: "Descartar o lote #{@import_batch.source_filename}?" } } %>
     <% end %>
