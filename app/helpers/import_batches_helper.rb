@@ -13,6 +13,15 @@ module ImportBatchesHelper
     content_tag(:span, presentation[:label], class: "badge badge-#{presentation[:tone]}")
   end
 
+  # Sem depender das traduções de distance_in_words, que o locale pt-BR não traz.
+  def heartbeat_label(time)
+    seconds = (Time.current - time).to_i
+    return "agora há pouco" if seconds < 60
+    return "há #{seconds / 60} min" if seconds < 3600
+
+    "às #{time.strftime('%H:%M')}"
+  end
+
   def days_label(days)
     days == 1 ? "1 dia" : "#{days} dias"
   end

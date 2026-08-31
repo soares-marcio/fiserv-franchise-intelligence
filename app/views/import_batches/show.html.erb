@@ -16,7 +16,9 @@
     <% if @import_batch.validation_errors.any? %>
       <div class="alert alert-error mt-4" role="alert">
         <div>
-          <p class="font-semibold">A importação falhou</p>
+          <p class="font-semibold">
+            <%= @import_batch.status == "validated" ? "Importado com ressalva" : "A importação falhou" %>
+          </p>
           <ul class="mt-1 list-disc pl-5 text-sm">
             <% @import_batch.validation_errors.each do |message| %>
               <li><%= message %></li>
@@ -39,11 +41,17 @@
         <span class="label-text">Ajustar dia de corte</span>
         <%= number_field_tag :max_known_day, @import_batch.current_month_cutoff_day, min: 1, max: 31, class: "input input-bordered w-24" %>
       </label>
-      <%= submit_tag "Ajustar corte", class: "btn btn-outline" %>
+      <%= submit_tag "Ajustar corte", class: "btn btn-outline btn--field" %>
     <% end %>
 
     <%= button_to "Reprocessar lote", reprocess_import_batch_path(@import_batch), method: :post,
       class: "btn btn-outline mt-4",
       data: { turbo_confirm: "Reprocessar consolidação e views deste lote?" } %>
+
+    <% if @import_batch.discardable? %>
+      <%= button_to "Descartar lote", import_batch_path(@import_batch), method: :delete,
+        class: "btn btn-ghost mt-4",
+        form: { data: { turbo_confirm: "Descartar o lote #{@import_batch.source_filename}?" } } %>
+    <% end %>
   </div>
 </section>

@@ -147,7 +147,8 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     get import_batches_path
 
-    assert_select "div.alert-info", text: /esta tela avisa\s+sozinha quando terminar/
+    assert_select ".metric-card[data-tone=teal]", text: /Importando/
+    assert_select ".metric-card[data-tone=teal]", text: /esta tela avisa sozinha quando terminar/
     assert_select "turbo-cable-stream-source"
   end
 
@@ -159,7 +160,36 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     get import_batches_path
 
-    assert_select "div.alert-warning", text: /verifique se o worker está no ar/
+    assert_select ".metric-card[data-tone=gold]", text: /Pendente/
+    assert_select ".metric-card[data-tone=gold]", text: /verifique se o worker está no ar/
+  end
+
+  test "primeira dobra mostra a última importação e o motivo da falha" do
+    batch = ImportBatch.create!(
+      source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "failed",
+      validation_errors: [ "Abas ausentes: Faturamento" ]
+    )
+    batch.update_column(:created_at, 20.minutes.ago)
+
+    get import_batches_path
+
+    assert_select ".metric-card[data-tone=rose]", text: /Falhou/
+    assert_select ".metric-card[data-tone=rose] a[href=?]", import_batch_path(batch)
+    assert_select ".metric-card[data-tone=rose]", text: /Abas ausentes: Faturamento/
+  end
+
+  test "card do worker reflete o batimento do Solid Queue" do
+    get import_batches_path
+    assert_select ".metric-card[data-tone=rose]", text: /Worker de importação\s+Parado/
+    assert_select ".metric-card", text: /Nenhum worker registrado/
+
+    SolidQueue::Process.create!(
+      kind: "Worker", pid: 1, hostname: "teste", name: "worker-teste", last_heartbeat_at: Time.current
+    )
+    get import_batches_path
+    assert_select ".metric-card[data-tone=green]", text: /Worker de importação\s+Ativo/
+    assert_select ".metric-card", text: /Último sinal agora há pouco/
+    assert_no_match(/Translation missing/, response.body)
   end
 
   test "mostra há quantos dias não chega arquivo e alerta a partir de 12" do
@@ -184,6 +214,35 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".metric-value", text: "Nunca"
     assert ImportBatch.stale?
+  end
+
+  test "descarta lote que falhou antes de gravar dados" do
+    batch = ImportBatch.create!(
+      source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "failed",
+      validation_errors: [ "Abas ausentes: Faturamento" ]
+    )
+
+    get import_batches_path
+    assert_select "form[action=?] button", import_batch_path(batch), text: "Descartar"
+
+    assert_difference -> { ImportBatch.count }, -1 do
+      delete import_batch_path(batch)
+    end
+    assert_redirected_to import_batches_path
+    assert_equal "Lote descartado.", flash[:notice]
+  end
+
+  test "não descarta lote que já gravou dados" do
+    batch = import_synthetic_workbook
+    batch.update!(status: "failed")
+
+    get import_batches_path
+    assert_select "form[action=?] button", import_batch_path(batch), count: 0
+
+    assert_no_difference -> { ImportBatch.count } do
+      delete import_batch_path(batch)
+    end
+    assert_match(/antes de gravar dados/, flash[:alert])
   end
 
   private

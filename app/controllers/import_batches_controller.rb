@@ -4,6 +4,9 @@ class ImportBatchesController < ApplicationController
     @days_since_last_file = ImportBatch.days_since_last_file
     @running_batch = @import_batches.find(&:running?)
     @stuck_batches = @import_batches.select(&:stuck?)
+    @last_batch = @import_batches.first
+    @worker_alive = ImportBatch.worker_alive?
+    @worker_heartbeat_at = ImportBatch.worker_heartbeat_at
   end
 
   def show
@@ -23,6 +26,17 @@ class ImportBatchesController < ApplicationController
     redirect_to import_batches_path, alert: "Selecione um arquivo."
   rescue ArgumentError => error
     redirect_to import_batches_path, alert: error.message
+  end
+
+  def destroy
+    batch = ImportBatch.find_param!(params[:id])
+    unless batch.discardable?
+      redirect_to import_batch_path(batch), alert: "Só lotes que falharam antes de gravar dados podem ser descartados."
+      return
+    end
+
+    batch.destroy!
+    redirect_to import_batches_path, notice: "Lote descartado."
   end
 
   def update_cutoff

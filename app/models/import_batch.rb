@@ -25,6 +25,18 @@ class ImportBatch < ApplicationRecord
   # Atualiza a tela de importação sozinha quando o lote muda de status.
   broadcasts_refreshes_to ->(_batch) { "import_batches" }
 
+  # Batimento do worker do Solid Queue; sem ele, todo upload fica pendente em silêncio.
+  WORKER_HEARTBEAT_TIMEOUT = 2.minutes
+
+  def self.worker_heartbeat_at
+    SolidQueue::Process.where(kind: "Worker").maximum(:last_heartbeat_at)
+  end
+
+  def self.worker_alive?
+    heartbeat = worker_heartbeat_at
+    heartbeat.present? && heartbeat > WORKER_HEARTBEAT_TIMEOUT.ago
+  end
+
   def self.last_received_at
     validated.maximum(:created_at)
   end
@@ -39,6 +51,13 @@ class ImportBatch < ApplicationRecord
   def self.stale?
     days = days_since_last_file
     days.nil? || days >= STALE_AFTER_DAYS
+  end
+
+  # Só um lote que falhou antes de gravar qualquer linha pode ser descartado; os demais
+  # já alimentaram a consolidação e têm chaves apontando para eles.
+  def discardable?
+    status == "failed" && map_snapshots.none? && revenue_snapshots.none? &&
+      activation_proposals.none? && daily_revenues.none?
   end
 
   def running?
