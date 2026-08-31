@@ -14,20 +14,20 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
 
     assert_equal 24, scope.cutoff_day
     assert scope.mixed_cutoffs?
-    assert_equal 200, totals[:faturamento_atual]
-    assert_equal 160, totals[:faturamento_m1]
-    assert_equal 240, totals[:faturamento_m1_cheio]
-    assert_equal 200, rows.sum { |row| row["faturamento_atual"].to_d }
-    assert_equal 160, rows.sum { |row| row["faturamento_m1"].to_d }
-    assert_equal 240, rows.sum { |row| row["faturamento_m1_cheio"].to_d }
+    assert_equal 200, totals[:current_revenue]
+    assert_equal 160, totals[:previous_revenue]
+    assert_equal 240, totals[:previous_full_revenue]
+    assert_equal 200, rows.sum { |row| row["current_revenue"].to_d }
+    assert_equal 160, rows.sum { |row| row["previous_revenue"].to_d }
+    assert_equal 240, rows.sum { |row| row["previous_full_revenue"].to_d }
     assert_equal 50, DailyRevenueConsolidated.where(channel: channel_b, day: 27).sum(:amount)
 
     channel_a = Channel.find_by!(external_id: "A")
     filtered_scope = ReportScope.new(channel_id: channel_a.id)
     assert_equal [ "MIC A" ], filtered_scope.revenue_by_sub_channel.pluck("sub_channel_name")
-    assert_equal 100, filtered_scope.totals[:faturamento_atual]
-    assert_equal 80, filtered_scope.totals[:faturamento_m1]
-    assert_equal 120, filtered_scope.totals[:faturamento_m1_cheio]
+    assert_equal 100, filtered_scope.totals[:current_revenue]
+    assert_equal 80, filtered_scope.totals[:previous_revenue]
+    assert_equal 120, filtered_scope.totals[:previous_full_revenue]
   end
 
   private

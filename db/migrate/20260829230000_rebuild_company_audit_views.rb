@@ -8,9 +8,9 @@ class RebuildCompanyAuditViews < ActiveRecord::Migration[8.1]
       SELECT ars.channel_id, ars.sub_channel_id, e.company_id, c.cnpj, ars.max_known_day,
         ars.previous_period, ars.current_period,
         COALESCE(SUM(CASE WHEN dr.period = ars.previous_period THEN dr.amount END), 0)
-          AS faturamento_m1,
+          AS previous_revenue,
         COALESCE(SUM(CASE WHEN dr.period = ars.current_period THEN dr.amount END), 0)
-          AS faturamento_atual
+          AS current_revenue
       FROM audit_revenue_by_sub_channel ars
       JOIN revenue_snapshots rs
         ON rs.channel_id = ars.channel_id AND rs.sub_channel_id = ars.sub_channel_id
@@ -32,10 +32,10 @@ class RebuildCompanyAuditViews < ActiveRecord::Migration[8.1]
 
       CREATE MATERIALIZED VIEW audit_stalled_companies AS
       SELECT arc.channel_id, arc.sub_channel_id, sc.name AS sub_channel_name, arc.company_id, arc.cnpj,
-        arc.max_known_day, arc.faturamento_m1, arc.faturamento_atual
+        arc.max_known_day, arc.previous_revenue, arc.current_revenue
       FROM audit_revenue_by_company arc
       JOIN sub_channels sc ON sc.id = arc.sub_channel_id
-      WHERE arc.faturamento_m1 > 0 AND arc.faturamento_atual = 0;
+      WHERE arc.previous_revenue > 0 AND arc.current_revenue = 0;
       CREATE UNIQUE INDEX index_audit_stalled_companies
         ON audit_stalled_companies (channel_id, sub_channel_id, company_id);
     SQL

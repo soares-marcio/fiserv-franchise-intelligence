@@ -945,8 +945,8 @@ COMMENT ON COLUMN public.revenue_snapshots.current_month_total IS 'Origem: colun
 CREATE MATERIALIZED VIEW public.audit_company_ec_divergence AS
  SELECT rs.channel_id,
     e.company_id,
-    count(DISTINCT rs.contract_status) AS status_contrato_distintos,
-    count(DISTINCT ms.performed_segment) AS segmento_performado_distintos
+    count(DISTINCT rs.contract_status) AS distinct_contract_statuses,
+    count(DISTINCT ms.performed_segment) AS distinct_performed_segments
    FROM ((public.revenue_snapshots rs
      JOIN public.establishments e ON ((e.id = rs.establishment_id)))
      LEFT JOIN public.map_snapshots ms ON (((ms.import_batch_id = rs.import_batch_id) AND (ms.establishment_id = rs.establishment_id))))
@@ -1118,10 +1118,10 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
     cover.previous_period,
     cover.current_period,
     cover.max_known_day,
-    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = cover.previous_period)), (0)::numeric) AS faturamento_m1_cheio,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS faturamento_m1,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS faturamento_atual,
-    count(DISTINCT snapshot.establishment_id) FILTER (WHERE (establishment.primary_establishment_id IS NULL)) AS estabelecimentos_principais
+    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = cover.previous_period)), (0)::numeric) AS previous_full_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS previous_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS current_revenue,
+    count(DISTINCT snapshot.establishment_id) FILTER (WHERE (establishment.primary_establishment_id IS NULL)) AS primary_establishments
    FROM (((((public.revenue_snapshots snapshot
      JOIN latest_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
      JOIN open_cover cover ON ((cover.channel_id = snapshot.channel_id)))
@@ -1158,9 +1158,9 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
     sub_channel.max_known_day,
     sub_channel.previous_period,
     sub_channel.current_period,
-    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = sub_channel.previous_period)), (0)::numeric) AS faturamento_m1_cheio,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.previous_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS faturamento_m1,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS faturamento_atual,
+    COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = sub_channel.previous_period)), (0)::numeric) AS previous_full_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.previous_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS previous_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS current_revenue,
     max(revenue.day) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day) AND (revenue.amount <> (0)::numeric))) AS last_sale_day
    FROM ((((public.audit_revenue_by_sub_channel sub_channel
      JOIN public.revenue_snapshots snapshot ON (((snapshot.channel_id = sub_channel.channel_id) AND (snapshot.sub_channel_id = sub_channel.sub_channel_id))))
@@ -1188,10 +1188,10 @@ CREATE MATERIALIZED VIEW public.audit_stalled_companies AS
     company_view.cnpj,
     company_view.max_known_day,
     company_view.last_sale_day,
-    (company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)) AS dias_sem_venda,
-    company_view.faturamento_m1_cheio,
-    company_view.faturamento_m1,
-    company_view.faturamento_atual
+    (company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)) AS days_without_sales,
+    company_view.previous_full_revenue,
+    company_view.previous_revenue,
+    company_view.current_revenue
    FROM (public.audit_revenue_by_company company_view
      JOIN public.sub_channels sub_channel ON ((sub_channel.id = company_view.sub_channel_id)))
   WHERE ((company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)) >= 7)
@@ -1205,9 +1205,9 @@ CREATE MATERIALIZED VIEW public.audit_stalled_companies AS
 CREATE MATERIALIZED VIEW public.audit_weekly_revenue AS
  SELECT channel_id,
     period,
-    (((day - 1) / 7) + 1) AS semana,
-    sum(amount) AS faturamento,
-    count(DISTINCT establishment_id) AS estabelecimentos
+    (((day - 1) / 7) + 1) AS week,
+    sum(amount) AS revenue,
+    count(DISTINCT establishment_id) AS establishments
    FROM public.daily_revenues_consolidated
   GROUP BY channel_id, period, (((day - 1) / 7) + 1)
   WITH NO DATA;
@@ -2759,7 +2759,7 @@ CREATE UNIQUE INDEX index_audit_stalled_companies ON public.audit_stalled_compan
 -- Name: index_audit_weekly_revenue; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_audit_weekly_revenue ON public.audit_weekly_revenue USING btree (channel_id, period, semana);
+CREATE UNIQUE INDEX index_audit_weekly_revenue ON public.audit_weekly_revenue USING btree (channel_id, period, week);
 
 
 --

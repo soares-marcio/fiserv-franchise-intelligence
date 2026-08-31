@@ -322,8 +322,8 @@ module BinImport
 
       Anomalies.record!(
         batch:, type: "cutoff_below_file_date", severity: "info",
-        details: { corte_observado: batch.current_month_cutoff_day, dia_do_arquivo: file_date.day,
-                   corte_esperado: expected }
+        details: { observed_cutoff: batch.current_month_cutoff_day, file_day: file_date.day,
+                   expected_cutoff: expected }
       )
     end
 

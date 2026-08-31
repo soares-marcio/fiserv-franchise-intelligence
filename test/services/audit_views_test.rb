@@ -14,7 +14,7 @@ class AuditViewsTest < ActiveSupport::TestCase
 
     assert linha, "CNPJ sem venda no mês precisa aparecer em clientes parados"
     assert_nil linha["last_sale_day"]
-    assert_equal @cutoff, linha["dias_sem_venda"]
+    assert_equal @cutoff, linha["days_without_sales"]
   end
 
   test "não lista quem vendeu até o dia de corte" do
@@ -27,11 +27,11 @@ class AuditViewsTest < ActiveSupport::TestCase
   test "a view por subcanal separa o mês anterior cheio da base comparável" do
     linhas = view_rows("audit_revenue_by_sub_channel").index_by { |row| row["sub_channel_name"] }
 
-    @lojas.group_by(&:name).each do |sub_channel_name, lojas|
+    @lojas.group_by(&:sub_channel_name).each do |sub_channel_name, lojas|
       linha = linhas.fetch(sub_channel_name)
-      assert_equal soma(lojas, :dias_m1), linha["faturamento_m1_cheio"].to_d, sub_channel_name
-      assert_equal soma(lojas, :dias_m1, ate: @cutoff), linha["faturamento_m1"].to_d, sub_channel_name
-      assert_equal soma(lojas, :dias_atual, ate: @cutoff), linha["faturamento_atual"].to_d, sub_channel_name
+      assert_equal soma(lojas, :dias_m1), linha["previous_full_revenue"].to_d, sub_channel_name
+      assert_equal soma(lojas, :dias_m1, ate: @cutoff), linha["previous_revenue"].to_d, sub_channel_name
+      assert_equal soma(lojas, :dias_atual, ate: @cutoff), linha["current_revenue"].to_d, sub_channel_name
     end
   end
 
@@ -39,7 +39,7 @@ class AuditViewsTest < ActiveSupport::TestCase
     linhas = view_rows("audit_revenue_by_company").index_by { |row| row["cnpj"] }
 
     @lojas.group_by(&:cnpj).each do |cnpj, lojas|
-      assert_equal soma(lojas, :dias_m1), linhas.fetch(cnpj)["faturamento_m1_cheio"].to_d, cnpj
+      assert_equal soma(lojas, :dias_m1), linhas.fetch(cnpj)["previous_full_revenue"].to_d, cnpj
     end
   end
 
@@ -47,9 +47,9 @@ class AuditViewsTest < ActiveSupport::TestCase
     totals = ReportScope.new.totals
     linhas = view_rows("audit_revenue_by_sub_channel")
 
-    assert_equal linhas.sum { |row| row["faturamento_m1_cheio"].to_d }, totals[:faturamento_m1_cheio]
-    assert_equal linhas.sum { |row| row["faturamento_m1"].to_d }, totals[:faturamento_m1]
-    assert_equal linhas.sum { |row| row["faturamento_atual"].to_d }, totals[:faturamento_atual]
+    assert_equal linhas.sum { |row| row["previous_full_revenue"].to_d }, totals[:previous_full_revenue]
+    assert_equal linhas.sum { |row| row["previous_revenue"].to_d }, totals[:previous_revenue]
+    assert_equal linhas.sum { |row| row["current_revenue"].to_d }, totals[:current_revenue]
   end
 
   test "refresh não quebra quando chamado dentro de uma transação" do

@@ -37,9 +37,9 @@ class ReportsExporter
   private
 
   def csv_row(row)
-    previous = row["faturamento_m1"].to_d
-    previous_full = row["faturamento_m1_cheio"].to_d
-    current = row["faturamento_atual"].to_d
+    previous = row["previous_revenue"].to_d
+    previous_full = row["previous_full_revenue"].to_d
+    current = row["current_revenue"].to_d
     [
       row["sub_channel_name"],
       row["max_known_day"],
@@ -51,10 +51,10 @@ class ReportsExporter
   end
 
   def total_csv_row
-    previous = (@totals || {})[:faturamento_m1] || @rows.sum { |row| row["faturamento_m1"].to_d }
-    previous_full = (@totals || {})[:faturamento_m1_cheio] ||
-      @rows.sum { |row| row["faturamento_m1_cheio"].to_d }
-    current = (@totals || {})[:faturamento_atual] || @rows.sum { |row| row["faturamento_atual"].to_d }
+    previous = (@totals || {})[:previous_revenue] || @rows.sum { |row| row["previous_revenue"].to_d }
+    previous_full = (@totals || {})[:previous_full_revenue] ||
+      @rows.sum { |row| row["previous_full_revenue"].to_d }
+    current = (@totals || {})[:current_revenue] || @rows.sum { |row| row["current_revenue"].to_d }
     [ "TOTAL", @cutoff_day, previous_full, previous, current, variation(previous, current) ]
   end
 

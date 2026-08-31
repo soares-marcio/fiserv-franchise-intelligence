@@ -30,24 +30,24 @@
       <div class="metric-grid relative z-10">
         <article class="metric-card" data-tone="teal">
           <p class="metric-label">Mês anterior cheio</p>
-          <p class="metric-value"><%= brl(@totals[:faturamento_m1_cheio]) %></p>
+          <p class="metric-value"><%= brl(@totals[:previous_full_revenue]) %></p>
           <p class="metric-hint">Competência fechada</p>
         </article>
         <article class="metric-card" data-tone="gold">
           <p class="metric-label">Base comparável</p>
-          <p class="metric-value"><%= brl(@totals[:faturamento_m1]) %></p>
+          <p class="metric-value"><%= brl(@totals[:previous_revenue]) %></p>
           <p class="metric-hint">Mês anterior até dia <%= @cutoff_day %></p>
         </article>
         <article class="metric-card" data-tone="green">
           <p class="metric-label">Mês atual</p>
-          <p class="metric-value"><%= brl(@totals[:faturamento_atual]) %></p>
+          <p class="metric-value"><%= brl(@totals[:current_revenue]) %></p>
           <p class="metric-hint">Movimento até dia <%= @cutoff_day %></p>
         </article>
         <article class="metric-card"
-          data-tone="<%= variation_metric_tone(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>">
+          data-tone="<%= variation_metric_tone(@totals[:previous_revenue], @totals[:current_revenue]) %>">
           <p class="metric-label">Variação alinhada</p>
           <p class="metric-value">
-            <%= variation_headline(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>
+            <%= variation_headline(@totals[:previous_revenue], @totals[:current_revenue]) %>
           </p>
           <p class="metric-hint">Períodos com a mesma duração</p>
         </article>
@@ -106,9 +106,9 @@
         </thead>
         <tbody>
           <% @reports.each do |report| %>
-            <% previous = report["faturamento_m1"].to_d %>
-            <% previous_full = report["faturamento_m1_cheio"].to_d %>
-            <% current = report["faturamento_atual"].to_d %>
+            <% previous = report["previous_revenue"].to_d %>
+            <% previous_full = report["previous_full_revenue"].to_d %>
+            <% current = report["current_revenue"].to_d %>
             <tr class="is-clickable">
               <td class="font-semibold">
                 <%= link_to report["sub_channel_name"],
@@ -128,11 +128,11 @@
           <tfoot>
             <tr class="font-bold">
               <td>Total da seleção</td>
-              <td class="text-right tabular-nums"><%= brl(@totals[:faturamento_m1_cheio]) %></td>
-              <td class="text-right tabular-nums"><%= brl(@totals[:faturamento_m1]) %></td>
-              <td class="text-right tabular-nums"><%= brl(@totals[:faturamento_atual]) %></td>
+              <td class="text-right tabular-nums"><%= brl(@totals[:previous_full_revenue]) %></td>
+              <td class="text-right tabular-nums"><%= brl(@totals[:previous_revenue]) %></td>
+              <td class="text-right tabular-nums"><%= brl(@totals[:current_revenue]) %></td>
               <td class="text-right">
-                <%= variation_chip(@totals[:faturamento_m1], @totals[:faturamento_atual]) %>
+                <%= variation_chip(@totals[:previous_revenue], @totals[:current_revenue]) %>
               </td>
             </tr>
           </tfoot>

@@ -15,11 +15,11 @@ class AlignAuditComparisons < ActiveRecord::Migration[8.1]
       SELECT rs.channel_id, rs.sub_channel_id, sc.name AS sub_channel_name,
         periods.previous_period, periods.current_period, periods.max_known_day,
         COALESCE(SUM(dr.amount) FILTER (WHERE dr.period = periods.previous_period), 0)
-          AS faturamento_m1,
+          AS previous_revenue,
         COALESCE(SUM(dr.amount) FILTER (WHERE dr.period = periods.current_period), 0)
-          AS faturamento_atual,
+          AS current_revenue,
         COUNT(DISTINCT rs.establishment_id) FILTER (WHERE e.primary_establishment_id IS NULL)
-          AS estabelecimentos_principais
+          AS primary_establishments
       FROM revenue_snapshots rs
       JOIN sub_channels sc ON sc.id = rs.sub_channel_id
       JOIN establishments e ON e.id = rs.establishment_id
@@ -49,10 +49,10 @@ class AlignAuditComparisons < ActiveRecord::Migration[8.1]
         sub_channel.current_period,
         COALESCE(SUM(dr.amount) FILTER (
           WHERE dr.period = sub_channel.previous_period
-        ), 0) AS faturamento_m1,
+        ), 0) AS previous_revenue,
         COALESCE(SUM(dr.amount) FILTER (
           WHERE dr.period = sub_channel.current_period
-        ), 0) AS faturamento_atual
+        ), 0) AS current_revenue
       FROM audit_revenue_by_sub_channel sub_channel
       JOIN revenue_snapshots rs
         ON rs.channel_id = sub_channel.channel_id
@@ -97,8 +97,8 @@ class AlignAuditComparisons < ActiveRecord::Migration[8.1]
       SELECT company_view.channel_id, company_view.sub_channel_id, sc.name AS sub_channel_name,
         company_view.company_id, company_view.cnpj, company_view.max_known_day,
         activity.last_sale_day,
-        company_view.max_known_day - activity.last_sale_day AS dias_sem_venda,
-        company_view.faturamento_m1, company_view.faturamento_atual
+        company_view.max_known_day - activity.last_sale_day AS days_without_sales,
+        company_view.previous_revenue, company_view.current_revenue
       FROM audit_revenue_by_company company_view
       JOIN current_activity activity
         ON activity.channel_id = company_view.channel_id

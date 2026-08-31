@@ -21,7 +21,7 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
 
   test "aponta CNPJ presente em mais de um subcanal" do
     lojas = BinWorkbook.default_lojas
-    lojas[1].name = "MIC GAMA"
+    lojas[1].sub_channel_name = "MIC GAMA"
     import_synthetic_workbook(lojas:)
 
     anomalia = DataAnomaly.find_by(anomaly_type: "company_in_multiple_sub_channels")
@@ -32,7 +32,7 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
   test "aponta EC que trocou de subcanal entre lotes" do
     import_synthetic_workbook
     mudadas = BinWorkbook.default_lojas
-    mudadas.first.name = "MIC DELTA"
+    mudadas.first.sub_channel_name = "MIC DELTA"
     import_synthetic_workbook(lojas: mudadas, filename: "BIN_TESTE_20260812.xlsx")
 
     anomalia = DataAnomaly.find_by(anomaly_type: "ec_changed_sub_channel")
@@ -61,8 +61,8 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
     anomalia = DataAnomaly.find_by(anomaly_type: "cutoff_below_file_date")
 
     assert anomalia, "divergência entre corte observado e data do arquivo deve virar anomalia"
-    assert_equal batch.current_month_cutoff_day, anomalia.details["corte_observado"]
-    assert_equal 14, anomalia.details["corte_esperado"]
+    assert_equal batch.current_month_cutoff_day, anomalia.details["observed_cutoff"]
+    assert_equal 14, anomalia.details["expected_cutoff"]
     assert_equal "info", anomalia.severity
   end
 

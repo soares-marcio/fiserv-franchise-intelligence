@@ -103,11 +103,11 @@ module Operations
         **name_headers("Faturamento"),
         "fat_total_m1" => @attrs["previous_month_total"],
         "FATURAMENTO TOTAL DESTE MÊS" => @attrs["current_month_total"],
-        "CNAE" => @attrs["cnae"]
+        "CNAE" => @attrs["cnae_code"]
       )
       (1..31).each do |day|
-        row[format("DIA %02d_M_1", day)] = @attrs[format("dia_%02d_m1", day)]
-        row[format("DIA %02d", day)] = @attrs[format("dia_%02d", day)]
+        row[format("DIA %02d_M_1", day)] = @attrs[format("day_%02d_m1", day)]
+        row[format("DIA %02d", day)] = @attrs[format("day_%02d", day)]
       end
       row
     end
@@ -189,7 +189,7 @@ module Operations
 
     def revenue_requested?
       money?("previous_month_total") || money?("current_month_total") ||
-        (1..31).any? { |day| money?(format("dia_%02d", day)) || money?(format("dia_%02d_m1", day)) }
+        (1..31).any? { |day| money?(format("day_%02d", day)) || money?(format("day_%02d_m1", day)) }
     end
 
     def money?(key)

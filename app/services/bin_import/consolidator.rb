@@ -103,7 +103,7 @@ module BinImport
 
         Anomalies.record!(batch: @batch, type: "closed_period_revised", severity: "atencao",
           establishment: row.establishment,
-          details: { period: row.period, metric: row.metric, anterior: old.amount, novo: row.amount })
+          details: { period: row.period, metric: row.metric, previous_amount: old.amount, new_amount: row.amount })
       end
     end
 
@@ -133,7 +133,7 @@ module BinImport
 
     def record_shorter_batch!(coverage, cutoff)
       Anomalies.record!(batch: @batch, type: "batch_covers_fewer_days", severity: "info",
-        details: { period: coverage.period, anterior: coverage.max_known_day, novo: cutoff })
+        details: { period: coverage.period, previous: coverage.max_known_day, current: cutoff })
     end
 
     def coverage_batch_id(current, cutoff, closed)

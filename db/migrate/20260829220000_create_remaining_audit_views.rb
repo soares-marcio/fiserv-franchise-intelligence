@@ -3,9 +3,9 @@ class CreateRemainingAuditViews < ActiveRecord::Migration[8.1]
     execute <<~SQL
       CREATE MATERIALIZED VIEW audit_stalled_companies AS
       SELECT arc.channel_id, arc.sub_channel_id, arc.establishment_id, arc.company_id, arc.cnpj, arc.max_known_day,
-        arc.faturamento_m1, arc.faturamento_atual
+        arc.previous_revenue, arc.current_revenue
       FROM audit_revenue_by_company arc
-      WHERE arc.faturamento_m1 > 0 AND arc.faturamento_atual = 0;
+      WHERE arc.previous_revenue > 0 AND arc.current_revenue = 0;
       CREATE UNIQUE INDEX index_audit_stalled_companies ON audit_stalled_companies (channel_id, establishment_id);
 
       CREATE MATERIALIZED VIEW audit_pending_actions AS
@@ -19,8 +19,8 @@ class CreateRemainingAuditViews < ActiveRecord::Migration[8.1]
 
       CREATE MATERIALIZED VIEW audit_company_ec_divergence AS
       SELECT rs.channel_id, e.company_id,
-        COUNT(DISTINCT rs.contract_status) AS status_contrato_distintos,
-        COUNT(DISTINCT ms.performed_segment) AS segmento_performado_distintos
+        COUNT(DISTINCT rs.contract_status) AS distinct_contract_statuses,
+        COUNT(DISTINCT ms.performed_segment) AS distinct_performed_segments
       FROM revenue_snapshots rs
       JOIN establishments e ON e.id = rs.establishment_id
       LEFT JOIN map_snapshots ms ON ms.import_batch_id = rs.import_batch_id AND ms.establishment_id = rs.establishment_id

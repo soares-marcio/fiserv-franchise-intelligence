@@ -62,16 +62,16 @@ class AuditViews
         cover.previous_period, cover.current_period, #{cutoff} AS max_known_day,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = cover.previous_period
-        ), 0) AS faturamento_m1_cheio,
+        ), 0) AS previous_full_revenue,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = cover.previous_period AND revenue.day <= #{cutoff}
-        ), 0) AS faturamento_m1,
+        ), 0) AS previous_revenue,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = cover.current_period AND revenue.day <= #{cutoff}
-        ), 0) AS faturamento_atual,
+        ), 0) AS current_revenue,
         COUNT(DISTINCT snapshot.establishment_id) FILTER (
           WHERE establishment.primary_establishment_id IS NULL
-        ) AS estabelecimentos_principais
+        ) AS primary_establishments
       FROM revenue_snapshots snapshot
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN open_cover cover ON cover.channel_id = snapshot.channel_id
@@ -99,15 +99,15 @@ class AuditViews
         sub_channel.current_period,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = sub_channel.previous_period
-        ), 0) AS faturamento_m1_cheio,
+        ), 0) AS previous_full_revenue,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = sub_channel.previous_period
             AND revenue.day <= sub_channel.max_known_day
-        ), 0) AS faturamento_m1,
+        ), 0) AS previous_revenue,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = sub_channel.current_period
             AND revenue.day <= sub_channel.max_known_day
-        ), 0) AS faturamento_atual,
+        ), 0) AS current_revenue,
         MAX(revenue.day) FILTER (
           WHERE revenue.period = sub_channel.current_period
             AND revenue.day <= sub_channel.max_known_day AND revenue.amount <> 0
@@ -141,9 +141,9 @@ class AuditViews
         company_view.company_id, company_view.cnpj, company_view.max_known_day,
         company_view.last_sale_day,
         company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)
-          AS dias_sem_venda,
-        company_view.faturamento_m1_cheio, company_view.faturamento_m1,
-        company_view.faturamento_atual
+          AS days_without_sales,
+        company_view.previous_full_revenue, company_view.previous_revenue,
+        company_view.current_revenue
       FROM audit_revenue_by_company company_view
       JOIN sub_channels sub_channel ON sub_channel.id = company_view.sub_channel_id
       WHERE company_view.max_known_day - COALESCE(company_view.last_sale_day, 0)

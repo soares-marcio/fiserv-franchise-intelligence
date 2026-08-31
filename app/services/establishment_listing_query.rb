@@ -29,7 +29,7 @@ class EstablishmentListingQuery
   def self.empty_page
     EstablishmentRevenuePage.new(
       rows: [], total_count: 0, page: 1, per_page: DEFAULT_PER_PAGE,
-      totals: { faturamento_m1_cheio: 0.to_d, faturamento_m1: 0.to_d, faturamento_atual: 0.to_d }
+      totals: { previous_full_revenue: 0.to_d, previous_revenue: 0.to_d, current_revenue: 0.to_d }
     )
   end
 
@@ -84,18 +84,18 @@ class EstablishmentListingQuery
   def fetch_summary
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT COUNT(*) AS total_count,
-        COALESCE(SUM(faturamento_m1_cheio), 0) AS faturamento_m1_cheio,
-        COALESCE(SUM(faturamento_m1), 0) AS faturamento_m1,
-        COALESCE(SUM(faturamento_atual), 0) AS faturamento_atual
+        COALESCE(SUM(previous_full_revenue), 0) AS previous_full_revenue,
+        COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
+        COALESCE(SUM(current_revenue), 0) AS current_revenue
       FROM (#{listing_sql(include_days: false)}) listings
     SQL
     row = ApplicationRecord.connection.exec_query(sql).first || {}
     {
       total_count: row["total_count"].to_i,
       totals: {
-        faturamento_m1_cheio: row["faturamento_m1_cheio"].to_d,
-        faturamento_m1: row["faturamento_m1"].to_d,
-        faturamento_atual: row["faturamento_atual"].to_d
+        previous_full_revenue: row["previous_full_revenue"].to_d,
+        previous_revenue: row["previous_revenue"].to_d,
+        current_revenue: row["current_revenue"].to_d
       }
     }
   end
@@ -136,15 +136,15 @@ class EstablishmentListingQuery
         :to_day AS max_known_day,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = :previous_period
-        ), 0) AS faturamento_m1_cheio,
+        ), 0) AS previous_full_revenue,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = :previous_period
             AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS faturamento_m1,
+        ), 0) AS previous_revenue,
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = :current_period
             AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS faturamento_atual#{daily_columns(include_days)}
+        ), 0) AS current_revenue#{daily_columns(include_days)}
       FROM revenue_snapshots snapshot
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
@@ -180,11 +180,11 @@ class EstablishmentListingQuery
       ,
         COALESCE(jsonb_object_agg(revenue.day::text, revenue.amount) FILTER (
           WHERE revenue.period = :previous_period
-        ), '{}'::jsonb) AS dias_m1,
+        ), '{}'::jsonb) AS previous_days,
         COALESCE(jsonb_object_agg(revenue.day::text, revenue.amount) FILTER (
           WHERE revenue.period = :current_period
             AND revenue.day BETWEEN :from_day AND :to_day
-        ), '{}'::jsonb) AS dias_atual
+        ), '{}'::jsonb) AS current_days
     SQL
   end
 

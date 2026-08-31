@@ -9,8 +9,8 @@ export default class extends Controller {
 
   open(event) {
     const source = event.currentTarget.dataset
-    const previousDays = this.parseDays(source.diasM1)
-    const currentDays = this.parseDays(source.diasAtual)
+    const previousDays = this.parseDays(source.previousDays)
+    const currentDays = this.parseDays(source.currentDays)
     const fromDay = Number(source.fromDay || 1)
     const toDay = Number(source.toDay || source.cutoff || 0)
     const name = source.nome || source.razao || "Estabelecimento"

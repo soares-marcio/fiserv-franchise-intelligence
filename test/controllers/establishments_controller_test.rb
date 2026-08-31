@@ -34,8 +34,8 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "label", text: /Nome fantasia/
     assert_select "label", text: /Endereço/
     assert_select "label", text: /CNAE/
-    assert_select "input[name='manual_entry[dia_01_m1]'][type='number']"
-    assert_select "input[name='manual_entry[dia_31]'][type='number']"
+    assert_select "input[name='manual_entry[day_01_m1]'][type='number']"
+    assert_select "input[name='manual_entry[day_31]'][type='number']"
     assert_select "label", text: "Report", count: 0
   end
 

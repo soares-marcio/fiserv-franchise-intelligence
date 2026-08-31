@@ -33,9 +33,9 @@
             <tr>
               <td class="font-mono"><%= report["cnpj"] %></td>
               <td><%= report["sub_channel_name"] %></td>
-              <td class="text-right"><%= report["dias_sem_venda"] %></td>
-              <td class="text-right tabular-nums"><%= brl(report["faturamento_m1"]) %></td>
-              <td class="text-right tabular-nums"><%= brl(report["faturamento_atual"]) %></td>
+              <td class="text-right"><%= report["days_without_sales"] %></td>
+              <td class="text-right tabular-nums"><%= brl(report["previous_revenue"]) %></td>
+              <td class="text-right tabular-nums"><%= brl(report["current_revenue"]) %></td>
             </tr>
           <% end %>
         </tbody>

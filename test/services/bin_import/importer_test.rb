@@ -17,8 +17,8 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     batch = import_synthetic_workbook(lojas: @lojas)
 
     assert_equal "validated", batch.status
-    assert_equal BinWorkbook::COMPETENCIA_M1, batch.previous_period
-    assert_equal BinWorkbook::COMPETENCIA_ATUAL, batch.current_period
+    assert_equal BinWorkbook::PREVIOUS_PERIOD, batch.previous_period
+    assert_equal BinWorkbook::CURRENT_PERIOD, batch.current_period
     assert_equal @cutoff, batch.current_month_cutoff_day
     assert_equal @lojas.size, MapSnapshot.count
     assert_equal @lojas.size, RevenueSnapshot.count
@@ -54,10 +54,10 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     import_synthetic_workbook(lojas: @lojas)
     totals = ReportScope.new.totals
 
-    assert_equal soma(@lojas, :dias_m1), totals[:faturamento_m1_cheio]
-    assert_equal soma(@lojas, :dias_m1, ate: @cutoff), totals[:faturamento_m1]
-    assert_equal soma(@lojas, :dias_atual, ate: @cutoff), totals[:faturamento_atual]
-    assert_operator totals[:faturamento_m1_cheio], :>, totals[:faturamento_m1]
+    assert_equal soma(@lojas, :dias_m1), totals[:previous_full_revenue]
+    assert_equal soma(@lojas, :dias_m1, ate: @cutoff), totals[:previous_revenue]
+    assert_equal soma(@lojas, :dias_atual, ate: @cutoff), totals[:current_revenue]
+    assert_operator totals[:previous_full_revenue], :>, totals[:previous_revenue]
   end
 
   test "detecta EC 3xx duplicado do 9xx do mesmo CNPJ" do

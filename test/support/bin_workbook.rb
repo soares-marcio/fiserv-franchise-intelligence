@@ -6,15 +6,15 @@ require "caxlsx"
 module BinWorkbook
   REPORT_ID = "9999"
   CANAL = "CANAL TESTE"
-  COMPETENCIA_M1 = Date.new(2026, 7, 1)
-  COMPETENCIA_ATUAL = Date.new(2026, 8, 1)
+  PREVIOUS_PERIOD = Date.new(2026, 7, 1)
+  CURRENT_PERIOD = Date.new(2026, 8, 1)
   MES_M1 = "202607"
   MES_ATUAL = "202608"
   # Volumes dos meses que não entram na reconciliação; distintos para não gerar empate.
   OUTROS_VOLUMES = { "202604" => 7, "202605" => 11, "202606" => 13 }.freeze
 
   Loja = Struct.new(
-    :ec, :cnpj, :name, :legal_name, :trade_name, :contract_status,
+    :ec, :cnpj, :sub_channel_name, :legal_name, :trade_name, :contract_status,
     :dias_m1, :dias_atual, :melhor_conversa, :proposta,
     keyword_init: true
   ) do
@@ -27,20 +27,20 @@ module BinWorkbook
   def self.default_lojas
     [
       Loja.new(
-        ec: "30000001", cnpj: "11222333000181", name: "MIC ALFA",
+        ec: "30000001", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
         legal_name: "ALFA COMERCIO DE ALIMENTOS LTDA", trade_name: "ALFA LANCHES",
         contract_status: "Active", dias_m1: { 1 => 100, 2 => 200, 25 => 700 },
         dias_atual: { 1 => 150, 2 => 50, 10 => 300 },
         melhor_conversa: "Ligar > Enviar proposta", proposta: true
       ),
       Loja.new(
-        ec: "90000001", cnpj: "11222333000181", name: "MIC ALFA",
+        ec: "90000001", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
         legal_name: "ALFA COMERCIO DE ALIMENTOS LTDA", trade_name: "ALFA EXPRESS",
         contract_status: "Active", dias_m1: { 1 => 50 }, dias_atual: { 1 => 10, 2 => 20 },
         melhor_conversa: nil, proposta: false
       ),
       Loja.new(
-        ec: "30000002", cnpj: "44555666000172", name: "MIC BETA",
+        ec: "30000002", cnpj: "44555666000172", sub_channel_name: "MIC BETA",
         legal_name: "BETA SERVICOS LTDA", trade_name: "BETA CAFE",
         contract_status: "Suspended", dias_m1: { 1 => 400 }, dias_atual: {},
         melhor_conversa: nil, proposta: false
@@ -79,7 +79,7 @@ module BinWorkbook
   def self.mapa_row(loja)
     {
       "REPORT_ID" => REPORT_ID, "HIERARQUIA" => CANAL, "CANAL" => CANAL,
-      "SUB-CANAL" => loja.name, "EC" => loja.ec, "CNPJ" => loja.cnpj,
+      "SUB-CANAL" => loja.sub_channel_name, "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "TIPO DE PESSOA" => "PJ", "RAZÃO SOCIAL" => loja.legal_name,
       "NOME FANTASIA" => loja.trade_name, "STATUS DO CONTRATO" => loja.contract_status,
       "MELHOR CONVERSA" => loja.melhor_conversa, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
@@ -96,7 +96,7 @@ module BinWorkbook
       [ format("DIA %02d_M_1", day), loja.dias_m1.fetch(day, 0) ]
     end)
     {
-      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.name,
+      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.sub_channel_name,
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,
       "STATUS DO CONTRATO" => loja.contract_status, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
@@ -107,7 +107,7 @@ module BinWorkbook
 
   def self.ativacao_row(loja)
     {
-      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.name,
+      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.sub_channel_name,
       "NR DA PROPOSTA" => "P#{loja.ec}", "DATA DA PROPOSTA" => "2026-01-10",
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,

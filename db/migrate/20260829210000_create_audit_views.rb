@@ -13,9 +13,9 @@ class CreateAuditViews < ActiveRecord::Migration[8.1]
       )
       SELECT rs.channel_id, rs.sub_channel_id, sc.name AS sub_channel_name, a.previous_period, a.current_period,
         a.max_known_day,
-        COALESCE(SUM(CASE WHEN dr.period = a.previous_period THEN dr.amount END), 0) AS faturamento_m1,
-        COALESCE(SUM(CASE WHEN dr.period = a.current_period THEN dr.amount END), 0) AS faturamento_atual,
-        COUNT(DISTINCT rs.establishment_id) FILTER (WHERE e.primary_establishment_id IS NULL) AS estabelecimentos_principais
+        COALESCE(SUM(CASE WHEN dr.period = a.previous_period THEN dr.amount END), 0) AS previous_revenue,
+        COALESCE(SUM(CASE WHEN dr.period = a.current_period THEN dr.amount END), 0) AS current_revenue,
+        COUNT(DISTINCT rs.establishment_id) FILTER (WHERE e.primary_establishment_id IS NULL) AS primary_establishments
       FROM revenue_snapshots rs
       JOIN sub_channels sc ON sc.id = rs.sub_channel_id
       JOIN establishments e ON e.id = rs.establishment_id
@@ -29,8 +29,8 @@ class CreateAuditViews < ActiveRecord::Migration[8.1]
 
       CREATE MATERIALIZED VIEW audit_revenue_by_company AS
       SELECT ars.channel_id, ars.sub_channel_id, rs.establishment_id, e.company_id, c.cnpj, ars.max_known_day,
-        SUM(CASE WHEN dr.period = ars.previous_period THEN dr.amount ELSE 0 END) AS faturamento_m1,
-        SUM(CASE WHEN dr.period = ars.current_period THEN dr.amount ELSE 0 END) AS faturamento_atual
+        SUM(CASE WHEN dr.period = ars.previous_period THEN dr.amount ELSE 0 END) AS previous_revenue,
+        SUM(CASE WHEN dr.period = ars.current_period THEN dr.amount ELSE 0 END) AS current_revenue
       FROM audit_revenue_by_sub_channel ars
       JOIN revenue_snapshots rs ON rs.channel_id = ars.channel_id AND rs.sub_channel_id = ars.sub_channel_id
       JOIN establishments e ON e.id = rs.establishment_id JOIN companies c ON c.id = e.company_id
@@ -40,10 +40,10 @@ class CreateAuditViews < ActiveRecord::Migration[8.1]
       CREATE UNIQUE INDEX index_audit_revenue_by_company ON audit_revenue_by_company (channel_id, establishment_id);
 
       CREATE MATERIALIZED VIEW audit_weekly_revenue AS
-      SELECT channel_id, period, ((day - 1) / 7) + 1 AS semana,
-        SUM(amount) AS faturamento, COUNT(DISTINCT establishment_id) AS estabelecimentos
+      SELECT channel_id, period, ((day - 1) / 7) + 1 AS week,
+        SUM(amount) AS revenue, COUNT(DISTINCT establishment_id) AS establishments
       FROM daily_revenues_consolidated GROUP BY channel_id, period, ((day - 1) / 7) + 1;
-      CREATE UNIQUE INDEX index_audit_weekly_revenue ON audit_weekly_revenue (channel_id, period, semana);
+      CREATE UNIQUE INDEX index_audit_weekly_revenue ON audit_weekly_revenue (channel_id, period, week);
     SQL
   end
 

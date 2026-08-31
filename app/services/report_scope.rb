@@ -52,7 +52,7 @@ class ReportScope
   end
 
   def weekly_revenue
-    query(:weekly_revenue, "period, semana")
+    query(:weekly_revenue, "period, week")
   end
 
   # Menor corte entre os canais do recorte: comparar períodos de durações diferentes
@@ -77,29 +77,29 @@ class ReportScope
         WHERE NOT closed AND #{CHANNEL_PREDICATE}
       )
       SELECT COALESCE(SUM(dr.amount) FILTER (WHERE dr.period = oc.previous_period), 0)
-               AS faturamento_m1_cheio,
+               AS previous_full_revenue,
              COALESCE(SUM(dr.amount) FILTER (
                WHERE dr.period = oc.previous_period AND dr.day <= :cutoff), 0)
-               AS faturamento_m1,
+               AS previous_revenue,
              COALESCE(SUM(dr.amount) FILTER (
                WHERE dr.period = oc.period AND dr.day <= :cutoff), 0)
-               AS faturamento_atual
+               AS current_revenue
       FROM daily_revenues_consolidated dr
       JOIN open_cover oc ON oc.channel_id = dr.channel_id
       WHERE dr.period IN (oc.previous_period, oc.period)
     SQL
     row = ApplicationRecord.connection.exec_query(sql).first || {}
     {
-      faturamento_m1_cheio: row["faturamento_m1_cheio"].to_d,
-      faturamento_m1: row["faturamento_m1"].to_d,
-      faturamento_atual: row["faturamento_atual"].to_d
+      previous_full_revenue: row["previous_full_revenue"].to_d,
+      previous_revenue: row["previous_revenue"].to_d,
+      current_revenue: row["current_revenue"].to_d
     }
   end
 
   private
 
   def empty_totals
-    { faturamento_m1_cheio: 0.to_d, faturamento_m1: 0.to_d, faturamento_atual: 0.to_d }
+    { previous_full_revenue: 0.to_d, previous_revenue: 0.to_d, current_revenue: 0.to_d }
   end
 
   def aligned_revenue_by_sub_channel

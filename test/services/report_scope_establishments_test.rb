@@ -22,20 +22,20 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_nil rows.first["suspended_on"]
 
     first = rows.find { |row| row["ec"] == "11111111" }
-    assert_equal 120, first["faturamento_m1_cheio"].to_d
-    assert_equal 80, first["faturamento_m1"].to_d
-    assert_equal 100, first["faturamento_atual"].to_d
-    assert_equal({ "24" => 80.to_d, "31" => 40.to_d }, stringify_days(first["dias_m1"]))
-    assert_equal({ "24" => 100.to_d }, stringify_days(first["dias_atual"]))
+    assert_equal 120, first["previous_full_revenue"].to_d
+    assert_equal 80, first["previous_revenue"].to_d
+    assert_equal 100, first["current_revenue"].to_d
+    assert_equal({ "24" => 80.to_d, "31" => 40.to_d }, stringify_days(first["previous_days"]))
+    assert_equal({ "24" => 100.to_d }, stringify_days(first["current_days"]))
 
-    assert_equal parent["faturamento_m1_cheio"].to_d, rows.sum { |row| row["faturamento_m1_cheio"].to_d }
-    assert_equal parent["faturamento_m1"].to_d, rows.sum { |row| row["faturamento_m1"].to_d }
-    assert_equal parent["faturamento_atual"].to_d, rows.sum { |row| row["faturamento_atual"].to_d }
+    assert_equal parent["previous_full_revenue"].to_d, rows.sum { |row| row["previous_full_revenue"].to_d }
+    assert_equal parent["previous_revenue"].to_d, rows.sum { |row| row["previous_revenue"].to_d }
+    assert_equal parent["current_revenue"].to_d, rows.sum { |row| row["current_revenue"].to_d }
 
     other_rows = scope.revenue_by_establishment(sub_channel_id: other.id)
     assert_equal [ "33333333" ], other_rows.map { |row| row["ec"] }
-    assert_equal 50, other_rows.first["faturamento_atual"].to_d
-    assert_equal({ "24" => 50.to_d }, stringify_days(other_rows.first["dias_atual"]))
+    assert_equal 50, other_rows.first["current_revenue"].to_d
+    assert_equal({ "24" => 50.to_d }, stringify_days(other_rows.first["current_days"]))
   end
 
   test "filters establishments by more than one contract status" do
@@ -142,10 +142,10 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       sub_channel_id: sub_channel.id, period: Date.new(2026, 7, 1), from_day: 24, to_day: 24
     ).find { |row| row["ec"] == "11111111" }
 
-    assert_equal 40, day_31["faturamento_m1"].to_d
-    assert_equal 0, day_31["faturamento_atual"].to_d
-    assert_equal 80, july["faturamento_atual"].to_d
-    assert_equal 0, july["faturamento_m1"].to_d
+    assert_equal 40, day_31["previous_revenue"].to_d
+    assert_equal 0, day_31["current_revenue"].to_d
+    assert_equal 80, july["current_revenue"].to_d
+    assert_equal 0, july["previous_revenue"].to_d
   end
 
   test "filters establishments by name ec or cnpj" do
@@ -180,7 +180,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal [ "22222222" ], second_page.map { |row| row["ec"] }
     assert_equal 2, first_page.total_count
     assert_equal 2, first_page.total_pages
-    assert_equal 120 + 20, first_page.totals[:faturamento_m1_cheio]
+    assert_equal 120 + 20, first_page.totals[:previous_full_revenue]
     assert_equal first_page.totals, second_page.totals
   end
 

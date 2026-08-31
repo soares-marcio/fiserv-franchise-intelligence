@@ -25,7 +25,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
   test "propaga os nomes para o snapshot de faturamento" do
     Operations::RegisterManually.call(valid_attrs.merge(
       "previous_period" => "2026-07-01", "current_period" => "2026-08-01",
-      "current_month_total" => "100", "dia_01" => "100"
+      "current_month_total" => "100", "day_01" => "100"
     ))
     snapshot = RevenueSnapshot.joins(:establishment).find_by!(establishments: { ec: "12345678" })
 
@@ -66,7 +66,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
           "previous_period" => "2026-07-01",
           "current_period" => "2026-08-01",
           "current_month_total" => "100",
-          "dia_01" => "10"
+          "day_01" => "10"
         )
       )
     end
@@ -78,7 +78,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
       Operations::RegisterManually.call(
         valid_attrs.merge(
           "previous_period" => "2026-06-01", "current_period" => "2026-08-01",
-          "current_month_total" => "10", "dia_01" => "10"
+          "current_month_total" => "10", "day_01" => "10"
         )
       )
     end

@@ -55,7 +55,7 @@ class EstablishmentsController < ApplicationController
       :work_phone, :contact_name_1, :contact_name_2,
       :presumed_segment, :performed_segment,
       :previous_period, :current_period, :previous_month_total, :current_month_total,
-      *(1..31).flat_map { |day| [ format("dia_%02d", day), format("dia_%02d_m1", day) ] }
+      *(1..31).flat_map { |day| [ format("day_%02d", day), format("day_%02d_m1", day) ] }
     )
   end
 end

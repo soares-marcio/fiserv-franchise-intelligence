@@ -17,9 +17,9 @@ class UseFullClosedMonthInAuditViews < ActiveRecord::Migration[8.1]
       )
       SELECT rs.channel_id, rs.sub_channel_id, sc.name AS sub_channel_name, a.previous_period, a.current_period,
         a.max_known_day,
-        COALESCE(SUM(CASE WHEN dr.period = a.previous_period THEN dr.amount END), 0) AS faturamento_m1,
-        COALESCE(SUM(CASE WHEN dr.period = a.current_period THEN dr.amount END), 0) AS faturamento_atual,
-        COUNT(DISTINCT rs.establishment_id) FILTER (WHERE e.primary_establishment_id IS NULL) AS estabelecimentos_principais
+        COALESCE(SUM(CASE WHEN dr.period = a.previous_period THEN dr.amount END), 0) AS previous_revenue,
+        COALESCE(SUM(CASE WHEN dr.period = a.current_period THEN dr.amount END), 0) AS current_revenue,
+        COUNT(DISTINCT rs.establishment_id) FILTER (WHERE e.primary_establishment_id IS NULL) AS primary_establishments
       FROM revenue_snapshots rs
       JOIN sub_channels sc ON sc.id = rs.sub_channel_id
       JOIN establishments e ON e.id = rs.establishment_id
@@ -48,9 +48,9 @@ class UseFullClosedMonthInAuditViews < ActiveRecord::Migration[8.1]
       SELECT ars.channel_id, ars.sub_channel_id, e.company_id, c.cnpj, ars.max_known_day,
         ars.previous_period, ars.current_period,
         COALESCE(SUM(CASE WHEN dr.period = ars.previous_period THEN dr.amount END), 0)
-          AS faturamento_m1,
+          AS previous_revenue,
         COALESCE(SUM(CASE WHEN dr.period = ars.current_period THEN dr.amount END), 0)
-          AS faturamento_atual
+          AS current_revenue
       FROM audit_revenue_by_sub_channel ars
       JOIN revenue_snapshots rs
         ON rs.channel_id = ars.channel_id AND rs.sub_channel_id = ars.sub_channel_id
@@ -81,10 +81,10 @@ class UseFullClosedMonthInAuditViews < ActiveRecord::Migration[8.1]
 
       CREATE MATERIALIZED VIEW audit_stalled_companies AS
       SELECT arc.channel_id, arc.sub_channel_id, sc.name AS sub_channel_name, arc.company_id, arc.cnpj,
-        arc.max_known_day, arc.faturamento_m1, arc.faturamento_atual
+        arc.max_known_day, arc.previous_revenue, arc.current_revenue
       FROM audit_revenue_by_company arc
       JOIN sub_channels sc ON sc.id = arc.sub_channel_id
-      WHERE arc.faturamento_m1 > 0 AND arc.faturamento_atual = 0;
+      WHERE arc.previous_revenue > 0 AND arc.current_revenue = 0;
       CREATE UNIQUE INDEX index_audit_stalled_companies
         ON audit_stalled_companies (channel_id, sub_channel_id, company_id);
     SQL

@@ -6,13 +6,13 @@ class ReportsExporterTest < ActiveSupport::TestCase
   setup do
     @rows = [
       { "sub_channel_name" => "MIC ALFA", "max_known_day" => 10,
-        "faturamento_m1_cheio" => "1000.0", "faturamento_m1" => "400.0",
-        "faturamento_atual" => "500.0" },
+        "previous_full_revenue" => "1000.0", "previous_revenue" => "400.0",
+        "current_revenue" => "500.0" },
       { "sub_channel_name" => "MIC BETA", "max_known_day" => 10,
-        "faturamento_m1_cheio" => "800.0", "faturamento_m1" => "200.0",
-        "faturamento_atual" => "100.0" }
+        "previous_full_revenue" => "800.0", "previous_revenue" => "200.0",
+        "current_revenue" => "100.0" }
     ]
-    @totals = { faturamento_m1_cheio: 1800.to_d, faturamento_m1: 600.to_d, faturamento_atual: 600.to_d }
+    @totals = { previous_full_revenue: 1800.to_d, previous_revenue: 600.to_d, current_revenue: 600.to_d }
   end
 
   test "csv traz cabeçalho, uma linha por subcanal e o total" do
@@ -33,7 +33,7 @@ class ReportsExporterTest < ActiveSupport::TestCase
   end
 
   test "variação fica vazia quando não há base de comparação" do
-    zerado = [ @rows.first.merge("faturamento_m1" => "0.0") ]
+    zerado = [ @rows.first.merge("previous_revenue" => "0.0") ]
     table = CSV.parse(
       ReportsExporter.new(zerado, cutoff_day: 10, totals: nil).to_csv, headers: true
     )

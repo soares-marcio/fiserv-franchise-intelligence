@@ -84,7 +84,7 @@
               <summary class="collapse-title font-medium"><%= label %> por dia</summary>
               <div class="collapse-content grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <% (1..31).each do |day| %>
-                  <% name = suffix ? format("dia_%02d_%s", day, suffix) : format("dia_%02d", day) %>
+                  <% name = suffix ? format("day_%02d_%s", day, suffix) : format("day_%02d", day) %>
                   <%= render "form_field", name:, label: format("Dia %02d", day),
                     type: "number", step: "0.01" %>
                 <% end %>
