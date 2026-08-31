@@ -70,7 +70,13 @@ module BinImport
     end
 
     def self.validate!(workbook)
-      raise ArgumentError, "Abas divergentes: esperado #{SHEETS.join(', ')}" unless workbook.sheets == SHEETS
+      # Abas além das três são ignoradas: o analista costuma anexar planilhas de análise
+      # ao mesmo arquivo, e o importador só lê as abas pelo nome.
+      missing = SHEETS - workbook.sheets
+      if missing.any?
+        raise ArgumentError,
+          "Abas ausentes: #{missing.join(', ')}; encontrado #{workbook.sheets.join(', ')}"
+      end
 
       EXPECTED_HEADERS.each do |sheet_name, expected|
         workbook.default_sheet = sheet_name

@@ -82,6 +82,59 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     File.delete(path) if path && File.exist?(path)
   end
 
+  test "falha no refresh das views depois do commit não derruba o lote" do
+    # Erro de Ruby, não de SQL: um REFRESH quebrado abortaria a transação do próprio teste.
+    original = AuditViews.method(:refresh!)
+    AuditViews.define_singleton_method(:refresh!) { raise ActiveRecord::StatementInvalid, "view indisponível" }
+
+    batch = import_synthetic_workbook(lojas: @lojas)
+
+    assert_equal "validated", batch.status
+    assert_match(/Views de auditoria não atualizadas/, batch.validation_errors.first)
+    assert_equal @lojas.size, MapSnapshot.count
+  ensure
+    AuditViews.singleton_class.send(:define_method, :refresh!, original) if original
+  end
+
+  test "recusa arquivo sem as abas obrigatórias dizendo o que encontrou" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-abas.xlsx")
+    Axlsx::Package.new do |package|
+      package.workbook.add_worksheet(name: "Planilha1") { |ws| ws.add_row [ "x" ] }
+      package.serialize(path.to_s)
+    end
+
+    error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
+    assert_equal "Abas ausentes: Faturamento, Ativacao, Mapa de Clientes BIN; encontrado Planilha1",
+      error.message
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  test "ignora abas de análise anexadas ao arquivo" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-extras.xlsx")
+    BinWorkbook.write(path, lojas: @lojas)
+    Axlsx::Package.new do |package|
+      # reconstrói o arquivo sintético e acrescenta duas abas que o importador deve ignorar
+      BinWorkbook.sheet_rows(@lojas).each do |sheet_name, rows|
+        headers = BinImport::Template::EXPECTED_HEADERS.fetch(sheet_name)
+        package.workbook.add_worksheet(name: sheet_name) do |ws|
+          ws.add_row headers
+          rows.each { |row| ws.add_row headers.map { |h| row[h] } }
+        end
+      end
+      package.workbook.add_worksheet(name: "ANALISE DO MAPA") { |ws| ws.add_row [ "livre" ] }
+      package.workbook.add_worksheet(name: "ANALISE FATURAMENTO") { |ws| ws.add_row [ "livre" ] }
+      package.serialize(path.to_s)
+    end
+
+    batch = BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+
+    assert_equal "validated", batch.status
+    assert_equal @lojas.size, MapSnapshot.count
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
   test "recusa cabeçalhos divergentes" do
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-bad-headers.xlsx")
     Axlsx::Package.new do |package|

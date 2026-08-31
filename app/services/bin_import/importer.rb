@@ -46,7 +46,7 @@ module BinImport
         detect_anomalies!(batch)
         batch.update!(status: "validated")
       end
-      AuditViews.refresh!
+      refresh_views!(batch)
       batch
     rescue StandardError => e
       batch&.update(status: "failed", validation_errors: [ e.message ])
@@ -54,6 +54,15 @@ module BinImport
     end
 
     private
+
+    # Aqui os dados já estão gravados e consolidados: só as views ficaram velhas. Marcar o
+    # lote como falho faria o reenvio tentar apagá-lo com chaves apontando para ele.
+    def refresh_views!(batch)
+      AuditViews.refresh!
+    rescue StandardError => e
+      Rails.logger.error("[import #{batch.id}] views não atualizadas: #{e.class}: #{e.message}")
+      batch.update!(validation_errors: [ "Views de auditoria não atualizadas: #{e.message}. Use Reprocessar lote." ])
+    end
 
     def name_attributes(sheet_name, row)
       columns = Template.name_columns(sheet_name)
