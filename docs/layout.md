@@ -8,24 +8,21 @@ que parece existir.
 ## Estrutura
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ header (fixo, 3.5rem)   [busca global       Ctrl+/]  [status] │
-├───────────────┬──────────────────────────────────────────────┤
-│ sidebar       │ breadcrumb                                   │
-│ (17.5rem,     │ ┌──────────────────────────────────────────┐ │
-│  ≥1280px      │ │ page-hero                                │ │
-│  fixa;        │ └──────────────────────────────────────────┘ │
-│  <1280px      │ ┌──────────────────────────────────────────┐ │
-│  off-canvas)  │ │ filter-panel / table-frame / metric-card │ │
-│               │ └──────────────────────────────────────────┘ │
-└───────────────┴──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ topbar (sticky, escura)                                              │
+│ [marca]  Faturamento · Parados · Semanal │ Estabelecimentos · Importar · Metabase │ [⌘/] [sinal]
+├──────────────────────────────────────────────────────────────────────┤
+│ breadcrumb                                                           │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ page-hero / filter-panel / table-frame / metric-card             │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 | Peça | Arquivo | O que faz |
 | --- | --- | --- |
-| Header | `app/views/layouts/_navbar.html.erb` | Marca (só abaixo de 1280px), botão do menu, busca de páginas e o sinal de arquivo |
-| Sidebar | idem | Navegação em dois grupos: **Dashboard** (relatórios) e **Operação** (estabelecimentos, importação e Metabase) |
-| Busca global | `SearchController`, `GlobalSearch`, `app/views/search/index.html.erb`, `cork_layout_controller.js` | Digita EC, CNPJ, nome, cidade, CNAE ou subcanal e vê subcanais e estabelecimentos ao vivo; `Ctrl+/` (`⌘/` no Mac) abre, `Esc` fecha, `Enter` abre o primeiro resultado |
+| Topbar | `app/views/layouts/_navbar.html.erb` | Marca, menu horizontal em dois grupos (**Dashboard** e **Operação**), busca global e o sinal de arquivo |
+| Busca global | `SearchController`, `GlobalSearch`, `app/views/search/index.html.erb`, `app_layout_controller.js` | Digita EC, CNPJ, nome, cidade, CNAE ou subcanal e vê subcanais e estabelecimentos ao vivo; `Ctrl+/` (`⌘/` no Mac) abre, `Esc` fecha, `Enter` abre o primeiro resultado |
 | Breadcrumb | `ApplicationHelper#render_breadcrumbs` | `Início / <grupo> / <página>`; o grupo é texto, não link |
 | Sinal de arquivo | `ApplicationHelper#header_file_status` | Há quanto tempo a carteira recebeu arquivo; vermelho a partir de `ImportBatch::STALE_AFTER_DAYS` |
 
@@ -33,9 +30,34 @@ que parece existir.
 
 | Largura | Comportamento |
 | --- | --- |
-| ≥ 1280px | Sidebar fixa à esquerda, abaixo do header; a marca aparece dentro dela e some do header |
-| < 1280px | Sidebar off-canvas, aberta pelo botão do header; overlay escurece o conteúdo |
-| < 560px | Some o atalho de teclado da busca e o sinal de arquivo (o card na tela de importação continua) |
+| > 1400px | Uma linha: marca, menu, busca e sinal |
+| ≤ 1400px | O menu desce inteiro para a segunda linha da barra |
+| ≤ 560px | Somem a legenda da marca e o atalho da busca (fica o ícone); o sinal encolhe |
+
+O menu nunca rola nem corta: quebra linha e a barra cresce o que precisar. A busca na barra
+é só ícone + atalho (o texto existe para leitor de tela); o campo de verdade fica no diálogo.
+
+### Ícones
+
+Subconjunto do **Phosphor** (peso regular, MIT) vendorizado em `vendor/icons/phosphor/regular/`,
+inlined por `ApplicationHelper#icon` — sem CDN, sem JavaScript, e só entram no repositório os
+ícones usados. `icon_label(nome, texto)` monta ícone + texto para botões e links. O ícone é
+decorativo (`aria-hidden`); quem dá o significado é o texto ao lado. Para acrescentar um:
+baixe o SVG de `github.com/phosphor-icons/core/assets/regular/` para a pasta e use pelo nome.
+
+| Onde | Ícones |
+| --- | --- |
+| Menu | chart-line-up, pause-circle, calendar-blank, storefront, upload-simple, chart-bar |
+| Trilha | house em "Início" |
+| Ações | download-simple, funnel, magnifying-glass, eraser, upload-simple, trash, arrow-counter-clockwise, arrow-left, arrow-square-out, list-bullets |
+| Cards da importação | calendar-check, file-arrow-up, cpu |
+
+### Busca ao vivo na lista de estabelecimentos
+
+O formulário de busca mira o Turbo Frame `establishments` que envolve a listagem
+(`data-turbo-frame`), com `data-turbo-action="advance"` para a URL acompanhar o filtro. O
+controller Stimulus `live-form` submete 250ms depois da última tecla; o botão e o Enter
+continuam funcionando sem JavaScript. É o mesmo mecanismo da busca global.
 
 ### Tokens
 
@@ -72,9 +94,10 @@ Tipografia: **Montserrat** (Google Fonts, carregada no `<head>`), corpo em 0.875
   `GlobalSearch::MIN_LENGTH` caracteres; 200ms de espera após parar de digitar.
 - **Hover e ativo são estados diferentes.** Na sidebar, passar o mouse usava o mesmo fundo
   do item ativo, o que fazia parecer que a página corrente mudava.
-- **Sem a classe `navbar` do daisyUI no header.** Ela impunha `min-height: 4rem` por cima
-  dos 3.5rem do `.header`, e a sidebar e o conteúdo eram posicionados para 3.5rem: 8px da
-  sidebar ficavam por baixo do header. Medido com Selenium antes (64px) e depois (56px).
+- **Menu horizontal, não sidebar.** A primeira versão desta branch trazia a sidebar do
+  template Cork; voltou a barra escura do layout anterior, adaptada aos dois grupos da
+  estrutura nova (divisor fino entre os grupos) e com a busca e o sinal de arquivo dentro dela.
+  O que sobreviveu do Cork foi o resto da casca: cards, trilha, tokens `--cork-*`.
 - **Diálogo de busca com foco previsível.** Ao abrir, o foco vai para o campo de filtro; ao
   fechar, volta para quem abriu; `Tab` não sai do diálogo, como `aria-modal` promete.
 

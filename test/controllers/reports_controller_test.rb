@@ -1,7 +1,7 @@
 require "test_helper"
 
 class ReportsControllerTest < ActionDispatch::IntegrationTest
-  test "trilha de navegação: agrupamento da sidebar não vira link" do
+  test "trilha de navegação: agrupamento do menu não vira link" do
     get stalled_reports_path
 
     assert_select "nav.breadcrumb-wrap a[href=?]", root_path, text: "Início"
@@ -23,7 +23,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   test "a busca do header aponta para o endpoint de busca global" do
     get reports_path
 
-    assert_select "body[data-cork-layout-search-url-value=?]", search_path
+    assert_select "body[data-app-layout-search-url-value=?]", search_path
     assert_select ".search-modal input.search-modal__input[aria-label]"
     assert_select ".search-modal turbo-frame#global-search[target=_top]"
   end

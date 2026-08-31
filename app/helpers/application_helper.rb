@@ -42,8 +42,8 @@ module ApplicationHelper
     end
   end
 
-  def sidebar_link_class(*matches)
-    [ "sidebar-menu-link", ("active" if nav_active?(*matches)) ].compact.join(" ")
+  def nav_link_class(*matches)
+    [ "nav-link", ("is-active" if nav_active?(*matches)) ].compact.join(" ")
   end
 
   def breadcrumb_items
@@ -138,10 +138,24 @@ module ApplicationHelper
         content_tag(:span, item[:label], aria: { current: "page" })
       elsif item[:section]
         content_tag(:span, item[:label], class: "breadcrumb-section")
+      elsif item[:path] == root_path
+        link_to icon_label("house", item[:label], css: "breadcrumb-icon"), item[:path]
       else
         link_to item[:label], item[:path]
       end
     end
+  end
+
+  # Ícone Phosphor (regular) inline, de vendor/icons/phosphor/regular. Decorativo por
+  # padrão: o texto ao lado é quem dá o significado.
+  def icon(name, css: "icon-inline")
+    @inline_icons ||= {}
+    svg = @inline_icons[name] ||= Rails.root.join("vendor/icons/phosphor/regular/#{name}.svg").read
+    svg.sub("<svg ", %(<svg class="#{css}" aria-hidden="true" focusable="false" )).html_safe
+  end
+
+  def icon_label(name, text, css: "btn-icon")
+    safe_join([ icon(name, css:), text ])
   end
 
   def phosphor_icon(direction)

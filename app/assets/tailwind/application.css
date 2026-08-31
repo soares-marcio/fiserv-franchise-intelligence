@@ -604,7 +604,7 @@
   }
 
   .table-frame {
-    overflow: hidden;
+    overflow: clip;
     border: 1px solid var(--color-base-300);
     border-radius: 1.15rem 1.15rem 1.15rem 0.35rem;
     background: var(--color-base-100);
@@ -921,157 +921,179 @@
     background: var(--color-base-100);
   }
 
-  .app-body {
-    min-width: 320px;
-    overflow-x: hidden;
-    background: var(--color-base-200);
-  }
-
-  .container-xxl,
-  .app-main {
-    width: min(100%, 93rem);
-    margin-inline: auto;
-  }
-
-  .app-container {
-    min-height: 100vh;
-    padding-top: 3.5rem;
-  }
-
-  .app-main {
-    padding: 1.5rem 1.5rem 4rem;
-  }
-
-  .layout-overlay {
-    position: fixed;
-    z-index: 45;
-    inset: 0;
-    display: none;
-    background: rgb(6 8 24 / 40%);
-    opacity: 0;
-    transition: opacity 180ms ease;
-  }
-
-  .mobile-menu-open .layout-overlay {
-    display: block;
-    opacity: 1;
-  }
-
-  .header-container {
-    position: fixed;
-    z-index: 50;
+  .topbar {
+    position: sticky;
+    z-index: 30;
     top: 0;
-    right: 0;
-    left: 0;
-    padding: 0 0.9375rem;
-    border-bottom: 1px solid var(--cork-dark-100);
-    background: var(--color-base-100);
+    border-bottom: 1px solid color-mix(in oklab, white 12%, transparent);
+    background: color-mix(in oklab, var(--color-neutral) 96%, transparent);
+    color: var(--color-neutral-content);
+    box-shadow: 0 12px 30px rgb(48 35 26 / 12%);
+    backdrop-filter: blur(14px);
   }
 
-  .header {
+  .topbar-inner {
     display: flex;
-    min-height: 3.5rem;
+    width: min(100%, 96rem);
+    min-height: 4.75rem;
+    margin-inline: auto;
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem 1.5rem;
   }
 
-  .header-item {
-    display: flex;
-    min-width: 0;
-    align-items: center;
-  }
-
-  .theme-brand {
-    flex: none;
-    gap: 0.75rem;
-  }
-
-  .brand-lockup {
-    display: inline-flex;
-    min-width: 0;
-    align-items: center;
-    gap: 0.6rem;
-    color: var(--cork-strong);
-    text-decoration: none;
-  }
-
-  .brand-logo {
+  .brand-mark {
     display: grid;
-    width: 2.125rem;
-    height: 2.125rem;
-    padding: 0.4rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.45rem;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.18rem;
-    border-radius: 0.55rem;
+    gap: 0.2rem;
+    border-radius: 0.8rem 0.8rem 0.8rem 0.25rem;
     background: var(--color-primary);
-    box-shadow: 0 10px 18px color-mix(in oklab, var(--color-primary) 28%, transparent);
+    box-shadow: 0 8px 20px color-mix(in oklab, var(--color-primary) 32%, transparent);
+    transform: rotate(-2deg);
   }
 
-  .brand-logo span {
+  .brand-mark span {
     border-radius: 999px;
     background: var(--color-primary-content);
   }
 
-  .theme-text {
-    color: var(--cork-strong);
-    font-size: 1.35rem;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
+  .brand-mark span:last-child {
+    border-radius: 999px 999px 999px 0.15rem;
   }
 
-  .search-area {
+  .brand-name {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+
+  .brand-caption {
+    display: block;
+    margin-top: 0.05rem;
+    color: color-mix(in oklab, var(--color-neutral-content) 62%, transparent);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Quebra linha em vez de rolar: a barra cresce o que o menu precisar. */
+  .primary-nav {
+    display: flex;
+    min-width: 0;
     flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Os dois grupos da estrutura atual, lado a lado, separados por um divisor fino. */
+  .nav-group {
+    display: inline-flex;
+    min-width: 0;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .nav-group + .nav-group {
+    margin-left: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid color-mix(in oklab, white 14%, transparent);
+  }
+
+  .primary-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    display: inline-flex;
+    min-height: 2.6rem;
+    padding: 0.55rem 0.7rem;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    color: color-mix(in oklab, var(--color-neutral-content) 72%, transparent);
+    font-size: 0.82rem;
+    font-weight: 650;
+    white-space: nowrap;
+    transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  }
+
+  .nav-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex: none;
+    opacity: 0.7;
+  }
+
+  .nav-link:hover {
+    background: color-mix(in oklab, white 8%, transparent);
+    color: var(--color-neutral-content);
+    transform: translateY(-1px);
+  }
+
+  .nav-link.is-active {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+  }
+
+  .nav-link.is-active .nav-icon,
+  .nav-link:hover .nav-icon {
+    opacity: 1;
+  }
+
+  .topbar-tools {
+    display: flex;
+    flex: none;
+    margin-left: auto;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .search-content {
     display: inline-flex;
-    width: min(100%, 27rem);
-    min-height: 2.25rem;
-    padding: 0 0.35rem 0 0.75rem;
+    min-height: 2.5rem;
+    padding: 0 0.5rem 0 0.75rem;
     align-items: center;
     gap: 0.6rem;
-    border: 0;
-    border-radius: 0.9375rem;
-    background: color-mix(in oklab, var(--color-base-200) 64%, white);
-    color: var(--cork-muted);
+    border: 1px solid color-mix(in oklab, white 12%, transparent);
+    border-radius: 0.75rem;
+    background: color-mix(in oklab, white 9%, transparent);
+    color: color-mix(in oklab, var(--color-neutral-content) 80%, transparent);
     text-align: left;
+    transition: background-color 160ms ease;
   }
 
-  .search-placeholder {
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-    font-size: 0.82rem;
-    font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .search-content:hover {
+    background: color-mix(in oklab, white 14%, transparent);
+    color: var(--color-neutral-content);
   }
 
   .search-shortcut {
     flex: none;
-    padding: 0.25rem 0.5rem;
+    padding: 0.2rem 0.45rem;
     border-radius: 999px;
-    background: var(--cork-dark-100);
-    color: var(--cork-muted);
-    font-size: 0.72rem;
+    background: color-mix(in oklab, white 12%, transparent);
+    font-size: 0.68rem;
     font-weight: 600;
-  }
-
-  .action-area {
-    flex: none;
-    justify-content: flex-end;
   }
 
   .header-status {
     display: inline-flex;
-    min-height: 2.25rem;
-    padding: 0 0.75rem;
+    min-height: 2.5rem;
+    padding: 0 0.85rem;
     align-items: center;
     gap: 0.45rem;
     border-radius: 999px;
-    background: var(--cork-success-100);
-    color: var(--color-success);
+    background: color-mix(in oklab, var(--color-success) 22%, transparent);
+    color: color-mix(in oklab, var(--color-success) 55%, white);
     font-size: 0.78rem;
     font-weight: 600;
     text-decoration: none;
@@ -1079,12 +1101,12 @@
   }
 
   .header-status[data-tone="rose"] {
-    background: var(--cork-danger-100);
-    color: var(--color-error);
+    background: color-mix(in oklab, var(--color-error) 24%, transparent);
+    color: color-mix(in oklab, var(--color-error) 45%, white);
   }
 
   .header-status:hover {
-    filter: brightness(0.96);
+    filter: brightness(1.12);
   }
 
   .status-dot {
@@ -1114,69 +1136,6 @@
     width: 1.35rem;
     height: 1.35rem;
     flex: none;
-  }
-
-  .sidebar-wrapper {
-    position: fixed;
-    z-index: 60;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: min(19rem, calc(100vw - 3rem));
-    padding: 1rem;
-    overflow-y: auto;
-    border-right: 1px solid var(--color-base-300);
-    background: var(--color-base-100);
-    box-shadow: 0 20px 40px rgb(31 45 61 / 16%);
-    transform: translateX(-102%);
-    transition: transform 180ms ease;
-  }
-
-  .sidebar-menu {
-    display: grid;
-    gap: 0.25rem;
-  }
-
-  .mobile-menu-open .sidebar-wrapper {
-    transform: translateX(0);
-  }
-
-  .mobile-sidebar-header {
-    display: flex;
-    margin-bottom: 1.25rem;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-  }
-
-  .menu-heading {
-    margin: 1.25rem 0 0.5rem;
-    color: var(--cork-muted);
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
-  .sidebar-menu-link {
-    display: flex;
-    min-height: 2.75rem;
-    padding: 0.65rem 0.8rem;
-    align-items: center;
-    border-radius: 0.625rem;
-    color: var(--color-base-content);
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .sidebar-menu-link:hover {
-    background: var(--cork-dark-100);
-    color: var(--cork-strong);
-  }
-
-  .sidebar-menu-link.active,
-  .sidebar-menu-link.active:hover {
-    background: var(--cork-primary-100);
-    color: var(--color-primary);
   }
 
   .search-modal {
@@ -1460,7 +1419,36 @@
   }
 
   .table-frame {
-    overflow: hidden;
+    overflow: clip;
+  }
+
+  /* No desktop a tabela cabe, então o wrapper não rola e o cabeçalho pode ficar fixo na
+     página; abaixo de 1100px volta a rolar na horizontal e o cabeçalho acompanha. */
+  .table-scroll {
+    overflow: visible;
+  }
+
+  /* A barra de título gruda abaixo da barra do site; o cabeçalho das colunas, abaixo dela. */
+  .table-frame .table-toolbar {
+    position: sticky;
+    z-index: 3;
+    top: var(--topbar-height, 4.75rem);
+    background: var(--color-base-100);
+  }
+
+  .table-frame thead th {
+    position: sticky;
+    z-index: 2;
+    top: calc(var(--topbar-height, 4.75rem) + var(--toolbar-height, 0px));
+  }
+
+  /* Dentro do diálogo o scrollport é o próprio modal-box. */
+  .modal .table-frame .table-toolbar {
+    top: 0;
+  }
+
+  .modal .table-frame thead th {
+    top: var(--toolbar-height, 0px);
   }
 
   .table-toolbar {
@@ -1491,9 +1479,49 @@
 
   .btn {
     min-height: 2.45rem;
+    gap: 0.4rem;
     border-radius: 0.5rem;
     font-weight: 600;
     letter-spacing: 0;
+  }
+
+  .btn-icon {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+  }
+
+  .icon-inline {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  /* O reset do Tailwind deixa svg como block; aqui ele precisa correr com o texto. */
+  .breadcrumb-icon,
+  .icon-inline {
+    display: inline-block;
+  }
+
+  .breadcrumb-icon {
+    width: 0.9rem;
+    height: 0.9rem;
+    margin-right: 0.3rem;
+    vertical-align: -0.12em;
+  }
+
+  .metric-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .metric-icon {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    opacity: 0.75;
   }
 
   /* Botão que fica ao lado de um campo: mesma altura do .file-input. */
@@ -1562,42 +1590,25 @@
   }
 }
 
-@media (min-width: 1280px) {
-  .header.container-xxl {
-    width: auto;
-    margin-left: 17.5rem;
-    padding-inline: 1.5rem;
-  }
-
-  .header .theme-brand {
-    display: none;
-  }
-
-  .app-container {
-    margin-left: 17.5rem;
-  }
-
-  .sidebar-wrapper {
-    z-index: 42;
-    top: 3.5rem;
-    width: 17.5rem;
-    padding: 1.25rem;
-    border-top: 1px solid var(--color-base-300);
-    box-shadow: var(--cork-shadow);
-    transform: none;
-  }
-
-  .mobile-sidebar-header {
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--color-base-300);
-  }
-
-  .mobile-sidebar-header .btn-toggle {
-    display: none;
+/* Abaixo de 1400px o menu desce inteiro para a segunda linha da barra. */
+@media (max-width: 1400px) {
+  .primary-nav {
+    order: 3;
+    flex-basis: 100%;
   }
 }
 
+/* Telefones: a tabela rola na horizontal e o cabeçalho volta a acompanhar as linhas. */
 @media (max-width: 900px) {
+  .table-scroll {
+    overflow-x: auto;
+  }
+
+  .table-frame .table-toolbar,
+  .table-frame thead th {
+    position: static;
+  }
+
   .metric-grid,
   .metric-grid--3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1609,22 +1620,25 @@
 }
 
 @media (max-width: 560px) {
-  .header {
-    gap: 0.5rem;
-  }
-
-  .header-status,
+  .brand-caption,
   .search-shortcut {
     display: none;
   }
 
-  .theme-text {
-    font-size: 1rem;
+  /* Com os links em várias linhas, o divisor vertical entre grupos vira uma barra solta. */
+  .nav-group + .nav-group {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
   }
 
   .search-content {
-    min-height: 2.25rem;
     padding-right: 0.75rem;
+  }
+
+  .header-status {
+    padding-inline: 0.65rem;
+    font-size: 0.72rem;
   }
 
   .app-main {

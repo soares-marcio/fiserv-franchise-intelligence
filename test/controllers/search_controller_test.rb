@@ -48,10 +48,10 @@ class SearchControllerTest < ActionDispatch::IntegrationTest
 
   test "requisição do frame vem sem a casca; acesso direto vem com ela" do
     get search_path(q: "zzz"), headers: { "Turbo-Frame" => "global-search" }
-    assert_select "header.header-container", count: 0
+    assert_select "header.topbar", count: 0
     assert_select "turbo-frame#global-search"
 
     get search_path(q: "zzz")
-    assert_select "header.header-container", count: 1
+    assert_select "header.topbar", count: 1
   end
 end

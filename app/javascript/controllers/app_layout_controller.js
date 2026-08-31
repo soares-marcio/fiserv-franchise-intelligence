@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Casca do layout: menu lateral no mobile, busca global e atalhos de teclado.
+// Casca do layout: busca global e atalhos de teclado.
 export default class extends Controller {
   static targets = ["searchModal", "searchInput", "searchResults", "searchTrigger", "shortcut"]
   static values = { searchUrl: String }
@@ -8,6 +8,7 @@ export default class extends Controller {
   connect() {
     this.boundKeydown = this.keydown.bind(this)
     document.addEventListener("keydown", this.boundKeydown)
+    this.trackTopbarHeight()
     // O atalho aceita Cmd no Mac; o rótulo precisa dizer a tecla que o usuário tem.
     if (navigator.platform.startsWith("Mac")) {
       this.shortcutTargets.forEach((element) => { element.textContent = "⌘ /" })
@@ -17,10 +18,19 @@ export default class extends Controller {
   disconnect() {
     document.removeEventListener("keydown", this.boundKeydown)
     clearTimeout(this.searchTimer)
+    this.topbarObserver?.disconnect()
   }
 
-  toggleMobileMenu() {
-    this.element.classList.toggle("mobile-menu-open")
+  // A barra muda de altura quando o menu quebra linha; os cabeçalhos fixos das tabelas
+  // precisam saber onde ela termina para ficarem logo abaixo.
+  trackTopbarHeight() {
+    const topbar = this.element.querySelector(".topbar")
+    if (!topbar) return
+
+    const update = () => document.documentElement.style.setProperty("--topbar-height", `${topbar.offsetHeight}px`)
+    update()
+    this.topbarObserver = new ResizeObserver(update)
+    this.topbarObserver.observe(topbar)
   }
 
   openSearch(event) {
@@ -40,11 +50,6 @@ export default class extends Controller {
     const target = opener && opener !== document.body && opener.isConnected ? opener : this.searchTriggerTarget
     target?.focus()
     this.returnFocusTo = null
-  }
-
-  closePanels() {
-    this.closeSearch()
-    this.element.classList.remove("mobile-menu-open")
   }
 
   // Espera o usuário parar de digitar antes de consultar o servidor.
@@ -80,7 +85,7 @@ export default class extends Controller {
     }
 
     if (event.key === "Escape") {
-      this.closePanels()
+      this.closeSearch()
       return
     }
 
