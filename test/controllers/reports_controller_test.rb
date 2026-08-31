@@ -1,6 +1,33 @@
 require "test_helper"
 
 class ReportsControllerTest < ActionDispatch::IntegrationTest
+  test "trilha de navegação: agrupamento da sidebar não vira link" do
+    get stalled_reports_path
+
+    assert_select "nav.breadcrumb-wrap a[href=?]", root_path, text: "Início"
+    assert_select "nav.breadcrumb-wrap span.breadcrumb-section", text: "Dashboard"
+    assert_select "nav.breadcrumb-wrap a", text: "Dashboard", count: 0
+    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clientes parados"
+  end
+
+  test "cabeçalho mostra há quanto tempo a carteira recebeu arquivo" do
+    get reports_path
+    assert_select "a.header-status[data-tone=rose][href=?]", import_batches_path,
+      text: /Sem arquivo importado/
+
+    import_synthetic_workbook
+    get reports_path
+    assert_select "a.header-status[data-tone=green]", text: /Arquivo hoje/
+  end
+
+  test "a busca do header aponta para o endpoint de busca global" do
+    get reports_path
+
+    assert_select "body[data-cork-layout-search-url-value=?]", search_path
+    assert_select ".search-modal input.search-modal__input[aria-label]"
+    assert_select ".search-modal turbo-frame#global-search[target=_top]"
+  end
+
   test "clientes parados e semanal abrem com o banco recém-criado" do
     [ *AuditViews::ALIGNED_VIEWS, "audit_weekly_revenue" ].each do |view|
       ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW #{view} WITH NO DATA")

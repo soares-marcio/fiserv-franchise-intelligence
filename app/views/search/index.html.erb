@@ -1,0 +1,52 @@
+<% content_for :title, "Buscar" %>
+
+<%= turbo_frame_tag "global-search", target: "_top", data: { cork_layout_target: "searchResults" } do %>
+  <% if !@search.searchable? %>
+    <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou subcanal.</p>
+  <% elsif @search.empty? && @search.base_empty? %>
+    <p class="search-empty">
+      A carteira ainda não tem arquivo importado, por isso não há o que buscar.
+      <%= link_to "Importar arquivo", import_batches_path, class: "search-more" %>
+    </p>
+  <% elsif @search.empty? %>
+    <p class="search-empty">Nada encontrado para “<%= @search.query %>”.</p>
+  <% else %>
+    <% if @search.sub_channels.any? %>
+      <section class="search-group">
+        <h3>Subcanais</h3>
+        <% @search.sub_channels.each do |sub_channel| %>
+          <%= link_to sub_channel_report_path(sub_channel), class: "search-result" do %>
+            <span class="search-result__body">
+              <span class="search-result__title"><%= sub_channel.name %></span>
+              <small><%= sub_channel.channel.name %> · faturamento por estabelecimento</small>
+            </span>
+          <% end %>
+        <% end %>
+      </section>
+    <% end %>
+
+    <% if @search.establishments.any? %>
+      <section class="search-group">
+        <h3>Estabelecimentos</h3>
+        <% @search.establishments.each do |establishment| %>
+          <% snapshot = establishment.current_map_snapshot %>
+          <%= link_to establishment, class: "search-result" do %>
+            <span class="search-result__ec"><%= establishment.ec %></span>
+            <span class="search-result__body">
+              <span class="search-result__title">
+                <%= snapshot&.trade_name.presence || snapshot&.legal_name.presence || "Sem nome no cadastro" %>
+              </span>
+              <small>
+                <%= formatted_cnpj(establishment.company.cnpj) %>
+                <% if snapshot&.sub_channel %> · <%= snapshot.sub_channel.name %><% end %>
+                <% if snapshot&.city.present? %> · <%= snapshot.city %><% end %>
+              </small>
+            </span>
+          <% end %>
+        <% end %>
+        <%= link_to "Ver todos na lista de estabelecimentos", establishments_path(q: @search.query),
+          class: "search-more" %>
+      </section>
+    <% end %>
+  <% end %>
+<% end %>

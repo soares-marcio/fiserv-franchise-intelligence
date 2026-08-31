@@ -1,7 +1,4 @@
 module EstablishmentsHelper
-  BRAZILIAN_STATES = %w[
-    AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO
-  ].freeze
   CONTRACT_STATUSES = %w[Active Suspended].freeze
   CONTRACT_STATUS_PRESENTATION = {
     "Active" => { label: "Ativo", tone: "success" },
@@ -64,9 +61,5 @@ module EstablishmentsHelper
 
   def contract_status_tone(status)
     CONTRACT_STATUS_PRESENTATION.dig(status.to_s, :tone) || "neutral"
-  end
-
-  def manual_entry_value(name)
-    params.dig(:manual_entry, name) || params.dig(:manual_entry, name.to_s)
   end
 end

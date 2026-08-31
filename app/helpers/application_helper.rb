@@ -55,7 +55,7 @@ module ApplicationHelper
     when "reports" then reports_breadcrumb_items
     when "establishments" then establishments_breadcrumb_items
     when "import_batches" then import_batches_breadcrumb_items
-    when "metabase" then [ breadcrumb_link("Dashboard"), breadcrumb_current("Metabase") ]
+    when "metabase" then [ breadcrumb_section("Operação"), breadcrumb_current("Metabase") ]
     else [ breadcrumb_current(content_for(:title).presence || "Página") ]
     end
   end
@@ -63,43 +63,51 @@ module ApplicationHelper
   def reports_breadcrumb_items
     case action_name
     when "index"
-      [ breadcrumb_link("Dashboard"), breadcrumb_current("Faturamento") ]
+      [ breadcrumb_section("Dashboard"), breadcrumb_current("Faturamento") ]
     when "stalled"
-      [ breadcrumb_link("Dashboard"), breadcrumb_current("Clientes parados") ]
+      [ breadcrumb_section("Dashboard"), breadcrumb_current("Clientes parados") ]
     when "weekly"
-      [ breadcrumb_link("Dashboard"), breadcrumb_current("Semanal") ]
+      [ breadcrumb_section("Dashboard"), breadcrumb_current("Semanal") ]
     when "sub_channel"
-      [ breadcrumb_link("Dashboard"), breadcrumb_link("Faturamento", reports_path),
+      [ breadcrumb_section("Dashboard"), breadcrumb_link("Faturamento", reports_path),
         breadcrumb_current(@sub_channel&.name || "Subcanal") ]
     else
-      [ breadcrumb_link("Dashboard"), breadcrumb_current("Faturamento") ]
+      [ breadcrumb_section("Dashboard"), breadcrumb_current("Faturamento") ]
     end
   end
 
   def establishments_breadcrumb_items
     case action_name
     when "index"
-      [ breadcrumb_link("Operação"), breadcrumb_current("Estabelecimentos") ]
-    when "new"
-      [ breadcrumb_link("Operação"), breadcrumb_link("Estabelecimentos", establishments_path),
-        breadcrumb_current("Novo cadastro") ]
+      [ breadcrumb_section("Operação"), breadcrumb_current("Estabelecimentos") ]
     when "show"
-      [ breadcrumb_link("Operação"), breadcrumb_link("Estabelecimentos", establishments_path),
+      [ breadcrumb_section("Operação"), breadcrumb_link("Estabelecimentos", establishments_path),
         breadcrumb_current("EC #{@establishment&.ec || params[:id]}") ]
     else
-      [ breadcrumb_link("Operação"), breadcrumb_current("Estabelecimentos") ]
+      [ breadcrumb_section("Operação"), breadcrumb_current("Estabelecimentos") ]
     end
   end
 
   def import_batches_breadcrumb_items
     case action_name
     when "index"
-      [ breadcrumb_link("Operação"), breadcrumb_current("Importar arquivo") ]
+      [ breadcrumb_section("Operação"), breadcrumb_current("Importar arquivo") ]
     when "show"
-      [ breadcrumb_link("Operação"), breadcrumb_link("Importar arquivo", import_batches_path),
+      [ breadcrumb_section("Operação"), breadcrumb_link("Importar arquivo", import_batches_path),
         breadcrumb_current(@import_batch&.source_filename || "Lote") ]
     else
-      [ breadcrumb_link("Operação"), breadcrumb_current("Importar arquivo") ]
+      [ breadcrumb_section("Operação"), breadcrumb_current("Importar arquivo") ]
+    end
+  end
+
+  # Sinal operacional presente em toda página: há quanto tempo a carteira recebeu arquivo.
+  def header_file_status
+    days = ImportBatch.days_since_last_file
+    stale = days.nil? || days >= ImportBatch::STALE_AFTER_DAYS
+    label = days.nil? ? "Sem arquivo importado" : "Arquivo #{last_file_headline(days).downcase}"
+    link_to import_batches_path, class: "header-status", title: last_file_hint(days),
+      data: { tone: stale ? "rose" : "green" } do
+      safe_join([ tag.span(class: "status-dot", aria: { hidden: true }), label ], " ")
     end
   end
 
@@ -111,8 +119,13 @@ module ApplicationHelper
     end
   end
 
-  def breadcrumb_link(label, path = root_path)
+  def breadcrumb_link(label, path)
     { label:, path: }
+  end
+
+  # Agrupamento da sidebar, não uma página: aparece na trilha sem ser link.
+  def breadcrumb_section(label)
+    { label:, section: true }
   end
 
   def breadcrumb_current(label)
@@ -123,6 +136,8 @@ module ApplicationHelper
     content_tag(:li, class: "breadcrumb-item") do
       if item[:current]
         content_tag(:span, item[:label], aria: { current: "page" })
+      elsif item[:section]
+        content_tag(:span, item[:label], class: "breadcrumb-section")
       else
         link_to item[:label], item[:path]
       end

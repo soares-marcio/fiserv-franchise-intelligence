@@ -25,50 +25,6 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /Nenhum estabelecimento encontrado/
   end
 
-  test "renderiza o formulário de cadastro agrupado" do
-    get new_establishment_path
-
-    assert_response :success
-    assert_select "h1", text: "Cadastrar estabelecimento"
-    assert_select "label", text: /Razão social/
-    assert_select "label", text: /Nome fantasia/
-    assert_select "label", text: /Endereço/
-    assert_select "label", text: /CNAE/
-    assert_select "input[name='manual_entry[day_01_m1]'][type='number']"
-    assert_select "input[name='manual_entry[day_31]'][type='number']"
-    assert_select "label", text: "Report", count: 0
-  end
-
-  test "cria um cliente manual e mostra o cadastro" do
-    post establishments_path, params: {
-      manual_entry: {
-        report_id: "1478", channel_name: "MASTER", sub_channel_name: "MIC TESTE",
-        ec: "12345678", cnpj: "12345678000195", contract_status: "Active",
-        legal_name: "RAZAO", trade_name: "FANTASIA",
-        street_address: "RUA B 20", cnae_code: "5611201"
-      }
-    }
-
-    establishment = Establishment.find_by(ec: "12345678")
-    assert_redirected_to establishment_path(establishment)
-    follow_redirect!
-    assert_select "h1", text: "FANTASIA"
-    assert_select "dd", text: "RUA B 20"
-    assert_select "dd", text: "5611201"
-  end
-
-  test "recusa CNPJ inválido no formulário" do
-    post establishments_path, params: {
-      manual_entry: {
-        report_id: "1478", channel_name: "MASTER", sub_channel_name: "MIC TESTE",
-        ec: "12345678", cnpj: "123", contract_status: "Active"
-      }
-    }
-
-    assert_response :unprocessable_entity
-    assert_select ".alert", text: "CNPJ inválido"
-  end
-
   private
 
   def seed_establishment

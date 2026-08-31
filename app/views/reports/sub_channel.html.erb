@@ -181,9 +181,9 @@
         <%= hidden_field_tag :per_page, @per_page %>
 
         <div class="filter-actions">
-          <%= submit_tag "Filtrar", class: "btn btn-primary" %>
+          <%= submit_tag "Filtrar", class: "btn btn-primary btn--field" %>
           <%= link_to "Limpar", sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
-            class: "btn btn-outline" %>
+            class: "btn btn-outline btn--field" %>
         </div>
       <% end %>
     </section>

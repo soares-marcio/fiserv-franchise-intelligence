@@ -1,5 +1,5 @@
 <header class="header-container">
-  <div class="header navbar container-xxl">
+  <div class="header container-xxl">
     <div class="header-item theme-brand">
       <%= link_to root_path, class: "brand-lockup", aria: { label: "Auditoria BIN - início" } do %>
         <span class="brand-logo" aria-hidden="true">
@@ -21,23 +21,20 @@
 
     <div class="header-item search-area">
       <button class="search-content" type="button" data-action="click->cork-layout#openSearch"
-        aria-haspopup="dialog">
+        data-cork-layout-target="searchTrigger" aria-haspopup="dialog">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search"
           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
           <circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/>
         </svg>
-        <span class="search-placeholder">Buscar páginas...</span>
-        <span class="search-shortcut">Ctrl + /</span>
+        <span class="search-placeholder">Buscar EC, CNPJ, nome ou subcanal…</span>
+        <span class="search-shortcut" data-cork-layout-target="shortcut">Ctrl + /</span>
       </button>
     </div>
 
     <div class="header-item action-area">
-      <span class="header-status">
-        <span class="status-dot"></span>
-        Carteira BIN
-      </span>
+      <%= header_file_status %>
     </div>
   </div>
 </header>
@@ -69,18 +66,16 @@
       class: sidebar_link_class({ controller: :reports, actions: %w[stalled] }) %>
     <%= link_to "Semanal", weekly_reports_path,
       class: sidebar_link_class({ controller: :reports, actions: %w[weekly] }) %>
-    <%= link_to "Metabase", metabase_path,
-      class: sidebar_link_class({ controller: :metabase }) %>
 
     <p class="menu-heading">Operação</p>
     <%= link_to "Estabelecimentos", establishments_path,
       class: sidebar_link_class({
         controller: :establishments, actions: %w[index show]
       }) %>
-    <%= link_to "Novo cadastro", new_establishment_path,
-      class: sidebar_link_class({ controller: :establishments, actions: %w[new] }) %>
     <%= link_to "Importar arquivo", import_batches_path,
       class: sidebar_link_class({ controller: :import_batches }) %>
+    <%= link_to "Metabase", metabase_path,
+      class: sidebar_link_class({ controller: :metabase }) %>
   </nav>
 </aside>
 
@@ -94,7 +89,7 @@
         <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
         <circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/>
       </svg>
-      <h2 id="global-search-title">Buscar páginas</h2>
+      <h2 id="global-search-title">Buscar</h2>
       <button class="btn-toggle" type="button" data-action="click->cork-layout#closeSearch"
         aria-label="Fechar busca">
         <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-x"
@@ -105,28 +100,16 @@
         </svg>
       </button>
     </div>
-    <div class="search-list-content">
-      <h3>Páginas disponíveis</h3>
-      <div class="search-list">
-        <%= link_to reports_path, class: "search-list-item" do %>
-          <span>Faturamento</span><small>Relatório por carteira</small>
-        <% end %>
-        <%= link_to stalled_reports_path, class: "search-list-item" do %>
-          <span>Clientes parados</span><small>Carteiras sem movimento recente</small>
-        <% end %>
-        <%= link_to weekly_reports_path, class: "search-list-item" do %>
-          <span>Semanal</span><small>Movimento por semana</small>
-        <% end %>
-        <%= link_to establishments_path, class: "search-list-item" do %>
-          <span>Estabelecimentos</span><small>Cadastro corrente da carteira</small>
-        <% end %>
-        <%= link_to import_batches_path, class: "search-list-item" do %>
-          <span>Importar arquivo</span><small>Lotes e entrada de dados</small>
-        <% end %>
-        <%= link_to metabase_path, class: "search-list-item" do %>
-          <span>Metabase</span><small>Exploração analítica local</small>
-        <% end %>
-      </div>
+    <div class="search-modal__field">
+      <input type="search" class="search-modal__input" placeholder="EC, CNPJ, nome, cidade, CNAE ou subcanal"
+        aria-label="Buscar estabelecimentos e subcanais" autocomplete="off"
+        data-cork-layout-target="searchInput"
+        data-action="input->cork-layout#search keydown->cork-layout#searchKeydown">
+    </div>
+    <div class="search-results">
+      <%= turbo_frame_tag "global-search", target: "_top", data: { cork_layout_target: "searchResults" } do %>
+        <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou subcanal.</p>
+      <% end %>
     </div>
   </div>
 </div>

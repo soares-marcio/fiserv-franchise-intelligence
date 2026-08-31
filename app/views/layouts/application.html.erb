@@ -21,7 +21,8 @@
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
-  <body class="app-body layout-boxed min-h-screen" data-controller="cork-layout">
+  <body class="app-body min-h-screen" data-controller="cork-layout"
+    data-cork-layout-search-url-value="<%= search_path %>">
     <%= render "layouts/navbar" %>
     <div class="app-container">
       <div class="layout-overlay" data-action="click->cork-layout#closePanels"></div>

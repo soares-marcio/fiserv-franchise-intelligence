@@ -12,7 +12,6 @@
           validado. O EC continua sendo o grão técnico; o cliente é o CNPJ.
         </p>
       </div>
-      <%= link_to "Novo cadastro", new_establishment_path, class: "btn btn-primary" %>
     </div>
 
     <%= form_with url: establishments_path, method: :get,
@@ -22,7 +21,7 @@
         <%= search_field_tag :q, @query, class: "input input-bordered w-full",
           placeholder: "EC, CNPJ, nome, cidade, CNAE ou sub-canal" %>
       </label>
-      <%= submit_tag "Buscar", class: "btn btn-outline" %>
+      <%= submit_tag "Buscar", class: "btn btn-outline btn--field" %>
       <% if @query.present? %>
         <%= link_to "Limpar", establishments_path, class: "btn btn-ghost" %>
       <% end %>

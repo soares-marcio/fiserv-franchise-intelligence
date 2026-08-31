@@ -9,12 +9,13 @@ Rails.application.routes.draw do
     end
   end
   get "reports/sub_channels/:id", to: "reports#sub_channel", as: :sub_channel_report
-  resources :import_batches, only: %i[index show create] do
+  resources :import_batches, only: %i[index show create destroy] do
     member do
       patch :update_cutoff
       post :reprocess
     end
   end
-  resources :establishments, only: %i[index new create show]
+  resources :establishments, only: %i[index show]
   resource :metabase, only: :show, controller: "metabase"
+  get "search", to: "search#index", as: :search
 end

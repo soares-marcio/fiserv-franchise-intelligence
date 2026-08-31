@@ -11,6 +11,18 @@ class Establishment < ApplicationRecord
   has_many :revenue_snapshots, dependent: :restrict_with_exception
 
   validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: true
+
+  # Busca livre pelo que aparece no cadastro: EC, CNPJ, nomes, cidade, CNAE ou subcanal.
+  scope :search, ->(query) {
+    like = "%#{sanitize_sql_like(query.to_s.strip)}%"
+    left_joins(:company, current_map_snapshot: :sub_channel).where(
+      "establishments.ec ILIKE :q OR companies.cnpj ILIKE :q OR " \
+      "map_snapshots.trade_name ILIKE :q OR map_snapshots.legal_name ILIKE :q OR " \
+      "map_snapshots.city ILIKE :q OR map_snapshots.cnae_code ILIKE :q OR " \
+      "map_snapshots.cnae_description ILIKE :q OR sub_channels.name ILIKE :q",
+      q: like
+    ).distinct
+  }
   validate :primary_is_from_same_company
 
   private
