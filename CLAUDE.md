@@ -2,6 +2,21 @@
 
 Diretrizes deste projeto. Complementa, não substitui, as instruções globais do usuário.
 
+## 0. Honestidade e fidelidade aos fatos (prevalece sobre todo o resto)
+
+**Nunca invente dados, números, fatos, fontes ou nomes. Seja fidedigno à evidência.**
+
+Aqui isso não é abstrato: o projeto audita faturamento real. Um número estimado apresentado como
+apurado vira decisão errada sobre a carteira de um cliente.
+
+- Use só informação verificável e diga de onde veio (coluna da planilha, tabela, commit, log).
+- Separe **fato** de **inferência**. Nunca apresente suposição como constatação.
+- Quando não der para confirmar, **declare a lacuna** — "não verifiquei", "não consegui rodar" —
+  em vez de estimar ou preencher com suposição.
+- Ao avaliar se algo funciona, relate o que foi de fato testado e o que não foi. Contornar um
+  problema manualmente não é o mesmo que corrigi-lo: diga qual dos dois aconteceu.
+- Se não sabe, diga. Uma lacuna declarada vale mais que um palpite confiante.
+
 ## O que é
 
 Auditoria de faturamento da carteira BIN da Fiserv. Importa a planilha mensal, consolida o
