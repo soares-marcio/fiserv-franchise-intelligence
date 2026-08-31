@@ -32,6 +32,14 @@ services:
       - '3000:3000'
     volumes:
       - storage:/rails/storage
+    # O db:prepare roda no entrypoint, antes do Puma escutar. Logo, /up respondendo significa
+    # schema no lugar — é disso que o worker depende para não subir num banco vazio.
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fs http://localhost:3000/up > /dev/null || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +57,8 @@ services:
       - storage:/rails/storage
     depends_on:
       db:
+        condition: service_healthy
+      web:
         condition: service_healthy
   metabase:
     image: metabase/metabase:latest

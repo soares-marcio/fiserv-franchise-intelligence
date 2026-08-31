@@ -1,7 +1,9 @@
 #!/bin/bash -e
 
-# If running the rails server then create or migrate existing database
-if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+# Cria ou migra o banco antes de subir o servidor. A checagem olha os dois primeiros
+# argumentos, e não os dois últimos: o compose chama "bin/rails server -b 0.0.0.0", então
+# comparar com o fim da linha nunca casava e o banco novo nascia sem schema.
+if [[ "$1" == *bin/rails ]] && [ "$2" = "server" ]; then
   ./bin/rails db:prepare
 fi
 
