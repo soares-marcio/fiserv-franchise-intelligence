@@ -19,7 +19,13 @@ namespace :db do
 
     # schema:load, não migrate: em banco vazio o migrate carregaria o structure.sql do mesmo
     # jeito, mas ao final o sobrescreveria com um dump — e o arquivo é a fonte da verdade.
-    %w[db:create db:schema:load db:seed].each do |name|
+    # Em produção o database.yml declara cache, queue e cable além do primary, e as tasks sem
+    # sufixo iteram as quatro procurando db/cache_structure.sql e companhia — arquivos que não
+    # existem, porque as tabelas dos três adapters Solid vivem no structure.sql do primary.
+    # Com mais de uma config no ambiente, restringe ao primary; com uma só (dev e teste), a
+    # task sem sufixo é necessária, pois é ela que cobre o banco de teste junto.
+    suffix = ActiveRecord::Base.configurations.configs_for(env_name: Rails.env).size > 1 ? ":#{current.name}" : ""
+    %W[db:create#{suffix} db:schema:load#{suffix} db:seed].each do |name|
       Rake::Task[name].reenable
       Rake::Task[name].invoke
     end
