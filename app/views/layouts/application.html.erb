@@ -13,19 +13,30 @@
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet">
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
-  <body class="app-body min-h-screen">
+  <body class="app-body layout-boxed min-h-screen" data-controller="cork-layout">
     <%= render "layouts/navbar" %>
-    <main class="app-main <%= content_for(:container_width) || "" %>">
-      <% if notice.present? %>
-        <div class="alert alert-success app-alert mb-4" role="status"><%= notice %></div>
-      <% end %>
-      <% if alert.present? %>
-        <div class="alert alert-error app-alert mb-4" role="alert"><%= alert %></div>
-      <% end %>
-      <%= yield %>
-    </main>
+    <div class="app-container">
+      <div class="layout-overlay" data-action="click->cork-layout#closePanels"></div>
+
+      <main class="app-main <%= content_for(:container_width) || "" %>">
+        <%= render_breadcrumbs %>
+
+        <% if notice.present? %>
+          <div class="alert alert-success app-alert mb-4" role="status"><%= notice %></div>
+        <% end %>
+        <% if alert.present? %>
+          <div class="alert alert-error app-alert mb-4" role="alert"><%= alert %></div>
+        <% end %>
+        <%= yield %>
+      </main>
+    </div>
   </body>
 </html>

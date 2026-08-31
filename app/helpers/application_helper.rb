@@ -33,6 +33,102 @@ module ApplicationHelper
 
   VARIATION_VERBS = { up: "Subiu", down: "Caiu", flat: "Estável" }.freeze
 
+  def nav_active?(*matches)
+    matches.any? do |match|
+      controller = match.fetch(:controller)
+      actions = Array(match[:actions]).compact
+      controller_name == controller.to_s &&
+        (actions.empty? || actions.include?(action_name))
+    end
+  end
+
+  def sidebar_link_class(*matches)
+    [ "sidebar-menu-link", ("active" if nav_active?(*matches)) ].compact.join(" ")
+  end
+
+  def breadcrumb_items
+    [ breadcrumb_link("Início", root_path), *section_breadcrumb_items ]
+  end
+
+  def section_breadcrumb_items
+    case controller_name
+    when "reports" then reports_breadcrumb_items
+    when "establishments" then establishments_breadcrumb_items
+    when "import_batches" then import_batches_breadcrumb_items
+    when "metabase" then [ breadcrumb_link("Dashboard"), breadcrumb_current("Metabase") ]
+    else [ breadcrumb_current(content_for(:title).presence || "Página") ]
+    end
+  end
+
+  def reports_breadcrumb_items
+    case action_name
+    when "index"
+      [ breadcrumb_link("Dashboard"), breadcrumb_current("Faturamento") ]
+    when "stalled"
+      [ breadcrumb_link("Dashboard"), breadcrumb_current("Clientes parados") ]
+    when "weekly"
+      [ breadcrumb_link("Dashboard"), breadcrumb_current("Semanal") ]
+    when "sub_channel"
+      [ breadcrumb_link("Dashboard"), breadcrumb_link("Faturamento", reports_path),
+        breadcrumb_current(@sub_channel&.name || "Subcanal") ]
+    else
+      [ breadcrumb_link("Dashboard"), breadcrumb_current("Faturamento") ]
+    end
+  end
+
+  def establishments_breadcrumb_items
+    case action_name
+    when "index"
+      [ breadcrumb_link("Operação"), breadcrumb_current("Estabelecimentos") ]
+    when "new"
+      [ breadcrumb_link("Operação"), breadcrumb_link("Estabelecimentos", establishments_path),
+        breadcrumb_current("Novo cadastro") ]
+    when "show"
+      [ breadcrumb_link("Operação"), breadcrumb_link("Estabelecimentos", establishments_path),
+        breadcrumb_current("EC #{@establishment&.ec || params[:id]}") ]
+    else
+      [ breadcrumb_link("Operação"), breadcrumb_current("Estabelecimentos") ]
+    end
+  end
+
+  def import_batches_breadcrumb_items
+    case action_name
+    when "index"
+      [ breadcrumb_link("Operação"), breadcrumb_current("Importar arquivo") ]
+    when "show"
+      [ breadcrumb_link("Operação"), breadcrumb_link("Importar arquivo", import_batches_path),
+        breadcrumb_current(@import_batch&.source_filename || "Lote") ]
+    else
+      [ breadcrumb_link("Operação"), breadcrumb_current("Importar arquivo") ]
+    end
+  end
+
+  def render_breadcrumbs
+    content_tag(:nav, class: "breadcrumb-wrap", aria: { label: "Trilha de navegação" }) do
+      content_tag(:ol, class: "breadcrumb-list") do
+        safe_join(breadcrumb_items.map { |item| breadcrumb_item(item) })
+      end
+    end
+  end
+
+  def breadcrumb_link(label, path = root_path)
+    { label:, path: }
+  end
+
+  def breadcrumb_current(label)
+    { label:, current: true }
+  end
+
+  def breadcrumb_item(item)
+    content_tag(:li, class: "breadcrumb-item") do
+      if item[:current]
+        content_tag(:span, item[:label], aria: { current: "page" })
+      else
+        link_to item[:label], item[:path]
+      end
+    end
+  end
+
   def phosphor_icon(direction)
     @phosphor_icons ||= {}
     @phosphor_icons[direction] ||= begin

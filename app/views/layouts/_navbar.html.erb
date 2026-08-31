@@ -1,26 +1,132 @@
-<header class="topbar">
-  <div class="topbar-inner">
-    <%= link_to root_path, class: "brand-lockup", aria: { label: "Auditoria BIN — início" } do %>
-      <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
-      <span>
-        <span class="brand-name">Auditoria BIN</span>
-        <span class="brand-caption">Inteligência de franquias</span>
-      </span>
-    <% end %>
+<header class="header-container">
+  <div class="header navbar container-xxl">
+    <div class="header-item theme-brand">
+      <%= link_to root_path, class: "brand-lockup", aria: { label: "Auditoria BIN - início" } do %>
+        <span class="brand-logo" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
+        <span class="theme-text">Auditoria BIN</span>
+      <% end %>
 
-    <nav class="primary-nav" aria-label="Navegação principal">
-      <%= link_to "Faturamento", reports_path,
-        class: "nav-link #{'is-active' if controller_name == 'reports' && action_name == 'index'}" %>
-      <%= link_to "Clientes parados", stalled_reports_path,
-        class: "nav-link #{'is-active' if controller_name == 'reports' && action_name == 'stalled'}" %>
-      <%= link_to "Semanal", weekly_reports_path,
-        class: "nav-link #{'is-active' if controller_name == 'reports' && action_name == 'weekly'}" %>
-      <%= link_to "Cadastro", establishments_path,
-        class: "nav-link #{'is-active' if controller_name == 'establishments'}" %>
-      <%= link_to "Importar", import_batches_path,
-        class: "nav-link #{'is-active' if controller_name == 'import_batches'}" %>
-      <%= link_to "Metabase", metabase_path,
-        class: "nav-link #{'is-active' if controller_name == 'metabase'}" %>
-    </nav>
+      <button class="btn-toggle sidebar-collapse xl:hidden" type="button"
+        data-action="click->cork-layout#toggleMobileMenu" aria-label="Abrir menu">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-menu-2"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+          <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="header-item search-area">
+      <button class="search-content" type="button" data-action="click->cork-layout#openSearch"
+        aria-haspopup="dialog">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+          <circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/>
+        </svg>
+        <span class="search-placeholder">Buscar páginas...</span>
+        <span class="search-shortcut">Ctrl + /</span>
+      </button>
+    </div>
+
+    <div class="header-item action-area">
+      <span class="header-status">
+        <span class="status-dot"></span>
+        Carteira BIN
+      </span>
+    </div>
   </div>
 </header>
+
+<aside class="sidebar-wrapper sidebar-theme">
+  <div class="mobile-sidebar-header">
+    <%= link_to root_path, class: "brand-lockup", aria: { label: "Auditoria BIN - início" } do %>
+      <span class="brand-logo" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </span>
+      <span class="theme-text">Auditoria BIN</span>
+    <% end %>
+    <button class="btn-toggle" type="button" data-action="click->cork-layout#closePanels"
+      aria-label="Fechar menu">
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-x"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M18 6l-12 12"/><path d="M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+
+  <nav class="sidebar-menu" aria-label="Navegação principal">
+    <p class="menu-heading">Dashboard</p>
+    <%= link_to "Faturamento", reports_path,
+      class: sidebar_link_class({ controller: :reports, actions: %w[index] }) %>
+    <%= link_to "Clientes parados", stalled_reports_path,
+      class: sidebar_link_class({ controller: :reports, actions: %w[stalled] }) %>
+    <%= link_to "Semanal", weekly_reports_path,
+      class: sidebar_link_class({ controller: :reports, actions: %w[weekly] }) %>
+    <%= link_to "Metabase", metabase_path,
+      class: sidebar_link_class({ controller: :metabase }) %>
+
+    <p class="menu-heading">Operação</p>
+    <%= link_to "Estabelecimentos", establishments_path,
+      class: sidebar_link_class({
+        controller: :establishments, actions: %w[index show]
+      }) %>
+    <%= link_to "Novo cadastro", new_establishment_path,
+      class: sidebar_link_class({ controller: :establishments, actions: %w[new] }) %>
+    <%= link_to "Importar arquivo", import_batches_path,
+      class: sidebar_link_class({ controller: :import_batches }) %>
+  </nav>
+</aside>
+
+<div class="search-modal" data-cork-layout-target="searchModal" role="dialog"
+  aria-modal="true" aria-labelledby="global-search-title" hidden>
+  <div class="search-modal__dialog">
+    <div class="search-modal__header">
+      <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <circle cx="10" cy="10" r="7"/><path d="M21 21l-6 -6"/>
+      </svg>
+      <h2 id="global-search-title">Buscar páginas</h2>
+      <button class="btn-toggle" type="button" data-action="click->cork-layout#closeSearch"
+        aria-label="Fechar busca">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-x"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+          <path d="M18 6l-12 12"/><path d="M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="search-list-content">
+      <h3>Páginas disponíveis</h3>
+      <div class="search-list">
+        <%= link_to reports_path, class: "search-list-item" do %>
+          <span>Faturamento</span><small>Relatório por carteira</small>
+        <% end %>
+        <%= link_to stalled_reports_path, class: "search-list-item" do %>
+          <span>Clientes parados</span><small>Carteiras sem movimento recente</small>
+        <% end %>
+        <%= link_to weekly_reports_path, class: "search-list-item" do %>
+          <span>Semanal</span><small>Movimento por semana</small>
+        <% end %>
+        <%= link_to establishments_path, class: "search-list-item" do %>
+          <span>Estabelecimentos</span><small>Cadastro corrente da carteira</small>
+        <% end %>
+        <%= link_to import_batches_path, class: "search-list-item" do %>
+          <span>Importar arquivo</span><small>Lotes e entrada de dados</small>
+        <% end %>
+        <%= link_to metabase_path, class: "search-list-item" do %>
+          <span>Metabase</span><small>Exploração analítica local</small>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
