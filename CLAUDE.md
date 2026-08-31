@@ -65,8 +65,37 @@ comportamentos só aparecem em banco recém-criado, e os três já quebraram o s
 3. **Partições de `daily_revenues` precisam existir antes do insert.** Linha que cai na partição
    `default` impede a criação da partição daquele mês depois.
 
-Ao mexer em qualquer um desses caminhos, teste com `db:drop db:create db:migrate`, não só com o
+Ao mexer em qualquer um desses caminhos, teste em banco recém-criado (ver abaixo), não só com o
 banco que já está na sua máquina.
+
+## Schema, `structure.sql` e produção
+
+Produção sobe por `bin/docker-entrypoint` → `db:prepare`: em banco vazio ele **carrega o
+`db/structure.sql` e não roda migration nenhuma**; em banco existente roda só as migrations
+pendentes. `db:migrate` em banco vazio faz o mesmo (`DatabaseTasks#initialize_database`, Rails 8.1).
+Daí as regras:
+
+1. **`structure.sql` é gerado, nunca editado à mão.** É o schema que produção recebe. Para
+   regenerar, afaste o arquivo e rode as migrations num banco descartável — o `db:migrate` grava o
+   arquivo novo no fim:
+   ```sh
+   mv db/structure.sql /tmp/ && DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/scratch \
+     bin/rails db:create db:migrate && psql postgres://postgres:postgres@127.0.0.1:5432/postgres \
+     -c 'DROP DATABASE scratch'
+   ```
+   Confira o `git diff db/structure.sql`: só o que a migration mudou pode aparecer.
+2. **Com o `structure.sql` no lugar, `db:drop db:create db:migrate` não testa migrations** — testa
+   o arquivo. Migration só é exercitada pelo passo 1.
+3. **`db:migrate` termina com um dump que sobrescreve o `structure.sql`.** Se o `db:drop` falhou
+   (os containers reconectam antes do drop), o dump seguinte devolve o schema velho ao arquivo.
+   Para recriar o banco local use `DROP DATABASE ... WITH (FORCE)` + `db:create` + `db:schema:load`.
+4. **Migration já aplicada em produção é imutável.** `db:prepare` pula versões registradas em
+   `schema_migrations`; uma edição nunca chega ao banco. Enquanto o banco é descartável, editar e
+   recriar é aceitável; a partir do primeiro deploy com dados, só migration nova.
+5. **`structure.sql` não carrega role nem GRANT.** Por isso `db/seeds.rb` chama
+   `MetabaseRole.ensure!`: `db:prepare` roda o seed uma vez no banco recém-carregado, e a migration
+   20260829260000 que cria o `metabase_ro` não roda nesse caminho. Em banco recriado à mão, rode
+   `bin/rails db:seed`.
 
 ## Dados de cliente
 
