@@ -81,6 +81,21 @@ Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. O nome do arquivo deve t
   faz reconciliação cruzada entre abas, então leitura em streaming exigiria mais de uma passada
   no arquivo. Reavalie se os arquivos crescerem uma ordem de grandeza.
 
+## Interface
+
+A casca visual (header, sidebar, trilha e busca de páginas) está descrita em
+[`docs/layout.md`](docs/layout.md), com tokens, breakpoints e as decisões de design.
+
+## Recriar o banco
+
+```bash
+bin/rails db:rebuild
+```
+
+Derruba conexões abertas (os containers se recuperam sozinhos), recria os bancos de
+desenvolvimento e de teste a partir de `db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb` garante que o `structure.sql` contém tudo que
+o app precisa — adapters Solid, views, partições, extensões — e que o seed cria o papel.
+
 ## Views de auditoria
 
 `AuditViews` é dona do DDL das views materializadas de comparação alinhada e do SQL que o

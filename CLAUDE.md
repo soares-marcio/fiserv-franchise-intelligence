@@ -70,32 +70,36 @@ banco que já está na sua máquina.
 
 ## Schema, `structure.sql` e produção
 
-Produção sobe por `bin/docker-entrypoint` → `db:prepare`: em banco vazio ele **carrega o
-`db/structure.sql` e não roda migration nenhuma**; em banco existente roda só as migrations
-pendentes. `db:migrate` em banco vazio faz o mesmo (`DatabaseTasks#initialize_database`, Rails 8.1).
-Daí as regras:
+O banco é **descartável** nesta fase e será recriado muitas vezes. O caminho para isso é um só:
 
-1. **`structure.sql` é gerado, nunca editado à mão.** É o schema que produção recebe. Para
-   regenerar, afaste o arquivo e rode as migrations num banco descartável — o `db:migrate` grava o
-   arquivo novo no fim:
-   ```sh
-   mv db/structure.sql /tmp/ && DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/scratch \
-     bin/rails db:create db:migrate && psql postgres://postgres:postgres@127.0.0.1:5432/postgres \
-     -c 'DROP DATABASE scratch'
-   ```
-   Confira o `git diff db/structure.sql`: só o que a migration mudou pode aparecer.
-2. **Com o `structure.sql` no lugar, `db:drop db:create db:migrate` não testa migrations** — testa
-   o arquivo. Migration só é exercitada pelo passo 1.
-3. **`db:migrate` termina com um dump que sobrescreve o `structure.sql`.** Se o `db:drop` falhou
-   (os containers reconectam antes do drop), o dump seguinte devolve o schema velho ao arquivo.
-   Para recriar o banco local use `DROP DATABASE ... WITH (FORCE)` + `db:create` + `db:schema:load`.
-4. **Migration já aplicada em produção é imutável.** `db:prepare` pula versões registradas em
-   `schema_migrations`; uma edição nunca chega ao banco. Enquanto o banco é descartável, editar e
-   recriar é aceitável; a partir do primeiro deploy com dados, só migration nova.
-5. **`structure.sql` não carrega role nem GRANT.** Por isso `db/seeds.rb` chama
-   `MetabaseRole.ensure!`: `db:prepare` roda o seed uma vez no banco recém-carregado, e a migration
-   20260829260000 que cria o `metabase_ro` não roda nesse caminho. Em banco recriado à mão, rode
-   `bin/rails db:seed`.
+```bash
+bin/rails db:rebuild   # DROP … WITH (FORCE) → create → schema:load → seed, para dev e teste
+```
+
+Pode rodar com os containers de pé: o `FORCE` derruba as conexões deles e o supervisor do
+Solid Queue reinicia os processos sozinho.
+
+O que esse caminho garante, e por quê cada peça importa:
+
+1. **`db/structure.sql` é a fonte da verdade** — é o que produção, o CI e o banco de teste
+   carregam. Ele é gerado, nunca editado à mão. Para regenerá-lo a partir das migrations,
+   mova-o de lugar antes de `db:drop db:create db:migrate`; com o arquivo presente, um
+   `db:migrate` em banco vazio **carrega o arquivo em vez de rodar as migrations**, e ao
+   final ainda o sobrescreve com um dump do banco.
+2. **Tudo que o app precisa tem que estar nele**: as tabelas do Solid Queue, do Solid Cable
+   e do Solid Cache (criadas por migration no banco principal — os `db/*_schema.rb` só
+   entram em banco separado, e aqui `CABLE_DATABASE_URL`/`CACHE_DATABASE_URL`/
+   `QUEUE_DATABASE_URL` apontam para o mesmo banco), as seis views materializadas, a
+   partição `daily_revenues_default` e a extensão `pg_trgm`.
+3. **O que o dump não carrega vem do seed**: role e GRANT são objetos do cluster, não do
+   banco. `db/seeds.rb` cria o `metabase_ro`; `db:prepare` no primeiro deploy roda o seed.
+4. **`test/db/schema_integrity_test.rb` é o guarda.** Ele roda contra o banco de teste, que
+   nasce do `structure.sql`, e falha se qualquer peça acima faltar ou se o arquivo em disco
+   divergir do que está carregado. Foi escrito depois de as tabelas do Solid Cable ficarem
+   três dias fora do schema sem ninguém perceber: o broadcast do Turbo falhava em silêncio
+   e a tela de importação nunca era avisada.
+5. Migration já aplicada em produção é imutável; enquanto o banco é descartável, editar e
+   recriar é aceitável — depois do primeiro deploy com dados, só migration nova.
 
 ## Dados de cliente
 

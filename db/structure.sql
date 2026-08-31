@@ -1050,7 +1050,7 @@ CREATE TABLE public.import_batches (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
-    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'validated'::character varying, 'failed'::character varying, 'superseded'::character varying])::text[])))
+    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text])))
 );
 
 
@@ -1408,8 +1408,8 @@ CREATE TABLE public.data_anomalies (
     resolution_note text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT data_anomalies_valid_severity CHECK (((severity)::text = ANY ((ARRAY['info'::character varying, 'atencao'::character varying, 'erro'::character varying])::text[]))),
-    CONSTRAINT data_anomalies_valid_status CHECK (((status)::text = ANY ((ARRAY['aberta'::character varying, 'em_analise'::character varying, 'resolvida'::character varying, 'esperada'::character varying])::text[])))
+    CONSTRAINT data_anomalies_valid_severity CHECK (((severity)::text = ANY (ARRAY[('info'::character varying)::text, ('atencao'::character varying)::text, ('erro'::character varying)::text]))),
+    CONSTRAINT data_anomalies_valid_status CHECK (((status)::text = ANY (ARRAY[('aberta'::character varying)::text, ('em_analise'::character varying)::text, ('resolvida'::character varying)::text, ('esperada'::character varying)::text])))
 );
 
 
@@ -1689,6 +1689,71 @@ ALTER SEQUENCE public.revenue_snapshots_id_seq OWNED BY public.revenue_snapshots
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
 );
+
+
+--
+-- Name: solid_cable_messages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.solid_cable_messages (
+    id bigint NOT NULL,
+    channel bytea NOT NULL,
+    payload bytea NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    channel_hash bigint NOT NULL
+);
+
+
+--
+-- Name: solid_cable_messages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.solid_cable_messages_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: solid_cable_messages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.solid_cable_messages_id_seq OWNED BY public.solid_cable_messages.id;
+
+
+--
+-- Name: solid_cache_entries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.solid_cache_entries (
+    id bigint NOT NULL,
+    key bytea NOT NULL,
+    value bytea NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    key_hash bigint NOT NULL,
+    byte_size integer NOT NULL
+);
+
+
+--
+-- Name: solid_cache_entries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.solid_cache_entries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: solid_cache_entries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.solid_cache_entries_id_seq OWNED BY public.solid_cache_entries.id;
 
 
 --
@@ -2220,6 +2285,20 @@ ALTER TABLE ONLY public.revenue_snapshots ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
+-- Name: solid_cable_messages id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_cable_messages ALTER COLUMN id SET DEFAULT nextval('public.solid_cable_messages_id_seq'::regclass);
+
+
+--
+-- Name: solid_cache_entries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_cache_entries ALTER COLUMN id SET DEFAULT nextval('public.solid_cache_entries_id_seq'::regclass);
+
+
+--
 -- Name: solid_queue_blocked_executions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2461,6 +2540,22 @@ ALTER TABLE ONLY public.revenue_snapshots
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: solid_cable_messages solid_cable_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_cable_messages
+    ADD CONSTRAINT solid_cable_messages_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: solid_cache_entries solid_cache_entries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_cache_entries
+    ADD CONSTRAINT solid_cache_entries_pkey PRIMARY KEY (id);
 
 
 --
@@ -3239,6 +3334,48 @@ CREATE INDEX index_revenue_snapshots_on_trade_name ON public.revenue_snapshots U
 
 
 --
+-- Name: index_solid_cable_messages_on_channel; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_cable_messages_on_channel ON public.solid_cable_messages USING btree (channel);
+
+
+--
+-- Name: index_solid_cable_messages_on_channel_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_cable_messages_on_channel_hash ON public.solid_cable_messages USING btree (channel_hash);
+
+
+--
+-- Name: index_solid_cable_messages_on_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_cable_messages_on_created_at ON public.solid_cable_messages USING btree (created_at);
+
+
+--
+-- Name: index_solid_cache_entries_on_byte_size; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_cache_entries_on_byte_size ON public.solid_cache_entries USING btree (byte_size);
+
+
+--
+-- Name: index_solid_cache_entries_on_key_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_solid_cache_entries_on_key_hash ON public.solid_cache_entries USING btree (key_hash);
+
+
+--
+-- Name: index_solid_cache_entries_on_key_hash_and_byte_size; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_cache_entries_on_key_hash_and_byte_size ON public.solid_cache_entries USING btree (key_hash, byte_size);
+
+
+--
 -- Name: index_solid_queue_blocked_executions_for_maintenance; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3951,6 +4088,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260831010000'),
 ('20260830070000'),
 ('20260830060000'),
 ('20260830050000'),
