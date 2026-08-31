@@ -9,7 +9,7 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
     create_table :channels do |t|
       t.uuid :uuid, null: false, default: -> { 'gen_random_uuid()' }
       t.string :external_id, null: false
-      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba todas as abas"
+      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba Mapa de Clientes BIN; Faturamento e Ativacao repetem a coluna"
       t.timestamps
     end
     add_index :channels, :uuid, unique: true
@@ -19,7 +19,7 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
     create_table :sub_channels do |t|
       t.uuid :uuid, null: false, default: -> { 'gen_random_uuid()' }
       t.references :channel, null: false, foreign_key: true
-      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba todas as abas"
+      t.string :name, null: false, comment: "Origem: coluna \"SUB-CANAL\" das abas Mapa de Clientes BIN, Faturamento e Ativacao"
       t.timestamps
     end
     add_index :sub_channels, :uuid, unique: true
@@ -56,7 +56,7 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       name: 'establishments_not_self_primary'
 
     create_table :import_templates do |t|
-      t.string :name, null: false, comment: "Origem: coluna \"CANAL\" da aba planilha BIN"
+      t.string :name, null: false
       t.jsonb :sheet_names, null: false, default: []
       t.timestamps
     end
@@ -104,20 +104,21 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.references :establishment, null: false, foreign_key: true
       t.references :sub_channel, null: false, foreign_key: true
       t.string :source_hierarchy, comment: "Origem: coluna \"HIERARQUIA\" da aba Faturamento"
-      t.string :legal_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Faturamento"
-      t.string :trade_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Faturamento"
+      # Nesta aba a Fiserv entrega os dois cabeçalhos trocados (ver Template::INVERTED_NAME_SHEETS).
+      t.string :legal_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Faturamento (cabeçalho invertido na origem)"
+      t.string :trade_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Faturamento (cabeçalho invertido na origem)"
       t.string :contract_status, comment: "Origem: coluna \"STATUS DO CONTRATO\" da aba Faturamento"
       t.date :suspended_on, comment: "Origem: coluna \"DATA DE SUSPENSÃO\" da aba Faturamento"
       t.date :last_transaction_on, comment: "Origem: coluna \"DATA DA ÚLT TRANSAÇÃO\" da aba Faturamento"
       t.boolean :active_last_60_days, comment: "Origem: coluna \"ATIVO NOS ÚLTIMOS 60 DIAS?\" da aba Faturamento"
       t.string :street_address, comment: "Origem: coluna \"ENDEREÇO\" da aba Faturamento"
-      t.string :cep
+      t.string :cep, comment: "Origem: coluna \"CEP\" da aba Faturamento"
       t.string :cep_raw, comment: "Origem: coluna \"CEP\" da aba Faturamento"
       t.string :city, comment: "Origem: coluna \"CIDADE\" da aba Faturamento"
       t.string :state, comment: "Origem: coluna \"ESTADO\" da aba Faturamento"
       t.string :work_phone, comment: "Origem: coluna \"TELEFONE DO TRABALHO\" da aba Faturamento"
       t.string :work_phone_raw, comment: "Origem: coluna \"TELEFONE DO TRABALHO\" da aba Faturamento"
-      t.string :cnae_code, comment: "Origem: coluna \"CÓDIGO DO CNAE\" da aba Faturamento"
+      t.string :cnae_code, comment: "Origem: coluna \"CNAE\" da aba Faturamento"
       t.string :cnae_description, comment: "Origem: coluna \"DESCRIÇÃO DO CNAE\" da aba Faturamento"
       t.decimal :previous_month_total, precision: 18, scale: 2, null: false, default: 0, comment: "Origem: coluna \"fat_total_m1\" da aba Faturamento"
       t.decimal :current_month_total, precision: 18, scale: 2, null: false, default: 0, comment: "Origem: coluna \"FATURAMENTO TOTAL DESTE MÊS\" da aba Faturamento"
@@ -142,13 +143,13 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.text :best_conversation_raw, comment: "Origem: coluna \"MELHOR CONVERSA\" da aba Mapa de Clientes BIN"
       t.string :work_phone, comment: "Origem: coluna \"TELEFONE DO TRABALHO\" da aba Mapa de Clientes BIN"
       t.string :street_address, comment: "Origem: coluna \"ENDEREÇO\" da aba Mapa de Clientes BIN"
-      t.string :cep
+      t.string :cep, comment: "Origem: coluna \"CEP\" da aba Mapa de Clientes BIN"
       t.string :contact_name_1, comment: "Origem: coluna \"NOME CONTATO 1\" da aba Mapa de Clientes BIN"
       t.string :contact_name_2, comment: "Origem: coluna \"NOME CONTATO 2\" da aba Mapa de Clientes BIN"
       t.string :city, comment: "Origem: coluna \"CIDADE\" da aba Mapa de Clientes BIN"
       t.string :state, comment: "Origem: coluna \"ESTADO\" da aba Mapa de Clientes BIN"
       t.boolean :pj_mais_island, comment: "Origem: coluna \"Ilha PJ+\" da aba Mapa de Clientes BIN"
-      t.datetime :vip_boarding_date
+      t.datetime :vip_boarding_date, comment: "Origem: coluna \"vip_boarding_date\" da aba Mapa de Clientes BIN"
       t.string :vip_entry_reason, comment: "Origem: coluna \"motivo_entrada_vip\" da aba Mapa de Clientes BIN"
       t.string :presumed_segment, comment: "Origem: coluna \"SEGMENTO PRESUMIDO\" da aba Mapa de Clientes BIN"
       t.string :performed_segment, comment: "Origem: coluna \"SEGMENTO PERFORMADO\" da aba Mapa de Clientes BIN"
@@ -184,8 +185,8 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       }.each do |column, header|
         t.integer column, comment: "Origem: coluna \"#{header}\" da aba Mapa de Clientes BIN"
       end
-      t.decimal :net_mdr, precision: 12, scale: 4
-      t.string :net_mdr_status
+      t.decimal :net_mdr, precision: 12, scale: 4, comment: "Origem: coluna \"NET MDR\" da aba Mapa de Clientes BIN"
+      t.string :net_mdr_status, comment: "Origem: coluna \"NET MDR\" da aba Mapa de Clientes BIN, só quando o valor é \"Inativo\""
       t.string :weekly_schedule, comment: "Origem: coluna \"agenda_semanal\" da aba Mapa de Clientes BIN"
       t.timestamps
     end
@@ -201,8 +202,9 @@ class CreateBinReportingSchema < ActiveRecord::Migration[8.1]
       t.references :establishment, foreign_key: true
       t.string :source_hierarchy, comment: "Origem: coluna \"HIERARQUIA\" da aba Ativacao"
       t.string :proposal_number, null: false, comment: "Origem: coluna \"NR DA PROPOSTA\" da aba Ativacao"
-      t.string :legal_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Ativacao"
-      t.string :trade_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Ativacao"
+      # Nesta aba a Fiserv entrega os dois cabeçalhos trocados (ver Template::INVERTED_NAME_SHEETS).
+      t.string :legal_name, comment: "Origem: coluna \"NOME FANTASIA\" da aba Ativacao (cabeçalho invertido na origem)"
+      t.string :trade_name, comment: "Origem: coluna \"RAZÃO SOCIAL\" da aba Ativacao (cabeçalho invertido na origem)"
       t.string :proposal_status, comment: "Origem: coluna \"STATUS DA PROPOSTA\" da aba Ativacao"
       t.date :proposed_on, comment: "Origem: coluna \"DATA DA PROPOSTA\" da aba Ativacao"
       t.date :affiliated_on, comment: "Origem: coluna \"DATA DE AFILIAÇÃO\" da aba Ativacao"

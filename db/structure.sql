@@ -114,14 +114,14 @@ COMMENT ON COLUMN public.activation_proposals.proposal_number IS 'Origem: coluna
 -- Name: COLUMN activation_proposals.legal_name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.activation_proposals.legal_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Ativacao';
+COMMENT ON COLUMN public.activation_proposals.legal_name IS 'Origem: coluna "NOME FANTASIA" da aba Ativacao (cabeçalho invertido na origem)';
 
 
 --
 -- Name: COLUMN activation_proposals.trade_name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.activation_proposals.trade_name IS 'Origem: coluna "NOME FANTASIA" da aba Ativacao';
+COMMENT ON COLUMN public.activation_proposals.trade_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Ativacao (cabeçalho invertido na origem)';
 
 
 --
@@ -472,6 +472,13 @@ COMMENT ON COLUMN public.map_snapshots.street_address IS 'Origem: coluna "ENDERE
 
 
 --
+-- Name: COLUMN map_snapshots.cep; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.cep IS 'Origem: coluna "CEP" da aba Mapa de Clientes BIN';
+
+
+--
 -- Name: COLUMN map_snapshots.contact_name_1; Type: COMMENT; Schema: public; Owner: -
 --
 
@@ -504,6 +511,13 @@ COMMENT ON COLUMN public.map_snapshots.state IS 'Origem: coluna "ESTADO" da aba 
 --
 
 COMMENT ON COLUMN public.map_snapshots.pj_mais_island IS 'Origem: coluna "Ilha PJ+" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.vip_boarding_date; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.vip_boarding_date IS 'Origem: coluna "vip_boarding_date" da aba Mapa de Clientes BIN';
 
 
 --
@@ -745,6 +759,20 @@ COMMENT ON COLUMN public.map_snapshots.total_terminals_count IS 'Origem: coluna 
 
 
 --
+-- Name: COLUMN map_snapshots.net_mdr; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.net_mdr IS 'Origem: coluna "NET MDR" da aba Mapa de Clientes BIN';
+
+
+--
+-- Name: COLUMN map_snapshots.net_mdr_status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshots.net_mdr_status IS 'Origem: coluna "NET MDR" da aba Mapa de Clientes BIN, só quando o valor é "Inativo"';
+
+
+--
 -- Name: COLUMN map_snapshots.weekly_schedule; Type: COMMENT; Schema: public; Owner: -
 --
 
@@ -795,14 +823,14 @@ COMMENT ON COLUMN public.revenue_snapshots.source_hierarchy IS 'Origem: coluna "
 -- Name: COLUMN revenue_snapshots.legal_name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.revenue_snapshots.legal_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Faturamento';
+COMMENT ON COLUMN public.revenue_snapshots.legal_name IS 'Origem: coluna "NOME FANTASIA" da aba Faturamento (cabeçalho invertido na origem)';
 
 
 --
 -- Name: COLUMN revenue_snapshots.trade_name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.revenue_snapshots.trade_name IS 'Origem: coluna "NOME FANTASIA" da aba Faturamento';
+COMMENT ON COLUMN public.revenue_snapshots.trade_name IS 'Origem: coluna "RAZÃO SOCIAL" da aba Faturamento (cabeçalho invertido na origem)';
 
 
 --
@@ -838,6 +866,13 @@ COMMENT ON COLUMN public.revenue_snapshots.active_last_60_days IS 'Origem: colun
 --
 
 COMMENT ON COLUMN public.revenue_snapshots.street_address IS 'Origem: coluna "ENDEREÇO" da aba Faturamento';
+
+
+--
+-- Name: COLUMN revenue_snapshots.cep; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.revenue_snapshots.cep IS 'Origem: coluna "CEP" da aba Faturamento';
 
 
 --
@@ -879,7 +914,7 @@ COMMENT ON COLUMN public.revenue_snapshots.work_phone_raw IS 'Origem: coluna "TE
 -- Name: COLUMN revenue_snapshots.cnae_code; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.revenue_snapshots.cnae_code IS 'Origem: coluna "CÓDIGO DO CNAE" da aba Faturamento';
+COMMENT ON COLUMN public.revenue_snapshots.cnae_code IS 'Origem: coluna "CNAE" da aba Faturamento';
 
 
 --
@@ -1052,7 +1087,7 @@ CREATE TABLE public.sub_channels (
 -- Name: COLUMN sub_channels.name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.sub_channels.name IS 'Origem: coluna "CANAL" da aba todas as abas';
+COMMENT ON COLUMN public.sub_channels.name IS 'Origem: coluna "SUB-CANAL" das abas Mapa de Clientes BIN, Faturamento e Ativacao';
 
 
 --
@@ -1196,7 +1231,7 @@ CREATE TABLE public.channels (
 -- Name: COLUMN channels.name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.channels.name IS 'Origem: coluna "CANAL" da aba todas as abas';
+COMMENT ON COLUMN public.channels.name IS 'Origem: coluna "CANAL" da aba Mapa de Clientes BIN; Faturamento e Ativacao repetem a coluna';
 
 
 --
@@ -1483,13 +1518,6 @@ CREATE TABLE public.import_templates (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
-
-
---
--- Name: COLUMN import_templates.name; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.import_templates.name IS 'Origem: coluna "CANAL" da aba planilha BIN';
 
 
 --
