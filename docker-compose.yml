@@ -46,6 +46,10 @@ services:
   worker:
     build: .
     command: bin/jobs
+    # O db:rebuild derruba o banco por instantes, e nessa janela o bin/jobs encerra com
+    # ActiveRecord::NoDatabaseError — o supervisor do Solid Queue reergue os filhos dele, não
+    # a si mesmo. Sem política de restart o container ficava Exited e as filas paravam caladas.
+    restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/fiserv_franchise_intelligence_development
       CACHE_DATABASE_URL: postgresql://postgres:postgres@db:5432/fiserv_franchise_intelligence_development

@@ -91,8 +91,11 @@ O banco é **descartável** nesta fase e será recriado muitas vezes. O caminho 
 bin/rails db:rebuild   # DROP … WITH (FORCE) → create → schema:load → seed, para dev e teste
 ```
 
-Pode rodar com os containers de pé: o `FORCE` derruba as conexões deles e o supervisor do
-Solid Queue reinicia os processos sozinho.
+Pode rodar com os containers de pé: o `FORCE` derruba as conexões deles. O `web` reconecta
+na requisição seguinte, mas o `worker` **encerra** — na janela em que o banco não existe o
+`bin/jobs` levanta `ActiveRecord::NoDatabaseError`, e o supervisor do Solid Queue reergue os
+processos filhos dele, não a si mesmo. Quem o traz de volta é o `restart: unless-stopped`
+declarado no `docker-compose.yml`; sem ele o container fica `Exited` e as filas param caladas.
 
 O que esse caminho garante, e por quê cada peça importa:
 

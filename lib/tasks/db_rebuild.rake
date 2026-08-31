@@ -6,8 +6,9 @@ namespace :db do
     targets = [ current ]
     targets << ActiveRecord::Base.configurations.configs_for(env_name: "test", name: "primary") if Rails.env.development?
 
-    # DROP DATABASE recusa se houver conexão aberta (containers web/worker); FORCE as encerra
-    # e o supervisor do Solid Queue reinicia os processos sozinho.
+    # DROP DATABASE recusa se houver conexão aberta (containers web/worker); FORCE as encerra.
+    # O worker não sobrevive à janela sem banco: quem o traz de volta é o restart declarado
+    # no docker-compose.yml.
     ActiveRecord::Base.connection_handler.clear_all_connections!
     ActiveRecord::Base.establish_connection(current.configuration_hash.merge(database: "postgres"))
     targets.compact.each do |config|
