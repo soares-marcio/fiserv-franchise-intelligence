@@ -1,103 +1,149 @@
 <% content_for :title, "Estabelecimentos" %>
-<% content_for :container_width, "max-w-[90rem]" %>
 
-<section class="card bg-base-100 shadow-sm">
-  <div class="card-body gap-6">
-    <div class="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-      <div>
-        <p class="eyebrow">Carteira ativa</p>
-        <h1 class="page-title">Estabelecimentos</h1>
-        <p class="page-description">
-          Cadastro corrente do mapa: nome, CNAE, endereço e sub-canal do último lote
-          validado. O EC continua sendo o grão técnico; o cliente é o CNPJ.
-        </p>
-      </div>
-    </div>
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Carteira ativa</p>
+    <h1 class="page-title">Estabelecimentos</h1>
+    <p class="page-description">
+      Cadastro corrente do mapa: nome, CNAE, endereço e sub-canal do último lote
+      validado. O EC continua sendo o grão técnico; o cliente é o CNPJ.
+    </p>
+  </section>
 
-    <%= form_with url: establishments_path, method: :get,
-      class: "filter-panel grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end" do %>
-      <label class="grid min-w-0 gap-1.5">
-        <span class="text-sm font-medium">Buscar</span>
+  <section class="filter-panel">
+    <%# A lista responde enquanto se digita: o formulário mira o frame da listagem e o
+        Turbo troca só ele, mantendo a URL com ?q= para compartilhar o filtro. %>
+    <%= form_with url: establishments_path, method: :get, class: "flex flex-wrap items-end gap-3",
+      data: { turbo_frame: "establishments", turbo_action: "advance", controller: "live-form" } do %>
+      <label class="grid w-full max-w-xl min-w-0 gap-1.5">
+        <span class="section-label">Buscar</span>
         <%= search_field_tag :q, @query, class: "input input-bordered w-full",
-          placeholder: "EC, CNPJ, nome, cidade, CNAE ou sub-canal" %>
+          placeholder: "EC, CNPJ, nome, cidade, CNAE ou sub-canal", autocomplete: "off",
+          data: { action: "input->live-form#submit" } %>
       </label>
-      <%= submit_tag "Buscar", class: "btn btn-outline btn--field" %>
+      <%# Digitar reinicia a página, mas mantém o tamanho escolhido. %>
+      <%= hidden_field_tag :per_page, @per_page %>
+      <%= button_tag icon_label("magnifying-glass", "Buscar"), type: "submit", class: "btn btn-outline btn--field" %>
       <% if @query.present? %>
-        <%= link_to "Limpar", establishments_path, class: "btn btn-ghost" %>
+        <%= link_to icon_label("eraser", "Limpar"), establishments_path, class: "btn btn-ghost btn--field" %>
       <% end %>
     <% end %>
+  </section>
 
-    <div class="overflow-x-auto rounded-xl border border-base-300">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Estabelecimento</th>
-            <th>CNPJ</th>
-            <th>Sub-canal</th>
-            <th>Endereço</th>
-            <th>CNAE</th>
-            <th>Status</th>
-            <th>Segmento</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @establishments.each do |establishment| %>
-            <% snapshot = establishment.current_map_snapshot %>
-            <tr class="align-top">
-              <td>
-                <%= link_to establishment, class: "link link-hover font-medium" do %>
-                  EC <%= establishment.ec %>
-                <% end %>
-                <p class="mt-0.5 max-w-xs"><%= present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name) %></p>
-                <% if snapshot&.legal_name.present? && snapshot.legal_name != snapshot.trade_name %>
-                  <p class="max-w-xs text-xs opacity-60"><%= snapshot.legal_name %></p>
-                <% end %>
-              </td>
-              <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(establishment.company.cnpj) %></td>
-              <td>
-                <p><%= present_or_dash(snapshot&.sub_channel&.name) %></p>
-                <p class="text-xs opacity-60"><%= establishment.channel.name %></p>
-              </td>
-              <td>
-                <p class="max-w-xs"><%= present_or_dash(snapshot&.street_address) %></p>
-                <p class="text-xs opacity-70">
-                  <%= [ snapshot&.city, snapshot&.state ].compact_blank.join(" · ").presence || "—" %>
-                  <% if snapshot&.cep.present? %>
-                    · <%= formatted_cep(snapshot.cep) %>
-                  <% end %>
-                </p>
-              </td>
-              <td>
-                <p class="font-mono text-xs"><%= present_or_dash(snapshot&.cnae_code) %></p>
-                <p class="max-w-xs text-xs opacity-70"><%= present_or_dash(snapshot&.cnae_description) %></p>
-              </td>
-              <td>
-                <%= contract_status_badge(snapshot&.contract_status) %>
-                <% if establishment.primary_establishment %>
-                  <p class="mt-1 text-xs opacity-60">Principal <%= establishment.primary_establishment.ec %></p>
-                <% end %>
-              </td>
-              <td>
-                <p><%= present_or_dash(snapshot&.performed_segment) %></p>
-                <% if snapshot&.business_line.present? %>
-                  <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.business_line %></p>
-                <% end %>
-              </td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-      <% if @establishments.empty? %>
-        <div class="empty-state">
-          <p>
-          <% if @query.present? %>
-            Nenhum estabelecimento encontrado para “<%= @query %>”.
-          <% else %>
-            Nenhum estabelecimento cadastrado ainda.
-          <% end %>
-          </p>
+  <%# Links de página e de tamanho ficam dentro do frame: o Turbo troca só a listagem e
+      "advance" mantém a URL em dia para compartilhar. %>
+  <%= turbo_frame_tag "establishments", data: { turbo_action: "advance" } do %>
+  <section class="table-frame" data-controller="sticky-table">
+    <div class="table-toolbar">
+      <div>
+        <p class="section-label">Cadastro corrente</p>
+        <h2 class="table-title">Um cliente por linha, com seus ECs</h2>
+      </div>
+      <% if @total_count.positive? %>
+        <div class="table-toolbar__meta">
+          <span class="badge badge-ghost">
+            <%= pluralize(@total_count, "cliente", "clientes") %>
+            · <%= pluralize(@total_establishments, "EC", "ECs") %>
+          </span>
+          <div class="per-page">
+            <span class="section-label">Por página</span>
+            <div class="join">
+              <% EstablishmentsController::PER_PAGE_OPTIONS.each do |size| %>
+                <%= link_to size, establishments_path(listing_params(per_page: size, page: 1)),
+                  class: "join-item btn btn-sm #{size == @per_page ? "btn-primary" : "btn-outline"}" %>
+              <% end %>
+            </div>
+          </div>
         </div>
       <% end %>
     </div>
-  </div>
-</section>
+    <div class="table-scroll">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>CNPJ</th>
+        <th>Sub-canal</th>
+        <th>Endereço</th>
+        <th>CNAE</th>
+        <th>Status</th>
+        <th>Segmento</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @companies.each do |company| %>
+        <% establishments = @establishments_by_company.fetch(company) %>
+        <%# O EC de referência é o que não é duplicata de outro; entre vários, o menor. %>
+        <% lead = establishments.find { |e| e.primary_establishment.nil? } || establishments.first %>
+        <% snapshot = lead.current_map_snapshot %>
+        <tr class="align-top">
+          <td>
+            <p class="font-medium"><%= present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name) %></p>
+            <% if snapshot&.legal_name.present? && snapshot.legal_name != snapshot.trade_name %>
+              <p class="max-w-xs text-xs opacity-60"><%= snapshot.legal_name %></p>
+            <% end %>
+            <p class="mt-1 text-xs">
+              <% establishments.each_with_index do |establishment, index| %>
+                <%= " · " if index.positive? %><%= link_to "EC #{establishment.ec}", establishment, class: "link link-hover font-mono" %>
+              <% end %>
+            </p>
+          </td>
+          <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(company.cnpj) %></td>
+          <td>
+            <p><%= establishments.filter_map { |e| e.current_map_snapshot&.sub_channel&.name }.uniq.join(" · ").presence || "—" %></p>
+            <p class="text-xs opacity-60"><%= lead.channel.name %></p>
+          </td>
+          <td>
+            <p class="max-w-xs"><%= present_or_dash(snapshot&.street_address) %></p>
+            <p class="text-xs opacity-70">
+              <%= [ snapshot&.city, snapshot&.state ].compact_blank.join(" · ").presence || "—" %>
+              <% if snapshot&.cep.present? %>
+                · <%= formatted_cep(snapshot.cep) %>
+              <% end %>
+            </p>
+          </td>
+          <td>
+            <p class="font-mono text-xs"><%= present_or_dash(snapshot&.cnae_code) %></p>
+            <p class="max-w-xs text-xs opacity-70"><%= present_or_dash(snapshot&.cnae_description) %></p>
+          </td>
+          <td>
+            <%= contract_status_badge(snapshot&.contract_status) %>
+            <% if establishments.size > 1 %>
+              <p class="mt-1 text-xs opacity-60"><%= establishments.size %> ECs</p>
+            <% end %>
+          </td>
+          <td>
+            <p><%= present_or_dash(snapshot&.performed_segment) %></p>
+            <% if snapshot&.business_line.present? %>
+              <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.business_line %></p>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+    </div>
+    <% if @companies.empty? %>
+      <div class="empty-state">
+        <p>
+        <% if @query.present? %>
+          Nenhum cliente encontrado para “<%= @query %>”.
+        <% else %>
+          Nenhum cliente cadastrado ainda.
+        <% end %>
+        </p>
+      </div>
+    <% elsif @total_pages > 1 %>
+      <nav class="pagination-bar" aria-label="Paginação">
+        <%= link_to "Anterior", establishments_path(listing_params(page: [ @page - 1, 1 ].max)),
+          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page <= 1}",
+          aria: { disabled: @page <= 1 } %>
+        <span class="pagination-bar__status">Página <%= @page %> de <%= @total_pages %></span>
+        <%= link_to "Próxima", establishments_path(listing_params(page: [ @page + 1, @total_pages ].min)),
+          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page >= @total_pages}",
+          aria: { disabled: @page >= @total_pages } %>
+      </nav>
+    <% end %>
+  </section>
+  <% end %>
+</div>
