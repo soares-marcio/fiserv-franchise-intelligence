@@ -33,7 +33,20 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     assert_equal "FANTASIA", snapshot.trade_name
   end
 
-  test "rejects an invalid CNPJ" do
+  test "cria as partições do faturamento diário antes de gravar as linhas" do
+    Operations::RegisterManually.call(valid_attrs.merge(
+      "previous_period" => "2026-07-01", "current_period" => "2026-08-01",
+      "current_month_total" => "100", "day_01" => "100"
+    ))
+    connection = ApplicationRecord.connection
+
+    assert connection.table_exists?("daily_revenues_202607")
+    assert connection.table_exists?("daily_revenues_202608")
+    assert_equal 0, connection.select_value("SELECT COUNT(*) FROM daily_revenues_default").to_i,
+      "linha na partição default impediria criar a partição do mês depois"
+  end
+
+  test "recusa CNPJ inválido" do
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs.merge("cnpj" => "123")) }
     assert_equal "CNPJ inválido", error.message
   end
