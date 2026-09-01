@@ -60,6 +60,7 @@ class ReportsController < ApplicationController
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
     @cutoff_day = @scope.cutoff_day
+    @selected_variation = params[:variation].to_s.presence_in(EstablishmentListingQuery::VARIATION_CLAUSES.keys)
     @selected_statuses = Array(params[:status]).map(&:to_s).compact_blank.uniq
     @selected_date_kinds = Array(params[:date_kind]).map(&:to_s) & EstablishmentListingQuery::DATE_KINDS.keys
     @from_date = parse_filter_date(params[:from_date])
@@ -77,6 +78,7 @@ class ReportsController < ApplicationController
     ).sort
     @listing = @scope.revenue_by_establishment(
       sub_channel_id: @sub_channel.id,
+      variation: @selected_variation,
       statuses: @selected_statuses,
       period: params[:period],
       from_day: params[:from_day],
@@ -147,6 +149,7 @@ class ReportsController < ApplicationController
   def sub_channel_listing_params(overrides = {})
     {
       channel_id: @selected_channel&.uuid,
+      variation: @selected_variation,
       status: @selected_statuses,
       date_kind: @selected_date_kinds,
       from_date: @from_date,

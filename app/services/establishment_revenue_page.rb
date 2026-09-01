@@ -1,14 +1,15 @@
 class EstablishmentRevenuePage
   include Enumerable
 
-  attr_reader :rows, :total_count, :totals, :page, :per_page
+  attr_reader :rows, :total_count, :totals, :page, :per_page, :variation_counts
 
-  def initialize(rows:, total_count:, totals:, page:, per_page:)
+  def initialize(rows:, total_count:, totals:, page:, per_page:, variation_counts: {})
     @rows = rows
     @total_count = total_count.to_i
     @totals = totals
     @page = page
     @per_page = per_page
+    @variation_counts = variation_counts
   end
 
   def each(&block)

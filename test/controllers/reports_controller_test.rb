@@ -192,15 +192,47 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button", text: "Limpar datas"
     assert_select "button", text: "Concluir"
     assert_select "a[href='#{reports_path(channel_id: channel.uuid)}']"
-    assert_select "dialog.modal"
-    assert_select "dialog.modal [data-revenue-days-modal-target='comparableHint']"
-    assert_select "dialog.modal [data-revenue-days-modal-target='currentHint']"
-    assert_select "dialog.modal th", text: "Variação"
-    assert_select "dialog.modal th", text: "Mês anterior"
-    assert_select "dialog.modal th", text: "Mês atual"
-    assert_select "button", text: "Lançamentos"
+    # A coluna de lançamentos diários e o modal saíram: sem serventia para o usuário.
+    assert_select "dialog.modal", false
+    assert_select "button", text: "Lançamentos", count: 0
     assert_select ".variation-chip--up [data-tip=?]", "Subiu"
     assert_select "table tbody td span.block", false
+    # Abas de variação com contagens, e a completa ativa por padrão.
+    assert_select "nav[role=tablist] a.tab", count: 3
+    assert_select "a.tab.tab-active", text: /Todas/
+  end
+
+  test "abas de variação separam alta e baixa, com EC zerado na baixa" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    # Segundo EC: faturou no mês anterior e zerou o atual — a regra manda para a Baixa.
+    zeroed = Establishment.create!(
+      ec: "22222222", company: Company.create!(cnpj: "12345678000192"), channel:
+    )
+    batch = ImportBatch.find_by!(channel:)
+    RevenueSnapshot.create!(
+      import_batch: batch, channel:, sub_channel:, establishment: zeroed,
+      legal_name: "LOJA DOIS LTDA", trade_name: "LOJA DOIS", contract_status: "Active",
+      previous_month_total: 60, current_month_total: 0
+    )
+    DailyRevenueConsolidated.create!(
+      establishment: zeroed, channel:, period: Date.new(2026, 7, 1), day: 10, amount: 60,
+      provisional: false, source_import_batch_id: batch.id, revised_count: 0
+    )
+
+    # Na semente, o EC 11111111 sobe (80 → 100): fica na Alta.
+    get sub_channel_report_path(sub_channel, variation: "alta")
+    assert_response :success
+    assert_select "a.tab.tab-active", text: /Alta \(1\)/
+    assert_select "tbody td", text: "11111111"
+    assert_select "tbody td", text: "22222222", count: 0
+
+    get sub_channel_report_path(sub_channel, variation: "baixa")
+    assert_response :success
+    assert_select "a.tab.tab-active", text: /Baixa \(1\)/
+    assert_select "tbody td", text: "22222222"
+    assert_select "tbody td", text: "11111111", count: 0
   end
 
   test "filtra a listagem de estabelecimentos por status e faixa de dias" do

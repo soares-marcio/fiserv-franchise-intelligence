@@ -245,31 +245,4 @@ module ApplicationHelper
   def brl(amount)
     number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".")
   end
-
-  def compact_revenue_days(payload)
-    days = revenue_days_hash(payload)
-    return "—" if days.blank?
-
-    days.sort_by { |day, _| day.to_i }.map { |day, amount| "D#{day} #{brl(amount)}" }.join(" · ")
-  end
-
-  def comparable_revenue_days(payload, cutoff_day)
-    return {} unless cutoff_day
-
-    revenue_days_hash(payload).select { |day, _| day.to_i <= cutoff_day.to_i }
-  end
-
-  def revenue_days_json(payload)
-    revenue_days_hash(payload).transform_keys(&:to_s).sort_by { |day, _| day.to_i }.to_h.to_json
-  end
-
-  def revenue_days_hash(payload)
-    case payload
-    when Hash then payload
-    when String then JSON.parse(payload)
-    else {}
-    end
-  rescue JSON::ParserError
-    {}
-  end
 end

@@ -42,10 +42,6 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "Escolher intervalo", iso_range_label(nil, nil)
   end
 
-  test "ignora payloads malformados de faturamento diário" do
-    assert_equal({}, revenue_days_hash("not-json"))
-  end
-
   # O mês escolhido é o M0 e a janela avança a partir dele: quem credenciou em junho é
   # apurado em junho, julho e agosto.
   test "rótulo da janela parte do M0 e nomeia até onde vai" do
