@@ -33,21 +33,28 @@
       <% if accreditation["months_observed"].to_i.zero? %>
         <p class="metric-hint">Sem volume importado nessa janela — não apurável, e não é ganho zero.</p>
       <% else %>
-        <%# Nenhuma hipótese é destacada: a fonte que diz se o EC tem antecipação ainda
-            está em definição, então as duas valem igualmente até isso ser resolvido. %>
-        <div class="flex flex-wrap gap-3">
-          <span class="badge badge-ghost">
-            Sem antecipação: <%= brl(accreditation["addon_without_auto"].to_f + accreditation["digitalization_amount"].to_f) %>
-          </span>
-          <span class="badge badge-ghost">
-            Com antecipação: <%= brl(accreditation["addon_with_auto"].to_f + accreditation["digitalization_amount"].to_f) %>
-          </span>
-        </div>
-        <p class="metric-hint">
-          <%= accreditation["months_observed"].to_i %> de 3 meses apurados
-          <%= "· inclui R$ 30,00 de digitalização (app em M0)" if accreditation["digitalization_amount"].to_f.positive? %>
-          · classificação de antecipação em definição — os dois cenários valem como hipótese
-        </p>
+        <% fee = accreditation["digitalization_amount"].to_f %>
+        <% without_auto = accreditation["addon_without_auto"].to_f %>
+        <% with_auto = accreditation["addon_with_auto"].to_f %>
+        <%# O adicional por faturamento é a única parte que depende de o EC ter
+            antecipação. Nas faixas em que as duas colunas coincidem — e na faixa mais
+            baixa ambas são zero — não há o que decidir, e o prêmio sai como número
+            único. Só quando divergem é que a pendência aparece, com o intervalo. %>
+        <% if without_auto == with_auto %>
+          <p class="metric-value text-base"><%= brl(fee + without_auto) %></p>
+          <p class="metric-hint">
+            <%= accreditation["months_observed"].to_i %> de 3 meses apurados
+            <%= "· R$ 30,00 de digitalização (app em M0)" if fee.positive? %>
+          </p>
+        <% else %>
+          <p class="metric-value text-base"><%= brl(fee) %> <span class="metric-hint">+ adicional</span></p>
+          <p class="metric-hint">
+            <%= accreditation["months_observed"].to_i %> de 3 meses apurados
+            <%= "· R$ 30,00 de digitalização (app em M0)" if fee.positive? %>
+            · adicional por faturamento entre <%= brl(without_auto) %> e <%= brl(with_auto) %>,
+            pendente da definição de antecipação
+          </p>
+        <% end %>
       <% end %>
       <p class="metric-hint">
         Credenciado em <%= l(accreditation["accredited_on"].to_date, format: "%d/%m/%y") %>

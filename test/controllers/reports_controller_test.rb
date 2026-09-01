@@ -72,9 +72,12 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get three_months_sub_channel_report_path(id: sub_channel.uuid, start_period: "2026-08")
     assert_response :success
     assert_select ".metric-label", text: "EC 50000001"
-    # As duas hipóteses aparecem lado a lado, sempre — a classificação só destaca.
-    assert_select ".badge", text: /Sem antecipação/
-    assert_select ".badge", text: /Com antecipação/
+    # Enquanto a classificação de antecipação está em definição, a tela não oferece
+    # "com/sem": mostra o que é determinado e nomeia o intervalo do que não é.
+    assert_select "body" do |body|
+      assert_no_match(/Sem antecipação/, body.to_s)
+      assert_match(/pendente da definição de antecipação/, body.to_s)
+    end
   end
 
   test "renderiza a página de auditoria sem dados" do
