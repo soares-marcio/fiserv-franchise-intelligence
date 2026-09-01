@@ -27,9 +27,9 @@ class SubChannelCompensationRules
   # Pago uma única vez, em M0, para EC com acesso ao app.
   DIGITALIZATION_FEE = 30.00
 
-  # A planilha entrega NET MDR e o slide fala em "0,40%". Assumimos pontos percentuais
-  # (0.42 = 0,42%); se a célula vier como fração (0.0042), basta trocar para 100.
-  # Não confirmado em dado real — ver plano da feature.
+  # A planilha entrega NET MDR em pontos percentuais (0.42 = 0,42%), confirmado por
+  # agregados da base real: mediana ~0,30, compatível com MDR típico — como fração seria
+  # 30%, absurdo. Se a origem mudar de escala um dia, este é o único ponto de ajuste.
   NET_MDR_SCALE = 1
 
   # Faixas em pontos percentuais. "Acima de 0,40%" é estrita; as demais usam >= no piso,
