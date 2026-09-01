@@ -46,13 +46,13 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal({}, revenue_days_hash("not-json"))
   end
 
-  # A opção do seletor precisa dizer a janela inteira: só o mês final obrigava o
-  # usuário a deduzir que "agosto" significava junho, julho e agosto.
-  test "rótulo da janela de 3 meses nomeia o intervalo, não só o mês final" do
-    assert_equal "Junho a agosto de 2026", three_month_window_label(Date.new(2026, 8, 1))
+  # O mês escolhido é o M0 e a janela avança a partir dele: quem credenciou em junho é
+  # apurado em junho, julho e agosto.
+  test "rótulo da janela parte do M0 e nomeia até onde vai" do
+    assert_equal "Junho a agosto de 2026", three_month_window_label(Date.new(2026, 6, 1))
   end
 
   test "janela que atravessa o ano mostra os dois anos" do
-    assert_equal "Dezembro de 2025 a fevereiro de 2026", three_month_window_label(Date.new(2026, 2, 1))
+    assert_equal "Dezembro de 2025 a fevereiro de 2026", three_month_window_label(Date.new(2025, 12, 1))
   end
 end

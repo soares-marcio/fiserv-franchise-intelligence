@@ -152,18 +152,19 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal 0, row["addon_without_auto"].to_f
   end
 
-  test "nível 2 traz só os ECs credenciados dentro da janela escolhida" do
+  test "nível 2 traz só os ECs cujo M0 é o mês escolhido" do
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
 
-    # Janela jun/jul/ago: o EC credenciado em julho entra; o outro, com credenciamento
-    # no padrão de fevereiro, fica fora — a página é sobre a safra do range.
-    rows = ThreeMonthEarningsQuery.new(periods: PERIODS).by_establishment(sub_channel_id: sub_channel.id)
+    # M0 = julho: entra o EC credenciado em julho, e a janela dele é jul/ago/set.
+    july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
+    rows = ThreeMonthEarningsQuery.new(periods: july).by_establishment(sub_channel_id: sub_channel.id)
     assert_equal [ "50000001" ], rows.map { |row| row[:ec] }
     assert_equal 2, rows.sole[:accreditation]["months_observed"]
 
-    # Janela deslocada para antes do credenciamento: nenhum EC daquela safra.
-    earlier = [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ]
-    assert_empty ThreeMonthEarningsQuery.new(periods: earlier).by_establishment(sub_channel_id: sub_channel.id)
+    # M0 = junho: o EC de julho não pertence a este mês de credenciamento, ainda que
+    # julho apareça na janela de junho — é o M0 que define a pertinência, não a janela.
+    june = [ Date.new(2026, 6, 1), Date.new(2026, 7, 1), Date.new(2026, 8, 1) ]
+    assert_empty ThreeMonthEarningsQuery.new(periods: june).by_establishment(sub_channel_id: sub_channel.id)
   end
 
   test "sem volume mensal importado a consulta responde vazia, sem erro" do

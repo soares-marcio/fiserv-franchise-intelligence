@@ -61,11 +61,11 @@ class ThreeMonthEarningsQuery
     end.sort_by { |row| row[:name] }
   end
 
-  # Só os ECs credenciados dentro da janela escolhida: a página é sobre a safra de
-  # credenciamento daquele range, não sobre a carteira inteira repetida a cada mês.
+  # Só os ECs cujo M0 é o mês escolhido: assim M0, M1 e M2 significam a mesma coisa em
+  # todos os cards, e a janela da tela é exatamente a janela de apuração deles.
   def by_establishment(sub_channel_id:)
     accreditations = accreditation_rows(sub_channel_id:)
-    accredited_in_window = accreditations.select { |_, row| @periods.include?(row["m0_period"].to_date) }
+    accredited_in_window = accreditations.select { |_, row| row["m0_period"].to_date == @periods.first }
     return [] if accredited_in_window.empty?
 
     volumes = volume_rows(group: "m.sub_channel_id, m.establishment_id", sub_channel_id:)

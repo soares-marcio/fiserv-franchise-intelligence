@@ -5,10 +5,9 @@
     <p class="eyebrow">Modelo de remuneração</p>
     <h1 class="page-title"><%= @sub_channel.name %></h1>
     <p class="page-description">
-      Estabelecimentos <strong>credenciados dentro da janela escolhida</strong>, com a
-      apuração do prêmio partindo do mês de credenciamento de cada um. O acelerador ou
-      redutor é da carteira e aparece aqui no topo — o modelo não o define por
-      estabelecimento.
+      Estabelecimentos <strong>credenciados no mês escolhido (M0)</strong>, apurados na
+      janela deles: M0, M1 e M2. O acelerador ou redutor é da carteira e aparece aqui no
+      topo — o modelo não o define por estabelecimento.
     </p>
   </section>
 
@@ -16,7 +15,7 @@
     <%= form_with url: three_months_sub_channel_report_path(id: @sub_channel.uuid), method: :get,
       class: "flex flex-wrap items-end gap-3" do %>
       <label class="grid gap-1.5">
-        <span class="section-label">Safra de credenciamento</span>
+        <span class="section-label">Mês de credenciamento (M0)</span>
         <%= select_tag :start_period,
           options_for_select(@available_periods.map { |period| [three_month_window_label(period), period.strftime("%Y-%m")] },
             @window&.last&.strftime("%Y-%m")),
@@ -76,9 +75,9 @@
   <% else %>
     <section class="table-frame">
       <div class="empty-state">
-        Nenhum estabelecimento credenciado entre
-        <%= @window ? "#{l(@window.first, format: '%b/%Y')} e #{l(@window.last, format: '%b/%Y')}" : "o período" %>
-        neste subcanal. Escolha outra janela para ver outra safra de credenciamento.
+        Nenhum estabelecimento credenciado em
+        <%= @window ? l(@window.first, format: "%B de %Y") : "no mês escolhido" %>
+        neste subcanal. Escolha outro mês de credenciamento.
       </div>
     </section>
   <% end %>

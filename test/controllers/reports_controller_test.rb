@@ -69,7 +69,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/translation missing/i, response.body)
 
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
-    get three_months_sub_channel_report_path(id: sub_channel.uuid, start_period: "2026-08")
+    # M0 = julho: é o mês de credenciamento do EC da fixture, e a janela avança dali.
+    get three_months_sub_channel_report_path(id: sub_channel.uuid, start_period: "2026-07")
     assert_response :success
     assert_select ".metric-label", text: "EC 50000001"
     # Enquanto a classificação de antecipação está em definição, a tela não oferece

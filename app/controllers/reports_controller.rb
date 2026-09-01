@@ -113,13 +113,22 @@ class ReportsController < ApplicationController
     nil
   end
 
-  # O mês escolhido fecha a janela: ele e os dois anteriores. Meses fora da cobertura de
-  # volumes aparecem na tela como "sem dado", não somem.
+  # O mês escolhido é o M0 — o mês de credenciamento —, e a janela avança a partir dele.
+  # Meses ainda sem volume importado aparecem na tela como "sem dado", não somem.
   def three_month_window
     return nil if @available_periods.empty?
 
-    start = parse_start_period || @available_periods.first
-    [ start - 2.months, start - 1.month, start ]
+    start = parse_start_period || default_start_period
+    [ start, start + 1.month, start + 2.months ]
+  end
+
+  # Sem escolha explícita, abre no M0 mais recente cuja janela ainda cabe nos meses
+  # importados: abrir no último mês mostraria duas colunas vazias por padrão.
+  def default_start_period
+    complete = @available_periods.find do |period|
+      [ period + 1.month, period + 2.months ].all? { |month| @available_periods.include?(month) }
+    end
+    complete || @available_periods.first
   end
 
   def parse_start_period
