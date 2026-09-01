@@ -45,4 +45,14 @@ class ApplicationHelperTest < ActionView::TestCase
   test "ignora payloads malformados de faturamento diário" do
     assert_equal({}, revenue_days_hash("not-json"))
   end
+
+  # A opção do seletor precisa dizer a janela inteira: só o mês final obrigava o
+  # usuário a deduzir que "agosto" significava junho, julho e agosto.
+  test "rótulo da janela de 3 meses nomeia o intervalo, não só o mês final" do
+    assert_equal "Junho a agosto de 2026", three_month_window_label(Date.new(2026, 8, 1))
+  end
+
+  test "janela que atravessa o ano mostra os dois anos" do
+    assert_equal "Dezembro de 2025 a fevereiro de 2026", three_month_window_label(Date.new(2026, 2, 1))
+  end
 end

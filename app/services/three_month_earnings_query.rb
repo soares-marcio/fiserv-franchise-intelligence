@@ -61,13 +61,19 @@ class ThreeMonthEarningsQuery
     end.sort_by { |row| row[:name] }
   end
 
+  # Só os ECs credenciados dentro da janela escolhida: a página é sobre a safra de
+  # credenciamento daquele range, não sobre a carteira inteira repetida a cada mês.
   def by_establishment(sub_channel_id:)
+    accreditations = accreditation_rows(sub_channel_id:)
+    accredited_in_window = accreditations.select { |_, row| @periods.include?(row["m0_period"].to_date) }
+    return [] if accredited_in_window.empty?
+
     volumes = volume_rows(group: "m.sub_channel_id, m.establishment_id", sub_channel_id:)
+      .select { |row| accredited_in_window.key?(row["establishment_id"]) }
     mdr = weighted_mdr_rows(sub_channel_id:)
     coverages = coverage_by_channel
     establishments = Establishment.where(id: volumes.map { |r| r["establishment_id"] }.uniq)
       .includes(:current_map_snapshot, :company).index_by(&:id)
-    accreditations = accreditation_rows(sub_channel_id:)
 
     volumes.group_by { |r| r["establishment_id"] }.map do |establishment_id, rows|
       establishment = establishments.fetch(establishment_id)

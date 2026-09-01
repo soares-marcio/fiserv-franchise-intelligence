@@ -90,8 +90,8 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
       "(SELECT id FROM establishments WHERE ec = '50000001')"
     ).to_a.sole
 
-    # M0 (julho, fechado) e M1 (agosto, aberto até o corte) contam; M2 (setembro) não tem
-    # cobertura e fica de fora — dois meses apurados, não três.
+    # Janela do EC = jul/ago/set. O volume mensal cobre jul e ago; setembro não existe
+    # na planilha — dois meses apurados, não três.
     assert_equal 2, row["months_observed"]
     peak = [ gama_ec.total_m1, gama_ec.total_atual ].max
     assert_in_delta peak, row["peak_month_revenue"].to_f, 0.001
@@ -105,7 +105,32 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal true, row["auto_classified"]
   end
 
-  test "credenciamento fora do histórico não vira ganho zero: zero meses apurados" do
+  test "janela só parcialmente coberta apura o que existe e distingue de não apurável" do
+    row = ApplicationRecord.connection.exec_query(
+      "SELECT * FROM audit_accreditation_earnings WHERE establishment_id = " \
+      "(SELECT id FROM establishments WHERE ec = '50000003')"
+    ).to_a.sole
+
+    # Credenciado em fev/2026: janela fev/mar/abr. Só abril tem volume mensal na
+    # planilha sintética, então um mês é apurado — e o prêmio zero aqui é a faixa mais
+    # baixa de verdade, não ausência de dado. months_observed separa os dois casos.
+    assert_equal 1, row["months_observed"]
+    april_total = BinWorkbook::OUTROS_VOLUMES.fetch("202604")
+    assert_in_delta april_total, row["peak_month_revenue"].to_f, 0.001
+    assert_in_delta SubChannelCompensationRules.accreditation_bracket_value(april_total, with_auto: false),
+      row["addon_without_auto"].to_f, 0.001
+    # Sem acesso ao app declarado: nada de digitalização.
+    assert_equal 0, row["digitalization_amount"].to_f
+  end
+
+  test "EC sem nenhum mês da janela coberto fica marcado como não apurável" do
+    # Credenciamento muito anterior ao histórico: nenhuma das três competências existe.
+    ApplicationRecord.connection.execute(
+      "UPDATE map_snapshots SET accredited_on = DATE '2025-01-15' " \
+      "WHERE establishment_id = (SELECT id FROM establishments WHERE ec = '50000003')"
+    )
+    refresh_audit_views
+
     row = ApplicationRecord.connection.exec_query(
       "SELECT * FROM audit_accreditation_earnings WHERE establishment_id = " \
       "(SELECT id FROM establishments WHERE ec = '50000003')"
@@ -114,16 +139,20 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal 0, row["months_observed"]
     assert_nil row["peak_month_revenue"]
     assert_equal 0, row["addon_without_auto"].to_f
-    assert_equal 0, row["digitalization_amount"].to_f
   end
 
-  test "nível 2 entrega cards por estabelecimento com o credenciamento anexado" do
+  test "nível 2 traz só os ECs credenciados dentro da janela escolhida" do
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
-    rows = ThreeMonthEarningsQuery.new(periods: PERIODS).by_establishment(sub_channel_id: sub_channel.id)
 
-    assert_equal @lojas.count { |loja| loja.sub_channel_name == "MIC GAMA" }, rows.size
-    with_accreditation = rows.find { |row| row[:ec] == "50000001" }
-    assert_equal 2, with_accreditation[:accreditation]["months_observed"]
+    # Janela jun/jul/ago: o EC credenciado em julho entra; o outro, com credenciamento
+    # no padrão de fevereiro, fica fora — a página é sobre a safra do range.
+    rows = ThreeMonthEarningsQuery.new(periods: PERIODS).by_establishment(sub_channel_id: sub_channel.id)
+    assert_equal [ "50000001" ], rows.map { |row| row[:ec] }
+    assert_equal 2, rows.sole[:accreditation]["months_observed"]
+
+    # Janela deslocada para antes do credenciamento: nenhum EC daquela safra.
+    earlier = [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ]
+    assert_empty ThreeMonthEarningsQuery.new(periods: earlier).by_establishment(sub_channel_id: sub_channel.id)
   end
 
   test "sem volume mensal importado a consulta responde vazia, sem erro" do

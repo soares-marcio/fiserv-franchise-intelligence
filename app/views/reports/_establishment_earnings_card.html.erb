@@ -1,8 +1,9 @@
 <%# Um card por EC: faturamento da janela e prêmio de credenciamento nas DUAS hipóteses.
     A classificação de antecipação só destaca a provável — nunca decide o valor sozinha. %>
+<%# A listagem já traz só ECs credenciados dentro da janela, então o prêmio é sempre
+    pertinente aqui; o que varia é quantos meses da janela do EC já têm volume. %>
 <% accreditation = report[:accreditation] %>
 <% ec_window = accreditation && (0..2).map { |offset| accreditation["m0_period"].to_date >> offset } %>
-<% in_window = ec_window && (ec_window & window).any? %>
 <article class="metric-card" data-tone="teal">
   <p class="metric-label">EC <%= report[:ec] %></p>
   <p class="metric-value text-base"><%= report[:trade_name] || report[:legal_name] || "Sem nome no mapa" %></p>
@@ -23,11 +24,14 @@
     <% end %>
   </div>
 
-  <% if accreditation && in_window %>
+  <% if accreditation %>
     <div class="mt-3 grid gap-1 border-t border-base-200 pt-3">
-      <p class="section-label">Prêmio de credenciamento (M0 = <%= l(accreditation["m0_period"].to_date, format: "%b/%Y") %>)</p>
+      <p class="section-label">
+        Prêmio de credenciamento · janela do EC:
+        <%= ec_window.map { |period| l(period, format: "%b/%y") }.join(" · ") %>
+      </p>
       <% if accreditation["months_observed"].to_i.zero? %>
-        <p class="metric-hint">Janela fora do histórico importado — não apurável, e não é ganho zero.</p>
+        <p class="metric-hint">Sem volume importado nessa janela — não apurável, e não é ganho zero.</p>
       <% else %>
         <% highlighted = accreditation["auto_classified"] %>
         <div class="flex flex-wrap gap-3">
@@ -46,13 +50,9 @@
           <% end %>
         </p>
       <% end %>
-    </div>
-  <% elsif accreditation %>
-    <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
-      <span class="badge badge-ghost">
+      <p class="metric-hint">
         Credenciado em <%= l(accreditation["accredited_on"].to_date, format: "%d/%m/%y") %>
-      </span>
-      <span class="metric-hint">prêmio de credenciamento fora desta janela</span>
+      </p>
     </div>
   <% end %>
 </article>

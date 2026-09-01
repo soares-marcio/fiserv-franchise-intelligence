@@ -5,9 +5,10 @@
     <p class="eyebrow">Modelo de remuneração</p>
     <h1 class="page-title"><%= @sub_channel.name %></h1>
     <p class="page-description">
-      Estabelecimentos do subcanal na janela escolhida. O prêmio de credenciamento é por EC;
-      o acelerador ou redutor é da carteira e aparece aqui no topo — o modelo não o define
-      por estabelecimento.
+      Estabelecimentos <strong>credenciados dentro da janela escolhida</strong>, com a
+      apuração do prêmio partindo do mês de credenciamento de cada um. O acelerador ou
+      redutor é da carteira e aparece aqui no topo — o modelo não o define por
+      estabelecimento.
     </p>
   </section>
 
@@ -15,11 +16,11 @@
     <%= form_with url: three_months_sub_channel_report_path(id: @sub_channel.uuid), method: :get,
       class: "flex flex-wrap items-end gap-3" do %>
       <label class="grid gap-1.5">
-        <span class="section-label">Mês final da janela</span>
+        <span class="section-label">Safra de credenciamento</span>
         <%= select_tag :start_period,
-          options_for_select(@available_periods.map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
+          options_for_select(@available_periods.map { |period| [three_month_window_label(period), period.strftime("%Y-%m")] },
             @window&.last&.strftime("%Y-%m")),
-          class: "select select-bordered w-auto min-w-52 max-w-full" %>
+          class: "select select-bordered w-auto min-w-64 max-w-full" %>
       </label>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
     <% end %>
@@ -74,7 +75,11 @@
     </section>
   <% else %>
     <section class="table-frame">
-      <div class="empty-state">Nenhum estabelecimento com volume mensal na janela escolhida.</div>
+      <div class="empty-state">
+        Nenhum estabelecimento credenciado entre
+        <%= @window ? "#{l(@window.first, format: '%b/%Y')} e #{l(@window.last, format: '%b/%Y')}" : "o período" %>
+        neste subcanal. Escolha outra janela para ver outra safra de credenciamento.
+      </div>
     </section>
   <% end %>
 </div>

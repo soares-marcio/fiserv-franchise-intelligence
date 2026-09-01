@@ -204,6 +204,19 @@ module ApplicationHelper
     I18n.l(date.to_date, format: "%B de %Y")
   end
 
+  # A opção diz a janela inteira que será aplicada, não só o mês final: escolher
+  # "agosto" e receber junho, julho e agosto obrigava o usuário a fazer a conta.
+  # Quando a janela atravessa o ano, os dois anos aparecem.
+  def three_month_window_label(last_period)
+    last_period = last_period.to_date
+    first_period = last_period << 2
+    first = I18n.l(first_period, format: "%B")
+    last = I18n.l(last_period, format: "%B de %Y")
+    return "#{first} a #{last}".capitalize if first_period.year == last_period.year
+
+    "#{first} de #{first_period.year} a #{last}".capitalize
+  end
+
   def day_range_label(from_day, to_day)
     from_day = from_day.to_i
     to_day = to_day.to_i

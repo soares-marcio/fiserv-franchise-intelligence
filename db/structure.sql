@@ -304,24 +304,6 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
--- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.daily_revenues_consolidated (
-    establishment_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    period date NOT NULL,
-    day integer NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    provisional boolean NOT NULL,
-    source_import_batch_id bigint NOT NULL,
-    revised_count integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
 -- Name: import_batches; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -802,15 +784,16 @@ COMMENT ON COLUMN public.map_snapshots.weekly_schedule IS 'Origem: coluna "agend
 
 
 --
--- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
+-- Name: monthly_volumes_consolidated; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.period_coverages (
+CREATE TABLE public.monthly_volumes_consolidated (
     channel_id bigint NOT NULL,
+    establishment_id bigint NOT NULL,
     period date NOT NULL,
-    max_known_day integer NOT NULL,
-    closed boolean DEFAULT false NOT NULL,
-    last_import_batch_id bigint NOT NULL,
+    metric character varying NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    source_import_batch_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
@@ -853,13 +836,12 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             a.has_app_access,
             a.auto_classified,
             months.month_index,
-            (cover.channel_id IS NOT NULL) AS month_covered,
-            COALESCE(sum(revenue.amount) FILTER (WHERE (cover.closed OR (revenue.day <= cover.max_known_day))), (0)::numeric) AS month_total
-           FROM (((accredited a
+            months.period,
+            (volume.amount IS NOT NULL) AS month_covered,
+            COALESCE(volume.amount, (0)::numeric) AS month_total
+           FROM ((accredited a
              CROSS JOIN LATERAL ( VALUES (a.m0_period,0), (((a.m0_period + '1 mon'::interval))::date,1), (((a.m0_period + '2 mons'::interval))::date,2)) months(period, month_index))
-             LEFT JOIN public.period_coverages cover ON (((cover.channel_id = a.channel_id) AND (cover.period = months.period))))
-             LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = a.channel_id) AND (revenue.establishment_id = a.establishment_id) AND (revenue.period = months.period))))
-          GROUP BY a.channel_id, a.sub_channel_id, a.establishment_id, a.accredited_on, a.m0_period, a.has_app_access, a.auto_classified, months.month_index, cover.channel_id, cover.closed, cover.max_known_day
+             LEFT JOIN public.monthly_volumes_consolidated volume ON (((volume.channel_id = a.channel_id) AND (volume.establishment_id = a.establishment_id) AND (volume.period = months.period) AND ((volume.metric)::text = 'total'::text))))
         )
  SELECT channel_id,
     sub_channel_id,
@@ -1171,6 +1153,39 @@ CREATE MATERIALIZED VIEW public.audit_pending_actions AS
 
 
 --
+-- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.daily_revenues_consolidated (
+    establishment_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    day integer NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    provisional boolean NOT NULL,
+    source_import_batch_id bigint NOT NULL,
+    revised_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.period_coverages (
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    max_known_day integer NOT NULL,
+    closed boolean DEFAULT false NOT NULL,
+    last_import_batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
 -- Name: sub_channels; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1467,6 +1482,44 @@ ALTER SEQUENCE public.daily_revenues_id_seq OWNED BY public.daily_revenues.id;
 
 
 --
+-- Name: daily_revenues_202607; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.daily_revenues_202607 (
+    id bigint DEFAULT nextval('public.daily_revenues_id_seq'::regclass) NOT NULL,
+    import_batch_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    establishment_id bigint NOT NULL,
+    period date NOT NULL,
+    day integer NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    provisional boolean NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT daily_revenues_valid_day CHECK (((day >= 1) AND (day <= 31)))
+);
+
+
+--
+-- Name: daily_revenues_202608; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.daily_revenues_202608 (
+    id bigint DEFAULT nextval('public.daily_revenues_id_seq'::regclass) NOT NULL,
+    import_batch_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    establishment_id bigint NOT NULL,
+    period date NOT NULL,
+    day integer NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    provisional boolean NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT daily_revenues_valid_day CHECK (((day >= 1) AND (day <= 31)))
+);
+
+
+--
 -- Name: daily_revenues_default; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1690,22 +1743,6 @@ CREATE TABLE public.monthly_volumes (
     period date NOT NULL,
     metric character varying NOT NULL,
     amount numeric(18,2) NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: monthly_volumes_consolidated; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.monthly_volumes_consolidated (
-    channel_id bigint NOT NULL,
-    establishment_id bigint NOT NULL,
-    period date NOT NULL,
-    metric character varying NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    source_import_batch_id bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
 );
@@ -2246,6 +2283,20 @@ ALTER SEQUENCE public.sub_channels_id_seq OWNED BY public.sub_channels.id;
 
 
 --
+-- Name: daily_revenues_202607; Type: TABLE ATTACH; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_202607 FOR VALUES FROM ('2026-07-01') TO ('2026-08-01');
+
+
+--
+-- Name: daily_revenues_202608; Type: TABLE ATTACH; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_202608 FOR VALUES FROM ('2026-08-01') TO ('2026-09-01');
+
+
+--
 -- Name: daily_revenues_default; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
@@ -2763,10 +2814,10 @@ CREATE INDEX index_daily_revenues_on_channel_id ON ONLY public.daily_revenues US
 
 
 --
--- Name: daily_revenues_default_channel_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: daily_revenues_202607_channel_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX daily_revenues_default_channel_id_idx ON public.daily_revenues_default USING btree (channel_id);
+CREATE INDEX daily_revenues_202607_channel_id_idx ON public.daily_revenues_202607 USING btree (channel_id);
 
 
 --
@@ -2777,10 +2828,10 @@ CREATE INDEX index_daily_revenues_on_channel_id_and_period_and_day ON ONLY publi
 
 
 --
--- Name: daily_revenues_default_channel_id_period_day_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: daily_revenues_202607_channel_id_period_day_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX daily_revenues_default_channel_id_period_day_idx ON public.daily_revenues_default USING btree (channel_id, period, day);
+CREATE INDEX daily_revenues_202607_channel_id_period_day_idx ON public.daily_revenues_202607 USING btree (channel_id, period, day);
 
 
 --
@@ -2791,10 +2842,10 @@ CREATE INDEX index_daily_revenues_on_establishment_id ON ONLY public.daily_reven
 
 
 --
--- Name: daily_revenues_default_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: daily_revenues_202607_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX daily_revenues_default_establishment_id_idx ON public.daily_revenues_default USING btree (establishment_id);
+CREATE INDEX daily_revenues_202607_establishment_id_idx ON public.daily_revenues_202607 USING btree (establishment_id);
 
 
 --
@@ -2805,10 +2856,10 @@ CREATE UNIQUE INDEX index_daily_revenues_unique_snapshot_day ON ONLY public.dail
 
 
 --
--- Name: daily_revenues_default_import_batch_id_establishment_id_per_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: daily_revenues_202607_import_batch_id_establishment_id_peri_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX daily_revenues_default_import_batch_id_establishment_id_per_idx ON public.daily_revenues_default USING btree (import_batch_id, establishment_id, period, day);
+CREATE UNIQUE INDEX daily_revenues_202607_import_batch_id_establishment_id_peri_idx ON public.daily_revenues_202607 USING btree (import_batch_id, establishment_id, period, day);
 
 
 --
@@ -2816,6 +2867,76 @@ CREATE UNIQUE INDEX daily_revenues_default_import_batch_id_establishment_id_per_
 --
 
 CREATE INDEX index_daily_revenues_on_import_batch_id ON ONLY public.daily_revenues USING btree (import_batch_id);
+
+
+--
+-- Name: daily_revenues_202607_import_batch_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_202607_import_batch_id_idx ON public.daily_revenues_202607 USING btree (import_batch_id);
+
+
+--
+-- Name: daily_revenues_202608_channel_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_202608_channel_id_idx ON public.daily_revenues_202608 USING btree (channel_id);
+
+
+--
+-- Name: daily_revenues_202608_channel_id_period_day_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_202608_channel_id_period_day_idx ON public.daily_revenues_202608 USING btree (channel_id, period, day);
+
+
+--
+-- Name: daily_revenues_202608_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_202608_establishment_id_idx ON public.daily_revenues_202608 USING btree (establishment_id);
+
+
+--
+-- Name: daily_revenues_202608_import_batch_id_establishment_id_peri_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX daily_revenues_202608_import_batch_id_establishment_id_peri_idx ON public.daily_revenues_202608 USING btree (import_batch_id, establishment_id, period, day);
+
+
+--
+-- Name: daily_revenues_202608_import_batch_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_202608_import_batch_id_idx ON public.daily_revenues_202608 USING btree (import_batch_id);
+
+
+--
+-- Name: daily_revenues_default_channel_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_default_channel_id_idx ON public.daily_revenues_default USING btree (channel_id);
+
+
+--
+-- Name: daily_revenues_default_channel_id_period_day_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_default_channel_id_period_day_idx ON public.daily_revenues_default USING btree (channel_id, period, day);
+
+
+--
+-- Name: daily_revenues_default_establishment_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX daily_revenues_default_establishment_id_idx ON public.daily_revenues_default USING btree (establishment_id);
+
+
+--
+-- Name: daily_revenues_default_import_batch_id_establishment_id_per_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX daily_revenues_default_import_batch_id_establishment_id_per_idx ON public.daily_revenues_default USING btree (import_batch_id, establishment_id, period, day);
 
 
 --
@@ -3715,6 +3836,76 @@ CREATE UNIQUE INDEX index_template_columns_on_template_sheet_header ON public.im
 
 
 --
+-- Name: daily_revenues_202607_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_channel_id ATTACH PARTITION public.daily_revenues_202607_channel_id_idx;
+
+
+--
+-- Name: daily_revenues_202607_channel_id_period_day_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_channel_id_and_period_and_day ATTACH PARTITION public.daily_revenues_202607_channel_id_period_day_idx;
+
+
+--
+-- Name: daily_revenues_202607_establishment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_establishment_id ATTACH PARTITION public.daily_revenues_202607_establishment_id_idx;
+
+
+--
+-- Name: daily_revenues_202607_import_batch_id_establishment_id_peri_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION public.daily_revenues_202607_import_batch_id_establishment_id_peri_idx;
+
+
+--
+-- Name: daily_revenues_202607_import_batch_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION public.daily_revenues_202607_import_batch_id_idx;
+
+
+--
+-- Name: daily_revenues_202608_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_channel_id ATTACH PARTITION public.daily_revenues_202608_channel_id_idx;
+
+
+--
+-- Name: daily_revenues_202608_channel_id_period_day_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_channel_id_and_period_and_day ATTACH PARTITION public.daily_revenues_202608_channel_id_period_day_idx;
+
+
+--
+-- Name: daily_revenues_202608_establishment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_establishment_id ATTACH PARTITION public.daily_revenues_202608_establishment_id_idx;
+
+
+--
+-- Name: daily_revenues_202608_import_batch_id_establishment_id_peri_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_unique_snapshot_day ATTACH PARTITION public.daily_revenues_202608_import_batch_id_establishment_id_peri_idx;
+
+
+--
+-- Name: daily_revenues_202608_import_batch_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION public.daily_revenues_202608_import_batch_id_idx;
+
+
+--
 -- Name: daily_revenues_default_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
@@ -4196,6 +4387,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260831190000'),
 ('20260831120000'),
 ('20260831010000'),
 ('20260830070000'),
