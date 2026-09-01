@@ -235,6 +235,21 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody td", text: "11111111", count: 0
   end
 
+  test "os cards da primeira dobra não seguem a aba: seriam circulares" do
+    template = BinImport::Template.register!
+    _channel, sub_channel = seed_subchannel_revenue(template)
+
+    get sub_channel_report_path(sub_channel)
+    assert_select ".metric-value", text: "R$ 100,00"
+
+    # Na aba Baixa (vazia nesta semente) os cards seguem mostrando o subcanal inteiro —
+    # filtrar a variação pela própria variação faria a Alta sair sempre positiva.
+    get sub_channel_report_path(sub_channel, variation: "baixa")
+    assert_select ".metric-value", text: "R$ 100,00"
+    assert_select ".metric-hint", text: /Subcanal inteiro — a tabela abaixo mostra só a aba Baixa/
+    assert_select ".empty-state"
+  end
+
   test "filtra a listagem de estabelecimentos por status e faixa de dias" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)

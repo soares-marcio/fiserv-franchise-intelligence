@@ -48,7 +48,16 @@
           <p class="metric-value">
             <%= variation_headline(@totals[:previous_revenue], @totals[:current_revenue]) %>
           </p>
-          <p class="metric-hint">Períodos com a mesma duração</p>
+          <%# Os cards são sempre do subcanal inteiro: a aba filtra pela própria métrica
+              e um resumo recortado por ela seria circular (Alta sairia sempre positiva). %>
+          <% if @selected_variation %>
+            <p class="metric-hint">
+              Subcanal inteiro — a tabela abaixo mostra só a aba
+              <%= @selected_variation == "alta" ? "Alta" : "Baixa" %>
+            </p>
+          <% else %>
+            <p class="metric-hint">Períodos com a mesma duração</p>
+          <% end %>
         </article>
       </div>
     <% end %>

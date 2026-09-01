@@ -44,11 +44,14 @@ class EstablishmentListingQuery
 
   def call
     summary = fetch_summary
-    page, per_page = normalize_page(summary[:total_count])
+    counts = fetch_variation_counts
+    # A contagem e a paginação seguem a aba; os totais monetários, não (ver fetch_summary).
+    total_count = @variation ? counts.fetch(@variation.to_sym) : summary[:total_count]
+    page, per_page = normalize_page(total_count)
 
     EstablishmentRevenuePage.new(
-      rows: fetch_rows(page, per_page), total_count: summary[:total_count],
-      totals: summary[:totals], page:, per_page:, variation_counts: fetch_variation_counts
+      rows: fetch_rows(page, per_page), total_count:,
+      totals: summary[:totals], page:, per_page:, variation_counts: counts
     )
   end
 
@@ -90,6 +93,10 @@ class EstablishmentListingQuery
     }
   end
 
+  # A aba de variação NÃO entra nos totais: ela filtra pela própria métrica exibida, e
+  # um resumo filtrado assim seria circular — na Alta a variação sairia sempre positiva,
+  # medindo o filtro em vez do desempenho. Os cards da primeira dobra mostram o subcanal
+  # inteiro dentro dos demais filtros; só a listagem paginada obedece à aba.
   def fetch_summary
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT COUNT(*) AS total_count,
@@ -97,7 +104,6 @@ class EstablishmentListingQuery
         COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
         COALESCE(SUM(current_revenue), 0) AS current_revenue
       FROM (#{listing_sql}) listings
-      #{variation_where}
     SQL
     row = ApplicationRecord.connection.exec_query(sql).first || {}
     {
