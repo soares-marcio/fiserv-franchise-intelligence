@@ -18,10 +18,16 @@
         <span class="section-label">Mês de credenciamento (M0)</span>
         <%= select_tag :start_period,
           options_for_select(@available_periods.map { |period| [three_month_window_label(period), period.strftime("%Y-%m")] },
-            @window&.last&.strftime("%Y-%m")),
+            @window&.first&.strftime("%Y-%m")),
           class: "select select-bordered w-auto min-w-64 max-w-full" %>
       </label>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
+      <% if @window %>
+        <p class="metric-hint self-center">
+          Credenciados em <strong><%= l(@window.first, format: "%B de %Y") %></strong>,
+          apurados em <%= three_month_window_label(@window.first).downcase %>
+        </p>
+      <% end %>
     <% end %>
   </section>
 

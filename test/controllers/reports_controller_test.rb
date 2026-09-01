@@ -55,6 +55,23 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "o mês aplicado continua selecionado no seletor e escrito na tela" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(start_period: "2026-06")
+
+    # O select apontava para o fim da janela: escolher junho deixava agosto marcado, e
+    # aplicar de novo abria outra janela.
+    assert_select "select[name=start_period] option[selected][value=?]", "2026-06"
+    assert_select "option[value=?]", "2026-08" do |options|
+      assert_nil options.first["selected"]
+    end
+    assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
+    # O link do subcanal precisa carregar o mesmo M0, senão o nível 2 abre deslocado.
+    assert_select "td a[href*=?]", "start_period=2026-06"
+  end
+
   test "página 3M lista subcanais e navega para os cards de estabelecimento" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views

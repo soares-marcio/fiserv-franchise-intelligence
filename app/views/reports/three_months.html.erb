@@ -5,9 +5,11 @@
     <p class="eyebrow">Modelo de remuneração</p>
     <h1 class="page-title">Ganhos 3M por subcanal</h1>
     <p class="page-description">
-      Janela de três meses de calendário à sua escolha, com o faturamento de débito e crédito
-      da planilha e o repasse do modelo de remuneração. O acelerador ou o redutor — nunca os
-      dois — é aplicado mês contra mês dentro da janela.
+      Escolha o mês de credenciamento (M0) e a apuração segue na janela M0, M1 e M2. A tabela
+      mostra a <strong>carteira inteira</strong> de cada subcanal nesses meses — débito e
+      crédito da planilha, repasse pela faixa de Net MDR e o acelerador ou redutor, mês contra
+      mês. Ao abrir um subcanal, aparecem só os estabelecimentos <strong>credenciados no
+      M0</strong>, cada um com seu prêmio.
     </p>
   </section>
 
@@ -26,10 +28,18 @@
         <%# Só meses com volume mensal importado: a planilha limita a escolha, não o sistema. %>
         <%= select_tag :start_period,
           options_for_select(@available_periods.map { |period| [three_month_window_label(period), period.strftime("%Y-%m")] },
-            @window&.last&.strftime("%Y-%m")),
+            @window&.first&.strftime("%Y-%m")),
           class: "select select-bordered w-auto min-w-64 max-w-full" %>
       </label>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
+      <%# A escolha aplicada fica escrita ao lado do botão: o select sozinho não deixava
+          claro o que estava valendo depois do Aplicar. %>
+      <% if @window %>
+        <p class="metric-hint self-center">
+          Exibindo <strong><%= three_month_window_label(@window.first) %></strong>
+          <%= "· #{@selected_channel.name}" if @selected_channel %>
+        </p>
+      <% end %>
     <% end %>
   </section>
 
@@ -75,8 +85,8 @@
           <thead>
             <tr>
               <th>Subcanal</th>
-              <%# M0 é o mês mais antigo da janela, na mesma direção cronológica do
-                  credenciamento; o mês de calendário ao lado desfaz qualquer ambiguidade. %>
+              <%# M0 é o próprio mês de credenciamento escolhido; o mês de calendário ao
+                  lado desfaz qualquer ambiguidade. %>
               <% @window.each_with_index do |period, index| %>
                 <th class="text-right">M<%= index %> · <%= l(period, format: "%b/%Y") %></th>
               <% end %>
@@ -90,9 +100,11 @@
             <% @reports.each do |report| %>
               <tr>
                 <td>
+                  <%# Leva o M0, não o fim da janela: passar o último mês abriria o
+                      subcanal numa janela diferente da que está na tela. %>
                   <%= link_to report[:name],
                     three_months_sub_channel_report_path(id: report[:uuid],
-                      start_period: @window.last.strftime("%Y-%m"), channel_id: @selected_channel&.uuid),
+                      start_period: @window.first.strftime("%Y-%m"), channel_id: @selected_channel&.uuid),
                     class: "link" %>
                 </td>
                 <% report[:months].each do |month| %>
