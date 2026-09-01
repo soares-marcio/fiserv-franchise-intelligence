@@ -15,9 +15,19 @@ em períodos de mesma duração.
 | **Mês anterior cheio** | Faturamento do M-1 sem recorte — o mês fechado inteiro. |
 | **Base comparável** | Faturamento do M-1 recortado no mesmo dia de corte do mês atual. |
 | **Variação alinhada** | Mês atual ÷ base comparável. Comparar com o mês cheio subestima a carteira. |
+| **M0/M1/M2 (credenciamento)** | Os três primeiros meses de um EC, contados de `accredited_on`. M0 é a competência inteira do credenciamento ("fração de mês é mês cheio"). |
+| **Prêmio de entrada** | Remuneração por credenciamento, por faixa de faturamento mensal do EC, apurada por **marca d'água**: paga-se em M0 o valor da faixa e, em M1/M2, só a diferença quando a faixa do mês supera o já pago. Mais R$ 30 de digitalização, uma única vez em M0, para EC com acesso ao app. |
+| **Repasse recorrente** | Alíquota (débito e crédito, escolhidas pela faixa de **Net MDR da carteira**) × volume da modalidade. Vitalício, desde a primeira transação. |
+| **Acelerador / redutor** | Mutuamente exclusivos, mês contra mês ("MxM"): crescimento ≥ 20% remunera um % do faturamento **incremental**; queda aplica um % de redução sobre a **remuneração**. Entre 0% e 19,99% de crescimento não há ajuste. |
+| **Página 3M** | Janela de 3 meses de calendário à escolha do usuário, com débito/crédito por competência (`monthly_volumes`) e o modelo de remuneração aplicado por sub-canal e por EC. |
 
 Quando o recorte cobre mais de um canal, usa-se o **menor** dia de corte disponível: comparar
 períodos de durações diferentes entre canais distorceria a variação.
+
+Gabaritos oficiais da Fiserv usados como teste de aceitação (ver
+`test/services/sub_channel_compensation_rules_test.rb`): carteira de R$ 582.000 (45% débito,
+55% crédito) na faixa 0,35–0,39% rende R$ 157,14 + R$ 384,12 = **R$ 541,26**; credenciamento
+com meses de 18k/15k/55k paga R$ 50, nada e R$ 39 — total igual à faixa do mês de pico.
 
 ## Onde ficam as coisas
 
@@ -105,6 +115,16 @@ que chame `AuditViews.recreate!`.
 `AuditViews.refresh!` usa `REFRESH ... CONCURRENTLY` fora de transação (e refresh bloqueante
 dentro, porque o Postgres recusa o concorrente em transação). Nunca chame dentro de um
 `transaction do`.
+
+## Modelo de remuneração
+
+As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensationRules` —
+constantes Ruby que geram os `CASE WHEN` da view `audit_accreditation_earnings` (prêmio de
+entrada por EC, atualizada no refresh do import) e alimentam o cálculo ao vivo da página 3M
+(`ThreeMonthEarningsQuery`, sobre `monthly_volumes_consolidated`). Quem alterar alíquota mexe
+lá, cria migração recriando a view e regenera o `structure.sql`. A tela sempre mostra o prêmio
+de credenciamento nas duas hipóteses (com e sem antecipação automática): a classificação vinda
+da planilha apenas destaca a provável.
 
 ## Metabase
 

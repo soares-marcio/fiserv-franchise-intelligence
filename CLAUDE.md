@@ -83,6 +83,20 @@ comportamentos só aparecem em banco recém-criado, e os três já quebraram o s
 Ao mexer em qualquer um desses caminhos, teste em banco recém-criado (ver abaixo), não só com o
 banco que já está na sua máquina.
 
+Um quarto ainda não quebrou, mas tem data para quebrar: **`Template::VOLUME_MONTHS` é fixo**
+(`202604..202608`), e `Template.validate!` recusa qualquer cabeçalho divergente com
+"Cabeçalhos divergentes". Quando a planilha da Fiserv passar a trazer `... 202609`, o import
+**inteiro** para — não só as colunas de volume. A página 3M depende dessas colunas.
+
+## Modelo de remuneração
+
+As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensationRules`.
+Quem alterar alíquota mexe lá e em nenhum outro lugar — e, como a view
+`audit_accreditation_earnings` congela esses `CASE WHEN` no banco, a mudança exige migração
+recriando a view e regeneração do `structure.sql`. O prêmio de credenciamento é sempre
+apresentado nas duas hipóteses (com e sem antecipação automática): a classificação vinda da
+planilha é inferência e apenas destaca a provável, nunca decide o valor sozinha.
+
 ## Schema, `structure.sql` e produção
 
 O banco é **descartável** nesta fase e será recriado muitas vezes. O caminho para isso é um só:
