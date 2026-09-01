@@ -6,8 +6,9 @@
     <h1 class="page-title"><%= @sub_channel.name %></h1>
     <p class="page-description">
       Estabelecimentos <strong>credenciados no mês escolhido (M0)</strong>, apurados na
-      janela deles: M0, M1 e M2. O acelerador ou redutor é da carteira e aparece aqui no
-      topo — o modelo não o define por estabelecimento.
+      janela deles: M0, M1 e M2 — o modelo dos primeiros 3 meses, com o prêmio de entrada
+      de cada EC. O ganho recorrente da carteira vive na página
+      <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
     </p>
   </section>
 
@@ -30,47 +31,6 @@
       <% end %>
     <% end %>
   </section>
-
-  <% if @window && @summary %>
-    <section class="metric-grid">
-      <article class="metric-card" data-tone="teal">
-        <p class="metric-label">Repasse da janela</p>
-        <p class="metric-value"><%= brl(@summary[:recurring_total]) %></p>
-        <p class="metric-hint">
-          Net MDR da carteira:
-          <%= @summary[:weighted_net_mdr] ? number_with_precision(@summary[:weighted_net_mdr], precision: 2) + "%" : "sem base" %>
-        </p>
-      </article>
-      <% @summary[:transitions].each_with_index do |transition, index| %>
-        <article class="metric-card"
-          data-tone="<%= transition[:accelerator].positive? ? "green" : (transition[:reducer].positive? ? "rose" : "gold") %>">
-          <p class="metric-label">M<%= index %> → M<%= index + 1 %> · <%= l(transition[:from], format: "%b") %> → <%= l(transition[:to], format: "%b/%Y") %></p>
-          <p class="metric-value">
-            <% if transition[:accelerator].positive? %>
-              +<%= brl(transition[:accelerator]) %>
-            <% elsif transition[:reducer].positive? %>
-              −<%= brl(transition[:reducer]) %>
-            <% else %>
-              —
-            <% end %>
-          </p>
-          <p class="metric-hint">
-            <% if transition[:growth].nil? %>
-              Sem mês anterior para comparar
-            <% else %>
-              Variação de <%= number_with_precision(transition[:growth] * 100, precision: 1) %>%
-              <%= "(mês parcial)" if transition[:partial] %>
-            <% end %>
-          </p>
-        </article>
-      <% end %>
-      <article class="metric-card" data-tone="gold">
-        <p class="metric-label">Ganho total da janela</p>
-        <p class="metric-value"><%= brl(@summary[:total]) %></p>
-        <p class="metric-hint">Repasse + acelerador − redutor</p>
-      </article>
-    </section>
-  <% end %>
 
   <% if @reports.any? %>
     <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

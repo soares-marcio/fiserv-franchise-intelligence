@@ -5,11 +5,11 @@
     <p class="eyebrow">Modelo de remuneração</p>
     <h1 class="page-title">Ganhos 3M por subcanal</h1>
     <p class="page-description">
-      Escolha o mês de credenciamento (M0) e a apuração segue na janela M0, M1 e M2. A tabela
-      mostra a <strong>carteira inteira</strong> de cada subcanal nesses meses — débito e
-      crédito da planilha, repasse pela faixa de Net MDR e o acelerador ou redutor, mês contra
-      mês. Ao abrir um subcanal, aparecem só os estabelecimentos <strong>credenciados no
-      M0</strong>, cada um com seu prêmio.
+      O modelo dos primeiros 3 meses: escolha o mês de credenciamento (M0) e a apuração segue
+      na janela M0, M1 e M2. A tabela mostra o faturamento da <strong>carteira inteira</strong>
+      de cada subcanal nesses meses, quantos ECs foram <strong>credenciados no M0</strong> e o
+      prêmio de entrada da safra. O repasse recorrente e o acelerador/redutor vivem na página
+      <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
     </p>
   </section>
 
@@ -49,26 +49,33 @@
     <p class="section-label">
       Totais do recorte — soma dos <%= @reports.size %> subcanais listados
     </p>
+    <% digitalization = @reports.sum { |r| r[:prize][:digitalization] } %>
+    <% addon_without = @reports.sum { |r| r[:prize][:addon_without_auto] } %>
+    <% addon_with = @reports.sum { |r| r[:prize][:addon_with_auto] } %>
     <section class="metric-grid">
       <article class="metric-card" data-tone="teal">
-        <p class="metric-label">Repasse da janela</p>
-        <p class="metric-value"><%= brl(@reports.sum { |r| r[:recurring_total] }) %></p>
-        <p class="metric-hint">Débito + crédito × alíquota da faixa de Net MDR</p>
-      </article>
-      <article class="metric-card" data-tone="green">
-        <p class="metric-label">Aceleradores</p>
-        <p class="metric-value"><%= brl(@reports.sum { |r| r[:accelerator_total] }) %></p>
-        <p class="metric-hint">Sobre o faturamento incremental, crescimento ≥ 20%</p>
-      </article>
-      <article class="metric-card" data-tone="rose">
-        <p class="metric-label">Redutores</p>
-        <p class="metric-value"><%= brl(@reports.sum { |r| r[:reducer_total] }) %></p>
-        <p class="metric-hint">Sobre o repasse, conforme a queda mês contra mês</p>
+        <p class="metric-label">ECs credenciados no M0</p>
+        <p class="metric-value"><%= @reports.sum { |r| r[:prize][:accredited] } %></p>
+        <p class="metric-hint">Safra de <%= l(@window.first, format: "%B de %Y") %></p>
       </article>
       <article class="metric-card" data-tone="gold">
-        <p class="metric-label">Ganho total da janela</p>
-        <p class="metric-value"><%= brl(@reports.sum { |r| r[:total] }) %></p>
-        <p class="metric-hint">Repasse + acelerador − redutor</p>
+        <p class="metric-label">Digitalização (determinada)</p>
+        <p class="metric-value"><%= brl(digitalization) %></p>
+        <p class="metric-hint">R$ 30,00 por EC com app, uma vez em M0</p>
+      </article>
+      <article class="metric-card" data-tone="green">
+        <p class="metric-label">Adicional por faturamento</p>
+        <p class="metric-value">
+          <% if addon_without == addon_with %>
+            <%= brl(addon_without) %>
+          <% else %>
+            <%= brl(addon_without) %> – <%= brl(addon_with) %>
+          <% end %>
+        </p>
+        <p class="metric-hint">
+          <%= addon_without == addon_with ? "Igual nas duas hipóteses de antecipação" :
+            "Intervalo pendente da definição de antecipação" %>
+        </p>
       </article>
     </section>
 
@@ -90,10 +97,8 @@
               <% @window.each_with_index do |period, index| %>
                 <th class="text-right">M<%= index %> · <%= l(period, format: "%b/%Y") %></th>
               <% end %>
-              <th class="text-right">Net MDR</th>
-              <th class="text-right">Repasse</th>
-              <th class="text-right">Ajuste</th>
-              <th class="text-right">Total</th>
+              <th class="text-right">ECs no M0</th>
+              <th class="text-right">Prêmio da safra</th>
             </tr>
           </thead>
           <tbody>
@@ -118,21 +123,18 @@
                     <% end %>
                   </td>
                 <% end %>
-                <td class="text-right tabular-nums">
-                  <%= report[:weighted_net_mdr] ? number_with_precision(report[:weighted_net_mdr], precision: 2) + "%" : "—" %>
-                </td>
-                <td class="text-right tabular-nums"><%= brl(report[:recurring_total]) %></td>
-                <td class="text-right tabular-nums">
-                  <% adjustment = report[:accelerator_total] - report[:reducer_total] %>
-                  <% if adjustment.zero? %>
+                <td class="text-right tabular-nums"><%= report[:prize][:accredited] %></td>
+                <td class="text-right tabular-nums font-semibold">
+                  <% prize = report[:prize] %>
+                  <% if prize[:accredited].zero? %>
                     —
+                  <% elsif prize[:addon_without_auto] == prize[:addon_with_auto] %>
+                    <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %>
                   <% else %>
-                    <span class="<%= adjustment.positive? ? "text-success" : "text-error" %>">
-                      <%= brl(adjustment) %>
-                    </span>
+                    <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %> –
+                    <%= brl(prize[:digitalization] + prize[:addon_with_auto]) %>
                   <% end %>
                 </td>
-                <td class="text-right tabular-nums font-semibold"><%= brl(report[:total]) %></td>
               </tr>
             <% end %>
           </tbody>
