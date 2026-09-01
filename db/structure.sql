@@ -818,12 +818,7 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             snapshot.establishment_id,
             snapshot.accredited_on,
             (date_trunc('month'::text, (snapshot.accredited_on)::timestamp with time zone))::date AS m0_period,
-            (snapshot.last_app_access_at IS NOT NULL) AS has_app_access,
-                CASE
-                    WHEN ((upper((COALESCE(snapshot.auto_advance_boarding_status, ''::character varying))::text) = ANY (ARRAY['SIM'::text, 'ATIVO'::text, 'TRUE'::text])) OR (upper((COALESCE(snapshot.auto_advance_boarding_status_2, ''::character varying))::text) = ANY (ARRAY['SIM'::text, 'ATIVO'::text, 'TRUE'::text]))) THEN true
-                    WHEN ((snapshot.auto_advance_boarding_status IS NOT NULL) OR (snapshot.auto_advance_boarding_status_2 IS NOT NULL)) THEN false
-                    ELSE NULL::boolean
-                END AS auto_classified
+            (snapshot.last_app_access_at IS NOT NULL) AS has_app_access
            FROM (public.map_snapshots snapshot
              JOIN latest_map_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
           WHERE (snapshot.accredited_on IS NOT NULL)
@@ -834,7 +829,6 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             a.accredited_on,
             a.m0_period,
             a.has_app_access,
-            a.auto_classified,
             months.month_index,
             months.period,
             (volume.amount IS NOT NULL) AS month_covered,
@@ -849,7 +843,6 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
     accredited_on,
     m0_period,
     has_app_access,
-    auto_classified,
     count(*) FILTER (WHERE month_covered) AS months_observed,
     max(month_total) FILTER (WHERE month_covered) AS peak_month_revenue,
         CASE
@@ -895,7 +888,7 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             ELSE 2200.00
         END AS addon_with_auto
    FROM month_revenue
-  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access, auto_classified
+  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access
   WITH NO DATA;
 
 
@@ -4387,6 +4380,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260901090000'),
 ('20260831190000'),
 ('20260831120000'),
 ('20260831010000'),

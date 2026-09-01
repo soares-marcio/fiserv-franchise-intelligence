@@ -102,7 +102,6 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     # App acessado e M0 dentro da apuração: digitalização entra, uma única vez.
     assert_in_delta SubChannelCompensationRules::DIGITALIZATION_FEE,
       row["digitalization_amount"].to_f, 0.001
-    assert_equal true, row["auto_classified"]
   end
 
   test "janela só parcialmente coberta apura o que existe e distingue de não apurável" do
@@ -121,6 +120,18 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
       row["addon_without_auto"].to_f, 0.001
     # Sem acesso ao app declarado: nada de digitalização.
     assert_equal 0, row["digitalization_amount"].to_f
+  end
+
+  test "a view não classifica antecipação: as duas hipóteses saem sempre" do
+    row = ApplicationRecord.connection.exec_query(
+      "SELECT * FROM audit_accreditation_earnings LIMIT 1"
+    ).to_a.sole
+
+    # O campo do boarding não carrega esse sinal na origem, então nenhuma coluna de
+    # classificação existe — só os dois valores, para a tela apresentar como hipótese.
+    assert_not row.key?("auto_classified")
+    assert row.key?("addon_without_auto")
+    assert row.key?("addon_with_auto")
   end
 
   test "EC sem nenhum mês da janela coberto fica marcado como não apurável" do

@@ -33,21 +33,20 @@
       <% if accreditation["months_observed"].to_i.zero? %>
         <p class="metric-hint">Sem volume importado nessa janela — não apurável, e não é ganho zero.</p>
       <% else %>
-        <% highlighted = accreditation["auto_classified"] %>
+        <%# Nenhuma hipótese é destacada: a fonte que diz se o EC tem antecipação ainda
+            está em definição, então as duas valem igualmente até isso ser resolvido. %>
         <div class="flex flex-wrap gap-3">
-          <span class="badge <%= highlighted == false ? "badge-primary" : "badge-ghost" %>">
+          <span class="badge badge-ghost">
             Sem antecipação: <%= brl(accreditation["addon_without_auto"].to_f + accreditation["digitalization_amount"].to_f) %>
           </span>
-          <span class="badge <%= highlighted == true ? "badge-primary" : "badge-ghost" %>">
+          <span class="badge badge-ghost">
             Com antecipação: <%= brl(accreditation["addon_with_auto"].to_f + accreditation["digitalization_amount"].to_f) %>
           </span>
         </div>
         <p class="metric-hint">
           <%= accreditation["months_observed"].to_i %> de 3 meses apurados
           <%= "· inclui R$ 30,00 de digitalização (app em M0)" if accreditation["digitalization_amount"].to_f.positive? %>
-          <% if highlighted.nil? %>
-            · classificação de antecipação indefinida — os dois cenários valem como hipótese
-          <% end %>
+          · classificação de antecipação em definição — os dois cenários valem como hipótese
         </p>
       <% end %>
       <p class="metric-hint">

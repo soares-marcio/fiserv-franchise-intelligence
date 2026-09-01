@@ -90,6 +90,15 @@ Um quarto ainda não quebrou, mas tem data para quebrar: **`Template::VOLUME_MON
 
 ## Modelo de remuneração
 
+**`STATUS ANTECIP AUTO NO BOARDING` não diz se o EC tem antecipação.** Na planilha real a
+coluna só aparece com `0` ou vazia — nenhum valor positivo —, então qualquer regra baseada
+nela classifica todo mundo como "sem" ou "indefinido" e nunca "com". A classificação foi
+removida da apuração até a fonte correta ser definida; a tela apresenta as duas hipóteses.
+Candidatas em avaliação: `SOLUÇÕES FINANCEIRAS` (valores `Auto`, `Flex`, `Combo`, `NÃO` —
+vocabulário idêntico ao do slide) e o volume de antecipação realizado
+(`monthly_volumes.metric = 'antecipacao'`). As duas divergem entre si: 502 ECs se declaram
+`Auto`, mas só 248 antecipam de fato.
+
 As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensationRules`.
 Quem alterar alíquota mexe lá e em nenhum outro lugar — e, como a view
 `audit_accreditation_earnings` congela esses `CASE WHEN` no banco, a mudança exige migração
