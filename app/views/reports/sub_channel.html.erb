@@ -48,12 +48,16 @@
           <p class="metric-value">
             <%= variation_headline(@totals[:previous_revenue], @totals[:current_revenue]) %>
           </p>
-          <%# Os cards somam a aba ativa (decisão do usuário). O rótulo diz o recorte
-              porque na aba Alta a variação sai positiva por construção. %>
+          <%# Os cards somam a aba ativa (decisão do usuário). A variação da aba é
+              enviesada por construção, então a verdadeira fica ancorada ao lado. %>
           <% if @selected_variation %>
             <p class="metric-hint">
               Somando só a aba <%= @selected_variation == "alta" ? "Alta" : "Baixa" %>
               (<%= @total_count %> ECs)
+              <% if (overall = @listing.overall_totals) %>
+                · Subcanal inteiro:
+                <strong><%= signed_variation(overall[:previous_revenue], overall[:current_revenue]) %></strong>
+              <% end %>
             </p>
           <% else %>
             <p class="metric-hint">Períodos com a mesma duração</p>

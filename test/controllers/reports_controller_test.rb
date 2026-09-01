@@ -247,7 +247,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # e o rótulo diz o recorte — na Alta a variação é positiva por construção.
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_select ".metric-value", text: "R$ 100,00"
-    assert_select ".metric-hint", text: /Somando só a aba Alta \(1 ECs\)/
+    # A variação verdadeira do subcanal fica ancorada ao lado da enviesada da aba.
+    assert_select ".metric-hint", text: /Somando só a aba Alta \(1 ECs\).*Subcanal inteiro:.*\+25,0%/m
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_select ".metric-value", text: "R$ 100,00", count: 0

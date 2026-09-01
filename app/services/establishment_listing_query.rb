@@ -48,7 +48,8 @@ class EstablishmentListingQuery
 
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
-      totals: summary[:totals], page:, per_page:, variation_counts: fetch_variation_counts
+      totals: summary[:totals], page:, per_page:, variation_counts: fetch_variation_counts,
+      overall_totals: fetch_overall_totals
     )
   end
 
@@ -111,6 +112,20 @@ class EstablishmentListingQuery
         current_revenue: row["current_revenue"].to_d
       }
     }
+  end
+
+  # A variação da aba é enviesada por construção (a aba filtra pela própria métrica);
+  # estes totais sem o filtro de aba ancoram a variação verdadeira do recorte no card.
+  def fetch_overall_totals
+    return nil unless @variation
+
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
+      SELECT COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
+        COALESCE(SUM(current_revenue), 0) AS current_revenue
+      FROM (#{listing_sql}) listings
+    SQL
+    row = ApplicationRecord.connection.exec_query(sql).first || {}
+    { previous_revenue: row["previous_revenue"].to_d, current_revenue: row["current_revenue"].to_d }
   end
 
   # As contagens das três abas respeitam os demais filtros, nunca a própria aba —
