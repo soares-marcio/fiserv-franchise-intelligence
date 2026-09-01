@@ -174,9 +174,7 @@ module ApplicationHelper
 
   def variation_chip(previous, current)
     direction = variation_direction(previous, current)
-    if direction == :unavailable
-      return content_tag(:span, "—", class: "variation-chip variation-chip--empty")
-    end
+    return zero_base_chip(current) if direction == :unavailable
 
     verb = VARIATION_VERBS.fetch(direction)
     value = signed_variation(previous, current)
@@ -184,6 +182,25 @@ module ApplicationHelper
       aria: { label: "#{verb.downcase} #{value}" }) do
       safe_join([ variation_icon_tip(direction, verb),
         content_tag(:span, value, class: "variation-chip__value") ])
+    end
+  end
+
+  # Base zero não tem percentual possível (divisão por zero), mas o caso é descritível
+  # em texto: "Novo" quando saiu do zero e vendeu, "Sem venda" quando segue zerado.
+  # Mesma anatomia e cores dos chips existentes — a palavra é o descritor.
+  def zero_base_chip(current)
+    if current.to_d.positive?
+      content_tag(:span, class: "variation-chip variation-chip--up",
+        aria: { label: "novo: primeira venda na base" }) do
+        safe_join([ variation_icon_tip(:up, "Primeira venda na base"),
+          content_tag(:span, "Novo", class: "variation-chip__value") ])
+      end
+    else
+      content_tag(:span, class: "variation-chip variation-chip--flat",
+        aria: { label: "sem venda nos dois períodos" }) do
+        safe_join([ variation_icon_tip(:flat, "Zerado nos dois períodos"),
+          content_tag(:span, "Sem venda", class: "variation-chip__value") ])
+      end
     end
   end
 

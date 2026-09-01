@@ -20,13 +20,22 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "variation-chip__verb"
   end
 
-  test "chip de variação fica vazio sem base comparável" do
+  # Base zero não vira mais um "—" mudo: o texto descreve o caso, e os dois casos
+  # opostos (nasceu vendendo × segue zerado) deixam de dividir o mesmo símbolo.
+  test "chip sem base comparável descreve: Novo quando vendeu" do
     html = variation_chip(0, 40)
 
-    assert_includes html, "variation-chip--empty"
-    assert_includes html, "—"
-    refute_includes html, "subiu"
-    refute_includes html, "caiu"
+    assert_includes html, "variation-chip--up"
+    assert_includes html, ">Novo<"
+    assert_includes html, 'data-tip="Primeira venda na base"'
+  end
+
+  test "chip sem base comparável descreve: Sem venda quando segue zerado" do
+    html = variation_chip(0, 0)
+
+    assert_includes html, "variation-chip--flat"
+    assert_includes html, ">Sem venda<"
+    assert_includes html, 'data-tip="Zerado nos dois períodos"'
   end
 
   test "seletor de período nomeia a faixa do mês selecionado" do

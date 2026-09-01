@@ -902,14 +902,9 @@
     color: var(--color-error);
   }
 
-  .variation-chip--flat,
-  .variation-chip--empty {
+  .variation-chip--flat {
     background: var(--color-base-200);
     color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
-  }
-
-  .variation-chip--empty {
-    padding-inline: 0.65rem;
   }
 
   .app-alert {
