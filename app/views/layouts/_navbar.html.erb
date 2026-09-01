@@ -16,6 +16,8 @@
           class: nav_link_class({ controller: :reports, actions: %w[stalled] }) %>
         <%= link_to icon_label("calendar-blank", "Semanal", css: "nav-icon"), weekly_reports_path,
           class: nav_link_class({ controller: :reports, actions: %w[weekly] }) %>
+        <%= link_to icon_label("calendar-check", "Ganhos 3M", css: "nav-icon"), three_months_reports_path,
+          class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
       </div>
       <div class="nav-group" aria-label="Operação">
         <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,

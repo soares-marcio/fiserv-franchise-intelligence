@@ -1,0 +1,80 @@
+<% content_for :title, "Ganhos 3M — #{@sub_channel.name}" %>
+
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Modelo de remuneração</p>
+    <h1 class="page-title"><%= @sub_channel.name %></h1>
+    <p class="page-description">
+      Estabelecimentos do subcanal na janela escolhida. O prêmio de credenciamento é por EC;
+      o acelerador ou redutor é da carteira e aparece aqui no topo — o modelo não o define
+      por estabelecimento.
+    </p>
+  </section>
+
+  <section class="filter-panel">
+    <%= form_with url: three_months_sub_channel_report_path(id: @sub_channel.uuid), method: :get,
+      class: "flex flex-wrap items-end gap-3" do %>
+      <label class="grid gap-1.5">
+        <span class="section-label">Mês final da janela</span>
+        <%= select_tag :start_period,
+          options_for_select(@available_periods.map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
+            @window&.last&.strftime("%Y-%m")),
+          class: "select select-bordered w-auto min-w-52 max-w-full" %>
+      </label>
+      <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
+    <% end %>
+  </section>
+
+  <% if @window && @summary %>
+    <section class="metric-grid">
+      <article class="metric-card" data-tone="teal">
+        <p class="metric-label">Repasse da janela</p>
+        <p class="metric-value"><%= brl(@summary[:recurring_total]) %></p>
+        <p class="metric-hint">
+          Net MDR da carteira:
+          <%= @summary[:weighted_net_mdr] ? number_with_precision(@summary[:weighted_net_mdr], precision: 2) + "%" : "sem base" %>
+        </p>
+      </article>
+      <% @summary[:transitions].each do |transition| %>
+        <article class="metric-card"
+          data-tone="<%= transition[:accelerator].positive? ? "green" : (transition[:reducer].positive? ? "rose" : "gold") %>">
+          <p class="metric-label"><%= l(transition[:from], format: "%b") %> → <%= l(transition[:to], format: "%b/%Y") %></p>
+          <p class="metric-value">
+            <% if transition[:accelerator].positive? %>
+              +<%= brl(transition[:accelerator]) %>
+            <% elsif transition[:reducer].positive? %>
+              −<%= brl(transition[:reducer]) %>
+            <% else %>
+              —
+            <% end %>
+          </p>
+          <p class="metric-hint">
+            <% if transition[:growth].nil? %>
+              Sem mês anterior para comparar
+            <% else %>
+              Variação de <%= number_with_precision(transition[:growth] * 100, precision: 1) %>%
+              <%= "(mês parcial)" if transition[:partial] %>
+            <% end %>
+          </p>
+        </article>
+      <% end %>
+      <article class="metric-card" data-tone="gold">
+        <p class="metric-label">Ganho total da janela</p>
+        <p class="metric-value"><%= brl(@summary[:total]) %></p>
+        <p class="metric-hint">Repasse + acelerador − redutor</p>
+      </article>
+    </section>
+  <% end %>
+
+  <% if @reports.any? %>
+    <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <% @reports.each do |report| %>
+        <%= render "establishment_earnings_card", report:, window: @window %>
+      <% end %>
+    </section>
+  <% else %>
+    <section class="table-frame">
+      <div class="empty-state">Nenhum estabelecimento com volume mensal na janela escolhida.</div>
+    </section>
+  <% end %>
+</div>

@@ -71,6 +71,11 @@ module ApplicationHelper
     when "sub_channel"
       [ breadcrumb_section("Dashboard"), breadcrumb_link("Faturamento", reports_path),
         breadcrumb_current(@sub_channel&.name || "Subcanal") ]
+    when "three_months"
+      [ breadcrumb_section("Dashboard"), breadcrumb_current("Ganhos 3M") ]
+    when "three_months_sub_channel"
+      [ breadcrumb_section("Dashboard"), breadcrumb_link("Ganhos 3M", three_months_reports_path),
+        breadcrumb_current(@sub_channel&.name || "Subcanal") ]
     else
       [ breadcrumb_section("Dashboard"), breadcrumb_current("Faturamento") ]
     end

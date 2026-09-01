@@ -1,0 +1,134 @@
+<% content_for :title, "Ganhos 3M" %>
+
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Modelo de remuneração</p>
+    <h1 class="page-title">Ganhos 3M por subcanal</h1>
+    <p class="page-description">
+      Janela de três meses de calendário à sua escolha, com o faturamento de débito e crédito
+      da planilha e o repasse do modelo de remuneração. O acelerador ou o redutor — nunca os
+      dois — é aplicado mês contra mês dentro da janela.
+    </p>
+  </section>
+
+  <section class="filter-panel">
+    <%= form_with url: three_months_reports_path, method: :get,
+      class: "flex flex-wrap items-end gap-3" do %>
+      <label class="grid gap-1.5">
+        <span class="section-label">Canal da carteira</span>
+        <%= select_tag :channel_id,
+          options_for_select([["Todos os canais", ""]] + @channels.map { |channel| [channel.name, channel.uuid] },
+            @selected_channel&.uuid),
+          class: "select select-bordered w-auto min-w-52 max-w-full" %>
+      </label>
+      <label class="grid gap-1.5">
+        <span class="section-label">Mês final da janela</span>
+        <%# Só meses com volume mensal importado: a planilha limita a escolha, não o sistema. %>
+        <%= select_tag :start_period,
+          options_for_select(@available_periods.map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
+            @window&.last&.strftime("%Y-%m")),
+          class: "select select-bordered w-auto min-w-52 max-w-full" %>
+      </label>
+      <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
+    <% end %>
+  </section>
+
+  <% if @window %>
+    <section class="metric-grid">
+      <article class="metric-card" data-tone="teal">
+        <p class="metric-label">Repasse da janela</p>
+        <p class="metric-value"><%= brl(@reports.sum { |r| r[:recurring_total] }) %></p>
+        <p class="metric-hint">Débito + crédito × alíquota da faixa de Net MDR</p>
+      </article>
+      <article class="metric-card" data-tone="green">
+        <p class="metric-label">Aceleradores</p>
+        <p class="metric-value"><%= brl(@reports.sum { |r| r[:accelerator_total] }) %></p>
+        <p class="metric-hint">Sobre o faturamento incremental, crescimento ≥ 20%</p>
+      </article>
+      <article class="metric-card" data-tone="rose">
+        <p class="metric-label">Redutores</p>
+        <p class="metric-value"><%= brl(@reports.sum { |r| r[:reducer_total] }) %></p>
+        <p class="metric-hint">Sobre o repasse, conforme a queda mês contra mês</p>
+      </article>
+      <article class="metric-card" data-tone="gold">
+        <p class="metric-label">Ganho total da janela</p>
+        <p class="metric-value"><%= brl(@reports.sum { |r| r[:total] }) %></p>
+        <p class="metric-hint">Repasse + acelerador − redutor</p>
+      </article>
+    </section>
+
+    <section class="table-frame" data-controller="sticky-table">
+      <div class="table-toolbar">
+        <div>
+          <p class="section-label">Subcanais</p>
+          <h2 class="table-title">Ganho por subcanal na janela</h2>
+        </div>
+        <span class="badge badge-ghost"><%= @window.map { |p| l(p, format: "%b/%Y") }.join(" · ") %></span>
+      </div>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Subcanal</th>
+              <% @window.each do |period| %>
+                <th class="text-right"><%= l(period, format: "%b/%Y") %></th>
+              <% end %>
+              <th class="text-right">Net MDR</th>
+              <th class="text-right">Repasse</th>
+              <th class="text-right">Ajuste</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @reports.each do |report| %>
+              <tr>
+                <td>
+                  <%= link_to report[:name],
+                    three_months_sub_channel_report_path(id: report[:uuid],
+                      start_period: @window.last.strftime("%Y-%m"), channel_id: @selected_channel&.uuid),
+                    class: "link" %>
+                </td>
+                <% report[:months].each do |month| %>
+                  <td class="text-right tabular-nums">
+                    <% if month[:covered] %>
+                      <%= brl(month[:total]) %>
+                      <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
+                      <p class="metric-hint">D <%= brl(month[:debit]) %> · C <%= brl(month[:credit]) %></p>
+                    <% else %>
+                      <span class="metric-hint">sem dado</span>
+                    <% end %>
+                  </td>
+                <% end %>
+                <td class="text-right tabular-nums">
+                  <%= report[:weighted_net_mdr] ? number_with_precision(report[:weighted_net_mdr], precision: 2) + "%" : "—" %>
+                </td>
+                <td class="text-right tabular-nums"><%= brl(report[:recurring_total]) %></td>
+                <td class="text-right tabular-nums">
+                  <% adjustment = report[:accelerator_total] - report[:reducer_total] %>
+                  <% if adjustment.zero? %>
+                    —
+                  <% else %>
+                    <span class="<%= adjustment.positive? ? "text-success" : "text-error" %>">
+                      <%= brl(adjustment) %>
+                    </span>
+                  <% end %>
+                </td>
+                <td class="text-right tabular-nums font-semibold"><%= brl(report[:total]) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% if @reports.empty? %>
+          <div class="empty-state">Nenhum volume mensal na janela escolhida.</div>
+        <% end %>
+      </div>
+    </section>
+  <% else %>
+    <section class="table-frame">
+      <div class="empty-state">
+        Sem volumes mensais importados ainda — a página 3M depende das colunas de volume da
+        planilha (débito e crédito por competência).
+      </div>
+    </section>
+  <% end %>
+</div>

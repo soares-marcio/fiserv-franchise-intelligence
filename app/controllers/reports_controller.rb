@@ -26,6 +26,28 @@ class ReportsController < ApplicationController
     @reports = @scope.weekly_revenue
   end
 
+  # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
+  # meses que os volumes mensais da planilha realmente cobrem.
+  def three_months
+    @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
+    @window = three_month_window
+    @reports = @window ? @scope.three_month_earnings(periods: @window) : []
+  end
+
+  def three_months_sub_channel
+    @sub_channel = SubChannel.find_param!(params[:id])
+    if @selected_channel && @sub_channel.channel_id != @selected_channel.id
+      raise ActiveRecord::RecordNotFound
+    end
+
+    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
+    @window = three_month_window
+    @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
+    @summary = @window ? @scope.three_month_earnings(periods: @window)
+      .find { |row| row[:sub_channel_id] == @sub_channel.id } : nil
+  end
+
   def sub_channel
     @sub_channel = SubChannel.find_param!(params[:id])
     if @selected_channel && @sub_channel.channel_id != @selected_channel.id
@@ -87,6 +109,24 @@ class ReportsController < ApplicationController
     return if value.blank?
 
     Date.parse(value.to_s)
+  rescue Date::Error, ArgumentError, TypeError
+    nil
+  end
+
+  # O mês escolhido fecha a janela: ele e os dois anteriores. Meses fora da cobertura de
+  # volumes aparecem na tela como "sem dado", não somem.
+  def three_month_window
+    return nil if @available_periods.empty?
+
+    start = parse_start_period || @available_periods.first
+    [ start - 2.months, start - 1.month, start ]
+  end
+
+  def parse_start_period
+    return if params[:start_period].blank?
+
+    parsed = Date.strptime(params[:start_period].to_s, "%Y-%m").beginning_of_month
+    parsed if @available_periods.include?(parsed)
   rescue Date::Error, ArgumentError, TypeError
     nil
   end

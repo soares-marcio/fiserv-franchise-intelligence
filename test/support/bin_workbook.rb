@@ -16,10 +16,15 @@ module BinWorkbook
   Loja = Struct.new(
     :ec, :cnpj, :sub_channel_name, :legal_name, :trade_name, :contract_status,
     :dias_m1, :dias_atual, :melhor_conversa, :proposta,
+    :accredited_on, :net_mdr, :app_access_at, :auto_boarding, :debitos, :creditos,
     keyword_init: true
   ) do
     def total_m1 = dias_m1.values.sum
     def total_atual = dias_atual.values.sum
+    # Volume de uma competência AAAAMM na família pedida; 1 é o valor herdado dos
+    # testes antigos, que não declaravam débito/crédito.
+    def debito(month) = (debitos || {}).fetch(month, 1)
+    def credito(month) = (creditos || {}).fetch(month, 1)
   end
 
   # EC 30000001 e 90000001 dividem o CNPJ de propósito: é o par que dispara
@@ -84,7 +89,10 @@ module BinWorkbook
       "NOME FANTASIA" => loja.trade_name, "STATUS DO CONTRATO" => loja.contract_status,
       "MELHOR CONVERSA" => loja.melhor_conversa, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
       "CEP" => "74000000", "TELEFONE DO TRABALHO" => "6230000000",
-      "DATA DE CREDENCIAMENTO" => "01/02/2026", "DATA DE ATIVAÇÃO" => "05/02/2026"
+      "DATA DE CREDENCIAMENTO" => loja.accredited_on || "01/02/2026",
+      "DATA DE ATIVAÇÃO" => "05/02/2026",
+      "NET MDR" => loja.net_mdr, "ULTIMO ACESSO NO APP" => loja.app_access_at,
+      "STATUS ANTECIP AUTO NO BOARDING" => loja.auto_boarding
     }.merge(volume_columns(loja))
   end
 
@@ -120,9 +128,55 @@ module BinWorkbook
     totais = OUTROS_VOLUMES.merge(MES_M1 => loja.total_m1, MES_ATUAL => loja.total_atual)
     BinImport::Template::VOLUME_FAMILIES.flat_map do |family|
       BinImport::Template::VOLUME_MONTHS.map do |month|
-        value = family == "VOLUME DE FATURAMENTO TOTAL" ? totais.fetch(month) : 1
+        value = case family
+        when "VOLUME DE FATURAMENTO TOTAL" then totais.fetch(month)
+        when "VOLUME DE FATURAMENTO DÉBITO" then loja.debito(month)
+        when "VOLUME DE FATURAMENTO CRÉDITO" then loja.credito(month)
+        else 1
+        end
         [ "#{family} #{month}", value ]
       end
     end.to_h
+  end
+
+  # Lojas para os testes da página 3M: janelas de credenciamento, MDR e volumes de
+  # débito/crédito deliberados para cobrir acelerador, redutor e as hipóteses de
+  # antecipação. Não altera default_lojas, usado pelos testes existentes.
+  def self.earnings_lojas
+    [
+      # Credenciada em julho: M0 fechado, M1 aberto (cortado), M2 sem cobertura.
+      # Com app e antecipação declarada; MDR alto puxa a carteira GAMA para a faixa topo.
+      Loja.new(
+        ec: "50000001", cnpj: "22333444000155", sub_channel_name: "MIC GAMA",
+        legal_name: "GAMA COMERCIO LTDA", trade_name: "GAMA STORE",
+        contract_status: "Active", dias_m1: { 5 => 18_000 }, dias_atual: { 3 => 55_000 },
+        melhor_conversa: nil, proposta: false,
+        accredited_on: Date.new(2026, 7, 10), net_mdr: 0.42,
+        app_access_at: "2026-07-15 10:00", auto_boarding: "SIM",
+        debitos: { "202606" => 1_000, "202607" => 4_000, "202608" => 9_000 },
+        creditos: { "202606" => 1_000, "202607" => 6_000, "202608" => 12_000 }
+      ),
+      # Sem MDR ("Inativo"): sai da média ponderada. Crescimento forte na GAMA vem daqui.
+      Loja.new(
+        ec: "50000002", cnpj: "33444555000166", sub_channel_name: "MIC GAMA",
+        legal_name: "GAMA FILIAL LTDA", trade_name: "GAMA ANEXO",
+        contract_status: "Active", dias_m1: { 2 => 500 }, dias_atual: { 2 => 800 },
+        melhor_conversa: nil, proposta: false,
+        net_mdr: "Inativo",
+        debitos: { "202606" => 500, "202607" => 500, "202608" => 3_000 },
+        creditos: { "202606" => 500, "202607" => 500, "202608" => 2_000 }
+      ),
+      # Carteira DELTA em queda de mais de 50% na última transição; MDR mediano;
+      # credenciamento antigo, fora do histórico coberto — "não apurável", nunca R$0.
+      Loja.new(
+        ec: "50000003", cnpj: "44555666000177", sub_channel_name: "MIC DELTA",
+        legal_name: "DELTA SERVICOS LTDA", trade_name: "DELTA LOJA",
+        contract_status: "Active", dias_m1: { 1 => 9_000 }, dias_atual: { 1 => 2_000 },
+        melhor_conversa: nil, proposta: false,
+        accredited_on: Date.new(2026, 2, 1), net_mdr: 0.31,
+        debitos: { "202606" => 5_000, "202607" => 10_000, "202608" => 2_000 },
+        creditos: { "202606" => 5_000, "202607" => 10_000, "202608" => 2_000 }
+      )
+    ]
   end
 end

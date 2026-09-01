@@ -40,6 +40,38 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "a página 3M abre sem volume importado e explica a dependência da planilha" do
+    get three_months_reports_path
+    assert_response :success
+    assert_select "h1", text: "Ganhos 3M por subcanal"
+    assert_select ".empty-state", text: /depende das colunas de volume da planilha/
+  end
+
+  test "a página 3M abre com o banco recém-criado, view de credenciamento sem dados" do
+    ApplicationRecord.connection.execute(
+      "REFRESH MATERIALIZED VIEW audit_accreditation_earnings WITH NO DATA"
+    )
+    get three_months_reports_path
+    assert_response :success
+  end
+
+  test "página 3M lista subcanais e navega para os cards de estabelecimento" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path
+    assert_response :success
+    assert_select "td a", text: "MIC GAMA"
+
+    sub_channel = SubChannel.find_by!(name: "MIC GAMA")
+    get three_months_sub_channel_report_path(id: sub_channel.uuid, start_period: "2026-08")
+    assert_response :success
+    assert_select ".metric-label", text: "EC 50000001"
+    # As duas hipóteses aparecem lado a lado, sempre — a classificação só destaca.
+    assert_select ".badge", text: /Sem antecipação/
+    assert_select ".badge", text: /Com antecipação/
+  end
+
   test "renderiza a página de auditoria sem dados" do
     get reports_path
     assert_response :success
