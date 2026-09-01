@@ -11,11 +11,18 @@ class EstablishmentListingQuery
   DEFAULT_PER_PAGE = 20
   MIN_DIGITS_SEARCH = 3
 
-  # Abas por variação alinhada. Baixa concentra a atenção: quem piorou ou zerou o mês
-  # atual. Estável e EC novo faturando ficam em Alta — estabilidade não é problema.
+  # Abas por variação alinhada. "Novo" de verdade é só quem foi ativado neste mês ou no
+  # anterior (na falta da ativação, vale o credenciamento): EC antigo que estava zerado e
+  # voltou a vender não é crescimento — é atenção, e cai na aba de queda. Sem nenhuma das
+  # datas, não dá para provar que é novo: também cai na queda.
+  RECENT_ACTIVATION = "COALESCE(activated_on, accredited_on) >= :previous_period".freeze
   VARIATION_CLAUSES = {
-    "alta" => "current_revenue > 0 AND current_revenue >= previous_revenue",
-    "baixa" => "current_revenue = 0 OR current_revenue < previous_revenue"
+    "alta" => "current_revenue > 0 AND current_revenue >= previous_revenue " \
+      "AND (previous_revenue > 0 OR #{RECENT_ACTIVATION})",
+    "baixa" => "current_revenue = 0 OR current_revenue < previous_revenue " \
+      "OR (previous_revenue = 0 AND current_revenue > 0 " \
+      "AND (COALESCE(activated_on, accredited_on) IS NULL " \
+      "OR COALESCE(activated_on, accredited_on) < :previous_period))"
   }.freeze
 
   def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],

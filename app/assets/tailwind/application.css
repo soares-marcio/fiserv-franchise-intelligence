@@ -668,6 +668,19 @@
     opacity: 0.75;
   }
 
+  /* O glifo de tendência acompanha o rótulo na linha do título, no mesmo vocabulário
+     visual dos chips da tabela. */
+  .variation-tabs .tab-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .variation-tabs .tab-title .variation-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
   .variation-tabs a:hover {
     color: var(--cork-strong);
     background: var(--cork-primary-100);

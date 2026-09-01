@@ -52,7 +52,7 @@
               enviesada por construção, então a verdadeira fica ancorada ao lado. %>
           <% if @selected_variation %>
             <p class="metric-hint">
-              Somando só a aba <%= @selected_variation == "alta" ? "Alta" : "Baixa" %>
+              Somando só a aba <%= @selected_variation == "alta" ? "Em crescimento" : "Em queda" %>
               (<%= @total_count %> ECs)
               <% if (overall = @listing.overall_totals) %>
                 · Subcanal inteiro:
@@ -212,20 +212,20 @@
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
       class: ("is-active" if @selected_variation.nil?),
       role: "tab", aria: { selected: @selected_variation.nil? } do %>
-      <span class="tab-title">Todas · <%= counts[:todas] %></span>
+      <span class="tab-title">Todos · <%= counts[:todas] %></span>
       <span class="tab-hint">todos os estabelecimentos</span>
     <% end %>
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
       class: ("is-active" if @selected_variation == "alta"),
       role: "tab", aria: { selected: @selected_variation == "alta" } do %>
-      <span class="tab-title">Alta · <%= counts[:alta] %></span>
-      <span class="tab-hint">cresceu, manteve ou é novo</span>
+      <span class="tab-title"><%= phosphor_icon(:up) %> Em crescimento · <%= counts[:alta] %></span>
+      <span class="tab-hint">vendeu mais, manteve ou é novo</span>
     <% end %>
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "baixa", page: nil)),
       class: ("is-active" if @selected_variation == "baixa"),
       role: "tab", aria: { selected: @selected_variation == "baixa" } do %>
-      <span class="tab-title">Baixa · <%= counts[:baixa] %></span>
-      <span class="tab-hint">caiu ou está sem venda</span>
+      <span class="tab-title"><%= phosphor_icon(:down) %> Em queda · <%= counts[:baixa] %></span>
+      <span class="tab-hint">vendeu menos, está sem venda ou voltou do zero</span>
     <% end %>
   </nav>
 
@@ -320,7 +320,13 @@
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
               <td class="text-right">
-                <%= variation_chip(previous, current) %>
+                <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
+                    anterior; antigo que saiu do zero vira "Voltou a vender". %>
+                <% reference_date = report["activated_on"] || report["accredited_on"] %>
+                <% novo = if previous.zero? && current.positive?
+                     reference_date.present? && reference_date.to_date >= report["previous_period"].to_date
+                   end %>
+                <%= variation_chip(previous, current, novo:) %>
               </td>
             </tr>
           <% end %>

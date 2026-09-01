@@ -199,10 +199,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "table tbody td span.block", false
     # Abas de variação com contagens, e a completa ativa por padrão.
     assert_select "nav.variation-tabs a", count: 3
-    assert_select "nav.variation-tabs a.is-active", text: /Todas/
-    # Cada aba descreve o próprio critério, em palavras.
-    assert_select "nav.variation-tabs .tab-hint", text: "cresceu, manteve ou é novo"
-    assert_select "nav.variation-tabs .tab-hint", text: "caiu ou está sem venda"
+    assert_select "nav.variation-tabs a.is-active", text: /Todos/
+    # Cada aba descreve o próprio critério, em palavras, com o glifo de tendência no título.
+    assert_select "nav.variation-tabs .tab-title .variation-icon", count: 2
+    assert_select "nav.variation-tabs .tab-hint", text: "vendeu mais, manteve ou é novo"
+    assert_select "nav.variation-tabs .tab-hint", text: "vendeu menos, está sem venda ou voltou do zero"
   end
 
   test "abas de variação separam alta e baixa, com EC zerado na baixa" do
@@ -224,18 +225,41 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       provisional: false, source_import_batch_id: batch.id, revised_count: 0
     )
 
-    # Na semente, o EC 11111111 sobe (80 → 100): fica na Alta.
+    # Terceiro EC: ativação antiga, zerado no mês anterior e vendendo agora — não é
+    # crescimento, é retomada: mora na queda, com o chip descritivo próprio.
+    returned = Establishment.create!(
+      ec: "33333333", company: Company.create!(cnpj: "12345678000193"), channel:
+    )
+    RevenueSnapshot.create!(
+      import_batch: batch, channel:, sub_channel:, establishment: returned,
+      legal_name: "LOJA TRES LTDA", trade_name: "LOJA TRES", contract_status: "Active",
+      previous_month_total: 0, current_month_total: 40
+    )
+    MapSnapshot.create!(
+      import_batch: batch, channel:, sub_channel:, establishment: returned,
+      legal_name: "LOJA TRES LTDA", trade_name: "LOJA TRES", contract_status: "Active",
+      accredited_on: Date.new(2024, 1, 10), activated_on: Date.new(2024, 2, 1)
+    )
+    DailyRevenueConsolidated.create!(
+      establishment: returned, channel:, period: Date.new(2026, 8, 1), day: 10, amount: 40,
+      provisional: true, source_import_batch_id: batch.id, revised_count: 0
+    )
+
+    # Na semente, o EC 11111111 sobe (80 → 100): fica em crescimento.
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_response :success
-    assert_select "nav.variation-tabs a.is-active .tab-title", text: "Alta · 1"
+    assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
     assert_select "tbody td", text: "11111111"
     assert_select "tbody td", text: "22222222", count: 0
+    assert_select "tbody td", text: "33333333", count: 0
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_response :success
-    assert_select "nav.variation-tabs a.is-active .tab-title", text: "Baixa · 1"
+    assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em queda · 2/
     assert_select "tbody td", text: "22222222"
+    assert_select "tbody td", text: "33333333"
     assert_select "tbody td", text: "11111111", count: 0
+    assert_select ".variation-chip", text: /Voltou a vender/
   end
 
   test "os cards da primeira dobra somam a aba ativa, com o recorte rotulado" do
@@ -251,12 +275,12 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_select ".metric-value", text: "R$ 100,00"
     # A variação verdadeira do subcanal fica ancorada ao lado da enviesada da aba.
-    assert_select ".metric-hint", text: /Somando só a aba Alta \(1 ECs\).*Subcanal inteiro:.*\+25,0%/m
+    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*Subcanal inteiro:.*\+25,0%/m
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_select ".metric-value", text: "R$ 100,00", count: 0
     assert_select ".metric-value", text: "R$ 0,00"
-    assert_select ".metric-hint", text: /Somando só a aba Baixa \(0 ECs\)/
+    assert_select ".metric-hint", text: /Somando só a aba Em queda \(0 ECs\)/
     assert_select ".empty-state"
   end
 

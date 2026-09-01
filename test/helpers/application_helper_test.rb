@@ -30,6 +30,14 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, 'data-tip="Primeira venda na base"'
   end
 
+  test "chip sem base comparável descreve: Voltou a vender quando a ativação é antiga" do
+    html = variation_chip(0, 40, novo: false)
+
+    assert_includes html, "variation-chip--flat"
+    assert_includes html, ">Voltou a vender<"
+    assert_includes html, 'data-tip="Sem venda no mês anterior; ativação antiga"'
+  end
+
   test "chip sem base comparável descreve: Sem venda quando segue zerado" do
     html = variation_chip(0, 0)
 

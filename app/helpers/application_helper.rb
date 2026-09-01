@@ -172,9 +172,9 @@ module ApplicationHelper
       data: { tip: verb }, tabindex: 0)
   end
 
-  def variation_chip(previous, current)
+  def variation_chip(previous, current, novo: nil)
     direction = variation_direction(previous, current)
-    return zero_base_chip(current) if direction == :unavailable
+    return zero_base_chip(current, novo:) if direction == :unavailable
 
     verb = VARIATION_VERBS.fetch(direction)
     value = signed_variation(previous, current)
@@ -186,14 +186,25 @@ module ApplicationHelper
   end
 
   # Base zero não tem percentual possível (divisão por zero), mas o caso é descritível
-  # em texto: "Novo" quando saiu do zero e vendeu, "Sem venda" quando segue zerado.
-  # Mesma anatomia e cores dos chips existentes — a palavra é o descritor.
-  def zero_base_chip(current)
+  # em texto, na mesma anatomia dos chips existentes. Três leituras: "Novo" quando o EC
+  # foi ativado neste mês ou no anterior e vendeu; "Voltou a vender" quando é antigo,
+  # estava zerado e vendeu (mora na aba de queda — é atenção, não crescimento); e
+  # "Sem venda" quando segue zerado. `novo: nil` preserva a leitura otimista para
+  # chamadores sem data, como a listagem por subcanal.
+  def zero_base_chip(current, novo: nil)
     if current.to_d.positive?
-      content_tag(:span, class: "variation-chip variation-chip--up",
-        aria: { label: "novo: primeira venda na base" }) do
-        safe_join([ variation_icon_tip(:up, "Primeira venda na base"),
-          content_tag(:span, "Novo", class: "variation-chip__value") ])
+      if novo == false
+        content_tag(:span, class: "variation-chip variation-chip--flat",
+          aria: { label: "voltou a vender: sem venda no mês anterior, ativação antiga" }) do
+          safe_join([ variation_icon_tip(:flat, "Sem venda no mês anterior; ativação antiga"),
+            content_tag(:span, "Voltou a vender", class: "variation-chip__value") ])
+        end
+      else
+        content_tag(:span, class: "variation-chip variation-chip--up",
+          aria: { label: "novo: primeira venda na base" }) do
+          safe_join([ variation_icon_tip(:up, "Primeira venda na base"),
+            content_tag(:span, "Novo", class: "variation-chip__value") ])
+        end
       end
     else
       content_tag(:span, class: "variation-chip variation-chip--flat",
