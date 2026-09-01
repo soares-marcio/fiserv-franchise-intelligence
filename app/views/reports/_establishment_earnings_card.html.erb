@@ -24,7 +24,7 @@
   </div>
 
   <% if accreditation && in_window %>
-    <div class="mt-3 grid gap-1">
+    <div class="mt-3 grid gap-1 border-t border-base-200 pt-3">
       <p class="section-label">Prêmio de credenciamento (M0 = <%= l(accreditation["m0_period"].to_date, format: "%b/%Y") %>)</p>
       <% if accreditation["months_observed"].to_i.zero? %>
         <p class="metric-hint">Janela fora do histórico importado — não apurável, e não é ganho zero.</p>
@@ -48,9 +48,11 @@
       <% end %>
     </div>
   <% elsif accreditation %>
-    <p class="metric-hint mt-3">
-      Credenciado em <%= l(accreditation["accredited_on"].to_date, format: "%d/%m/%Y") %> —
-      janela M0/M1/M2 fora do intervalo escolhido.
-    </p>
+    <div class="mt-3 flex flex-wrap items-center gap-2 border-t border-base-200 pt-3">
+      <span class="badge badge-ghost">
+        Credenciado em <%= l(accreditation["accredited_on"].to_date, format: "%d/%m/%y") %>
+      </span>
+      <span class="metric-hint">prêmio de credenciamento fora desta janela</span>
+    </div>
   <% end %>
 </article>
