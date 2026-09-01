@@ -17,9 +17,9 @@
       </tr>
     </thead>
     <tbody>
-      <% report[:months].each do |month| %>
+      <% report[:months].each_with_index do |month, index| %>
         <tr>
-          <td><%= l(month[:period], format: "%b/%Y") %><%= " *" if month[:partial] %></td>
+          <td>M<%= index %> · <%= l(month[:period], format: "%b/%Y") %><%= " *" if month[:partial] %></td>
           <% if month[:covered] %>
             <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
             <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>

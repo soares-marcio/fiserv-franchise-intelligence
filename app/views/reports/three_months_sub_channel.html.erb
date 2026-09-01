@@ -35,10 +35,10 @@
           <%= @summary[:weighted_net_mdr] ? number_with_precision(@summary[:weighted_net_mdr], precision: 2) + "%" : "sem base" %>
         </p>
       </article>
-      <% @summary[:transitions].each do |transition| %>
+      <% @summary[:transitions].each_with_index do |transition, index| %>
         <article class="metric-card"
           data-tone="<%= transition[:accelerator].positive? ? "green" : (transition[:reducer].positive? ? "rose" : "gold") %>">
-          <p class="metric-label"><%= l(transition[:from], format: "%b") %> → <%= l(transition[:to], format: "%b/%Y") %></p>
+          <p class="metric-label">M<%= index %> → M<%= index + 1 %> · <%= l(transition[:from], format: "%b") %> → <%= l(transition[:to], format: "%b/%Y") %></p>
           <p class="metric-value">
             <% if transition[:accelerator].positive? %>
               +<%= brl(transition[:accelerator]) %>

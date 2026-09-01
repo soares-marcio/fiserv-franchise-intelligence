@@ -62,6 +62,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get three_months_reports_path
     assert_response :success
     assert_select "td a", text: "MIC GAMA"
+    # O locale precisa dos meses abreviados: %b sem abbr_month_names rendia
+    # "Translation missing" em todos os cabeçalhos de mês. M0 é o mês mais antigo.
+    assert_select "th", text: "M0 · jun/2026"
+    assert_select "th", text: "M2 · ago/2026"
+    assert_no_match(/translation missing/i, response.body)
 
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
     get three_months_sub_channel_report_path(id: sub_channel.uuid, start_period: "2026-08")

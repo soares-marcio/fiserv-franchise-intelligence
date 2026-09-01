@@ -70,8 +70,10 @@
           <thead>
             <tr>
               <th>Subcanal</th>
-              <% @window.each do |period| %>
-                <th class="text-right"><%= l(period, format: "%b/%Y") %></th>
+              <%# M0 é o mês mais antigo da janela, na mesma direção cronológica do
+                  credenciamento; o mês de calendário ao lado desfaz qualquer ambiguidade. %>
+              <% @window.each_with_index do |period, index| %>
+                <th class="text-right">M<%= index %> · <%= l(period, format: "%b/%Y") %></th>
               <% end %>
               <th class="text-right">Net MDR</th>
               <th class="text-right">Repasse</th>
