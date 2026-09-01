@@ -55,7 +55,7 @@ module ApplicationHelper
     when "reports" then reports_breadcrumb_items
     when "establishments" then establishments_breadcrumb_items
     when "import_batches" then import_batches_breadcrumb_items
-    when "metabase" then [ breadcrumb_section("Operação"), breadcrumb_current("Metabase") ]
+    when "metabase" then [ breadcrumb_current("Metabase") ]
     else [ breadcrumb_current(content_for(:title).presence || "Página") ]
     end
   end
@@ -63,45 +63,45 @@ module ApplicationHelper
   def reports_breadcrumb_items
     case action_name
     when "index"
-      [ breadcrumb_section("Dashboard"), breadcrumb_current("Faturamento") ]
+      [ breadcrumb_current("Faturamento") ]
     when "stalled"
-      [ breadcrumb_section("Dashboard"), breadcrumb_current("Clientes parados") ]
+      [ breadcrumb_current("Clientes parados") ]
     when "weekly"
-      [ breadcrumb_section("Dashboard"), breadcrumb_current("Semanal") ]
+      [ breadcrumb_current("Semanal") ]
     when "sub_channel"
-      [ breadcrumb_section("Dashboard"), breadcrumb_link("Faturamento", reports_path),
+      [ breadcrumb_link("Faturamento", reports_path),
         breadcrumb_current(@sub_channel&.name || "Subcanal") ]
     when "three_months"
-      [ breadcrumb_section("Dashboard"), breadcrumb_current("Ganhos 3M") ]
+      [ breadcrumb_current("Ganhos 3M") ]
     when "three_months_sub_channel"
-      [ breadcrumb_section("Dashboard"), breadcrumb_link("Ganhos 3M", three_months_reports_path),
+      [ breadcrumb_link("Ganhos 3M", three_months_reports_path),
         breadcrumb_current(@sub_channel&.name || "Subcanal") ]
     else
-      [ breadcrumb_section("Dashboard"), breadcrumb_current("Faturamento") ]
+      [ breadcrumb_current("Faturamento") ]
     end
   end
 
   def establishments_breadcrumb_items
     case action_name
     when "index"
-      [ breadcrumb_section("Operação"), breadcrumb_current("Estabelecimentos") ]
+      [ breadcrumb_current("Estabelecimentos") ]
     when "show"
-      [ breadcrumb_section("Operação"), breadcrumb_link("Estabelecimentos", establishments_path),
+      [ breadcrumb_link("Estabelecimentos", establishments_path),
         breadcrumb_current("EC #{@establishment&.ec || params[:id]}") ]
     else
-      [ breadcrumb_section("Operação"), breadcrumb_current("Estabelecimentos") ]
+      [ breadcrumb_current("Estabelecimentos") ]
     end
   end
 
   def import_batches_breadcrumb_items
     case action_name
     when "index"
-      [ breadcrumb_section("Operação"), breadcrumb_current("Importar arquivo") ]
+      [ breadcrumb_current("Importar arquivo") ]
     when "show"
-      [ breadcrumb_section("Operação"), breadcrumb_link("Importar arquivo", import_batches_path),
+      [ breadcrumb_link("Importar arquivo", import_batches_path),
         breadcrumb_current(@import_batch&.source_filename || "Lote") ]
     else
-      [ breadcrumb_section("Operação"), breadcrumb_current("Importar arquivo") ]
+      [ breadcrumb_current("Importar arquivo") ]
     end
   end
 
@@ -128,11 +128,6 @@ module ApplicationHelper
     { label:, path: }
   end
 
-  # Agrupamento da sidebar, não uma página: aparece na trilha sem ser link.
-  def breadcrumb_section(label)
-    { label:, section: true }
-  end
-
   def breadcrumb_current(label)
     { label:, current: true }
   end
@@ -141,8 +136,6 @@ module ApplicationHelper
     content_tag(:li, class: "breadcrumb-item") do
       if item[:current]
         content_tag(:span, item[:label], aria: { current: "page" })
-      elsif item[:section]
-        content_tag(:span, item[:label], class: "breadcrumb-section")
       elsif item[:path] == root_path
         link_to icon_label("house", item[:label], css: "breadcrumb-icon"), item[:path]
       else

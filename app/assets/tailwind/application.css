@@ -1312,10 +1312,6 @@
     color: var(--color-primary);
   }
 
-  .breadcrumb-item .breadcrumb-section {
-    color: var(--cork-muted);
-  }
-
   .breadcrumb-item span {
     overflow: hidden;
     color: var(--cork-strong);

@@ -1,12 +1,13 @@
 require "test_helper"
 
 class ReportsControllerTest < ActionDispatch::IntegrationTest
-  test "trilha de navegação: agrupamento do menu não vira link" do
+  test "trilha de navegação: agrupamento do menu não aparece, só páginas reais" do
     get stalled_reports_path
 
     assert_select "nav.breadcrumb-wrap a[href=?]", root_path, text: "Início"
-    assert_select "nav.breadcrumb-wrap span.breadcrumb-section", text: "Dashboard"
-    assert_select "nav.breadcrumb-wrap a", text: "Dashboard", count: 0
+    # "Dashboard" e "Operação" são agrupamentos da navbar, não páginas — não entram na
+    # trilha nem como texto.
+    assert_select "nav.breadcrumb-wrap li", text: /Dashboard/, count: 0
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clientes parados"
   end
 
