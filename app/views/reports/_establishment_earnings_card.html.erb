@@ -7,30 +7,21 @@
   <p class="metric-label">EC <%= report[:ec] %></p>
   <p class="metric-value text-base"><%= report[:trade_name] || report[:legal_name] || "Sem nome no mapa" %></p>
 
-  <table class="table mt-2">
-    <thead>
-      <tr>
-        <th>Mês</th>
-        <th class="text-right">Débito</th>
-        <th class="text-right">Crédito</th>
-        <th class="text-right">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% report[:months].each_with_index do |month, index| %>
-        <tr>
-          <td>M<%= index %> · <%= l(month[:period], format: "%b/%Y") %><%= " *" if month[:partial] %></td>
-          <% if month[:covered] %>
-            <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
-            <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
-            <td class="text-right tabular-nums font-semibold"><%= brl(month[:total]) %></td>
-          <% else %>
-            <td colspan="3" class="text-right metric-hint">sem dado</td>
-          <% end %>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
+  <%# Meses lado a lado: cada coluna é um mês da janela, com débito, crédito e total. %>
+  <div class="mt-3 grid grid-cols-3 gap-3">
+    <% report[:months].each_with_index do |month, index| %>
+      <div class="grid content-start gap-0.5">
+        <p class="section-label">M<%= index %> · <%= l(month[:period], format: "%b/%y") %><%= "*" if month[:partial] %></p>
+        <% if month[:covered] %>
+          <p class="metric-hint tabular-nums">D <%= brl(month[:debit]) %></p>
+          <p class="metric-hint tabular-nums">C <%= brl(month[:credit]) %></p>
+          <p class="tabular-nums font-semibold"><%= brl(month[:total]) %></p>
+        <% else %>
+          <p class="metric-hint">sem dado</p>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
 
   <% if accreditation && in_window %>
     <div class="mt-3 grid gap-1">

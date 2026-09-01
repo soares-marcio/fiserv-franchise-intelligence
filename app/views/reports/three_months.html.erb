@@ -34,6 +34,11 @@
   </section>
 
   <% if @window %>
+    <%# Os quatro cards são a SOMA dos subcanais listados abaixo, no recorte aplicado —
+        a dúvida "é de qual subcanal?" já apareceu em uso real, daí o rótulo explícito. %>
+    <p class="section-label">
+      Totais do recorte — soma dos <%= @reports.size %> subcanais listados
+    </p>
     <section class="metric-grid">
       <article class="metric-card" data-tone="teal">
         <p class="metric-label">Repasse da janela</p>
