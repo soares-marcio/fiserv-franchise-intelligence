@@ -36,7 +36,7 @@ class SchemaIntegrityTest < ActiveSupport::TestCase
     end
   end
 
-  test "as seis views de auditoria existem, nascem sem dados e aceitam refresh" do
+  test "as sete views de auditoria existem, nascem sem dados e aceitam refresh" do
     AuditViews::NAMES.each do |view|
       assert connection.select_value(
         "SELECT 1 FROM pg_matviews WHERE matviewname = #{connection.quote(view)}"

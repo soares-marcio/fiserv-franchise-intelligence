@@ -304,23 +304,45 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
--- Name: establishments; Type: TABLE; Schema: public; Owner: -
+-- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.establishments (
+CREATE TABLE public.daily_revenues_consolidated (
+    establishment_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    day integer NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    provisional boolean NOT NULL,
+    source_import_batch_id bigint NOT NULL,
+    revised_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: import_batches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.import_batches (
     id bigint NOT NULL,
     uuid uuid DEFAULT gen_random_uuid() NOT NULL,
-    ec character varying(8) NOT NULL,
-    company_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    primary_establishment_id bigint,
-    duplicate_reason character varying,
-    duplicate_confirmed_by character varying,
-    duplicate_confirmed_at timestamp(6) without time zone,
+    channel_id bigint,
+    import_template_id bigint,
+    source_filename character varying NOT NULL,
+    source_file_date date,
+    file_checksum character varying NOT NULL,
+    previous_period date,
+    current_period date,
+    covered_periods jsonb DEFAULT '[]'::jsonb NOT NULL,
+    current_month_cutoff_day integer,
+    status character varying DEFAULT 'pending'::character varying NOT NULL,
+    validation_errors jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
-    CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
+    CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
+    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text])))
 );
 
 
@@ -780,6 +802,143 @@ COMMENT ON COLUMN public.map_snapshots.weekly_schedule IS 'Origem: coluna "agend
 
 
 --
+-- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.period_coverages (
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    max_known_day integer NOT NULL,
+    closed boolean DEFAULT false NOT NULL,
+    last_import_batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: audit_accreditation_earnings; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+--
+
+CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
+ WITH latest_map_batches AS (
+         SELECT ib.channel_id,
+            max(ib.id) AS import_batch_id
+           FROM public.import_batches ib
+          WHERE (((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
+                   FROM public.map_snapshots m
+                  WHERE (m.import_batch_id = ib.id))))
+          GROUP BY ib.channel_id
+        ), accredited AS (
+         SELECT snapshot.channel_id,
+            snapshot.sub_channel_id,
+            snapshot.establishment_id,
+            snapshot.accredited_on,
+            (date_trunc('month'::text, (snapshot.accredited_on)::timestamp with time zone))::date AS m0_period,
+            (snapshot.last_app_access_at IS NOT NULL) AS has_app_access,
+                CASE
+                    WHEN ((upper((COALESCE(snapshot.auto_advance_boarding_status, ''::character varying))::text) = ANY (ARRAY['SIM'::text, 'ATIVO'::text, 'TRUE'::text])) OR (upper((COALESCE(snapshot.auto_advance_boarding_status_2, ''::character varying))::text) = ANY (ARRAY['SIM'::text, 'ATIVO'::text, 'TRUE'::text]))) THEN true
+                    WHEN ((snapshot.auto_advance_boarding_status IS NOT NULL) OR (snapshot.auto_advance_boarding_status_2 IS NOT NULL)) THEN false
+                    ELSE NULL::boolean
+                END AS auto_classified
+           FROM (public.map_snapshots snapshot
+             JOIN latest_map_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
+          WHERE (snapshot.accredited_on IS NOT NULL)
+        ), month_revenue AS (
+         SELECT a.channel_id,
+            a.sub_channel_id,
+            a.establishment_id,
+            a.accredited_on,
+            a.m0_period,
+            a.has_app_access,
+            a.auto_classified,
+            months.month_index,
+            (cover.channel_id IS NOT NULL) AS month_covered,
+            COALESCE(sum(revenue.amount) FILTER (WHERE (cover.closed OR (revenue.day <= cover.max_known_day))), (0)::numeric) AS month_total
+           FROM (((accredited a
+             CROSS JOIN LATERAL ( VALUES (a.m0_period,0), (((a.m0_period + '1 mon'::interval))::date,1), (((a.m0_period + '2 mons'::interval))::date,2)) months(period, month_index))
+             LEFT JOIN public.period_coverages cover ON (((cover.channel_id = a.channel_id) AND (cover.period = months.period))))
+             LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = a.channel_id) AND (revenue.establishment_id = a.establishment_id) AND (revenue.period = months.period))))
+          GROUP BY a.channel_id, a.sub_channel_id, a.establishment_id, a.accredited_on, a.m0_period, a.has_app_access, a.auto_classified, months.month_index, cover.channel_id, cover.closed, cover.max_known_day
+        )
+ SELECT channel_id,
+    sub_channel_id,
+    establishment_id,
+    accredited_on,
+    m0_period,
+    has_app_access,
+    auto_classified,
+    count(*) FILTER (WHERE month_covered) AS months_observed,
+    max(month_total) FILTER (WHERE month_covered) AS peak_month_revenue,
+        CASE
+            WHEN (bool_or((month_covered AND (month_index = 0))) AND has_app_access) THEN 30.00
+            ELSE (0)::numeric
+        END AS digitalization_amount,
+        CASE
+            WHEN (max(month_total) FILTER (WHERE month_covered) IS NULL) THEN (0)::numeric
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 14999.99) THEN 0.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 19999.99) THEN 50.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 24999.99) THEN 55.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 29999.99) THEN 61.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 34999.99) THEN 67.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 39999.99) THEN 74.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 49999.99) THEN 81.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 59999.99) THEN 89.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 69999.99) THEN 98.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 79999.99) THEN 108.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 89999.99) THEN 119.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 99999.99) THEN 131.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 149999.99) THEN 144.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 199999.99) THEN 158.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 9999999.00) THEN 174.00
+            ELSE 174.00
+        END AS addon_without_auto,
+        CASE
+            WHEN (max(month_total) FILTER (WHERE month_covered) IS NULL) THEN (0)::numeric
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 14999.99) THEN 0.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 19999.99) THEN 250.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 24999.99) THEN 300.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 29999.99) THEN 350.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 34999.99) THEN 400.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 39999.99) THEN 450.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 49999.99) THEN 500.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 59999.99) THEN 550.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 69999.99) THEN 690.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 79999.99) THEN 790.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 89999.99) THEN 880.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 99999.99) THEN 950.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 149999.99) THEN 1300.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 199999.99) THEN 1800.00
+            WHEN (max(month_total) FILTER (WHERE month_covered) <= 9999999.00) THEN 2200.00
+            ELSE 2200.00
+        END AS addon_with_auto
+   FROM month_revenue
+  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access, auto_classified
+  WITH NO DATA;
+
+
+--
+-- Name: establishments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.establishments (
+    id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    ec character varying(8) NOT NULL,
+    company_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    primary_establishment_id bigint,
+    duplicate_reason character varying,
+    duplicate_confirmed_by character varying,
+    duplicate_confirmed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
+    CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
+);
+
+
+--
 -- Name: revenue_snapshots; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1009,64 +1168,6 @@ CREATE MATERIALIZED VIEW public.audit_pending_actions AS
      JOIN public.conversation_actions ca ON ((ca.id = msa.conversation_action_id)))
   GROUP BY ms.channel_id, ms.sub_channel_id, e.company_id, ca.text
   WITH NO DATA;
-
-
---
--- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.daily_revenues_consolidated (
-    establishment_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    period date NOT NULL,
-    day integer NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    provisional boolean NOT NULL,
-    source_import_batch_id bigint NOT NULL,
-    revised_count integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: import_batches; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.import_batches (
-    id bigint NOT NULL,
-    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
-    channel_id bigint,
-    import_template_id bigint,
-    source_filename character varying NOT NULL,
-    source_file_date date,
-    file_checksum character varying NOT NULL,
-    previous_period date,
-    current_period date,
-    covered_periods jsonb DEFAULT '[]'::jsonb NOT NULL,
-    current_month_cutoff_day integer,
-    status character varying DEFAULT 'pending'::character varying NOT NULL,
-    validation_errors jsonb DEFAULT '[]'::jsonb NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
-    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text])))
-);
-
-
---
--- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.period_coverages (
-    channel_id bigint NOT NULL,
-    period date NOT NULL,
-    max_known_day integer NOT NULL,
-    closed boolean DEFAULT false NOT NULL,
-    last_import_batch_id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
 
 
 --
@@ -2816,6 +2917,13 @@ CREATE UNIQUE INDEX index_active_storage_variant_records_uniqueness ON public.ac
 
 
 --
+-- Name: index_audit_accreditation_earnings; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_audit_accreditation_earnings ON public.audit_accreditation_earnings USING btree (channel_id, sub_channel_id, establishment_id);
+
+
+--
 -- Name: index_audit_company_ec_divergence; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4088,6 +4196,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260831120000'),
 ('20260831010000'),
 ('20260830070000'),
 ('20260830060000'),

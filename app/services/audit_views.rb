@@ -2,6 +2,7 @@ class AuditViews
   NAMES = %w[
     audit_revenue_by_sub_channel audit_revenue_by_company audit_stalled_companies
     audit_weekly_revenue audit_pending_actions audit_company_ec_divergence
+    audit_accreditation_earnings
   ].freeze
 
   # Views recriadas por este serviço; as demais nascem nas migrações que as criaram.
