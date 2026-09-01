@@ -192,18 +192,19 @@
   <%# Abas por variação alinhada: Baixa concentra quem piorou ou zerou o mês atual;
       estável e EC novo faturando ficam em Alta. Trocar de aba zera a página. %>
   <% counts = @listing.variation_counts %>
-  <nav class="tabs tabs-boxed w-fit" role="tablist" aria-label="Filtro por variação">
+  <div class="variation-tabs-wrap">
+  <nav class="variation-tabs" role="tablist" aria-label="Filtro por variação">
     <%= link_to "Todas (#{counts[:todas]})",
       sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
-      class: "tab #{'tab-active' if @selected_variation.nil?}",
+      class: ("is-active" if @selected_variation.nil?),
       role: "tab", aria: { selected: @selected_variation.nil? } %>
     <%= link_to "Alta (#{counts[:alta]})",
       sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
-      class: "tab #{'tab-active' if @selected_variation == 'alta'}",
+      class: ("is-active" if @selected_variation == "alta"),
       role: "tab", aria: { selected: @selected_variation == "alta" } %>
     <%= link_to "Baixa (#{counts[:baixa]})",
       sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "baixa", page: nil)),
-      class: "tab #{'tab-active' if @selected_variation == 'baixa'}",
+      class: ("is-active" if @selected_variation == "baixa"),
       role: "tab", aria: { selected: @selected_variation == "baixa" } %>
   </nav>
 
@@ -328,5 +329,6 @@
       </nav>
     <% end %>
   </section>
+  </div>
 
 </div>

@@ -638,6 +638,39 @@
     margin: 0;
   }
 
+  /* Abas de variação presas ao topo do cartão da tabela: a ativa vira bloco sólido
+     na cor primária, no desenho clássico de abas coladas ao conteúdo. */
+  .variation-tabs {
+    display: flex;
+    width: fit-content;
+    overflow: clip;
+    border: 1px solid var(--color-base-300);
+    border-bottom: 0;
+    border-radius: 0.85rem 0.85rem 0 0;
+    background: var(--color-base-100);
+  }
+
+  .variation-tabs a {
+    padding: 0.65rem 1.4rem;
+    font-weight: 600;
+    color: var(--cork-muted);
+    transition: background 120ms ease, color 120ms ease;
+  }
+
+  .variation-tabs a:hover {
+    color: var(--cork-strong);
+    background: var(--cork-primary-100);
+  }
+
+  .variation-tabs a.is-active {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+  }
+
+  .variation-tabs-wrap .table-frame {
+    border-top-left-radius: 0;
+  }
+
   .pagination-bar {
     display: flex;
     padding: 0.9rem 1.25rem;
