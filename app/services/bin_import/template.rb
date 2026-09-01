@@ -31,11 +31,17 @@ module BinImport
     # A Fiserv entrega as abas Faturamento e Ativacao com os cabeçalhos de razão social e
     # nome fantasia trocados entre si; o Mapa de Clientes BIN vem com os cabeçalhos corretos.
     INVERTED_NAME_SHEETS = %w[Faturamento Ativacao].freeze
-    VOLUME_MONTHS = %w[202604 202605 202606 202607 202608].freeze
+    # As competências das colunas de volume avançam a cada planilha semanal; só o
+    # conjunto de referência das planilhas sintéticas fica fixo. A validação real aceita
+    # qualquer conjunto de meses, desde que as quatro famílias tragam o mesmo.
+    DEFAULT_VOLUME_MONTHS = %w[202604 202605 202606 202607 202608].freeze
     VOLUME_FAMILIES = [
       "VOLUME DE FATURAMENTO TOTAL", "VOLUME DE FATURAMENTO CRÉDITO",
       "VOLUME DE FATURAMENTO DÉBITO", "VOLUME DE ANTECIPAÇÃO"
     ].freeze
+    VOLUME_HEADER_PATTERN =
+      /\A(#{VOLUME_FAMILIES.map { |family| Regexp.escape(family) }.join("|")}) (\d{6})\z/
+    MAPA_FIXED_HEADERS = [ *MAPA_BASE, "agenda_semanal" ].freeze
     EXPECTED_HEADERS = {
       "Faturamento" => [
         *FATURAMENTO_BASE, *(1..31).map { |day| format("DIA %02d_M_1", day) },
@@ -43,7 +49,7 @@ module BinImport
       ].freeze,
       "Ativacao" => ATIVACAO_HEADERS,
       "Mapa de Clientes BIN" => [
-        *MAPA_BASE, *VOLUME_FAMILIES.flat_map { |family| VOLUME_MONTHS.map { |month| "#{family} #{month}" } },
+        *MAPA_BASE, *VOLUME_FAMILIES.flat_map { |family| DEFAULT_VOLUME_MONTHS.map { |month| "#{family} #{month}" } },
         "agenda_semanal"
       ].freeze
     }.freeze
@@ -54,11 +60,11 @@ module BinImport
       "Mapa de Clientes BIN" => [ "REPORT_ID", "CANAL", "SUB-CANAL", "EC", "CNPJ", "STATUS DO CONTRATO" ]
     }.freeze
 
-    def self.register!(_workbook = nil)
+    def self.register!(workbook = nil)
       template = ImportTemplate.find_or_create_by!(name: "Template BIN v1") do |record|
         record.sheet_names = SHEETS
       end
-      EXPECTED_HEADERS.each do |sheet_name, headers|
+      headers_by_sheet(workbook).each do |sheet_name, headers|
         headers.each do |header|
           template.import_template_columns.find_or_create_by!(sheet_name:, source_header: header) do |column|
             column.required = REQUIRED_HEADERS.fetch(sheet_name).include?(header)
@@ -67,6 +73,15 @@ module BinImport
         end
       end
       template
+    end
+
+    # Com um workbook em mãos, as colunas de volume registradas são as que o arquivo
+    # trouxe — meses novos entram sozinhos, pelo find_or_create acima.
+    def self.headers_by_sheet(workbook)
+      return EXPECTED_HEADERS unless workbook
+
+      workbook.default_sheet = "Mapa de Clientes BIN"
+      EXPECTED_HEADERS.merge("Mapa de Clientes BIN" => workbook.row(1).map(&:to_s))
     end
 
     def self.validate!(workbook)
@@ -81,6 +96,9 @@ module BinImport
       EXPECTED_HEADERS.each do |sheet_name, expected|
         workbook.default_sheet = sheet_name
         actual = workbook.row(1).map(&:to_s)
+        # As competências dos volumes do Mapa avançam toda semana: a parte fixa continua
+        # comparada ao literal, e os meses são validados por forma, não por lista.
+        next validate_mapa_headers!(actual) if sheet_name == "Mapa de Clientes BIN"
         next if actual == expected
 
         missing = expected - actual
@@ -88,6 +106,26 @@ module BinImport
         raise ArgumentError,
           "Cabeçalhos divergentes em #{sheet_name}; ausentes: #{missing.join(', ')}; inesperados: #{unexpected.join(', ')}"
       end
+    end
+
+    def self.validate_mapa_headers!(actual)
+      fixed = actual.grep_v(VOLUME_HEADER_PATTERN)
+      unless fixed == MAPA_FIXED_HEADERS
+        missing = MAPA_FIXED_HEADERS - fixed
+        unexpected = fixed - MAPA_FIXED_HEADERS
+        raise ArgumentError,
+          "Cabeçalhos divergentes em Mapa de Clientes BIN; ausentes: #{missing.join(', ')}; inesperados: #{unexpected.join(', ')}"
+      end
+
+      months_by_family = actual.filter_map { |header| VOLUME_HEADER_PATTERN.match(header) }
+        .group_by { |match| match[1] }
+        .transform_values { |matches| matches.map { |match| match[2] }.sort }
+      return if months_by_family.keys.sort == VOLUME_FAMILIES.sort &&
+        months_by_family.values.uniq.size == 1
+
+      raise ArgumentError,
+        "Colunas de volume mensal inconsistentes em Mapa de Clientes BIN: as quatro " \
+        "famílias devem trazer o mesmo conjunto de competências"
     end
 
     # Cabeçalho de origem para cada campo de nome, respeitando a inversão por aba.

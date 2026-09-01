@@ -58,10 +58,12 @@ module BinWorkbook
     lojas.flat_map { |loja| loja.dias_atual.keys }.max || 1
   end
 
-  def self.write(path, lojas: default_lojas)
+  # volume_months permite simular a virada da planilha (um mês novo por ciclo), que é o
+  # regime real de operação; o padrão preserva os totais dos testes existentes.
+  def self.write(path, lojas: default_lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS)
     Axlsx::Package.new do |package|
-      sheet_rows(lojas).each do |sheet_name, rows|
-        headers = BinImport::Template::EXPECTED_HEADERS.fetch(sheet_name)
+      sheet_rows(lojas, volume_months:).each do |sheet_name, rows|
+        headers = headers_for(sheet_name, volume_months)
         package.workbook.add_worksheet(name: sheet_name) do |worksheet|
           worksheet.add_row headers
           rows.each { |row| worksheet.add_row headers.map { |header| row[header] } }
@@ -72,16 +74,26 @@ module BinWorkbook
     path
   end
 
-  def self.sheet_rows(lojas)
+  def self.headers_for(sheet_name, volume_months)
+    return BinImport::Template::EXPECTED_HEADERS.fetch(sheet_name) unless sheet_name == "Mapa de Clientes BIN"
+
+    [
+      *BinImport::Template::MAPA_BASE,
+      *BinImport::Template::VOLUME_FAMILIES.flat_map { |family| volume_months.map { |month| "#{family} #{month}" } },
+      "agenda_semanal"
+    ]
+  end
+
+  def self.sheet_rows(lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS)
     {
       "Faturamento" => lojas.map { |loja| faturamento_row(loja) },
       "Ativacao" => lojas.select(&:proposta).map { |loja| ativacao_row(loja) },
-      "Mapa de Clientes BIN" => lojas.map { |loja| mapa_row(loja) }
+      "Mapa de Clientes BIN" => lojas.map { |loja| mapa_row(loja, volume_months:) }
     }
   end
 
   # Mapa vem com os cabeçalhos de nome corretos.
-  def self.mapa_row(loja)
+  def self.mapa_row(loja, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS)
     {
       "REPORT_ID" => REPORT_ID, "HIERARQUIA" => CANAL, "CANAL" => CANAL,
       "SUB-CANAL" => loja.sub_channel_name, "EC" => loja.ec, "CNPJ" => loja.cnpj,
@@ -93,7 +105,7 @@ module BinWorkbook
       "DATA DE ATIVAÇÃO" => "05/02/2026",
       "NET MDR" => loja.net_mdr, "ULTIMO ACESSO NO APP" => loja.app_access_at,
       "STATUS ANTECIP AUTO NO BOARDING" => loja.auto_boarding
-    }.merge(volume_columns(loja))
+    }.merge(volume_columns(loja, volume_months))
   end
 
   # Faturamento e Ativacao vêm com razão social e nome fantasia trocados na origem.
@@ -124,12 +136,12 @@ module BinWorkbook
     }
   end
 
-  def self.volume_columns(loja)
+  def self.volume_columns(loja, volume_months = BinImport::Template::DEFAULT_VOLUME_MONTHS)
     totais = OUTROS_VOLUMES.merge(MES_M1 => loja.total_m1, MES_ATUAL => loja.total_atual)
     BinImport::Template::VOLUME_FAMILIES.flat_map do |family|
-      BinImport::Template::VOLUME_MONTHS.map do |month|
+      volume_months.map do |month|
         value = case family
-        when "VOLUME DE FATURAMENTO TOTAL" then totais.fetch(month)
+        when "VOLUME DE FATURAMENTO TOTAL" then totais.fetch(month, 5)
         when "VOLUME DE FATURAMENTO DÉBITO" then loja.debito(month)
         when "VOLUME DE FATURAMENTO CRÉDITO" then loja.credito(month)
         else 1

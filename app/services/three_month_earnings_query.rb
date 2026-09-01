@@ -32,8 +32,8 @@ class ThreeMonthEarningsQuery
     @channel_id = channel_id
   end
 
-  # Meses com volume mensal disponível — a lista real, não a suposta: hoje a planilha só
-  # entrega cinco competências (VOLUME_MONTHS fixo no template) e o seletor herda isso.
+  # Meses com volume mensal disponível — a lista real, não a suposta: o seletor oferece
+  # exatamente as competências que os arquivos importados trouxeram.
   def self.available_periods(channel_id: nil)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: } ])
       SELECT DISTINCT period FROM monthly_volumes_consolidated

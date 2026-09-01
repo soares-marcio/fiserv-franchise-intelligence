@@ -83,10 +83,12 @@ comportamentos só aparecem em banco recém-criado, e os três já quebraram o s
 Ao mexer em qualquer um desses caminhos, teste em banco recém-criado (ver abaixo), não só com o
 banco que já está na sua máquina.
 
-Um quarto ainda não quebrou, mas tem data para quebrar: **`Template::VOLUME_MONTHS` é fixo**
-(`202604..202608`), e `Template.validate!` recusa qualquer cabeçalho divergente com
-"Cabeçalhos divergentes". Quando a planilha da Fiserv passar a trazer `... 202609`, o import
-**inteiro** para — não só as colunas de volume. A página 3M depende dessas colunas.
+Um quarto tinha data para quebrar e foi desarmado antes: as competências das colunas de
+volume do Mapa (`VOLUME DE FATURAMENTO ... AAAAMM`) **avançam a cada planilha semanal** e a
+validação as aceita por forma, não por lista fixa — o contrato é que **as quatro famílias
+tragam o mesmo conjunto de meses**, e a parte fixa do cabeçalho continua literal e fatal em
+qualquer divergência. `DEFAULT_VOLUME_MONTHS` existe só para as planilhas sintéticas dos
+testes. O teste da virada de mês vive em `test/services/template_volume_months_test.rb`.
 
 ## Modelo de remuneração
 

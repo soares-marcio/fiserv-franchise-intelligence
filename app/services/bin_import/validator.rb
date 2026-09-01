@@ -84,13 +84,23 @@ module BinImport
     end
 
     def derive_competencies!
-      @covered_periods = Template::VOLUME_MONTHS.map { |month| Date.strptime(month, "%Y%m") }
+      @covered_periods = covered_periods_from_headers!
       map_by_ec = @map_rows.index_by { |row| Normalizer.ec(row["EC"]) }
       @previous_period = matching_period(map_by_ec, "fat_total_m1")
       @current_period = matching_period(map_by_ec, "FATURAMENTO TOTAL DESTE MÊS")
       return if @current_period == @previous_period.next_month
 
       raise ArgumentError, "Competências reconciliadas não são consecutivas"
+    end
+
+    # As competências cobertas vêm do próprio arquivo: a planilha avança um mês por
+    # semana, e uma lista fixa derrubaria o import na primeira virada.
+    def covered_periods_from_headers!
+      months = (@map_rows.first || {}).keys
+        .filter_map { |header| header[/\AVOLUME DE FATURAMENTO TOTAL (\d{6})\z/, 1] }
+      raise ArgumentError, "Mapa de Clientes BIN sem colunas de volume mensal" if months.empty?
+
+      months.sort.map { |month| Date.strptime(month, "%Y%m") }
     end
 
     def matching_period(map_by_ec, revenue_header)

@@ -66,7 +66,7 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
 
   test "consolida os volumes mensais de todas as competências do arquivo" do
     esperado = BinWorkbook.default_lojas.size *
-      BinImport::Template::VOLUME_FAMILIES.size * BinImport::Template::VOLUME_MONTHS.size
+      BinImport::Template::VOLUME_FAMILIES.size * BinImport::Template::DEFAULT_VOLUME_MONTHS.size
 
     assert_equal esperado, MonthlyVolumeConsolidated.count
   end

@@ -211,6 +211,6 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
   end
 
   def volumes_esperados
-    @lojas.size * BinImport::Template::VOLUME_FAMILIES.size * BinImport::Template::VOLUME_MONTHS.size
+    @lojas.size * BinImport::Template::VOLUME_FAMILIES.size * BinImport::Template::DEFAULT_VOLUME_MONTHS.size
   end
 end
