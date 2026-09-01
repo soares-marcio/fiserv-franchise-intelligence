@@ -51,6 +51,10 @@ class ReportScope
     query(:stalled_companies, "cnpj")
   end
 
+  def recurring_earnings
+    RecurringEarningsQuery.new(channel_id: @channel_id).by_sub_channel
+  end
+
   def three_month_earnings(periods:)
     ThreeMonthEarningsQuery.new(periods:, channel_id: @channel_id).by_sub_channel
   end

@@ -26,6 +26,12 @@ class ReportsController < ApplicationController
     @reports = @scope.weekly_revenue
   end
 
+  # Série mensal do ganho recorrente: todas as competências disponíveis, sem seletor —
+  # a tela cresce um mês a cada ciclo de planilhas.
+  def recurring
+    @reports = @scope.recurring_earnings
+  end
+
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
@@ -44,8 +50,6 @@ class ReportsController < ApplicationController
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
     @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
-    @summary = @window ? @scope.three_month_earnings(periods: @window)
-      .find { |row| row[:sub_channel_id] == @sub_channel.id } : nil
   end
 
   def sub_channel

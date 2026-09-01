@@ -41,6 +41,22 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "ganho recorrente abre vazio, e com dados mostra a série mensal" do
+    get recurring_reports_path
+    assert_response :success
+    assert_select ".empty-state", text: /depende das colunas de volume/
+
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+    get recurring_reports_path
+    assert_response :success
+    assert_select "h1", text: "Ganho recorrente por subcanal"
+    assert_select "td a", text: "MIC GAMA"
+    assert_select "td", text: /ago\/2026/
+    assert_no_match(/translation missing/i, response.body)
+    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Ganho recorrente"
+  end
+
   test "a página 3M abre sem volume importado e explica a dependência da planilha" do
     get three_months_reports_path
     assert_response :success

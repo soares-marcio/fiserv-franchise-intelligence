@@ -1,0 +1,135 @@
+<% content_for :title, "Ganho recorrente" %>
+
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Modelo de remuneração</p>
+    <h1 class="page-title">Ganho recorrente por subcanal</h1>
+    <p class="page-description">
+      Cada competência é apurada sozinha: alíquota da faixa de Net MDR <strong>daquele
+      mês</strong> × faturamento de débito e crédito <strong>daquele mês</strong>, mais o
+      acelerador ou redutor da variação contra o mês anterior. O Net MDR de cada mês vem do
+      último arquivo importado daquele mês; meses anteriores ao primeiro arquivo usam o mais
+      antigo disponível e ficam marcados.
+    </p>
+  </section>
+
+  <section class="filter-panel">
+    <%= form_with url: recurring_reports_path, method: :get,
+      class: "flex flex-wrap items-end gap-3" do %>
+      <label class="grid gap-1.5">
+        <span class="section-label">Canal da carteira</span>
+        <%= select_tag :channel_id,
+          options_for_select([["Todos os canais", ""]] + @channels.map { |channel| [channel.name, channel.uuid] },
+            @selected_channel&.uuid),
+          class: "select select-bordered w-auto min-w-52 max-w-full" %>
+      </label>
+      <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
+    <% end %>
+  </section>
+
+  <% if @reports.any? %>
+    <% last_closed = @reports.flat_map { |r| r[:months].reject { |m| m[:partial] } }.map { |m| m[:period] }.max %>
+    <p class="section-label">
+      Totais do recorte — soma dos <%= @reports.size %> subcanais listados
+    </p>
+    <section class="metric-grid">
+      <article class="metric-card" data-tone="teal">
+        <p class="metric-label">Repasse de <%= last_closed ? l(last_closed, format: "%B") : "—" %> (último mês fechado)</p>
+        <p class="metric-value">
+          <%= brl(@reports.sum { |r| r[:months].find { |m| m[:period] == last_closed }&.fetch(:recurring).to_f }) %>
+        </p>
+        <p class="metric-hint">Débito + crédito × alíquota da faixa do mês</p>
+      </article>
+      <article class="metric-card" data-tone="gold">
+        <p class="metric-label">Ajuste de <%= last_closed ? l(last_closed, format: "%B") : "—" %></p>
+        <% adjustment = @reports.sum { |r| month = r[:months].find { |m| m[:period] == last_closed }; month ? month[:accelerator] - month[:reducer] : 0.0 } %>
+        <p class="metric-value"><%= adjustment.zero? ? "—" : brl(adjustment) %></p>
+        <p class="metric-hint">Acelerador ou redutor, mês contra mês</p>
+      </article>
+    </section>
+
+    <section class="table-frame" data-controller="sticky-table">
+      <div class="table-toolbar">
+        <div>
+          <p class="section-label">Série mensal</p>
+          <h2 class="table-title">Ganho de cada mês, por subcanal</h2>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Subcanal</th>
+              <th>Mês</th>
+              <th class="text-right">Débito</th>
+              <th class="text-right">Crédito</th>
+              <th class="text-right">Net MDR</th>
+              <th class="text-right">Repasse</th>
+              <th class="text-right">Ajuste</th>
+              <th class="text-right">Ganho do mês</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @reports.each do |report| %>
+              <% report[:months].each_with_index do |month, index| %>
+                <tr>
+                  <td>
+                    <% if index.zero? %>
+                      <%= link_to report[:name], sub_channel_report_path(id: report[:uuid]), class: "link" %>
+                    <% end %>
+                  </td>
+                  <td>
+                    <%= l(month[:period], format: "%b/%Y") %>
+                    <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
+                  </td>
+                  <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
+                  <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
+                  <td class="text-right tabular-nums">
+                    <%= month[:net_mdr] ? number_with_precision(month[:net_mdr], precision: 2) + "%" : "—" %>
+                    <% if month[:mdr_fallback] %>
+                      <span class="metric-hint" title="MDR do arquivo mais antigo: não havia arquivo deste mês">†</span>
+                    <% end %>
+                  </td>
+                  <td class="text-right tabular-nums"><%= brl(month[:recurring]) %></td>
+                  <td class="text-right tabular-nums">
+                    <% adjustment = month[:accelerator] - month[:reducer] %>
+                    <% if adjustment.zero? %>
+                      —
+                    <% else %>
+                      <span class="<%= adjustment.positive? ? "text-success" : "text-error" %>"><%= brl(adjustment) %></span>
+                    <% end %>
+                  </td>
+                  <td class="text-right tabular-nums font-semibold">
+                    <%= brl(month[:recurring] + month[:accelerator] - month[:reducer]) %>
+                  </td>
+                </tr>
+              <% end %>
+            <% end %>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="5">Soma dos meses exibidos (informativa — cada mês é apurado sozinho)</td>
+              <td class="text-right tabular-nums"><%= brl(@reports.sum { |r| r[:recurring_total] }) %></td>
+              <td class="text-right tabular-nums"><%= brl(@reports.sum { |r| r[:adjustment_total] }) %></td>
+              <td class="text-right tabular-nums font-semibold">
+                <%= brl(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+        <p class="metric-hint m-3">
+          † Net MDR do arquivo mais antigo disponível: a competência é anterior ao primeiro
+          arquivo importado. Com os arquivos semanais, cada mês novo fica ancorado no MDR
+          da própria época.
+        </p>
+      </div>
+    </section>
+  <% else %>
+    <section class="table-frame">
+      <div class="empty-state">
+        Sem volumes mensais importados ainda — o ganho recorrente depende das colunas de
+        volume da planilha (débito e crédito por competência).
+      </div>
+    </section>
+  <% end %>
+</div>

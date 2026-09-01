@@ -73,6 +73,8 @@ module ApplicationHelper
         breadcrumb_current(@sub_channel&.name || "Subcanal") ]
     when "three_months"
       [ breadcrumb_current("Ganhos 3M") ]
+    when "recurring"
+      [ breadcrumb_current("Ganho recorrente") ]
     when "three_months_sub_channel"
       [ breadcrumb_link("Ganhos 3M", three_months_reports_path),
         breadcrumb_current(@sub_channel&.name || "Subcanal") ]
