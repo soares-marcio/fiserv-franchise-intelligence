@@ -205,20 +205,28 @@
   <%# Abas por variação alinhada: Baixa concentra quem piorou ou zerou o mês atual;
       estável e EC novo faturando ficam em Alta. Trocar de aba zera a página. %>
   <% counts = @listing.variation_counts %>
+  <%# Cada aba carrega o próprio critério: o rótulo com a contagem e, embaixo, a regra
+      do filtro em palavras — quem procura "para onde foi aquele EC?" lê na barra. %>
   <div class="variation-tabs-wrap">
   <nav class="variation-tabs" role="tablist" aria-label="Filtro por variação">
-    <%= link_to "Todas (#{counts[:todas]})",
-      sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
+    <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
       class: ("is-active" if @selected_variation.nil?),
-      role: "tab", aria: { selected: @selected_variation.nil? } %>
-    <%= link_to "Alta (#{counts[:alta]})",
-      sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
+      role: "tab", aria: { selected: @selected_variation.nil? } do %>
+      <span class="tab-title">Todas · <%= counts[:todas] %></span>
+      <span class="tab-hint">todos os estabelecimentos</span>
+    <% end %>
+    <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
       class: ("is-active" if @selected_variation == "alta"),
-      role: "tab", aria: { selected: @selected_variation == "alta" } %>
-    <%= link_to "Baixa (#{counts[:baixa]})",
-      sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "baixa", page: nil)),
+      role: "tab", aria: { selected: @selected_variation == "alta" } do %>
+      <span class="tab-title">Alta · <%= counts[:alta] %></span>
+      <span class="tab-hint">cresceu, manteve ou é novo</span>
+    <% end %>
+    <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "baixa", page: nil)),
       class: ("is-active" if @selected_variation == "baixa"),
-      role: "tab", aria: { selected: @selected_variation == "baixa" } %>
+      role: "tab", aria: { selected: @selected_variation == "baixa" } do %>
+      <span class="tab-title">Baixa · <%= counts[:baixa] %></span>
+      <span class="tab-hint">caiu ou está sem venda</span>
+    <% end %>
   </nav>
 
   <section class="table-frame" data-controller="sticky-table">

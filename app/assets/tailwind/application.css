@@ -651,10 +651,21 @@
   }
 
   .variation-tabs a {
-    padding: 0.65rem 1.4rem;
+    display: grid;
+    gap: 0.1rem;
+    padding: 0.55rem 1.4rem;
     font-weight: 600;
     color: var(--cork-muted);
+    text-align: left;
     transition: background 120ms ease, color 120ms ease;
+  }
+
+  /* O critério do filtro em palavras, discreto sob o rótulo; herda a cor da aba
+     (branco translúcido na ativa, cinza apagado nas demais). */
+  .variation-tabs .tab-hint {
+    font-size: 0.72rem;
+    font-weight: 400;
+    opacity: 0.75;
   }
 
   .variation-tabs a:hover {

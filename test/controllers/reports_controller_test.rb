@@ -200,6 +200,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # Abas de variação com contagens, e a completa ativa por padrão.
     assert_select "nav.variation-tabs a", count: 3
     assert_select "nav.variation-tabs a.is-active", text: /Todas/
+    # Cada aba descreve o próprio critério, em palavras.
+    assert_select "nav.variation-tabs .tab-hint", text: "cresceu, manteve ou é novo"
+    assert_select "nav.variation-tabs .tab-hint", text: "caiu ou está sem venda"
   end
 
   test "abas de variação separam alta e baixa, com EC zerado na baixa" do
@@ -224,13 +227,13 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # Na semente, o EC 11111111 sobe (80 → 100): fica na Alta.
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_response :success
-    assert_select "nav.variation-tabs a.is-active", text: /Alta \(1\)/
+    assert_select "nav.variation-tabs a.is-active .tab-title", text: "Alta · 1"
     assert_select "tbody td", text: "11111111"
     assert_select "tbody td", text: "22222222", count: 0
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_response :success
-    assert_select "nav.variation-tabs a.is-active", text: /Baixa \(1\)/
+    assert_select "nav.variation-tabs a.is-active .tab-title", text: "Baixa · 1"
     assert_select "tbody td", text: "22222222"
     assert_select "tbody td", text: "11111111", count: 0
   end
