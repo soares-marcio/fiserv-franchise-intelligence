@@ -271,6 +271,8 @@ module ApplicationHelper
   end
 
   def brl(amount)
-    number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".")
+    # Espaço não separável entre "R$" e o número: o valor nunca quebra em duas linhas.
+    number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".",
+      format: "%u\u00A0%n")
   end
 end
