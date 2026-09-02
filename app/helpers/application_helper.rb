@@ -279,28 +279,40 @@ module ApplicationHelper
     "#{number_with_precision(value.to_d.truncate(2), precision: 2, separator: ',')}%"
   end
 
-  # Todas as famílias de terminal do Mapa; Smart POS e Demais POS aparecem como um
-  # único "POS" (decisão do usuário).
+  # Famílias nomeadas de terminal do Mapa; Smart POS e Demais POS aparecem como um
+  # único "POS" (decisão do usuário). "QTDE OUTROS TERMINAIS" é tratada à parte.
   EQUIPMENT_COUNTS = {
     "POS" => %w[smart_pos_count other_pos_count],
     "Tap on phone" => %w[tap_on_phone_count],
     "MPS" => %w[mps_count],
     "PIN" => %w[pin_count],
-    "TEF" => %w[tef_count],
-    "Outros terminais" => %w[other_terminals_count]
+    "TEF" => %w[tef_count]
   }.freeze
 
-  # Presença dos tipos de equipamento do Mapa, no vocabulário da planilha. Sem nenhum dado
-  # (EC fora do Mapa), não afirma nada; com dado e nenhum equipamento, diz isso.
+  # Inventário curto dos equipamentos do Mapa, com as quantidades da planilha: "2 TEF",
+  # "1 POS". O guarda-chuva "outros terminais" sozinho não nomeia nada, então vira
+  # "1 terminal"; ao lado de uma família nomeada, "+1 outro". Sem nenhum dado (EC fora
+  # do Mapa), não afirma nada; com dado e nenhum equipamento, diz isso.
   def equipment_summary(report)
-    columns = EQUIPMENT_COUNTS.values.flatten
-    return if report["has_payment_link"].nil? && columns.all? { |column| report[column].nil? }
+    count_columns = EQUIPMENT_COUNTS.values.flatten + [ "other_terminals_count" ]
+    return if report["has_payment_link"].nil? && count_columns.all? { |column| report[column].nil? }
+
+    terminals = EQUIPMENT_COUNTS.filter_map do |name, columns|
+      count = columns.sum { |column| report[column].to_i }
+      "#{count} #{name}" if count.positive?
+    end
+    others = report["other_terminals_count"].to_i
+    if others.positive?
+      terminals << if terminals.any?
+        others == 1 ? "+1 outro" : "+#{others} outros"
+      else
+        others == 1 ? "1 terminal" : "#{others} terminais"
+      end
+    end
 
     labels = []
     labels << "Link pgto" if report["has_payment_link"]
-    EQUIPMENT_COUNTS.each do |label, count_columns|
-      labels << label if count_columns.any? { |column| report[column].to_i.positive? }
-    end
+    labels.concat(terminals)
     labels.any? ? labels.join(" · ") : "Sem equipamentos"
   end
 

@@ -53,13 +53,16 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil net_mdr_label(nil)
   end
 
-  test "equipamentos: lista os presentes, distingue nenhum de desconhecido" do
-    assert_equal "Link pgto · POS",
+  test "equipamentos: inventário com quantidades, distingue nenhum de desconhecido" do
+    assert_equal "Link pgto · 2 POS",
       equipment_summary({ "has_payment_link" => true, "smart_pos_count" => 2, "other_pos_count" => 0 })
-    assert_equal "POS", equipment_summary({ "has_payment_link" => false, "other_pos_count" => 3 })
+    assert_equal "3 POS", equipment_summary({ "has_payment_link" => false, "other_pos_count" => 3 })
     # Caso real do EC 92513747: só TEF acusava "Sem equipamentos".
-    assert_equal "TEF", equipment_summary({ "has_payment_link" => false, "tef_count" => 2 })
-    assert_equal "PIN · Outros terminais",
+    assert_equal "2 TEF", equipment_summary({ "has_payment_link" => false, "tef_count" => 2 })
+    # Caso real do EC 92517343: "Outros terminais" sozinho não nomeia nada.
+    assert_equal "Link pgto · 1 terminal",
+      equipment_summary({ "has_payment_link" => true, "other_terminals_count" => 1 })
+    assert_equal "1 PIN · +4 outros",
       equipment_summary({ "pin_count" => 1, "other_terminals_count" => 4 })
     assert_equal "Sem equipamentos",
       equipment_summary({ "has_payment_link" => false, "smart_pos_count" => 0, "tef_count" => 0 })
