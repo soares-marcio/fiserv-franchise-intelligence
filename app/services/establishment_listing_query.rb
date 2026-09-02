@@ -183,7 +183,8 @@ class EstablishmentListingQuery
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
         mapa.suspended_on, mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
-        mapa.net_mdr, mapa.net_mdr_status,
+        mapa.tap_on_phone_count, mapa.mps_count, mapa.pin_count, mapa.tef_count,
+        mapa.other_terminals_count, mapa.net_mdr, mapa.net_mdr_status,
         snapshot.previous_month_total, snapshot.current_month_total,
         :previous_period AS previous_period, :current_period AS current_period,
         :to_day AS max_known_day,
@@ -205,7 +206,8 @@ class EstablishmentListingQuery
       LEFT JOIN LATERAL (
         SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on,
           mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
-          mapa.net_mdr, mapa.net_mdr_status
+          mapa.tap_on_phone_count, mapa.mps_count, mapa.pin_count, mapa.tef_count,
+          mapa.other_terminals_count, mapa.net_mdr, mapa.net_mdr_status
         FROM map_snapshots mapa
         WHERE mapa.establishment_id = establishment.id
           AND mapa.import_batch_id = snapshot.import_batch_id
@@ -223,7 +225,9 @@ class EstablishmentListingQuery
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, establishment.id, establishment.ec,
         company.cnpj, snapshot.legal_name, snapshot.trade_name, snapshot.contract_status,
         mapa.accredited_on, mapa.activated_on, mapa.suspended_on, mapa.has_payment_link,
-        mapa.smart_pos_count, mapa.other_pos_count, mapa.net_mdr, mapa.net_mdr_status,
+        mapa.smart_pos_count, mapa.other_pos_count, mapa.tap_on_phone_count, mapa.mps_count,
+        mapa.pin_count, mapa.tef_count, mapa.other_terminals_count,
+        mapa.net_mdr, mapa.net_mdr_status,
         snapshot.previous_month_total, snapshot.current_month_total
     SQL
   end

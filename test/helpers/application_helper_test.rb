@@ -54,10 +54,16 @@ class ApplicationHelperTest < ActionView::TestCase
   end
 
   test "equipamentos: lista os presentes, distingue nenhum de desconhecido" do
-    assert_equal "Link pgto · POS", equipment_summary(true, 2, 0)
-    assert_equal "POS", equipment_summary(false, 0, 3)
-    assert_equal "Sem equipamentos", equipment_summary(false, 0, 0)
-    assert_nil equipment_summary(nil, nil, nil)
+    assert_equal "Link pgto · POS",
+      equipment_summary({ "has_payment_link" => true, "smart_pos_count" => 2, "other_pos_count" => 0 })
+    assert_equal "POS", equipment_summary({ "has_payment_link" => false, "other_pos_count" => 3 })
+    # Caso real do EC 92513747: só TEF acusava "Sem equipamentos".
+    assert_equal "TEF", equipment_summary({ "has_payment_link" => false, "tef_count" => 2 })
+    assert_equal "PIN · Outros terminais",
+      equipment_summary({ "pin_count" => 1, "other_terminals_count" => 4 })
+    assert_equal "Sem equipamentos",
+      equipment_summary({ "has_payment_link" => false, "smart_pos_count" => 0, "tef_count" => 0 })
+    assert_nil equipment_summary({})
   end
 
   test "seletor de período nomeia a faixa do mês selecionado" do
