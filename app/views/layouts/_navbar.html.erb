@@ -8,30 +8,59 @@
       </span>
     <% end %>
 
-    <nav class="primary-nav" aria-label="Navegação principal">
-      <div class="nav-group" aria-label="Dashboard">
-        <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
-          class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }) %>
-        <%= link_to icon_label("pause-circle", "Clientes parados", css: "nav-icon"), stalled_reports_path,
-          class: nav_link_class({ controller: :reports, actions: %w[stalled] }) %>
-        <%= link_to icon_label("calendar-blank", "Semanal", css: "nav-icon"), weekly_reports_path,
-          class: nav_link_class({ controller: :reports, actions: %w[weekly] }) %>
-        <%= link_to icon_label("calendar-check", "Ganhos 3M", css: "nav-icon"), three_months_reports_path,
-          class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
-        <%= link_to icon_label("chart-bar", "Recorrente", css: "nav-icon"), recurring_reports_path,
-          class: nav_link_class({ controller: :reports, actions: %w[recurring] }) %>
-      </div>
-      <div class="nav-group" aria-label="Operação">
-        <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
-          class: nav_link_class({ controller: :establishments }) %>
-        <%= link_to icon_label("upload-simple", "Importar arquivo", css: "nav-icon"), import_batches_path,
-          class: nav_link_class({ controller: :import_batches }) %>
-        <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
-          class: nav_link_class({ controller: :metabase }) %>
-      </div>
+    <nav class="primary-nav" id="primary_nav" aria-label="Navegação principal"
+      data-app-layout-target="primaryNav">
+      <details class="nav-dropdown" data-action="toggle->app-layout#exclusiveDropdown">
+        <summary class="<%= nav_link_class({ controller: :reports }) %>">
+          <%= icon("chart-line-up", css: "nav-icon") %>
+          Dashboard
+          <%= icon("caret-down", css: "nav-caret") %>
+        </summary>
+        <div class="nav-submenu">
+          <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
+            class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }) %>
+          <%= link_to icon_label("pause-circle", "Clientes parados", css: "nav-icon"), stalled_reports_path,
+            class: nav_link_class({ controller: :reports, actions: %w[stalled] }) %>
+          <%= link_to icon_label("calendar-blank", "Semanal", css: "nav-icon"), weekly_reports_path,
+            class: nav_link_class({ controller: :reports, actions: %w[weekly] }) %>
+          <%= link_to icon_label("calendar-check", "Ganhos 3M", css: "nav-icon"), three_months_reports_path,
+            class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
+          <%= link_to icon_label("chart-bar", "Recorrente", css: "nav-icon"), recurring_reports_path,
+            class: nav_link_class({ controller: :reports, actions: %w[recurring] }) %>
+        </div>
+      </details>
+      <details class="nav-dropdown" data-action="toggle->app-layout#exclusiveDropdown">
+        <summary class="<%= nav_link_class({ controller: :establishments }, { controller: :import_batches }, { controller: :metabase }) %>">
+          <%= icon("storefront", css: "nav-icon") %>
+          Operação
+          <%= icon("caret-down", css: "nav-caret") %>
+        </summary>
+        <div class="nav-submenu">
+          <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
+            class: nav_link_class({ controller: :establishments }) %>
+          <%= link_to import_batches_path,
+            class: nav_link_class({ controller: :import_batches }) do %>
+            <%= icon("upload-simple", css: "nav-icon") %>
+            Importar arquivo
+            <%# Badge com dado real: a idade do último arquivo, mesmo cálculo do status do header. %>
+            <% file_days = ImportBatch.days_since_last_file %>
+            <span class="nav-badge"
+              data-tone="<%= file_days.nil? || file_days >= ImportBatch::STALE_AFTER_DAYS ? 'rose' : 'green' %>">
+              <%= last_file_headline(file_days) %>
+            </span>
+          <% end %>
+          <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
+            class: nav_link_class({ controller: :metabase }) %>
+        </div>
+      </details>
     </nav>
 
     <div class="topbar-tools">
+      <button class="nav-toggle" type="button" data-action="click->app-layout#toggleNav"
+        data-app-layout-target="navToggle" aria-expanded="false" aria-controls="primary_nav">
+        <%= icon("list-bullets", css: "icon") %>
+        <span class="sr-only">Abrir ou fechar o menu</span>
+      </button>
       <button class="search-content" type="button" data-action="click->app-layout#openSearch"
         data-app-layout-target="searchTrigger" aria-haspopup="dialog">
         <%= icon("magnifying-glass", css: "icon") %>

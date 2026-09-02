@@ -2,12 +2,15 @@ import { Controller } from "@hotwired/stimulus"
 
 // Casca do layout: busca global e atalhos de teclado.
 export default class extends Controller {
-  static targets = ["searchModal", "searchInput", "searchResults", "searchTrigger", "shortcut"]
+  static targets = ["searchModal", "searchInput", "searchResults", "searchTrigger", "shortcut",
+    "primaryNav", "navToggle"]
   static values = { searchUrl: String }
 
   connect() {
     this.boundKeydown = this.keydown.bind(this)
     document.addEventListener("keydown", this.boundKeydown)
+    this.boundClick = this.closeDropdownsOutside.bind(this)
+    document.addEventListener("click", this.boundClick)
     this.trackTopbarHeight()
     // O atalho aceita Cmd no Mac; o rótulo precisa dizer a tecla que o usuário tem.
     if (navigator.platform.startsWith("Mac")) {
@@ -17,8 +20,35 @@ export default class extends Controller {
 
   disconnect() {
     document.removeEventListener("keydown", this.boundKeydown)
+    document.removeEventListener("click", this.boundClick)
     clearTimeout(this.searchTimer)
     this.topbarObserver?.disconnect()
+  }
+
+  toggleNav() {
+    const open = this.primaryNavTarget.classList.toggle("is-open")
+    this.navToggleTarget.setAttribute("aria-expanded", open)
+  }
+
+  // Comportamento de menu, não de acordeão solto: abrir um submenu fecha o irmão.
+  exclusiveDropdown(event) {
+    if (!event.target.open) return
+
+    this.primaryNavTarget.querySelectorAll("details[open]").forEach((dropdown) => {
+      if (dropdown !== event.target) dropdown.open = false
+    })
+  }
+
+  closeDropdownsOutside(event) {
+    if (event.target.closest(".nav-dropdown")) return
+
+    this.closeDropdowns()
+  }
+
+  closeDropdowns() {
+    if (!this.hasPrimaryNavTarget) return
+
+    this.primaryNavTarget.querySelectorAll("details[open]").forEach((dropdown) => { dropdown.open = false })
   }
 
   // A barra muda de altura quando o menu quebra linha; os cabeçalhos fixos das tabelas
@@ -86,6 +116,7 @@ export default class extends Controller {
 
     if (event.key === "Escape") {
       this.closeSearch()
+      this.closeDropdowns()
       return
     }
 

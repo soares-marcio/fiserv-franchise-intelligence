@@ -21,6 +21,24 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.header-status[data-tone=green]", text: /Arquivo hoje/
   end
 
+  test "o menu do header agrupa as páginas em submenus, com badge da idade do arquivo" do
+    get reports_path
+
+    # Dois grupos colapsáveis; o da página atual fica marcado no título.
+    assert_select "nav.primary-nav details.nav-dropdown", count: 2
+    assert_select "details.nav-dropdown summary.nav-link.is-active", text: /Dashboard/
+    assert_select "details.nav-dropdown summary.nav-link", text: /Operação/
+    assert_select ".nav-submenu a", text: /Faturamento/
+    assert_select ".nav-submenu a", text: /Importar arquivo/
+    assert_select "button.nav-toggle[aria-controls='primary_nav']"
+    # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma.
+    assert_select ".nav-badge[data-tone='rose']", text: /Nunca/
+
+    import_synthetic_workbook
+    get reports_path
+    assert_select ".nav-badge[data-tone='green']", text: /Hoje/
+  end
+
   test "a busca do header aponta para o endpoint de busca global" do
     get reports_path
 
