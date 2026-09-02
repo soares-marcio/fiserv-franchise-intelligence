@@ -141,13 +141,14 @@ views de auditoria. `METABASE_RO_PASSWORD` é obrigatória em produção.
 bin/rails test
 ```
 
-Para executar a suíte na imagem própria de testes, que inclui as gems de desenvolvimento/teste
-e Chromium para os testes de sistema:
+`bin/rails test` não inclui os testes de sistema (`test/system`): eles precisam de navegador,
+que o host pode não ter. A suíte completa roda na imagem própria de testes, que traz as gems
+de desenvolvimento/teste e o Chromium:
 
 ```bash
 docker compose build test
-docker compose run --rm test
-docker compose run --rm test bin/rails test:system
+docker compose run --rm test              # suíte completa: bin/rails test:all
+docker compose run --rm test bin/rails test:system   # só os de sistema
 ```
 
 O serviço `test` usa o target `test` do Dockerfile e um banco separado. A imagem final de

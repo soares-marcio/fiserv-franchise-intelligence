@@ -162,8 +162,11 @@ publicação externa, autenticação e autorização passam a ser requisito de e
 ## Verificação
 
 `bin/rails test` · `bin/rubocop` · `bin/brakeman` devem passar antes de entregar. A suíte roda em
-processo único de propósito (ver `README.md`). Em Docker, use `docker compose run --rm test`; a
-imagem de produção exclui deliberadamente as dependências de desenvolvimento e teste.
+processo único de propósito (ver `README.md`). Os testes de sistema (`test/system`) ficam fora do
+`bin/rails test` e precisam de navegador: rodam pela imagem de testes, `docker compose run --rm
+test`, que executa `test:all` (suíte completa, sistema incluído) — obrigatória quando a mudança
+toca telas ou JavaScript. A imagem de produção exclui deliberadamente as dependências de
+desenvolvimento e teste.
 
 ---
 

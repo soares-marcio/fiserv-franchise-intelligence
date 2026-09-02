@@ -69,7 +69,8 @@ services:
     build:
       context: .
       target: test
-    command: bin/rails db:test:prepare test
+    # test:all inclui os testes de sistema (test/system), que o `rails test` puro não roda.
+    command: bin/rails db:test:prepare test:all
     environment:
       RAILS_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@db:5432/fiserv_franchise_intelligence_test
