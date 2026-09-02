@@ -270,6 +270,27 @@ module ApplicationHelper
     { up: "green", down: "rose", flat: "gold" }[variation_direction(previous, current)]
   end
 
+  # NET MDR em pontos percentuais, truncado em duas casas — nunca arredondado, para não
+  # sugerir uma faixa de remuneração que o valor real não atinge.
+  def net_mdr_label(value, status = nil)
+    return "Inativo" if status.present?
+    return if value.blank?
+
+    "#{number_with_precision(value.to_d.truncate(2), precision: 2, separator: ',')}%"
+  end
+
+  # Presença dos tipos de equipamento do Mapa, no vocabulário da planilha. Sem nenhum dado
+  # (EC fora do Mapa), não afirma nada; com dado e nenhum equipamento, diz isso.
+  def equipment_summary(has_payment_link, smart_pos_count, other_pos_count)
+    return if has_payment_link.nil? && smart_pos_count.nil? && other_pos_count.nil?
+
+    labels = []
+    labels << "Link pgto" if has_payment_link
+    labels << "Smart POS" if smart_pos_count.to_i.positive?
+    labels << "Demais POS" if other_pos_count.to_i.positive?
+    labels.any? ? labels.join(" · ") : "Sem equipamentos"
+  end
+
   def brl(amount)
     # Espaço não separável entre "R$" e o número: o valor nunca quebra em duas linhas.
     number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".",

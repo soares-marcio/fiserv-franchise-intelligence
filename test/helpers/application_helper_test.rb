@@ -46,6 +46,20 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, 'data-tip="Zerado nos dois períodos"'
   end
 
+  test "NET MDR trunca em duas casas, sem arredondar" do
+    assert_equal "0,29%", net_mdr_label(0.299)
+    assert_equal "0,30%", net_mdr_label(0.30)
+    assert_equal "Inativo", net_mdr_label(nil, "Inativo")
+    assert_nil net_mdr_label(nil)
+  end
+
+  test "equipamentos: lista os presentes, distingue nenhum de desconhecido" do
+    assert_equal "Link pgto · Smart POS", equipment_summary(true, 2, 0)
+    assert_equal "Demais POS", equipment_summary(false, 0, 3)
+    assert_equal "Sem equipamentos", equipment_summary(false, 0, 0)
+    assert_nil equipment_summary(nil, nil, nil)
+  end
+
   test "seletor de período nomeia a faixa do mês selecionado" do
     assert_equal "10 a 20 de agosto de 2026",
       period_picker_label(Date.new(2026, 8, 1), 10, 20)

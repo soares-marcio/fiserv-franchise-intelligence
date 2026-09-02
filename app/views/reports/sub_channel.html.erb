@@ -289,7 +289,18 @@
             <% previous_full = report["previous_full_revenue"].to_d %>
             <% current = report["current_revenue"].to_d %>
             <tr>
-              <td class="font-mono"><%= report["ec"] %></td>
+              <td class="font-mono">
+                <%= report["ec"] %>
+                <% mdr = net_mdr_label(report["net_mdr"], report["net_mdr_status"]) %>
+                <% equipment = equipment_summary(report["has_payment_link"],
+                     report["smart_pos_count"], report["other_pos_count"]) %>
+                <% if mdr || equipment %>
+                  <div class="ec-meta">
+                    <% if mdr %><p>NET MDR <%= mdr %></p><% end %>
+                    <% if equipment %><p><%= equipment %></p><% end %>
+                  </div>
+                <% end %>
+              </td>
               <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></td>
               <td>
                 <p class="font-semibold"><%= report["trade_name"].presence || report["legal_name"] %></p>

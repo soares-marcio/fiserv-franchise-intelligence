@@ -182,7 +182,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "MIC A"
     assert_select "th", text: /Mês anterior cheio/
     assert_select "th", text: /Mês anterior comparável/
-    assert_select "td", text: "11111111"
+    assert_select "td", text: /11111111/
     assert_select "td", text: "12.345.678/0001-91"
     assert_select "td", text: /LOJA UM/
     assert_select "th", text: "Datas do ciclo"
@@ -191,6 +191,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dt", text: "Susp."
     assert_select "dd", text: "15/03/2024"
     assert_select "dd", text: "02/04/2024"
+    # Sob o EC: NET MDR truncado (0,299 nunca vira 0,30) e os equipamentos do Mapa.
+    assert_select ".ec-meta p", text: "NET MDR 0,29%"
+    assert_select ".ec-meta p", text: "Link pgto · Smart POS"
     assert_select "tfoot", false
     assert_select "input[name='status[]']"
     assert_select "input[name='date_kind[]']"
@@ -267,7 +270,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
-    assert_select "tbody td", text: "11111111"
+    assert_select "tbody td", text: /11111111/
     assert_select "tbody td", text: "22222222", count: 0
     assert_select "tbody td", text: "33333333", count: 0
 
@@ -276,7 +279,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em queda · 2/
     assert_select "tbody td", text: "22222222"
     assert_select "tbody td", text: "33333333"
-    assert_select "tbody td", text: "11111111", count: 0
+    assert_select "tbody td", text: /11111111/, count: 0
     assert_select ".variation-chip", text: /Voltou a vender/
   end
 
@@ -320,7 +323,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     )
 
     assert_response :success
-    assert_select "td", text: "11111111"
+    assert_select "td", text: /11111111/
     assert_select "td", text: "22222222", count: 0
     assert_select "input#status_Active[checked]"
     assert_select "input#date_kind_credenciamento[checked]"
@@ -343,7 +346,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "td", text: "22222222"
-    assert_select "td", text: "11111111", count: 0
+    assert_select "td", text: /11111111/, count: 0
     assert_select "input[name='q'][value='loja dois']"
 
     get sub_channel_report_path(
@@ -352,7 +355,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "td", text: "22222222"
-    assert_select "td", text: "11111111", count: 0
+    assert_select "td", text: /11111111/, count: 0
     assert_select "a", text: "Anterior"
     assert_select "a", text: "Próxima"
   end
@@ -383,7 +386,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     MapSnapshot.create!(
       import_batch: batch, channel:, sub_channel:, establishment:,
       legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
-      accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2)
+      accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2),
+      has_payment_link: true, smart_pos_count: 2, other_pos_count: 0, net_mdr: 0.299
     )
     now = Time.current
     PeriodCoverage.upsert_all(

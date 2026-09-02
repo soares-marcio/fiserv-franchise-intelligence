@@ -784,6 +784,17 @@
     background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
   }
 
+  /* Linhas de apoio sob o número do EC: NET MDR e equipamentos do Mapa. */
+  .ec-meta {
+    display: grid;
+    margin-top: 0.3rem;
+    gap: 0.12rem;
+    color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
   .lifecycle-dates {
     display: grid;
     min-width: 9.5rem;
