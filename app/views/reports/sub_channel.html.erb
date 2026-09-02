@@ -1,6 +1,6 @@
 <% content_for :title, @sub_channel.name %>
 
-<div class="grid gap-5" data-controller="revenue-days-modal">
+<div class="grid gap-5">
   <section class="page-hero">
     <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
       <div>
@@ -48,7 +48,20 @@
           <p class="metric-value">
             <%= variation_headline(@totals[:previous_revenue], @totals[:current_revenue]) %>
           </p>
-          <p class="metric-hint">Períodos com a mesma duração</p>
+          <%# Os cards somam a aba ativa (decisão do usuário). A variação da aba é
+              enviesada por construção, então a verdadeira fica ancorada ao lado. %>
+          <% if @selected_variation %>
+            <p class="metric-hint">
+              Somando só a aba <%= @selected_variation == "alta" ? "Em crescimento" : "Em queda" %>
+              (<%= @total_count %> ECs)
+              <% if (overall = @listing.overall_totals) %>
+                · Subcanal inteiro:
+                <strong><%= signed_variation(overall[:previous_revenue], overall[:current_revenue]) %></strong>
+              <% end %>
+            </p>
+          <% else %>
+            <p class="metric-hint">Períodos com a mesma duração</p>
+          <% end %>
         </article>
       </div>
     <% end %>
@@ -189,6 +202,33 @@
     </section>
   <% end %>
 
+  <%# Abas por variação alinhada: Baixa concentra quem piorou ou zerou o mês atual;
+      estável e EC novo faturando ficam em Alta. Trocar de aba zera a página. %>
+  <% counts = @listing.variation_counts %>
+  <%# Cada aba carrega o próprio critério: o rótulo com a contagem e, embaixo, a regra
+      do filtro em palavras — quem procura "para onde foi aquele EC?" lê na barra. %>
+  <div class="variation-tabs-wrap">
+  <nav class="variation-tabs" role="tablist" aria-label="Filtro por variação">
+    <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
+      class: ("is-active" if @selected_variation.nil?),
+      role: "tab", aria: { selected: @selected_variation.nil? } do %>
+      <span class="tab-title">Todos · <%= counts[:todas] %></span>
+      <span class="tab-hint">todos os estabelecimentos</span>
+    <% end %>
+    <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
+      class: ("is-active" if @selected_variation == "alta"),
+      role: "tab", aria: { selected: @selected_variation == "alta" } do %>
+      <span class="tab-title"><%= phosphor_icon(:up) %> Em crescimento · <%= counts[:alta] %></span>
+      <span class="tab-hint">vendeu mais, manteve ou é novo</span>
+    <% end %>
+    <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "baixa", page: nil)),
+      class: ("is-active" if @selected_variation == "baixa"),
+      role: "tab", aria: { selected: @selected_variation == "baixa" } do %>
+      <span class="tab-title"><%= phosphor_icon(:down) %> Em queda · <%= counts[:baixa] %></span>
+      <span class="tab-hint">vendeu menos, está sem venda ou voltou do zero</span>
+    <% end %>
+  </nav>
+
   <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
       <div>
@@ -240,8 +280,7 @@
                 <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
               <% end %>
             </th>
-            <th class="text-right">Variação</th>
-            <th></th>
+            <th class="text-right variation-col">Variação</th>
           </tr>
         </thead>
         <tbody>
@@ -250,7 +289,17 @@
             <% previous_full = report["previous_full_revenue"].to_d %>
             <% current = report["current_revenue"].to_d %>
             <tr>
-              <td class="font-mono"><%= report["ec"] %></td>
+              <td class="font-mono">
+                <%= report["ec"] %>
+                <% mdr = net_mdr_label(report["net_mdr"], report["net_mdr_status"]) %>
+                <% equipment = equipment_summary(report) %>
+                <% if mdr || equipment %>
+                  <div class="ec-meta">
+                    <% if mdr %><p>NET MDR <%= mdr %></p><% end %>
+                    <% if equipment %><p><%= equipment %></p><% end %>
+                  </div>
+                <% end %>
+              </td>
               <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></td>
               <td>
                 <p class="font-semibold"><%= report["trade_name"].presence || report["legal_name"] %></p>
@@ -280,24 +329,14 @@
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
-              <td class="text-right">
-                <%= variation_chip(previous, current) %>
-              </td>
-              <td class="text-right">
-                <%= tag.button icon_label("list-bullets", "Lançamentos"), type: "button", class: "btn btn-outline btn-sm",
-                  data: {
-                    action: "click->revenue-days-modal#open",
-                    ec: report["ec"],
-                    cnpj: formatted_cnpj(report["cnpj"]),
-                    nome: report["trade_name"].presence || report["legal_name"],
-                    cutoff: @to_day,
-                    from_day: @from_day,
-                    previous_days: revenue_days_json(report["previous_days"]),
-                    current_days: revenue_days_json(report["current_days"]),
-                    previous_full_revenue: previous_full.to_s,
-                    previous_revenue: previous.to_s,
-                    current_revenue: current.to_s
-                  } %>
+              <td class="text-right variation-col">
+                <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
+                    anterior; antigo que saiu do zero vira "Voltou a vender". %>
+                <% reference_date = report["activated_on"] || report["accredited_on"] %>
+                <% novo = if previous.zero? && current.positive?
+                     reference_date.present? && reference_date.to_date >= report["previous_period"].to_date
+                   end %>
+                <%= variation_chip(previous, current, novo:) %>
               </td>
             </tr>
           <% end %>
@@ -327,67 +366,6 @@
       </nav>
     <% end %>
   </section>
-
-  <div hidden>
-    <template data-revenue-days-modal-target="iconUp"><%= phosphor_icon(:up) %></template>
-    <template data-revenue-days-modal-target="iconDown"><%= phosphor_icon(:down) %></template>
-    <template data-revenue-days-modal-target="iconFlat"><%= phosphor_icon(:flat) %></template>
   </div>
 
-  <dialog class="modal" data-revenue-days-modal-target="dialog">
-    <div class="modal-box max-w-4xl max-h-[90vh]">
-      <p class="eyebrow">Lançamentos diários</p>
-      <h3 class="page-title text-2xl" data-revenue-days-modal-target="title"></h3>
-      <p class="page-description" data-revenue-days-modal-target="identity"></p>
-      <p class="mt-2 text-sm opacity-70">
-        <span data-revenue-days-modal-target="cutoffHint"></span>
-      </p>
-
-      <div class="mt-4 grid gap-3 md:grid-cols-3">
-        <article class="metric-card" data-tone="teal">
-          <p class="metric-label">Mês anterior cheio</p>
-          <p class="metric-value" data-revenue-days-modal-target="previousTotal"></p>
-          <p class="metric-hint">Competência fechada</p>
-        </article>
-        <article class="metric-card" data-tone="gold">
-          <p class="metric-label">Base comparável</p>
-          <p class="metric-value" data-revenue-days-modal-target="comparableTotal"></p>
-          <p class="metric-hint" data-revenue-days-modal-target="comparableHint"></p>
-        </article>
-        <article class="metric-card" data-tone="green">
-          <p class="metric-label">Mês atual</p>
-          <p class="metric-value" data-revenue-days-modal-target="currentTotal"></p>
-          <p class="metric-hint" data-revenue-days-modal-target="currentHint"></p>
-        </article>
-      </div>
-
-      <section class="table-frame mt-5">
-        <div class="table-toolbar">
-          <h4 class="table-title">Mesmo dia nos dois meses</h4>
-        </div>
-        <div class="table-scroll">
-          <table class="table table-sm">
-            <thead>
-              <tr>
-                <th>Dia</th>
-                <th class="text-right">Mês anterior</th>
-                <th class="text-right">Mês atual</th>
-                <th class="text-right">Variação</th>
-              </tr>
-            </thead>
-            <tbody data-revenue-days-modal-target="daysBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <div class="modal-action">
-        <form method="dialog">
-          <button type="submit" class="btn">Fechar</button>
-        </form>
-      </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button type="submit">Fechar</button>
-    </form>
-  </dialog>
 </div>

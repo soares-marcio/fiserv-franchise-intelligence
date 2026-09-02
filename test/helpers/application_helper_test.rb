@@ -20,13 +20,53 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "variation-chip__verb"
   end
 
-  test "chip de variação fica vazio sem base comparável" do
+  # Base zero não vira mais um "—" mudo: o texto descreve o caso, e os dois casos
+  # opostos (nasceu vendendo × segue zerado) deixam de dividir o mesmo símbolo.
+  test "chip sem base comparável descreve: Novo quando vendeu" do
     html = variation_chip(0, 40)
 
-    assert_includes html, "variation-chip--empty"
-    assert_includes html, "—"
-    refute_includes html, "subiu"
-    refute_includes html, "caiu"
+    assert_includes html, "variation-chip--up"
+    assert_includes html, ">Novo<"
+    assert_includes html, 'data-tip="Primeira venda na base"'
+  end
+
+  test "chip sem base comparável descreve: Voltou a vender quando a ativação é antiga" do
+    html = variation_chip(0, 40, novo: false)
+
+    assert_includes html, "variation-chip--flat"
+    assert_includes html, ">Voltou a vender<"
+    assert_includes html, 'data-tip="Sem venda no mês anterior; ativação antiga"'
+  end
+
+  test "chip sem base comparável descreve: Sem venda quando segue zerado" do
+    html = variation_chip(0, 0)
+
+    assert_includes html, "variation-chip--flat"
+    assert_includes html, ">Sem venda<"
+    assert_includes html, 'data-tip="Zerado nos dois períodos"'
+  end
+
+  test "NET MDR trunca em duas casas, sem arredondar" do
+    assert_equal "0,29%", net_mdr_label(0.299)
+    assert_equal "0,30%", net_mdr_label(0.30)
+    assert_equal "Inativo", net_mdr_label(nil, "Inativo")
+    assert_nil net_mdr_label(nil)
+  end
+
+  test "equipamentos: inventário com quantidades, distingue nenhum de desconhecido" do
+    assert_equal "Link pgto · 2 POS",
+      equipment_summary({ "has_payment_link" => true, "smart_pos_count" => 2, "other_pos_count" => 0 })
+    assert_equal "3 POS", equipment_summary({ "has_payment_link" => false, "other_pos_count" => 3 })
+    # Caso real do EC 92513747: só TEF acusava "Sem equipamentos".
+    assert_equal "2 TEF", equipment_summary({ "has_payment_link" => false, "tef_count" => 2 })
+    # Caso real do EC 92517343: "Outros terminais" sozinho não nomeia nada.
+    assert_equal "Link pgto · 1 terminal",
+      equipment_summary({ "has_payment_link" => true, "other_terminals_count" => 1 })
+    assert_equal "1 PIN · +4 outros",
+      equipment_summary({ "pin_count" => 1, "other_terminals_count" => 4 })
+    assert_equal "Sem equipamentos",
+      equipment_summary({ "has_payment_link" => false, "smart_pos_count" => 0, "tef_count" => 0 })
+    assert_nil equipment_summary({})
   end
 
   test "seletor de período nomeia a faixa do mês selecionado" do
@@ -40,10 +80,6 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_equal "12/05/2026 a 13/05/2026",
       iso_range_label(Date.new(2026, 5, 12), Date.new(2026, 5, 13))
     assert_equal "Escolher intervalo", iso_range_label(nil, nil)
-  end
-
-  test "ignora payloads malformados de faturamento diário" do
-    assert_equal({}, revenue_days_hash("not-json"))
   end
 
   # O mês escolhido é o M0 e a janela avança a partir dele: quem credenciou em junho é

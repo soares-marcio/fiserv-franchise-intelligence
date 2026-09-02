@@ -172,11 +172,9 @@ module ApplicationHelper
       data: { tip: verb }, tabindex: 0)
   end
 
-  def variation_chip(previous, current)
+  def variation_chip(previous, current, novo: nil)
     direction = variation_direction(previous, current)
-    if direction == :unavailable
-      return content_tag(:span, "—", class: "variation-chip variation-chip--empty")
-    end
+    return zero_base_chip(current, novo:) if direction == :unavailable
 
     verb = VARIATION_VERBS.fetch(direction)
     value = signed_variation(previous, current)
@@ -184,6 +182,36 @@ module ApplicationHelper
       aria: { label: "#{verb.downcase} #{value}" }) do
       safe_join([ variation_icon_tip(direction, verb),
         content_tag(:span, value, class: "variation-chip__value") ])
+    end
+  end
+
+  # Base zero não tem percentual possível (divisão por zero), mas o caso é descritível
+  # em texto, na mesma anatomia dos chips existentes. Três leituras: "Novo" quando o EC
+  # foi ativado neste mês ou no anterior e vendeu; "Voltou a vender" quando é antigo,
+  # estava zerado e vendeu (mora na aba de queda — é atenção, não crescimento); e
+  # "Sem venda" quando segue zerado. `novo: nil` preserva a leitura otimista para
+  # chamadores sem data, como a listagem por subcanal.
+  def zero_base_chip(current, novo: nil)
+    if current.to_d.positive?
+      if novo == false
+        content_tag(:span, class: "variation-chip variation-chip--flat",
+          aria: { label: "voltou a vender: sem venda no mês anterior, ativação antiga" }) do
+          safe_join([ variation_icon_tip(:flat, "Sem venda no mês anterior; ativação antiga"),
+            content_tag(:span, "Voltou a vender", class: "variation-chip__value") ])
+        end
+      else
+        content_tag(:span, class: "variation-chip variation-chip--up",
+          aria: { label: "novo: primeira venda na base" }) do
+          safe_join([ variation_icon_tip(:up, "Primeira venda na base"),
+            content_tag(:span, "Novo", class: "variation-chip__value") ])
+        end
+      end
+    else
+      content_tag(:span, class: "variation-chip variation-chip--flat",
+        aria: { label: "sem venda nos dois períodos" }) do
+        safe_join([ variation_icon_tip(:flat, "Zerado nos dois períodos"),
+          content_tag(:span, "Sem venda", class: "variation-chip__value") ])
+      end
     end
   end
 
@@ -242,34 +270,55 @@ module ApplicationHelper
     { up: "green", down: "rose", flat: "gold" }[variation_direction(previous, current)]
   end
 
-  def brl(amount)
-    number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".")
+  # NET MDR em pontos percentuais, truncado em duas casas — nunca arredondado, para não
+  # sugerir uma faixa de remuneração que o valor real não atinge.
+  def net_mdr_label(value, status = nil)
+    return "Inativo" if status.present?
+    return if value.blank?
+
+    "#{number_with_precision(value.to_d.truncate(2), precision: 2, separator: ',')}%"
   end
 
-  def compact_revenue_days(payload)
-    days = revenue_days_hash(payload)
-    return "—" if days.blank?
+  # Famílias nomeadas de terminal do Mapa; Smart POS e Demais POS aparecem como um
+  # único "POS" (decisão do usuário). "QTDE OUTROS TERMINAIS" é tratada à parte.
+  EQUIPMENT_COUNTS = {
+    "POS" => %w[smart_pos_count other_pos_count],
+    "Tap on phone" => %w[tap_on_phone_count],
+    "MPS" => %w[mps_count],
+    "PIN" => %w[pin_count],
+    "TEF" => %w[tef_count]
+  }.freeze
 
-    days.sort_by { |day, _| day.to_i }.map { |day, amount| "D#{day} #{brl(amount)}" }.join(" · ")
-  end
+  # Inventário curto dos equipamentos do Mapa, com as quantidades da planilha: "2 TEF",
+  # "1 POS". O guarda-chuva "outros terminais" sozinho não nomeia nada, então vira
+  # "1 terminal"; ao lado de uma família nomeada, "+1 outro". Sem nenhum dado (EC fora
+  # do Mapa), não afirma nada; com dado e nenhum equipamento, diz isso.
+  def equipment_summary(report)
+    count_columns = EQUIPMENT_COUNTS.values.flatten + [ "other_terminals_count" ]
+    return if report["has_payment_link"].nil? && count_columns.all? { |column| report[column].nil? }
 
-  def comparable_revenue_days(payload, cutoff_day)
-    return {} unless cutoff_day
-
-    revenue_days_hash(payload).select { |day, _| day.to_i <= cutoff_day.to_i }
-  end
-
-  def revenue_days_json(payload)
-    revenue_days_hash(payload).transform_keys(&:to_s).sort_by { |day, _| day.to_i }.to_h.to_json
-  end
-
-  def revenue_days_hash(payload)
-    case payload
-    when Hash then payload
-    when String then JSON.parse(payload)
-    else {}
+    terminals = EQUIPMENT_COUNTS.filter_map do |name, columns|
+      count = columns.sum { |column| report[column].to_i }
+      "#{count} #{name}" if count.positive?
     end
-  rescue JSON::ParserError
-    {}
+    others = report["other_terminals_count"].to_i
+    if others.positive?
+      terminals << if terminals.any?
+        others == 1 ? "+1 outro" : "+#{others} outros"
+      else
+        others == 1 ? "1 terminal" : "#{others} terminais"
+      end
+    end
+
+    labels = []
+    labels << "Link pgto" if report["has_payment_link"]
+    labels.concat(terminals)
+    labels.any? ? labels.join(" · ") : "Sem equipamentos"
+  end
+
+  def brl(amount)
+    # Espaço não separável entre "R$" e o número: o valor nunca quebra em duas linhas.
+    number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".",
+      format: "%u\u00A0%n")
   end
 end

@@ -25,8 +25,6 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal 120, first["previous_full_revenue"].to_d
     assert_equal 80, first["previous_revenue"].to_d
     assert_equal 100, first["current_revenue"].to_d
-    assert_equal({ "24" => 80.to_d, "31" => 40.to_d }, stringify_days(first["previous_days"]))
-    assert_equal({ "24" => 100.to_d }, stringify_days(first["current_days"]))
 
     assert_equal parent["previous_full_revenue"].to_d, rows.sum { |row| row["previous_full_revenue"].to_d }
     assert_equal parent["previous_revenue"].to_d, rows.sum { |row| row["previous_revenue"].to_d }
@@ -35,7 +33,6 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     other_rows = scope.revenue_by_establishment(sub_channel_id: other.id)
     assert_equal [ "33333333" ], other_rows.map { |row| row["ec"] }
     assert_equal 50, other_rows.first["current_revenue"].to_d
-    assert_equal({ "24" => 50.to_d }, stringify_days(other_rows.first["current_days"]))
   end
 
   test "filtra estabelecimentos por mais de um status de contrato" do
@@ -186,10 +183,6 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
 
   private
 
-  def stringify_days(payload)
-    days = payload.is_a?(String) ? JSON.parse(payload) : payload
-    days.to_h { |day, amount| [ day.to_s, amount.to_d ] }
-  end
 
   def seed_channel(template)
     channel = Channel.create!(external_id: "A", name: "CANAL A")

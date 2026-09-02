@@ -21,6 +21,24 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.header-status[data-tone=green]", text: /Arquivo hoje/
   end
 
+  test "o menu do header agrupa as páginas em submenus, com badge da idade do arquivo" do
+    get reports_path
+
+    # Dois grupos colapsáveis; o da página atual fica marcado no título.
+    assert_select "nav.primary-nav details.nav-dropdown", count: 2
+    assert_select "details.nav-dropdown summary.nav-link.is-active", text: /Dashboard/
+    assert_select "details.nav-dropdown summary.nav-link", text: /Operação/
+    assert_select ".nav-submenu a", text: /Faturamento/
+    assert_select ".nav-submenu a", text: /Importar arquivo/
+    assert_select "button.nav-toggle[aria-controls='primary_nav']"
+    # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma.
+    assert_select ".nav-badge[data-tone='rose']", text: /Nunca/
+
+    import_synthetic_workbook
+    get reports_path
+    assert_select ".nav-badge[data-tone='green']", text: /Hoje/
+  end
+
   test "a busca do header aponta para o endpoint de busca global" do
     get reports_path
 
@@ -164,7 +182,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "MIC A"
     assert_select "th", text: /Mês anterior cheio/
     assert_select "th", text: /Mês anterior comparável/
-    assert_select "td", text: "11111111"
+    assert_select "td", text: /11111111/
     assert_select "td", text: "12.345.678/0001-91"
     assert_select "td", text: /LOJA UM/
     assert_select "th", text: "Datas do ciclo"
@@ -173,6 +191,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dt", text: "Susp."
     assert_select "dd", text: "15/03/2024"
     assert_select "dd", text: "02/04/2024"
+    # Sob o EC: NET MDR truncado (0,299 nunca vira 0,30) e os equipamentos do Mapa.
+    assert_select ".ec-meta p", text: "NET MDR 0,29%"
+    assert_select ".ec-meta p", text: "Link pgto · 2 POS"
     assert_select "tfoot", false
     assert_select "input[name='status[]']"
     assert_select "input[name='date_kind[]']"
@@ -192,15 +213,96 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "button", text: "Limpar datas"
     assert_select "button", text: "Concluir"
     assert_select "a[href='#{reports_path(channel_id: channel.uuid)}']"
-    assert_select "dialog.modal"
-    assert_select "dialog.modal [data-revenue-days-modal-target='comparableHint']"
-    assert_select "dialog.modal [data-revenue-days-modal-target='currentHint']"
-    assert_select "dialog.modal th", text: "Variação"
-    assert_select "dialog.modal th", text: "Mês anterior"
-    assert_select "dialog.modal th", text: "Mês atual"
-    assert_select "button", text: "Lançamentos"
+    # A coluna de lançamentos diários e o modal saíram: sem serventia para o usuário.
+    assert_select "dialog.modal", false
+    assert_select "button", text: "Lançamentos", count: 0
     assert_select ".variation-chip--up [data-tip=?]", "Subiu"
     assert_select "table tbody td span.block", false
+    # Abas de variação com contagens, e a completa ativa por padrão.
+    assert_select "nav.variation-tabs a", count: 3
+    assert_select "nav.variation-tabs a.is-active", text: /Todos/
+    # Cada aba descreve o próprio critério, em palavras, com o glifo de tendência no título.
+    assert_select "nav.variation-tabs .tab-title .variation-icon", count: 2
+    assert_select "nav.variation-tabs .tab-hint", text: "vendeu mais, manteve ou é novo"
+    assert_select "nav.variation-tabs .tab-hint", text: "vendeu menos, está sem venda ou voltou do zero"
+  end
+
+  test "abas de variação separam alta e baixa, com EC zerado na baixa" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    # Segundo EC: faturou no mês anterior e zerou o atual — a regra manda para a Baixa.
+    zeroed = Establishment.create!(
+      ec: "22222222", company: Company.create!(cnpj: "12345678000192"), channel:
+    )
+    batch = ImportBatch.find_by!(channel:)
+    RevenueSnapshot.create!(
+      import_batch: batch, channel:, sub_channel:, establishment: zeroed,
+      legal_name: "LOJA DOIS LTDA", trade_name: "LOJA DOIS", contract_status: "Active",
+      previous_month_total: 60, current_month_total: 0
+    )
+    DailyRevenueConsolidated.create!(
+      establishment: zeroed, channel:, period: Date.new(2026, 7, 1), day: 10, amount: 60,
+      provisional: false, source_import_batch_id: batch.id, revised_count: 0
+    )
+
+    # Terceiro EC: ativação antiga, zerado no mês anterior e vendendo agora — não é
+    # crescimento, é retomada: mora na queda, com o chip descritivo próprio.
+    returned = Establishment.create!(
+      ec: "33333333", company: Company.create!(cnpj: "12345678000193"), channel:
+    )
+    RevenueSnapshot.create!(
+      import_batch: batch, channel:, sub_channel:, establishment: returned,
+      legal_name: "LOJA TRES LTDA", trade_name: "LOJA TRES", contract_status: "Active",
+      previous_month_total: 0, current_month_total: 40
+    )
+    MapSnapshot.create!(
+      import_batch: batch, channel:, sub_channel:, establishment: returned,
+      legal_name: "LOJA TRES LTDA", trade_name: "LOJA TRES", contract_status: "Active",
+      accredited_on: Date.new(2024, 1, 10), activated_on: Date.new(2024, 2, 1)
+    )
+    DailyRevenueConsolidated.create!(
+      establishment: returned, channel:, period: Date.new(2026, 8, 1), day: 10, amount: 40,
+      provisional: true, source_import_batch_id: batch.id, revised_count: 0
+    )
+
+    # Na semente, o EC 11111111 sobe (80 → 100): fica em crescimento.
+    get sub_channel_report_path(sub_channel, variation: "alta")
+    assert_response :success
+    assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
+    assert_select "tbody td", text: /11111111/
+    assert_select "tbody td", text: "22222222", count: 0
+    assert_select "tbody td", text: "33333333", count: 0
+
+    get sub_channel_report_path(sub_channel, variation: "baixa")
+    assert_response :success
+    assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em queda · 2/
+    assert_select "tbody td", text: "22222222"
+    assert_select "tbody td", text: "33333333"
+    assert_select "tbody td", text: /11111111/, count: 0
+    assert_select ".variation-chip", text: /Voltou a vender/
+  end
+
+  test "os cards da primeira dobra somam a aba ativa, com o recorte rotulado" do
+    template = BinImport::Template.register!
+    _channel, sub_channel = seed_subchannel_revenue(template)
+
+    # Sem aba: o subcanal inteiro (o único EC da semente fatura 100 no mês atual).
+    get sub_channel_report_path(sub_channel)
+    assert_select ".metric-value", text: "R$\u00A0100,00"
+
+    # Na Alta o mesmo EC continua; na Baixa (vazia) os cards zeram junto com a tabela,
+    # e o rótulo diz o recorte — na Alta a variação é positiva por construção.
+    get sub_channel_report_path(sub_channel, variation: "alta")
+    assert_select ".metric-value", text: "R$\u00A0100,00"
+    # A variação verdadeira do subcanal fica ancorada ao lado da enviesada da aba.
+    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*Subcanal inteiro:.*\+25,0%/m
+
+    get sub_channel_report_path(sub_channel, variation: "baixa")
+    assert_select ".metric-value", text: "R$\u00A0100,00", count: 0
+    assert_select ".metric-value", text: "R$\u00A00,00"
+    assert_select ".metric-hint", text: /Somando só a aba Em queda \(0 ECs\)/
+    assert_select ".empty-state"
   end
 
   test "filtra a listagem de estabelecimentos por status e faixa de dias" do
@@ -221,7 +323,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     )
 
     assert_response :success
-    assert_select "td", text: "11111111"
+    assert_select "td", text: /11111111/
     assert_select "td", text: "22222222", count: 0
     assert_select "input#status_Active[checked]"
     assert_select "input#date_kind_credenciamento[checked]"
@@ -244,7 +346,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "td", text: "22222222"
-    assert_select "td", text: "11111111", count: 0
+    assert_select "td", text: /11111111/, count: 0
     assert_select "input[name='q'][value='loja dois']"
 
     get sub_channel_report_path(
@@ -253,7 +355,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "td", text: "22222222"
-    assert_select "td", text: "11111111", count: 0
+    assert_select "td", text: /11111111/, count: 0
     assert_select "a", text: "Anterior"
     assert_select "a", text: "Próxima"
   end
@@ -284,7 +386,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     MapSnapshot.create!(
       import_batch: batch, channel:, sub_channel:, establishment:,
       legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
-      accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2)
+      accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2),
+      has_payment_link: true, smart_pos_count: 2, other_pos_count: 0, net_mdr: 0.299
     )
     now = Time.current
     PeriodCoverage.upsert_all(

@@ -9,10 +9,23 @@ class EstablishmentListingQuery
   }.freeze
   PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
   DEFAULT_PER_PAGE = 20
-  MIN_DIGITS_SEARCH = 3
+
+  # Abas por variação alinhada. "Novo" de verdade é só quem foi ativado neste mês ou no
+  # anterior (na falta da ativação, vale o credenciamento): EC antigo que estava zerado e
+  # voltou a vender não é crescimento — é atenção, e cai na aba de queda. Sem nenhuma das
+  # datas, não dá para provar que é novo: também cai na queda.
+  RECENT_ACTIVATION = "COALESCE(activated_on, accredited_on) >= :previous_period".freeze
+  VARIATION_CLAUSES = {
+    "alta" => "current_revenue > 0 AND current_revenue >= previous_revenue " \
+      "AND (previous_revenue > 0 OR #{RECENT_ACTIVATION})",
+    "baixa" => "current_revenue = 0 OR current_revenue < previous_revenue " \
+      "OR (previous_revenue = 0 AND current_revenue > 0 " \
+      "AND (COALESCE(activated_on, accredited_on) IS NULL " \
+      "OR COALESCE(activated_on, accredited_on) < :previous_period))"
+  }.freeze
 
   def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
-    from_date: nil, to_date: nil, query: nil, page: 1, per_page: nil)
+    from_date: nil, to_date: nil, query: nil, variation: nil, page: 1, per_page: nil)
     @channel_id = channel_id
     @sub_channel_id = sub_channel_id
     @window = window
@@ -22,6 +35,7 @@ class EstablishmentListingQuery
     @to_date = parse_date(to_date)
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
+    @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
     @page = page
     @per_page = per_page
   end
@@ -29,7 +43,8 @@ class EstablishmentListingQuery
   def self.empty_page
     EstablishmentRevenuePage.new(
       rows: [], total_count: 0, page: 1, per_page: DEFAULT_PER_PAGE,
-      totals: { previous_full_revenue: 0.to_d, previous_revenue: 0.to_d, current_revenue: 0.to_d }
+      totals: { previous_full_revenue: 0.to_d, previous_revenue: 0.to_d, current_revenue: 0.to_d },
+      variation_counts: { todas: 0, alta: 0, baixa: 0 }
     )
   end
 
@@ -39,7 +54,8 @@ class EstablishmentListingQuery
 
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
-      totals: summary[:totals], page:, per_page:
+      totals: summary[:totals], page:, per_page:, variation_counts: fetch_variation_counts,
+      overall_totals: fetch_overall_totals
     )
   end
 
@@ -73,21 +89,24 @@ class EstablishmentListingQuery
   def search_binds
     return { query: nil, query_digits: nil } if @query.blank?
 
-    digits = @query.gsub(/\D/, "")
-    digits = nil if digits.length < MIN_DIGITS_SEARCH
+    digits = SearchNormalizer.digits(@query)
     {
       query: "%#{ActiveRecord::Base.sanitize_sql_like(@query)}%",
       query_digits: digits && "%#{ActiveRecord::Base.sanitize_sql_like(digits)}%"
     }
   end
 
+  # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
+  # a tabela lista. Vale saber que na aba Alta a variação sai positiva por construção (a
+  # aba filtra pela própria métrica) — por isso a tela rotula o recorte no card.
   def fetch_summary
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT COUNT(*) AS total_count,
         COALESCE(SUM(previous_full_revenue), 0) AS previous_full_revenue,
         COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
         COALESCE(SUM(current_revenue), 0) AS current_revenue
-      FROM (#{listing_sql(include_days: false)}) listings
+      FROM (#{listing_sql}) listings
+      #{variation_where}
     SQL
     row = ApplicationRecord.connection.exec_query(sql).first || {}
     {
@@ -100,12 +119,44 @@ class EstablishmentListingQuery
     }
   end
 
+  # A variação da aba é enviesada por construção (a aba filtra pela própria métrica);
+  # estes totais sem o filtro de aba ancoram a variação verdadeira do recorte no card.
+  def fetch_overall_totals
+    return nil unless @variation
+
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
+      SELECT COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
+        COALESCE(SUM(current_revenue), 0) AS current_revenue
+      FROM (#{listing_sql}) listings
+    SQL
+    row = ApplicationRecord.connection.exec_query(sql).first || {}
+    { previous_revenue: row["previous_revenue"].to_d, current_revenue: row["current_revenue"].to_d }
+  end
+
+  # As contagens das três abas respeitam os demais filtros, nunca a própria aba —
+  # senão os números não fechariam entre si.
+  def fetch_variation_counts
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
+      SELECT COUNT(*) AS todas,
+        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
+        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa
+      FROM (#{listing_sql}) listings
+    SQL
+    row = ApplicationRecord.connection.exec_query(sql).first || {}
+    { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i }
+  end
+
   def fetch_rows(page, per_page)
     sql = ApplicationRecord.sanitize_sql_array([
-      "#{listing_sql} ORDER BY ec, establishment_id LIMIT :per_page OFFSET :offset",
+      "SELECT * FROM (#{listing_sql}) listings #{variation_where} " \
+      "ORDER BY ec, establishment_id LIMIT :per_page OFFSET :offset",
       binds.merge(per_page:, offset: (page - 1) * per_page)
     ])
     ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  def variation_where
+    @variation ? "WHERE #{VARIATION_CLAUSES.fetch(@variation)}" : ""
   end
 
   def normalize_page(total_count)
@@ -116,7 +167,7 @@ class EstablishmentListingQuery
     [ [ [ @page.to_i, 1 ].max, total_pages ].min, size ]
   end
 
-  def listing_sql(include_days: true)
+  def listing_sql
     <<~SQL
       WITH latest_batches AS (
         SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
@@ -131,7 +182,10 @@ class EstablishmentListingQuery
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
-        mapa.suspended_on, snapshot.previous_month_total, snapshot.current_month_total,
+        mapa.suspended_on, mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
+        mapa.tap_on_phone_count, mapa.mps_count, mapa.pin_count, mapa.tef_count,
+        mapa.other_terminals_count, mapa.net_mdr, mapa.net_mdr_status,
+        snapshot.previous_month_total, snapshot.current_month_total,
         :previous_period AS previous_period, :current_period AS current_period,
         :to_day AS max_known_day,
         COALESCE(SUM(revenue.amount) FILTER (
@@ -144,13 +198,16 @@ class EstablishmentListingQuery
         COALESCE(SUM(revenue.amount) FILTER (
           WHERE revenue.period = :current_period
             AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS current_revenue#{daily_columns(include_days)}
+        ), 0) AS current_revenue
       FROM revenue_snapshots snapshot
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
       LEFT JOIN LATERAL (
-        SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on
+        SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on,
+          mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
+          mapa.tap_on_phone_count, mapa.mps_count, mapa.pin_count, mapa.tef_count,
+          mapa.other_terminals_count, mapa.net_mdr, mapa.net_mdr_status
         FROM map_snapshots mapa
         WHERE mapa.establishment_id = establishment.id
           AND mapa.import_batch_id = snapshot.import_batch_id
@@ -167,24 +224,11 @@ class EstablishmentListingQuery
         #{search_clause}
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, establishment.id, establishment.ec,
         company.cnpj, snapshot.legal_name, snapshot.trade_name, snapshot.contract_status,
-        mapa.accredited_on, mapa.activated_on, mapa.suspended_on, snapshot.previous_month_total,
-        snapshot.current_month_total
-    SQL
-  end
-
-  # Os lançamentos diários só interessam à página; o resumo não paga esse agregado.
-  def daily_columns(include_days)
-    return "" unless include_days
-
-    <<~SQL.chomp
-      ,
-        COALESCE(jsonb_object_agg(revenue.day::text, revenue.amount) FILTER (
-          WHERE revenue.period = :previous_period
-        ), '{}'::jsonb) AS previous_days,
-        COALESCE(jsonb_object_agg(revenue.day::text, revenue.amount) FILTER (
-          WHERE revenue.period = :current_period
-            AND revenue.day BETWEEN :from_day AND :to_day
-        ), '{}'::jsonb) AS current_days
+        mapa.accredited_on, mapa.activated_on, mapa.suspended_on, mapa.has_payment_link,
+        mapa.smart_pos_count, mapa.other_pos_count, mapa.tap_on_phone_count, mapa.mps_count,
+        mapa.pin_count, mapa.tef_count, mapa.other_terminals_count,
+        mapa.net_mdr, mapa.net_mdr_status,
+        snapshot.previous_month_total, snapshot.current_month_total
     SQL
   end
 
