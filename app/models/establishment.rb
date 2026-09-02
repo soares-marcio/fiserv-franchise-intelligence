@@ -13,15 +13,20 @@ class Establishment < ApplicationRecord
   validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: true
 
   # Busca livre pelo que aparece no cadastro: EC, CNPJ, nomes, cidade, CNAE ou subcanal.
+  # CNPJ e EC ficam só com dígitos no banco; o termo limpo cobre a colagem formatada.
   scope :search, ->(query) {
     like = "%#{sanitize_sql_like(query.to_s.strip)}%"
-    left_joins(:company, current_map_snapshot: :sub_channel).where(
-      "establishments.ec ILIKE :q OR companies.cnpj ILIKE :q OR " \
+    digits = SearchNormalizer.digits(query)
+    clauses = "establishments.ec ILIKE :q OR companies.cnpj ILIKE :q OR " \
       "map_snapshots.trade_name ILIKE :q OR map_snapshots.legal_name ILIKE :q OR " \
       "map_snapshots.city ILIKE :q OR map_snapshots.cnae_code ILIKE :q OR " \
-      "map_snapshots.cnae_description ILIKE :q OR sub_channels.name ILIKE :q",
-      q: like
-    ).distinct
+      "map_snapshots.cnae_description ILIKE :q OR sub_channels.name ILIKE :q"
+    binds = { q: like }
+    if digits
+      clauses += " OR companies.cnpj ILIKE :digits OR establishments.ec ILIKE :digits"
+      binds[:digits] = "%#{sanitize_sql_like(digits)}%"
+    end
+    left_joins(:company, current_map_snapshot: :sub_channel).where(clauses, binds).distinct
   }
   validate :primary_is_from_same_company
 

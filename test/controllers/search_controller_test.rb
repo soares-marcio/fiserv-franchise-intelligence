@@ -25,7 +25,9 @@ class SearchControllerTest < ActionDispatch::IntegrationTest
     import_synthetic_workbook
     beta = Establishment.find_by!(ec: "30000002")
 
-    { "30000002" => "EC", "44555666" => "CNPJ", "beta cafe" => "nome" }.each do |query, kind|
+    # O CNPJ formatado precisa achar igual: o banco guarda só dígitos, a limpeza é da busca.
+    { "30000002" => "EC", "44555666" => "CNPJ", "beta cafe" => "nome",
+      "44.555.666/0001-72" => "CNPJ formatado" }.each do |query, kind|
       get search_path(q: query)
       assert_select "a.search-result[href=?]", establishment_path(beta), { text: /BETA CAFE/ }, "por #{kind}"
     end

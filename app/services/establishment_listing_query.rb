@@ -9,7 +9,6 @@ class EstablishmentListingQuery
   }.freeze
   PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
   DEFAULT_PER_PAGE = 20
-  MIN_DIGITS_SEARCH = 3
 
   # Abas por variação alinhada. "Novo" de verdade é só quem foi ativado neste mês ou no
   # anterior (na falta da ativação, vale o credenciamento): EC antigo que estava zerado e
@@ -90,8 +89,7 @@ class EstablishmentListingQuery
   def search_binds
     return { query: nil, query_digits: nil } if @query.blank?
 
-    digits = @query.gsub(/\D/, "")
-    digits = nil if digits.length < MIN_DIGITS_SEARCH
+    digits = SearchNormalizer.digits(@query)
     {
       query: "%#{ActiveRecord::Base.sanitize_sql_like(@query)}%",
       query_digits: digits && "%#{ActiveRecord::Base.sanitize_sql_like(digits)}%"

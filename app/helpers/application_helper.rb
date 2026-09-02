@@ -286,8 +286,8 @@ module ApplicationHelper
 
     labels = []
     labels << "Link pgto" if has_payment_link
-    labels << "Smart POS" if smart_pos_count.to_i.positive?
-    labels << "Demais POS" if other_pos_count.to_i.positive?
+    # Decisão do usuário: Smart POS e Demais POS aparecem como um único "POS".
+    labels << "POS" if smart_pos_count.to_i.positive? || other_pos_count.to_i.positive?
     labels.any? ? labels.join(" · ") : "Sem equipamentos"
   end
 

@@ -54,8 +54,8 @@ class ApplicationHelperTest < ActionView::TestCase
   end
 
   test "equipamentos: lista os presentes, distingue nenhum de desconhecido" do
-    assert_equal "Link pgto · Smart POS", equipment_summary(true, 2, 0)
-    assert_equal "Demais POS", equipment_summary(false, 0, 3)
+    assert_equal "Link pgto · POS", equipment_summary(true, 2, 0)
+    assert_equal "POS", equipment_summary(false, 0, 3)
     assert_equal "Sem equipamentos", equipment_summary(false, 0, 0)
     assert_nil equipment_summary(nil, nil, nil)
   end

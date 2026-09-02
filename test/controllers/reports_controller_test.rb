@@ -193,7 +193,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "02/04/2024"
     # Sob o EC: NET MDR truncado (0,299 nunca vira 0,30) e os equipamentos do Mapa.
     assert_select ".ec-meta p", text: "NET MDR 0,29%"
-    assert_select ".ec-meta p", text: "Link pgto · Smart POS"
+    assert_select ".ec-meta p", text: "Link pgto · POS"
     assert_select "tfoot", false
     assert_select "input[name='status[]']"
     assert_select "input[name='date_kind[]']"
