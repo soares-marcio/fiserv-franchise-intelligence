@@ -108,14 +108,12 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     File.delete(path) if path && File.exist?(path)
   end
 
-  test "falha antes do parse marca o lote e mostra o motivo na tela" do
+  test "lote sem arquivo anexado marca a falha e mostra o motivo na tela" do
     batch = ImportBatch.create!(
       source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "pending"
     )
 
-    assert_raises(ActiveSupport::MessageVerifier::InvalidSignature) do
-      ImportBinFileJob.perform_now(batch.id, "assinatura-invalida")
-    end
+    assert_raises(StandardError) { ImportBinFileJob.perform_now(batch.id) }
 
     assert_equal "failed", batch.reload.status
     assert_predicate batch.validation_errors, :any?

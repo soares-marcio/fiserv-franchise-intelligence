@@ -64,6 +64,10 @@ Tudo em contêiner (app, worker, banco e Metabase em `localhost:3001`):
 docker compose up
 ```
 
+O portal ainda não possui autenticação. Enquanto essa camada não for implementada, exponha
+as portas somente em uma máquina ou rede confiável; não publique o Compose diretamente na
+internet.
+
 ## A planilha BIN
 
 O arquivo `.xlsx` precisa ter exatamente três abas, nesta ordem, com os cabeçalhos exatos
@@ -122,9 +126,9 @@ As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensat
 constantes Ruby que geram os `CASE WHEN` da view `audit_accreditation_earnings` (prêmio de
 entrada por EC, atualizada no refresh do import) e alimentam o cálculo ao vivo da página 3M
 (`ThreeMonthEarningsQuery`, sobre `monthly_volumes_consolidated`). Quem alterar alíquota mexe
-lá, cria migração recriando a view e regenera o `structure.sql`. A tela sempre mostra o prêmio
-de credenciamento nas duas hipóteses (com e sem antecipação automática): a classificação vinda
-da planilha apenas destaca a provável.
+lá, cria migração recriando a view e regenera o `structure.sql`. A fonte atual não permite
+classificar antecipação automática com segurança. Quando as duas hipóteses divergem, a tela
+mostra o intervalo possível sem escolher uma delas.
 
 ## Metabase
 
@@ -136,6 +140,18 @@ views de auditoria. `METABASE_RO_PASSWORD` é obrigatória em produção.
 ```bash
 bin/rails test
 ```
+
+Para executar a suíte na imagem própria de testes, que inclui as gems de desenvolvimento/teste
+e Chromium para os testes de sistema:
+
+```bash
+docker compose build test
+docker compose run --rm test
+docker compose run --rm test bin/rails test:system
+```
+
+O serviço `test` usa o target `test` do Dockerfile e um banco separado. A imagem final de
+produção continua sem as gems e os pacotes de navegador usados apenas na verificação.
 
 Os testes de importação usam planilhas sintéticas geradas por `test/support/bin_workbook.rb`;
 nenhum dado real de cliente é versionado. Se a planilha de referência da Fiserv estiver no

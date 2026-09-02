@@ -20,15 +20,16 @@ RUN apt-get update -qq && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Set production environment variables and enable jemalloc for reduced memory usage and latency.
-ENV RAILS_ENV="production" \
-    BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
-    BUNDLE_WITHOUT="development:test" \
+# Caminho compartilhado do bundle e configuração do jemalloc.
+ENV BUNDLE_PATH="/usr/local/bundle" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so"
 
 # Throw-away build stage to reduce size of final image
 FROM base AS build
+
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_WITHOUT="development:test"
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
@@ -53,11 +54,32 @@ RUN bundle exec bootsnap precompile -j 1 app/ lib/
 # Precompiling assets for production without requiring secret RAILS_MASTER_KEY
 RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 
+# Target de teste com bundle completo e navegador headless real. Construa com
+# `docker compose build test`; este estágio não entra na imagem de produção.
+FROM base AS test
+
+ENV RAILS_ENV="test"
+
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y \
+      build-essential chromium chromium-driver git libpq-dev libvips libyaml-dev pkg-config && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+COPY . .
+
+CMD ["bin/rails", "db:test:prepare", "test"]
 
 
 
 # Final stage for app image
 FROM base
+
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_WITHOUT="development:test"
 
 # Run and own only the runtime files as a non-root user for security
 RUN groupadd --system --gid 1000 rails && \

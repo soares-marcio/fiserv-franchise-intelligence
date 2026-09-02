@@ -64,6 +64,22 @@ services:
         condition: service_healthy
       web:
         condition: service_healthy
+  test:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    command: bin/rails db:test:prepare test
+    environment:
+      RAILS_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/fiserv_franchise_intelligence_test
+      METABASE_RO_PASSWORD: ${METABASE_RO_PASSWORD:?defina METABASE_RO_PASSWORD no .env}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?defina SECRET_KEY_BASE no .env}
+    volumes:
+      - test_storage:/rails/tmp/storage
+    depends_on:
+      db:
+        condition: service_healthy
   metabase:
     image: metabase/metabase:latest
     environment:
@@ -82,3 +98,4 @@ volumes:
   postgres_data:
   metabase_data:
   storage:
+  test_storage:

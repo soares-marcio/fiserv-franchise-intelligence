@@ -23,7 +23,7 @@ que parece existir.
 | --- | --- | --- |
 | Topbar | `app/views/layouts/_navbar.html.erb` | Marca, menu horizontal em dois grupos (**Dashboard** e **Operação**), busca global e o sinal de arquivo |
 | Busca global | `SearchController`, `GlobalSearch`, `app/views/search/index.html.erb`, `app_layout_controller.js` | Digita EC, CNPJ, nome, cidade, CNAE ou subcanal e vê subcanais e estabelecimentos ao vivo; `Ctrl+/` (`⌘/` no Mac) abre, `Esc` fecha, `Enter` abre o primeiro resultado |
-| Breadcrumb | `ApplicationHelper#render_breadcrumbs` | `Início / <grupo> / <página>`; o grupo é texto, não link |
+| Breadcrumb | `ApplicationHelper#render_breadcrumbs` | `Início / <página>`; agrupamentos do menu não entram na trilha |
 | Sinal de arquivo | `ApplicationHelper#header_file_status` | Há quanto tempo a carteira recebeu arquivo; vermelho a partir de `ImportBatch::STALE_AFTER_DAYS` |
 
 ### Breakpoints
@@ -82,9 +82,8 @@ Tipografia: **Montserrat** (Google Fonts, carregada no `<head>`), corpo em 0.875
   uma pílula "Carteira BIN" sempre verde, ligada a nada. O layout passou a mostrar, em toda
   página, o único dado operacional que importa todo dia: há quanto tempo o último arquivo
   entrou. A regra é a mesma do card da tela de importação (`ImportBatch.days_since_last_file`).
-- **Grupo da sidebar não é link na trilha.** "Dashboard" e "Operação" agrupam páginas; não
-  são destino. A versão inicial os renderizava como link para a raiz, então clicar em
-  "Operação" abria o relatório de faturamento.
+- **Grupo do menu não entra na trilha.** "Dashboard" e "Operação" agrupam páginas; não são
+  destinos navegáveis e por isso não aparecem no breadcrumb.
 - **A busca procura dados, não páginas.** A versão inicial abria uma lista fixa das
   páginas — que já estão na sidebar. Agora o campo consulta `GET /search?q=` e o resultado
   chega num Turbo Frame (`target="_top"`, para o clique navegar a página inteira): subcanais
@@ -111,8 +110,8 @@ Tipografia: **Montserrat** (Google Fonts, carregada no `<head>`), corpo em 0.875
   identidade (EC preso ao CNPJ e ao canal) continua valendo e o cadastro volta no futuro.
 - **Metabase fica em Operação, com explicação.** É ferramenta de apoio para o operador, não
   relatório; a página diz o que é, como usar e esconde os dados de conexão num `details`.
-- **Trilha na página inicial** mostra `Início / Dashboard / Faturamento`, com "Início"
-  apontando para a própria página. É o padrão do template; inofensivo.
+- **Trilha na página inicial** mostra `Início / Faturamento`, com "Início" apontando para a
+  própria página.
 
 ## Verificação
 

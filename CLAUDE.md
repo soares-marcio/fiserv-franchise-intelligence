@@ -104,9 +104,9 @@ vocabulário idêntico ao do slide) e o volume de antecipação realizado
 As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensationRules`.
 Quem alterar alíquota mexe lá e em nenhum outro lugar — e, como a view
 `audit_accreditation_earnings` congela esses `CASE WHEN` no banco, a mudança exige migração
-recriando a view e regeneração do `structure.sql`. O prêmio de credenciamento é sempre
-apresentado nas duas hipóteses (com e sem antecipação automática): a classificação vinda da
-planilha é inferência e apenas destaca a provável, nunca decide o valor sozinha.
+recriando a view e regeneração do `structure.sql`. Não derive classificação de antecipação das
+colunas atuais. Quando os valores com e sem antecipação divergem, apresente o intervalo e deixe
+a definição pendente até existir uma fonte confiável.
 
 ## Schema, `structure.sql` e produção
 
@@ -153,10 +153,17 @@ fora do repositório. Testes usam planilha sintética (`test/support/bin_workboo
 O import pela interface, com o arquivo real, é verificação **do usuário** — não execute por conta
 própria.
 
+## Controle de acesso
+
+O portal ainda opera sem autenticação por decisão de escopo. Trate-o como ferramenta interna:
+não exponha Rails, PostgreSQL ou Metabase fora de uma máquina ou rede confiável. Antes de qualquer
+publicação externa, autenticação e autorização passam a ser requisito de entrega.
+
 ## Verificação
 
 `bin/rails test` · `bin/rubocop` · `bin/brakeman` devem passar antes de entregar. A suíte roda em
-processo único de propósito (ver `README.md`).
+processo único de propósito (ver `README.md`). Em Docker, use `docker compose run --rm test`; a
+imagem de produção exclui deliberadamente as dependências de desenvolvimento e teste.
 
 ---
 
