@@ -102,7 +102,7 @@
                 <span class="block font-normal normal-case tracking-normal opacity-60">até dia <%= @cutoff_day %></span>
               <% end %>
             </th>
-            <th class="text-right">Variação</th>
+            <th class="text-right variation-col">Variação</th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +119,7 @@
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
-              <td class="text-right">
+              <td class="text-right variation-col">
                 <%= variation_chip(previous, current) %>
               </td>
             </tr>
@@ -132,7 +132,7 @@
               <td class="text-right tabular-nums"><%= brl(@totals[:previous_full_revenue]) %></td>
               <td class="text-right tabular-nums"><%= brl(@totals[:previous_revenue]) %></td>
               <td class="text-right tabular-nums"><%= brl(@totals[:current_revenue]) %></td>
-              <td class="text-right">
+              <td class="text-right variation-col">
                 <%= variation_chip(@totals[:previous_revenue], @totals[:current_revenue]) %>
               </td>
             </tr>

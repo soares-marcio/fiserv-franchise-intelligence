@@ -280,7 +280,7 @@
                 <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
               <% end %>
             </th>
-            <th class="text-right">Variação</th>
+            <th class="text-right variation-col">Variação</th>
           </tr>
         </thead>
         <tbody>
@@ -319,7 +319,7 @@
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
-              <td class="text-right">
+              <td class="text-right variation-col">
                 <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
                     anterior; antigo que saiu do zero vira "Voltou a vender". %>
                 <% reference_date = report["activated_on"] || report["accredited_on"] %>

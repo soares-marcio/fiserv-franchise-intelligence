@@ -880,11 +880,15 @@
     align-items: center;
     gap: 0.35rem;
     min-height: 1.7rem;
-    padding: 0.15rem 0.5rem 0.15rem 0.3rem;
-    border-radius: 0.5rem;
     font-weight: 400;
     letter-spacing: 0;
     text-align: left;
+    white-space: nowrap;
+  }
+
+  /* Em tabela, largura de 1% + nowrap encolhe a coluna até o maior conteúdo. */
+  .variation-col {
+    width: 1%;
     white-space: nowrap;
   }
 
@@ -917,17 +921,14 @@
   }
 
   .variation-chip--up {
-    background: color-mix(in oklab, var(--color-success) 12%, white);
     color: var(--color-success-content);
   }
 
   .variation-chip--down {
-    background: color-mix(in oklab, var(--color-error) 12%, white);
     color: var(--color-error);
   }
 
   .variation-chip--flat {
-    background: var(--color-base-200);
     color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
   }
 
