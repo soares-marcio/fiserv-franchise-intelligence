@@ -36,7 +36,7 @@ class ReportsController < ApplicationController
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
-    @window = three_month_window
+    @window = ThreeMonthEarningsQuery.window(@available_periods, start_period: params[:start_period])
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
   end
 
@@ -48,7 +48,7 @@ class ReportsController < ApplicationController
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
-    @window = three_month_window
+    @window = ThreeMonthEarningsQuery.window(@available_periods, start_period: params[:start_period])
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
   end
 
@@ -115,33 +115,6 @@ class ReportsController < ApplicationController
     return if value.blank?
 
     Date.parse(value.to_s)
-  rescue Date::Error, ArgumentError, TypeError
-    nil
-  end
-
-  # O mês escolhido é o M0 — o mês de credenciamento —, e a janela avança a partir dele.
-  # Meses ainda sem volume importado aparecem na tela como "sem dado", não somem.
-  def three_month_window
-    return nil if @available_periods.empty?
-
-    start = parse_start_period || default_start_period
-    [ start, start + 1.month, start + 2.months ]
-  end
-
-  # Sem escolha explícita, abre no M0 mais recente cuja janela ainda cabe nos meses
-  # importados: abrir no último mês mostraria duas colunas vazias por padrão.
-  def default_start_period
-    complete = @available_periods.find do |period|
-      [ period + 1.month, period + 2.months ].all? { |month| @available_periods.include?(month) }
-    end
-    complete || @available_periods.first
-  end
-
-  def parse_start_period
-    return if params[:start_period].blank?
-
-    parsed = Date.strptime(params[:start_period].to_s, "%Y-%m").beginning_of_month
-    parsed if @available_periods.include?(parsed)
   rescue Date::Error, ArgumentError, TypeError
     nil
   end

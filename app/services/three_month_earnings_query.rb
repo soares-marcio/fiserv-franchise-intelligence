@@ -37,6 +37,35 @@ class ThreeMonthEarningsQuery
     ApplicationRecord.connection.exec_query(sql).rows.map { |(period)| period.to_date }
   end
 
+  # O mês escolhido é o M0 — o mês de credenciamento —, e a janela avança a partir dele.
+  # Meses ainda sem volume importado aparecem na tela como "sem dado", não somem.
+  def self.window(available_periods, start_period: nil)
+    return if available_periods.empty?
+
+    start = parse_start_period(available_periods, start_period) || default_start_period(available_periods)
+    [ start, start + 1.month, start + 2.months ]
+  end
+
+  # Sem escolha explícita, abre no M0 mais recente cuja janela ainda cabe nos meses
+  # importados: abrir no último mês mostraria duas colunas vazias por padrão.
+  def self.default_start_period(periods)
+    complete = periods.find do |period|
+      [ period + 1.month, period + 2.months ].all? { |month| periods.include?(month) }
+    end
+    complete || periods.first
+  end
+  private_class_method :default_start_period
+
+  def self.parse_start_period(periods, value)
+    return if value.blank?
+
+    parsed = Date.strptime(value.to_s, "%Y-%m").beginning_of_month
+    parsed if periods.include?(parsed)
+  rescue Date::Error, ArgumentError, TypeError
+    nil
+  end
+  private_class_method :parse_start_period
+
   # Mesma invalidação do recorrente: o carimbo da última consolidação entra na chave.
   def by_sub_channel
     Rails.cache.fetch([ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods ]) do
