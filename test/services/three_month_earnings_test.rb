@@ -140,6 +140,9 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
   end
 
   test "o nível 1 fica em cache por janela até a próxima consolidação" do
+    # Devolve o mesmo objeto no fim: o rate_limit do controller prende o store na
+    # definição da classe, e um NullStore novo deixaria aquele teste sem simulação.
+    original_store = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
     reports = @query.by_sub_channel
 
@@ -154,6 +157,6 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
     assert_queries_match(/monthly_volumes_consolidated/) { ThreeMonthEarningsQuery.new(periods: PERIODS).by_sub_channel }
   ensure
-    Rails.cache = ActiveSupport::Cache::NullStore.new
+    Rails.cache = original_store
   end
 end

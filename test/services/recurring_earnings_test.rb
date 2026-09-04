@@ -89,6 +89,9 @@ class RecurringEarningsTest < ActiveSupport::TestCase
   # última consolidação na chave invalida sozinho — tanto no lote novo quanto no
   # reprocessamento de um lote já validado, que não cria id novo.
   test "a série fica em cache até a próxima consolidação" do
+    # Devolve o mesmo objeto no fim: o rate_limit do controller prende o store na
+    # definição da classe, e um NullStore novo deixaria aquele teste sem simulação.
+    original_store = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
     query = RecurringEarningsQuery.new
     assert_equal @reports, query.by_sub_channel
@@ -105,6 +108,6 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
     assert_queries_match(/monthly_volumes_consolidated/) { RecurringEarningsQuery.new.by_sub_channel }
   ensure
-    Rails.cache = ActiveSupport::Cache::NullStore.new
+    Rails.cache = original_store
   end
 end
