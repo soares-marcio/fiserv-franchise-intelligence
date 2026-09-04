@@ -46,3 +46,4 @@
 # Nunca versionar: o arquivo fica só no disco local até termos armazenamento de objetos.
 /*.xlsx
 /*.xls
+/coverage
