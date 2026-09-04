@@ -14,12 +14,13 @@ class ReportScope
   end
 
   def revenue_by_establishment(sub_channel_id:, period: nil, from_day: nil, to_day: nil, **filters)
-    window = establishment_window(period:, from_day:, to_day:)
-    return EstablishmentListingQuery.empty_page unless window
+    listing = establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)
+    listing ? listing.call : EstablishmentListingQuery.empty_page
+  end
 
-    EstablishmentListingQuery.new(
-      channel_id: @channel_id, sub_channel_id:, window:, **filters
-    ).call
+  # Mesmo recorte da tela sem a paginação: é o que a exportação leva.
+  def establishment_rows(sub_channel_id:, period: nil, from_day: nil, to_day: nil, **filters)
+    establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)&.all_rows || []
   end
 
   def contract_statuses(sub_channel_id:)
@@ -107,6 +108,13 @@ class ReportScope
   end
 
   private
+
+  def establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)
+    window = establishment_window(period:, from_day:, to_day:)
+    return unless window
+
+    EstablishmentListingQuery.new(channel_id: @channel_id, sub_channel_id:, window:, **filters)
+  end
 
   def empty_totals
     { previous_full_revenue: 0.to_d, previous_revenue: 0.to_d, current_revenue: 0.to_d }

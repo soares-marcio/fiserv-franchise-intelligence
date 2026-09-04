@@ -96,6 +96,12 @@ class ReportsController < ApplicationController
     @per_page = @listing.per_page
     @total_count = @listing.total_count
     @total_pages = @listing.total_pages
+
+    respond_to do |format|
+      format.html
+      format.csv { send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
+      format.xlsx { send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
+    end
   end
 
   private
@@ -105,6 +111,22 @@ class ReportsController < ApplicationController
     @selected_channel = Channel.find_param!(params[:channel_id]) if params[:channel_id].present?
     @scope = ReportScope.new(channel_id: @selected_channel&.id)
     @cutoff_day = @scope.cutoff_day
+  end
+
+  # A exportação repete o recorte da tela e larga a paginação: o arquivo é do filtro, não
+  # da página que o usuário estava vendo.
+  def listing_exporter
+    rows = @scope.establishment_rows(
+      sub_channel_id: @sub_channel.id, variation: @selected_variation,
+      statuses: @selected_statuses, period: params[:period],
+      from_day: params[:from_day], to_day: params[:to_day],
+      date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query
+    )
+    EstablishmentListingExporter.new(rows, sub_channel_name: @sub_channel.name, window: @window)
+  end
+
+  def listing_filename(extension)
+    "#{@sub_channel.name.parameterize}-estabelecimentos.#{extension}"
   end
 
   def export_filename(extension)

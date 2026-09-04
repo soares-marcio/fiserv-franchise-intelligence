@@ -19,6 +19,14 @@
         <% end %>
       </div>
       <div class="relative z-10 flex flex-wrap gap-2">
+        <%# A exportação leva o recorte da tela — filtros, busca e aba —, sem a paginação. %>
+        <% export_params = sub_channel_listing_params(page: nil, per_page: nil) %>
+        <%= link_to icon_label("download-simple", "Exportar CSV"),
+          sub_channel_report_path(@sub_channel, export_params.merge(format: :csv)),
+          class: "btn btn-outline" %>
+        <%= link_to icon_label("download-simple", "Exportar XLSX"),
+          sub_channel_report_path(@sub_channel, export_params.merge(format: :xlsx)),
+          class: "btn btn-neutral" %>
         <%= link_to "Voltar à listagem", reports_path(channel_id: @selected_channel&.uuid),
           class: "btn btn-outline" %>
       </div>

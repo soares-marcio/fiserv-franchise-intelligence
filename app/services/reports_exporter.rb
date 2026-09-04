@@ -1,6 +1,3 @@
-require "csv"
-require "caxlsx"
-
 class ReportsExporter
   HEADERS = [
     "Sub-canal", "Dia de corte atual", "Mês anterior (cheio)",
@@ -13,28 +10,19 @@ class ReportsExporter
     @totals = totals
   end
 
-  def to_csv
-    CSV.generate(headers: true, encoding: "UTF-8") do |csv|
-      csv << HEADERS
-      @rows.each { |row| csv << csv_row(row) }
-      csv << total_csv_row
-    end
-  end
+  def to_csv = tabular.to_csv
 
-  def to_xlsx
-    package = Axlsx::Package.new
-    package.workbook.add_worksheet(name: "Auditoria") do |sheet|
-      sheet.add_row [
-        "Mês anterior completo; comparação alinhada com o mês atual até o dia #{@cutoff_day}"
-      ]
-      sheet.add_row HEADERS
-      @rows.each { |row| sheet.add_row csv_row(row) }
-      sheet.add_row total_csv_row
-    end
-    package.to_stream.read
-  end
+  def to_xlsx = tabular.to_xlsx
 
   private
+
+  def tabular
+    TabularExporter.new(
+      headers: HEADERS, rows: @rows.map { |row| csv_row(row) } + [ total_csv_row ],
+      sheet_name: "Auditoria",
+      note: "Mês anterior completo; comparação alinhada com o mês atual até o dia #{@cutoff_day}"
+    )
+  end
 
   def csv_row(row)
     previous = row["previous_revenue"].to_d
@@ -58,9 +46,5 @@ class ReportsExporter
     [ "TOTAL", @cutoff_day, previous_full, previous, current, variation(previous, current) ]
   end
 
-  def variation(previous, current)
-    return nil if previous.zero?
-
-    ((current / previous - 1) * 100).round(1)
-  end
+  def variation(previous, current) = AlignedVariation.percent(previous, current)
 end

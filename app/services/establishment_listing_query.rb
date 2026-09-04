@@ -59,6 +59,13 @@ class EstablishmentListingQuery
     )
   end
 
+  # Todas as linhas do recorte, na mesma ordem da tela e sem paginação.
+  def all_rows
+    ApplicationRecord.connection.exec_query(
+      ApplicationRecord.sanitize_sql_array([ rows_sql, binds ])
+    ).to_a
+  end
+
   private
 
   def binds
@@ -137,11 +144,14 @@ class EstablishmentListingQuery
 
   def fetch_rows(page, per_page)
     sql = ApplicationRecord.sanitize_sql_array([
-      "SELECT * FROM (#{listing_sql}) listings #{variation_where} " \
-      "ORDER BY ec, establishment_id LIMIT :per_page OFFSET :offset",
+      "#{rows_sql} LIMIT :per_page OFFSET :offset",
       binds.merge(per_page:, offset: (page - 1) * per_page)
     ])
     ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  def rows_sql
+    "SELECT * FROM (#{listing_sql}) listings #{variation_where} ORDER BY ec, establishment_id"
   end
 
   def tab_clause

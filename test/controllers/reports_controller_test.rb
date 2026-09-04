@@ -1,4 +1,5 @@
 require "test_helper"
+require "csv"
 
 class ReportsControllerTest < ActionDispatch::IntegrationTest
   test "trilha de navegação: agrupamento do menu não aparece, só páginas reais" do
@@ -360,12 +361,94 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Próxima"
   end
 
+  # A tela de subcanal é a que tem filtros, abas e paginação — e era a única sem exportação.
+  # O arquivo leva o recorte da tela inteiro, menos a paginação: exportar só a página seria
+  # entregar um recorte que ninguém pediu.
+  test "exporta a listagem do subcanal em CSV com todas as linhas do recorte" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    seed_second_establishment(channel, sub_channel)
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, per_page: 1, format: :csv)
+
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    table = CSV.parse(response.body, headers: true)
+
+    assert_equal EstablishmentListingExporter::HEADERS, table.headers
+    assert_equal [ "11111111", "22222222", "TOTAL" ], table.map { |row| row["EC"] }
+    assert_equal "12.345.678/0001-91", table[0]["CNPJ"]
+    assert_equal "LOJA UM", table[0]["Nome fantasia"]
+    assert_equal "Ativo", table[0]["Status do contrato"]
+    assert_equal "15/03/2024", table[0]["Credenciamento"]
+    assert_equal "80.0", table[0]["Mês anterior (cheio)"]
+    assert_equal "100.0", table[0]["Mês atual"]
+  end
+
+  test "a exportação respeita a busca e a aba escolhidas na tela" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    seed_second_establishment(channel, sub_channel)
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, q: "loja dois", format: :csv)
+    ecs = CSV.parse(response.body, headers: true).map { |row| row["EC"] }
+
+    assert_equal [ "22222222", "TOTAL" ], ecs
+
+    # A segunda loja não tem faturamento diário consolidado: cai na aba de queda.
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, variation: "baixa", format: :csv)
+
+    assert_equal [ "22222222", "TOTAL" ], CSV.parse(response.body, headers: true).map { |row| row["EC"] }
+  end
+
+  test "exporta a listagem do subcanal em XLSX" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, format: :xlsx)
+
+    assert_response :success
+    assert_equal Mime[:xlsx].to_s, response.media_type
+    assert_includes response.headers["Content-Disposition"], "mic-a"
+  end
+
+  test "a tela de subcanal oferece os dois formatos preservando o recorte" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, variation: "alta", q: "loja")
+
+    assert_response :success
+    %w[csv xlsx].each do |format|
+      href = css_select("a[href*='.#{format}?']").first["href"]
+
+      assert_includes href, "channel_id=#{channel.uuid}"
+      assert_includes href, "variation=alta"
+      assert_includes href, "q=loja"
+      # A janela de comparação faz parte do recorte; a paginação, não.
+      assert_includes href, "from_day="
+      assert_not_includes href, "page="
+    end
+  end
+
   test "responde não encontrado para subcanal desconhecido" do
     get sub_channel_report_path(id: SecureRandom.uuid)
     assert_response :not_found
   end
 
   private
+
+  def seed_second_establishment(channel, sub_channel)
+    second = Establishment.create!(
+      ec: "22222222", company: Company.create!(cnpj: "12345678000192"), channel:
+    )
+    RevenueSnapshot.create!(
+      import_batch: ImportBatch.find_by!(channel:), channel:, sub_channel:,
+      establishment: second, legal_name: "LOJA DOIS LTDA", trade_name: "LOJA DOIS",
+      contract_status: "Active", previous_month_total: 20, current_month_total: 30
+    )
+    second
+  end
 
   def seed_subchannel_revenue(template)
     channel = Channel.create!(external_id: "A", name: "CANAL A")
