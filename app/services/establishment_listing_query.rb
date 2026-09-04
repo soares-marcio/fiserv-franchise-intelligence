@@ -1,6 +1,6 @@
 # Listagem paginada de estabelecimentos de um subcanal, com os dois meses alinhados
-# pela mesma faixa de dias. O resumo (contagem e totais) roda sem os agregados diários,
-# que só a página precisa.
+# pela mesma faixa de dias. Duas consultas por página: o resumo (contagens, totais da
+# aba e totais gerais) numa passada só, e as linhas da página.
 class EstablishmentListingQuery
   DATE_KINDS = {
     "credenciamento" => "mapa.accredited_on",
@@ -54,8 +54,8 @@ class EstablishmentListingQuery
 
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
-      totals: summary[:totals], page:, per_page:, variation_counts: fetch_variation_counts,
-      overall_totals: fetch_overall_totals
+      totals: summary[:totals], page:, per_page:, variation_counts: summary[:variation_counts],
+      overall_totals: summary[:overall_totals]
     )
   end
 
@@ -96,54 +96,43 @@ class EstablishmentListingQuery
     }
   end
 
-  # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
-  # a tabela lista. Vale saber que na aba Alta a variação sai positiva por construção (a
-  # aba filtra pela própria métrica) — por isso a tela rotula o recorte no card.
+  # Uma passada só sobre a listagem agregada resolve o resumo inteiro; antes eram três
+  # (aba, contagens e totais gerais), cada uma refazendo o GROUP BY.
   def fetch_summary
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT COUNT(*) AS total_count,
-        COALESCE(SUM(previous_full_revenue), 0) AS previous_full_revenue,
-        COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
-        COALESCE(SUM(current_revenue), 0) AS current_revenue
-      FROM (#{listing_sql}) listings
-      #{variation_where}
-    SQL
-    row = ApplicationRecord.connection.exec_query(sql).first || {}
+    row = ApplicationRecord.connection.exec_query(summary_sql).first || {}
     {
       total_count: row["total_count"].to_i,
       totals: {
         previous_full_revenue: row["previous_full_revenue"].to_d,
         previous_revenue: row["previous_revenue"].to_d,
         current_revenue: row["current_revenue"].to_d
+      },
+      variation_counts: { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i },
+      overall_totals: @variation && {
+        previous_revenue: row["overall_previous_revenue"].to_d,
+        current_revenue: row["overall_current_revenue"].to_d
       }
     }
   end
 
-  # A variação da aba é enviesada por construção (a aba filtra pela própria métrica);
-  # estes totais sem o filtro de aba ancoram a variação verdadeira do recorte no card.
-  def fetch_overall_totals
-    return nil unless @variation
-
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
-        COALESCE(SUM(current_revenue), 0) AS current_revenue
-      FROM (#{listing_sql}) listings
-    SQL
-    row = ApplicationRecord.connection.exec_query(sql).first || {}
-    { previous_revenue: row["previous_revenue"].to_d, current_revenue: row["current_revenue"].to_d }
-  end
-
-  # As contagens das três abas respeitam os demais filtros, nunca a própria aba —
-  # senão os números não fechariam entre si.
-  def fetch_variation_counts
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT COUNT(*) AS todas,
+  # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
+  # a tabela lista. Vale saber que na aba Alta a variação sai positiva por construção (a
+  # aba filtra pela própria métrica) — por isso a tela rotula o recorte no card, e os
+  # totais sem o filtro de aba ancoram a variação verdadeira do recorte. As contagens das
+  # três abas respeitam os demais filtros, nunca a própria aba — senão não fechariam.
+  def summary_sql
+    ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
+      SELECT COUNT(*) FILTER (WHERE #{tab_clause}) AS total_count,
+        COALESCE(SUM(previous_full_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_full_revenue,
+        COALESCE(SUM(previous_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_revenue,
+        COALESCE(SUM(current_revenue) FILTER (WHERE #{tab_clause}), 0) AS current_revenue,
+        COUNT(*) AS todas,
         COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
-        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa
+        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
+        COALESCE(SUM(previous_revenue), 0) AS overall_previous_revenue,
+        COALESCE(SUM(current_revenue), 0) AS overall_current_revenue
       FROM (#{listing_sql}) listings
     SQL
-    row = ApplicationRecord.connection.exec_query(sql).first || {}
-    { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i }
   end
 
   def fetch_rows(page, per_page)
@@ -153,6 +142,10 @@ class EstablishmentListingQuery
       binds.merge(per_page:, offset: (page - 1) * per_page)
     ])
     ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  def tab_clause
+    @variation ? VARIATION_CLAUSES.fetch(@variation) : "TRUE"
   end
 
   def variation_where
