@@ -89,6 +89,12 @@ declarados em `BinImport::Template::EXPECTED_HEADERS`:
 Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. O nome do arquivo deve terminar em
 `_AAAAMMDD.xlsx`; essa data é usada para conferir a cobertura declarada.
 
+**Os arquivos importados ficam guardados** no volume `storage`, por decisão — nada os apaga
+depois do import. Cada um traz CNPJ, telefone, endereço e faturamento reais, então quem tem
+acesso ao host tem acesso a todos os arquivos já enviados, e o backup (acima) os carrega
+junto. O import roda um por vez (`ImportBinFileJob`), então dois envios simultâneos entram
+em fila em vez de disputar a consolidação.
+
 ### Particularidades da origem
 
 - **Razão social e nome fantasia vêm trocados** nas abas `Faturamento` e `Ativacao`; a aba
