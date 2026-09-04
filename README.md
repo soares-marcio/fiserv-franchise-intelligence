@@ -58,7 +58,7 @@ bin/setup
 bin/dev
 ```
 
-Tudo em contêiner (app, worker, banco e Metabase em `localhost:3001`):
+Tudo em contêiner (app, worker, banco e Metabase):
 
 ```bash
 docker compose up
@@ -67,6 +67,15 @@ docker compose up
 O portal ainda não possui autenticação. Enquanto essa camada não for implementada, exponha
 as portas somente em uma máquina ou rede confiável; não publique o Compose diretamente na
 internet.
+
+### Acesso pela rede
+
+Na LAN o portal é servido por um Caddy em outra máquina, que faz proxy de `http://fiserv.bin`
+para `web` e de `http://fiserv-metabase.bin` para `metabase`; o DNS local resolve os dois
+nomes. Para isso o Compose publica `3000` e `3001` no IP da LAN (`APP_BIND_IP` no `.env`) e
+o Postgres só em `127.0.0.1`. Em produção o app aceita apenas `Host: fiserv.bin` e
+`localhost` (`RAILS_HOSTS` acrescenta outros); `force_ssl` fica desligado enquanto o Caddy
+servir HTTP puro — liga-se quando ele passar a terminar TLS.
 
 ## A planilha BIN
 
