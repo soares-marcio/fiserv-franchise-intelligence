@@ -30,7 +30,33 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     assert_equal 120, filtered_scope.totals[:previous_full_revenue]
   end
 
+  # A regra da comparação alinhada vive em AuditViews e é consumida pela view, pelo total do
+  # topo e pela listagem. Se as três não fecharem no mesmo número, a tela mostra um total que
+  # nenhuma linha explica.
+  test "total do topo, view por subcanal e soma das linhas da listagem fecham no mesmo número" do
+    lojas = BinWorkbook.default_lojas
+    import_synthetic_workbook(lojas:)
+    AuditViews.refresh!
+    scope = ReportScope.new
+    totals = scope.totals
+
+    rows = SubChannel.pluck(:id).flat_map do |sub_channel_id|
+      scope.revenue_by_establishment(sub_channel_id:).rows
+    end
+
+    assert_equal soma(lojas, :dias_m1), totals[:previous_full_revenue]
+    assert_equal totals[:previous_full_revenue], rows.sum { |row| row["previous_full_revenue"].to_d }
+    assert_equal totals[:previous_revenue], rows.sum { |row| row["previous_revenue"].to_d }
+    assert_equal totals[:current_revenue], rows.sum { |row| row["current_revenue"].to_d }
+    assert_equal totals[:current_revenue],
+      scope.revenue_by_sub_channel.sum { |row| row["current_revenue"].to_d }
+  end
+
   private
+
+  def soma(lojas, campo)
+    lojas.sum { |loja| loja.public_send(campo).values.sum }.to_d
+  end
 
   def seed_channel(external_id, template, cutoff:, amounts:, previous: {})
     channel = Channel.create!(external_id:, name: "CANAL #{external_id}")

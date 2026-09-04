@@ -5,13 +5,7 @@ class ThreeMonthEarningsQuery
   # O sub-canal de um EC vive nos snapshots por lote, não em establishments; o lote mais
   # recente validado com revenue_snapshots é o mesmo critério das views de auditoria.
   LATEST_BATCHES_SQL = <<~SQL.freeze
-    latest_batches AS (
-      SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-      FROM import_batches ib
-      WHERE ib.status = 'validated'
-        AND EXISTS (SELECT 1 FROM revenue_snapshots s WHERE s.import_batch_id = ib.id)
-      GROUP BY ib.channel_id
-    ),
+    #{AuditViews.latest_batches_sql.strip},
     latest_map_batches AS (
       SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
       FROM import_batches ib

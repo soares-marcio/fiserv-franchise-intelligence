@@ -90,14 +90,10 @@ class ReportScope
         FROM period_coverages
         WHERE NOT closed AND #{CHANNEL_PREDICATE}
       )
-      SELECT COALESCE(SUM(dr.amount) FILTER (WHERE dr.period = oc.previous_period), 0)
-               AS previous_full_revenue,
-             COALESCE(SUM(dr.amount) FILTER (
-               WHERE dr.period = oc.previous_period AND dr.day <= :cutoff), 0)
-               AS previous_revenue,
-             COALESCE(SUM(dr.amount) FILTER (
-               WHERE dr.period = oc.period AND dr.day <= :cutoff), 0)
-               AS current_revenue
+      SELECT #{AuditViews.aligned_aggregates_sql(
+        table: "dr", previous_period: "oc.previous_period", current_period: "oc.period",
+        day_filter: "dr.day <= :cutoff"
+      ).indent(4).strip}
       FROM daily_revenues_consolidated dr
       JOIN open_cover oc ON oc.channel_id = dr.channel_id
       WHERE dr.period IN (oc.previous_period, oc.period)

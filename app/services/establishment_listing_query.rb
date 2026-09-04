@@ -162,16 +162,7 @@ class EstablishmentListingQuery
 
   def listing_sql
     <<~SQL
-      WITH latest_batches AS (
-        SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND (:channel_id IS NULL OR ib.channel_id = :channel_id)
-          AND EXISTS (
-            SELECT 1 FROM revenue_snapshots snapshot WHERE snapshot.import_batch_id = ib.id
-          )
-        GROUP BY ib.channel_id
-      )
+      WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
@@ -181,17 +172,10 @@ class EstablishmentListingQuery
         snapshot.previous_month_total, snapshot.current_month_total,
         :previous_period AS previous_period, :current_period AS current_period,
         :to_day AS max_known_day,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = :previous_period
-        ), 0) AS previous_full_revenue,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = :previous_period
-            AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS previous_revenue,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = :current_period
-            AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS current_revenue
+        #{AuditViews.aligned_aggregates_sql(
+          table: "revenue", previous_period: ":previous_period", current_period: ":current_period",
+          day_filter: "revenue.day BETWEEN :from_day AND :to_day"
+        ).indent(4).strip}
       FROM revenue_snapshots snapshot
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
