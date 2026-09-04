@@ -3,6 +3,9 @@ require "digest"
 module Operations
   class ImportFile
     NAME = "importar_arquivo"
+    # A planilha real tem ~430 KB para 553 ECs; o limite deixa folga de ~45x e ainda barra
+    # um envio errado antes de o parse carregar o arquivo inteiro em memória.
+    MAX_UPLOAD_BYTES = 20.megabytes
 
     # O lote nasce aqui, antes de o arquivo ser lido: se o job morrer no caminho,
     # a falha tem onde aparecer. A unicidade do checksum fecha uploads concorrentes.
