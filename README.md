@@ -119,6 +119,63 @@ Derruba conexões abertas (os containers se recuperam sozinhos), recria os banco
 desenvolvimento e de teste a partir de `db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb` garante que o `structure.sql` contém tudo que
 o app precisa — adapters Solid, views, partições, extensões — e que o seed cria o papel.
 
+## Backup e restauração
+
+```bash
+bin/db-backup
+```
+
+Grava três arquivos com o mesmo carimbo de data em `BACKUP_DIR` (padrão
+`../franchise-storage/backups`, fora do repositório):
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `fiserv_<data>.dump` | banco inteiro (`pg_dump -Fc`) |
+| `fiserv_<data>_storage.tar.gz` | volume `storage` — as planilhas BIN importadas |
+| `fiserv_<data>_metabase.tar.gz` | volume `metabase_data` — perguntas e dashboards |
+
+O Metabase para pelos segundos do `tar`: o H2 é um arquivo aberto pelo processo e a cópia a
+quente sairia inconsistente. Arquivos com mais de `BACKUP_KEEP_DAYS` dias (padrão 14) são
+apagados ao fim de cada execução.
+
+**Os três arquivos contêm dados reais de cliente.** Ficam fora do repositório e nunca podem
+ser versionados, anexados ou enviados para fora da máquina.
+
+Restaurar:
+
+```bash
+docker compose exec -T db psql -U postgres -c "CREATE DATABASE fiserv_restore_test"
+docker compose exec -T db pg_restore -U postgres -d fiserv_restore_test --no-owner \
+  < ../franchise-storage/backups/fiserv_<data>.dump
+docker run --rm -v fiserv-franchise-intelligence_storage:/data \
+  -v "$(cd ../franchise-storage/backups && pwd)":/backup \
+  alpine tar -xzf /backup/fiserv_<data>_storage.tar.gz -C /data
+```
+
+O `pg_dump` de um banco **não** carrega papéis do cluster: num cluster novo, rodar
+`bin/rails db:seed` depois de restaurar, para recriar o `metabase_ro` e o `GRANT`.
+
+Agendamento diário às 3h30 pelo `launchd`, no arquivo
+`~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist` (não versionado
+porque leva caminhos absolutos desta máquina). Carregar é ação manual:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist
+launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup   # roda agora
+```
+
+A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
+
+**Último teste de restauração: 2026-09-04.** O dump foi restaurado em
+`fiserv_restore_test` e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas,
+1.659 snapshots do mapa, 1.375 de faturamento, 17.809 lançamentos diários (mesma soma de
+`amount`), 4 partições de `daily_revenues` e as 7 views materializadas populadas. Repetir o
+teste — e atualizar esta data — sempre que o script ou o schema mudarem.
+
+**Lacuna declarada:** o backup fica no mesmo disco do banco. Protege contra `db:rebuild`,
+import errado e corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia
+externa é decisão pendente.
+
 ## Views de auditoria
 
 `AuditViews` é dona do DDL das views materializadas de comparação alinhada e do SQL que o
