@@ -49,17 +49,28 @@ module BinImport
     end
 
     def detect_companies_in_multiple_sub_channels!
-      snapshots.joins(establishment: :company).group("companies.id")
-        .having("COUNT(DISTINCT sub_channel_id) > 1").pluck("companies.id").each do |company_id|
-        company = Company.find(company_id)
-        sub_channels = snapshots.joins(:establishment)
-          .where(establishments: { company_id: }).joins(:sub_channel)
-          .distinct.order("sub_channels.name").pluck("sub_channels.name")
+      company_ids = snapshots.joins(establishment: :company).group("companies.id")
+        .having("COUNT(DISTINCT sub_channel_id) > 1").pluck("companies.id")
+      return if company_ids.empty?
+
+      # Duas consultas para todas as empresas divergentes: era um Company.find e uma lista de
+      # subcanais por empresa, dentro da transação do import.
+      names_by_company = sub_channel_names_by_company(company_ids)
+
+      Company.where(id: company_ids).find_each do |company|
         Anomalies.record!(
           batch: @batch, type: "company_in_multiple_sub_channels", severity: "atencao",
-          company:, details: { sub_channels: }
+          company:, details: { sub_channels: names_by_company.fetch(company.id, []) }
         )
       end
+    end
+
+    def sub_channel_names_by_company(company_ids)
+      snapshots.joins(:establishment, :sub_channel)
+        .where(establishments: { company_id: company_ids })
+        .distinct.order("sub_channels.name")
+        .pluck("establishments.company_id", "sub_channels.name")
+        .group_by(&:first).transform_values { |pairs| pairs.map(&:last) }
     end
 
     def detect_changed_sub_channels!

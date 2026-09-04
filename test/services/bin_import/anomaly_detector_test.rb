@@ -29,6 +29,45 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
     assert_equal [ "MIC ALFA", "MIC GAMA" ], anomalia.details["sub_channels"]
   end
 
+  # O detector roda dentro da transação do import: uma consulta por empresa divergente
+  # segurava a transação por mais tempo quanto pior fosse a planilha.
+  test "lista os subcanais das empresas divergentes sem uma consulta por empresa" do
+    lojas = (1..3).flat_map do |i|
+      [ "MIC ALFA", "MIC GAMA" ].each_with_index.map do |sub_channel_name, j|
+        BinWorkbook::Loja.new(
+          ec: "30#{i}0000#{j}", cnpj: "5555#{i}666000017",
+          sub_channel_name:, legal_name: "EMPRESA #{i} LTDA", trade_name: "LOJA #{i}#{j}",
+          contract_status: "Active", dias_m1: { 1 => 100 }, dias_atual: { 1 => 50 },
+          melhor_conversa: nil, proposta: false
+        )
+      end
+    end
+    batch = import_synthetic_workbook(lojas:)
+    assert_equal 3, DataAnomaly.where(anomaly_type: "company_in_multiple_sub_channels").count
+
+    counter = QueryCounter.new
+    counter.while { ApplicationRecord.uncached { BinImport::AnomalyDetector.new(batch).call } }
+
+    assert_equal 1, counter.matching(/COUNT\(DISTINCT sub_channel_id\)/).size
+    assert_empty counter.matching(/FROM "companies" WHERE "companies"\."id" = /)
+    assert_equal 1, counter.matching(/INNER JOIN "sub_channels"/).size
+  end
+
+  class QueryCounter
+    def initialize = @statements = []
+
+    def while(&block)
+      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+        @statements << payload[:sql] unless payload[:cached]
+      end
+      block.call
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    def matching(pattern) = @statements.grep(pattern)
+  end
+
   test "aponta EC que trocou de subcanal entre lotes" do
     import_synthetic_workbook
     mudadas = BinWorkbook.default_lojas
