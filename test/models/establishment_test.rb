@@ -25,6 +25,14 @@ class EstablishmentTest < ActiveSupport::TestCase
     assert_equal [ @alfa ], Establishment.search("alfa").where(id: @alfa.id).to_a
     assert_equal [ @alfa ], Establishment.search("alfa atual").to_a
     assert_equal 3, @alfa.map_snapshots.count
+    assert_equal "ALFA ATUAL", Establishment.includes(:current_map_snapshot).find(@alfa.id).current_map_snapshot.trade_name
+  end
+
+  test "busca não casa com nome que o EC deixou de ter" do
+    historical_snapshot(@alfa, trade_name: "ALFA RENOMEADA")
+
+    assert_equal [ @alfa ], Establishment.search("alfa renomeada").to_a
+    assert_empty Establishment.search("alfa lanches"), "o nome antigo não está mais no cadastro"
   end
 
   private

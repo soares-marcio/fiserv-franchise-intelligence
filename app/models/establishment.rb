@@ -7,7 +7,13 @@ class Establishment < ApplicationRecord
   has_many :duplicate_establishments, class_name: "Establishment", foreign_key: :primary_establishment_id,
     dependent: :restrict_with_exception
   has_many :map_snapshots, dependent: :restrict_with_exception
-  has_one :current_map_snapshot, -> { order(id: :desc) }, class_name: "MapSnapshot"
+  # Só o snapshot mais recente, decidido no banco: a condição vale tanto para o JOIN da busca
+  # quanto para o preload. Com order/LIMIT o JOIN abria uma linha por planilha importada e o
+  # preload carregava o histórico inteiro de cada EC para descartar tudo menos o último.
+  has_one :current_map_snapshot, -> {
+    where("NOT EXISTS (SELECT 1 FROM map_snapshots newer " \
+      "WHERE newer.establishment_id = map_snapshots.establishment_id AND newer.id > map_snapshots.id)")
+  }, class_name: "MapSnapshot"
   has_many :revenue_snapshots, dependent: :restrict_with_exception
 
   validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: true
@@ -26,7 +32,7 @@ class Establishment < ApplicationRecord
       clauses += " OR companies.cnpj ILIKE :digits OR establishments.ec ILIKE :digits"
       binds[:digits] = "%#{sanitize_sql_like(digits)}%"
     end
-    left_joins(:company, current_map_snapshot: :sub_channel).where(clauses, binds).distinct
+    left_joins(:company, current_map_snapshot: :sub_channel).where(clauses, binds)
   }
   validate :primary_is_from_same_company
 
