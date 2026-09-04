@@ -59,9 +59,39 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.pagination-bar", count: 0
   end
 
+  # A linha da listagem por subcanal mostrava NET MDR e o resumo de equipamentos; a página
+  # do próprio EC, não. Quem clica para "ver mais" via menos do que já tinha visto.
+  test "o detalhe do EC mostra NET MDR e todos os terminais do mapa" do
+    establishment = seed_establishment(
+      net_mdr: 0.299, smart_pos_count: 2, other_pos_count: 1, mps_count: 3,
+      pin_count: 4, other_terminals_count: 5, tef_count: 0, tap_on_phone_count: 0,
+      has_payment_link: true
+    )
+
+    get establishment_path(establishment)
+
+    assert_response :success
+    assert_select "dt", text: "NET MDR"
+    assert_select "dd", text: "0,29%"
+    assert_select "dt", text: "Resumo"
+    assert_select "dd", text: "Link pgto · 3 POS · 3 MPS · 4 PIN · +5 outros"
+    assert_select "dt", text: "Demais POS"
+    assert_select "dt", text: "MPS"
+    assert_select "dt", text: "PIN"
+    assert_select "dt", text: "Outros terminais"
+  end
+
+  test "EC com MDR inativo mostra Inativo, não o número" do
+    establishment = seed_establishment(net_mdr: 0.299, net_mdr_status: "Inativo")
+
+    get establishment_path(establishment)
+
+    assert_select "dd", text: "Inativo"
+  end
+
   private
 
-  def seed_establishment
+  def seed_establishment(**snapshot_attributes)
     channel = Channel.create!(external_id: "1478", name: "MASTER")
     sub_channel = channel.sub_channels.create!(name: "MIC GOIANIA 4")
     company = Company.create!(cnpj: "12345678000195")
@@ -76,7 +106,8 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
       trade_name: "PADARIA CENTRAL", legal_name: "PADARIA CENTRAL LTDA",
       street_address: "RUA A 100", city: "GOIANIA", state: "GO", cep: "74000000",
       cnae_code: "5611201", cnae_description: "Restaurantes e similares",
-      contract_status: "Active", performed_segment: "PJ3"
+      contract_status: "Active", performed_segment: "PJ3", **snapshot_attributes
     )
+    establishment
   end
 end

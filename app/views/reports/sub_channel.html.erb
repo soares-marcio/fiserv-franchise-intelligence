@@ -216,22 +216,24 @@
   <%# Cada aba carrega o próprio critério: o rótulo com a contagem e, embaixo, a regra
       do filtro em palavras — quem procura "para onde foi aquele EC?" lê na barra. %>
   <div class="variation-tabs-wrap">
-  <nav class="variation-tabs" role="tablist" aria-label="Filtro por variação">
+  <%# Links de navegação, não um tablist: cada aba troca a página inteira, e a atual se
+      anuncia com aria-current. %>
+  <nav class="variation-tabs" aria-label="Filtro por variação">
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
       class: ("is-active" if @selected_variation.nil?),
-      role: "tab", aria: { selected: @selected_variation.nil? } do %>
+      aria: { current: ("page" if @selected_variation.nil?) } do %>
       <span class="tab-title">Todos · <%= counts[:todas] %></span>
       <span class="tab-hint">todos os estabelecimentos</span>
     <% end %>
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
       class: ("is-active" if @selected_variation == "alta"),
-      role: "tab", aria: { selected: @selected_variation == "alta" } do %>
+      aria: { current: ("page" if @selected_variation == "alta") } do %>
       <span class="tab-title"><%= phosphor_icon(:up) %> Em crescimento · <%= counts[:alta] %></span>
       <span class="tab-hint">vendeu mais, manteve ou é novo</span>
     <% end %>
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "baixa", page: nil)),
       class: ("is-active" if @selected_variation == "baixa"),
-      role: "tab", aria: { selected: @selected_variation == "baixa" } do %>
+      aria: { current: ("page" if @selected_variation == "baixa") } do %>
       <span class="tab-title"><%= phosphor_icon(:down) %> Em queda · <%= counts[:baixa] %></span>
       <span class="tab-hint">vendeu menos, está sem venda ou voltou do zero</span>
     <% end %>
@@ -264,31 +266,32 @@
 
     <p class="table-scroll-hint">Deslize a tabela para ver todos os dados.</p>
 
-    <div class="table-scroll">
+    <div class="table-scroll" role="region" tabindex="0"
+      aria-label="Desempenho por estabelecimento, rolável na horizontal">
       <table class="table establishment-revenue-table">
         <thead>
           <tr>
-            <th>EC</th>
-            <th>CNPJ</th>
-            <th>Estabelecimento</th>
-            <th>Datas do ciclo</th>
-            <th class="text-right">
+            <th scope="col">EC</th>
+            <th scope="col">CNPJ</th>
+            <th scope="col">Estabelecimento</th>
+            <th scope="col">Datas do ciclo</th>
+            <th scope="col" class="text-right">
               Mês anterior cheio
               <span class="block font-normal normal-case tracking-normal opacity-60">competência fechada</span>
             </th>
-            <th class="text-right">
+            <th scope="col" class="text-right">
               Mês anterior comparável
               <% if @window %>
                 <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
               <% end %>
             </th>
-            <th class="text-right">
+            <th scope="col" class="text-right">
               Mês atual
               <% if @window %>
                 <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
               <% end %>
             </th>
-            <th class="text-right variation-col">Variação</th>
+            <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>
         <tbody>

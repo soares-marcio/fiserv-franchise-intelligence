@@ -75,13 +75,22 @@
     [ "Suspensão", format_date(@snapshot&.suspended_on) ]
   ] %>
 
+  <%# O resumo e o NET MDR são os mesmos da linha da listagem por subcanal: a página do EC
+      não pode mostrar menos do que a linha de onde se veio. Abaixo dele, o grão do Mapa —
+      Smart POS e Demais POS aparecem somados como POS só no resumo. %>
   <%= render "detail_group", title: "Produtos e terminais", rows: [
+    [ "NET MDR", net_mdr_label(@snapshot&.net_mdr, @snapshot&.net_mdr_status) ],
+    [ "Resumo", @snapshot && equipment_summary(@snapshot) ],
     [ "Soluções financeiras", @snapshot&.financial_solutions ],
     [ "Link de pagamento", boolean_label(@snapshot&.has_payment_link) ],
     [ "Total de terminais", @snapshot&.total_terminals_count ],
     [ "Smart POS", @snapshot&.smart_pos_count ],
+    [ "Demais POS", @snapshot&.other_pos_count ],
     [ "TEF", @snapshot&.tef_count ],
     [ "TAP on phone", @snapshot&.tap_on_phone_count ],
+    [ "MPS", @snapshot&.mps_count ],
+    [ "PIN", @snapshot&.pin_count ],
+    [ "Outros terminais", @snapshot&.other_terminals_count ],
     [ "Agenda semanal", @snapshot&.weekly_schedule ],
     [ "Melhor conversa", @snapshot&.best_conversation_raw ]
   ] %>

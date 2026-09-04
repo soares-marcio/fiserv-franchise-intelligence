@@ -431,6 +431,21 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # As abas são links que trocam de página, não painéis de um widget: com role="tab" o
+  # leitor de tela anuncia um tablist e espera setas e tabpanel, que não existem.
+  test "as abas de variação se anunciam como navegação, com a atual marcada" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, variation: "baixa")
+
+    assert_response :success
+    assert_select "nav.variation-tabs[role='tablist']", count: 0
+    assert_select "nav.variation-tabs a[role='tab']", count: 0
+    assert_select "nav.variation-tabs a[aria-current='page']", count: 1
+    assert_select "nav.variation-tabs a[aria-current='page'] .tab-title", text: /Em queda/
+  end
+
   test "responde não encontrado para subcanal desconhecido" do
     get sub_channel_report_path(id: SecureRandom.uuid)
     assert_response :not_found
