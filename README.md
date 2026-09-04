@@ -125,6 +125,12 @@ Derruba conexões abertas (os containers se recuperam sozinhos), recria os banco
 desenvolvimento e de teste a partir de `db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb` garante que o `structure.sql` contém tudo que
 o app precisa — adapters Solid, views, partições, extensões — e que o seed cria o papel.
 
+O `db:schema:load` do Rails carrega o `structure.sql` chamando `psql` **no host**. Como o
+Postgres vive num container e o host pode não ter cliente nenhum instalado, a task detecta a
+ausência e manda o arquivo pela entrada padrão do container `db`, gravando na
+`ar_internal_metadata` o mesmo `schema_sha1` que o Rails gravaria — sem isso o guarda de
+integridade acusa banco desatualizado. Com `psql` no PATH, o caminho continua sendo o do Rails.
+
 ## Backup e restauração
 
 ```bash
