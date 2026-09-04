@@ -4,7 +4,11 @@ class DailyRevenuePartitions
     end_date = start_date.next_month
     suffix = start_date.strftime("%Y%m")
     connection = ApplicationRecord.connection
-    name = connection.quote_table_name("daily_revenues_#{suffix}")
+    table = "daily_revenues_#{suffix}"
+    name = connection.quote_table_name(table)
+    # Constatar que a partição existe não exige lock; só criá-la exige. Sem esta saída, todo
+    # import tomava duas vezes o ACCESS EXCLUSIVE da partição default e enfileirava os outros.
+    return if connection.table_exists?(table)
 
     ApplicationRecord.transaction do
       ensure_default_partition!(connection)
