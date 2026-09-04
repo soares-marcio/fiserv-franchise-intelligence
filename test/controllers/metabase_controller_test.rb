@@ -34,3 +34,19 @@ class MetabaseControllerTest < ActionDispatch::IntegrationTest
     ENV["METABASE_URL"] = original if original
   end
 end
+
+# O layout mostra a idade do último arquivo duas vezes (badge do menu e status do header),
+# cada uma chamando ImportBatch.days_since_last_file. O banco só é consultado uma vez porque
+# o query cache da requisição absorve a repetição; este teste fixa isso para que ninguém
+# "otimize" com um helper memoizado nem quebre a garantia ao mudar a consulta.
+class LayoutFileAgeTest < ActionDispatch::IntegrationTest
+  include ActiveRecord::Assertions::QueryAssertions
+
+  test "a idade do último arquivo é consultada uma vez por página" do
+    assert_queries_match(/MAX\("import_batches"\."created_at"\)/, count: 1) { get metabase_path }
+
+    assert_response :success
+    assert_select ".nav-badge", text: "Nunca"
+    assert_select ".header-status", text: /Sem arquivo importado/
+  end
+end
