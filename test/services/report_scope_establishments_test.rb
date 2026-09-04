@@ -120,6 +120,12 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       establishment: Establishment.find_by!(ec: "11111111"),
       legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Suspended"
     )
+    # Lote validado sem faturamento (só Mapa) não pode virar "o último".
+    ImportBatch.create!(
+      channel:, import_template: template, source_filename: "map-only.xlsx",
+      file_checksum: "checksum-map-only", previous_period: Date.new(2026, 7, 1),
+      current_period: Date.new(2026, 8, 1), current_month_cutoff_day: 24, status: "validated"
+    )
 
     statuses = ReportScope.new(channel_id: channel.id).contract_statuses(sub_channel_id: sub_channel.id)
 

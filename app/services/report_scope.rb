@@ -25,8 +25,10 @@ class ReportScope
   def contract_statuses(sub_channel_id:)
     sub_channel = SubChannel.find(sub_channel_id)
     channel_id = @channel_id || sub_channel.channel_id
+    # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
     import_batch_id = ImportBatch.where(channel_id:, status: "validated")
-      .joins(:revenue_snapshots).maximum(:id)
+      .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)
+      .maximum(:id)
     return [] unless import_batch_id
 
     RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(contract_status: [ nil, "" ])
