@@ -6,4 +6,11 @@ class PeriodCoverage < ApplicationRecord
 
   belongs_to :channel, foreign_key: :channel_id
   belongs_to :last_import_batch, class_name: "ImportBatch", foreign_key: :last_import_batch_id
+
+  # Toda consolidação (lote validado ou reprocessado) e todo ajuste de corte tocam esta
+  # tabela; o último updated_at, portanto, muda sempre que os agregados podem ter mudado.
+  # Serve de chave de cache para os relatórios que leem as tabelas consolidadas.
+  def self.consolidation_stamp
+    maximum(:updated_at)&.iso8601(6)
+  end
 end

@@ -3,6 +3,8 @@ require "test_helper"
 # Página 3M de ponta a ponta: import sintético, view de credenciamento e cálculo ao vivo.
 # Todos os esperados saem das lojas declaradas no BinWorkbook — nada fixado à mão.
 class ThreeMonthEarningsTest < ActiveSupport::TestCase
+  include ActiveRecord::Assertions::QueryAssertions
+
   PERIODS = [ Date.new(2026, 6, 1), Date.new(2026, 7, 1), Date.new(2026, 8, 1) ].freeze
   MONTHS = %w[202606 202607 202608].freeze
 
@@ -135,5 +137,23 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     ApplicationRecord.connection.execute("DELETE FROM monthly_volumes_consolidated")
     assert_equal [], ThreeMonthEarningsQuery.new(periods: PERIODS).by_sub_channel
     assert_equal [], ThreeMonthEarningsQuery.available_periods
+  end
+
+  test "o nível 1 fica em cache por janela até a próxima consolidação" do
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    reports = @query.by_sub_channel
+
+    # Só a consulta que monta a chave (carimbo da última consolidação).
+    assert_equal reports, assert_queries_count(1) { @query.by_sub_channel }
+    other_window = [ Date.new(2026, 5, 1), Date.new(2026, 6, 1), Date.new(2026, 7, 1) ]
+    assert_queries_match(/monthly_volumes_consolidated/) do
+      ThreeMonthEarningsQuery.new(periods: other_window).by_sub_channel
+    end
+
+    @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
+    import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
+    assert_queries_match(/monthly_volumes_consolidated/) { ThreeMonthEarningsQuery.new(periods: PERIODS).by_sub_channel }
+  ensure
+    Rails.cache = ActiveSupport::Cache::NullStore.new
   end
 end

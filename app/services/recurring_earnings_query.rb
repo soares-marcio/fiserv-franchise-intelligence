@@ -10,7 +10,17 @@ class RecurringEarningsQuery
     @channel_id = channel_id
   end
 
+  # Os insumos só mudam numa consolidação; o carimbo dela na chave invalida o cache
+  # sozinho, sem ninguém precisar lembrar de expirar.
   def by_sub_channel
+    Rails.cache.fetch([ "recurring", PeriodCoverage.consolidation_stamp, @channel_id ]) do
+      compute_by_sub_channel
+    end
+  end
+
+  private
+
+  def compute_by_sub_channel
     rows = monthly_rows
     sub_channels = SubChannel.where(id: rows.map { |r| r["sub_channel_id"] }.uniq).index_by(&:id)
     open_periods = open_periods_by_channel
@@ -26,8 +36,6 @@ class RecurringEarningsQuery
       }
     end.sort_by { |row| row[:name] }
   end
-
-  private
 
   # Uma linha por subcanal × competência, com o MDR ponderado pelo volume do próprio mês
   # e ancorado no lote da época. O vínculo EC → subcanal também vem do lote da época:

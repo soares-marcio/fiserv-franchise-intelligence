@@ -43,22 +43,11 @@ class ThreeMonthEarningsQuery
     ApplicationRecord.connection.exec_query(sql).rows.map { |(period)| period.to_date }
   end
 
+  # Mesma invalidação do recorrente: o carimbo da última consolidação entra na chave.
   def by_sub_channel
-    volumes = volume_rows(group: "m.sub_channel_id")
-    sub_channels = SubChannel.where(id: volumes.map { |r| r["sub_channel_id"] }.uniq).index_by(&:id)
-    coverages = coverage_by_channel
-    prizes = accreditation_summaries
-
-    volumes.group_by { |r| r["sub_channel_id"] }.map do |sub_channel_id, rows|
-      sub_channel = sub_channels.fetch(sub_channel_id)
-      build_row(
-        rows:, coverages:,
-        identity: {
-          sub_channel_id:, uuid: sub_channel.uuid, name: sub_channel.name,
-          channel_id: rows.first["channel_id"]
-        }
-      ).merge(prize: prizes.fetch(sub_channel_id, EMPTY_PRIZE))
-    end.sort_by { |row| row[:name] }
+    Rails.cache.fetch([ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods ]) do
+      compute_by_sub_channel
+    end
   end
 
   # Só os ECs cujo M0 é o mês escolhido: assim M0, M1 e M2 significam a mesma coisa em
@@ -89,6 +78,24 @@ class ThreeMonthEarningsQuery
   end
 
   private
+
+  def compute_by_sub_channel
+    volumes = volume_rows(group: "m.sub_channel_id")
+    sub_channels = SubChannel.where(id: volumes.map { |r| r["sub_channel_id"] }.uniq).index_by(&:id)
+    coverages = coverage_by_channel
+    prizes = accreditation_summaries
+
+    volumes.group_by { |r| r["sub_channel_id"] }.map do |sub_channel_id, rows|
+      sub_channel = sub_channels.fetch(sub_channel_id)
+      build_row(
+        rows:, coverages:,
+        identity: {
+          sub_channel_id:, uuid: sub_channel.uuid, name: sub_channel.name,
+          channel_id: rows.first["channel_id"]
+        }
+      ).merge(prize: prizes.fetch(sub_channel_id, EMPTY_PRIZE))
+    end.sort_by { |row| row[:name] }
+  end
 
   def volume_rows(group:, sub_channel_id: nil)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, bind_params(sub_channel_id:) ])
