@@ -1,7 +1,6 @@
 class MetabaseRole
   NAME = "metabase_ro"
   VIEWS = AuditViews::NAMES
-  WRITABLE_TABLES = %w[raw_import_rows import_batches daily_revenues map_snapshots].freeze
 
   def self.ensure!
     connection = ApplicationRecord.connection

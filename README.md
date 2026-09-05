@@ -112,7 +112,7 @@ em fila em vez de disputar a consolidação.
 
 ## Interface
 
-A casca visual (header, sidebar, trilha e busca de páginas) está descrita em
+A casca visual (topbar com menu horizontal, trilha e busca global de dados) está descrita em
 [`docs/layout.md`](docs/layout.md), com tokens, breakpoints e as decisões de design.
 
 ## Recriar o banco
@@ -124,6 +124,13 @@ bin/rails db:rebuild
 Derruba conexões abertas (os containers se recuperam sozinhos), recria os bancos de
 desenvolvimento e de teste a partir de `db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb` garante que o `structure.sql` contém tudo que
 o app precisa — adapters Solid, views, partições, extensões — e que o seed cria o papel.
+
+**O `database.yml` de produção não descreve o que roda aqui.** Ele declara quatro conexões
+(`primary`, `cache`, `queue`, `cable`) em bancos separados, como o gerador do Rails escreve; o
+Compose sobrescreve as quatro com `DATABASE_URL`, `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL` e
+`CABLE_DATABASE_URL` apontando para **o mesmo banco**. Por isso as tabelas dos três adapters
+Solid vivem no `structure.sql` do primary, e por isso a `db:rebuild` restringe as tasks ao
+`primary` quando o ambiente declara mais de uma config.
 
 O `db:schema:load` do Rails carrega o `structure.sql` chamando `psql` **no host**. Como o
 Postgres vive num container e o host pode não ter cliente nenhum instalado, a task detecta a
@@ -225,7 +232,7 @@ de desenvolvimento/teste e o Chromium:
 
 ```bash
 docker compose build test
-docker compose run --rm test              # suíte completa: bin/rails test:all
+docker compose run --rm test              # suíte completa: bin/rails db:test:prepare test:all
 docker compose run --rm test bin/rails test:system   # só os de sistema
 ```
 
@@ -233,8 +240,9 @@ O serviço `test` usa o target `test` do Dockerfile e um banco separado. A image
 produção continua sem as gems e os pacotes de navegador usados apenas na verificação.
 
 Os testes de importação usam planilhas sintéticas geradas por `test/support/bin_workbook.rb`;
-nenhum dado real de cliente é versionado. Se a planilha de referência da Fiserv estiver no
-diretório raiz, o teste correspondente roda também contra ela — caso contrário é pulado.
+nenhum dado real de cliente é versionado. Se a planilha de referência da Fiserv estiver em
+`../franchise-storage/storage/` (ver acima), o teste correspondente roda também contra ela —
+caso contrário é pulado.
 
 As views materializadas só são atualizadas nos testes que as leem, via `refresh_audit_views`.
 

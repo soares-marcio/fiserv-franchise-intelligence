@@ -19,7 +19,9 @@ module FiservFranchiseIntelligence
     config.active_record.schema_format = :sql
     config.time_zone = "America/Sao_Paulo"
     config.i18n.default_locale = :"pt-BR"
-    config.i18n.available_locales = [ :"pt-BR", :en ]
+    # Monolíngue por decisão: o pt-BR.yml existe para o Rails formatar data, moeda e
+    # percentual em português, não para traduzir a interface — que é escrita em português.
+    config.i18n.available_locales = [ :"pt-BR" ]
 
     # Configuration for the application, engines, and railties goes here.
     #

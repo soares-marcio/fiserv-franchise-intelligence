@@ -10,7 +10,8 @@ class MetabaseRoleTest < ActiveSupport::TestCase
       assert privilege?(connection, view, "SELECT"), "expected SELECT on #{view}"
     end
 
-    MetabaseRole::WRITABLE_TABLES.each do |table|
+    # Amostra de tabelas do app: o papel só enxerga as views, nunca a base.
+    %w[raw_import_rows import_batches daily_revenues map_snapshots].each do |table|
       refute privilege?(connection, table, "SELECT"), "expected no SELECT on #{table}"
     end
   end
