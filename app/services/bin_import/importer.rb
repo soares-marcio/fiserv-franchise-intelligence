@@ -137,7 +137,7 @@ module BinImport
       end
       MapSnapshot.insert_all!(snapshot_rows)
       persist_actions(batch, rows)
-      MonthlyVolume.insert_all!(monthly_volume_rows) if monthly_volume_rows.any?
+      BulkCopy.insert(MonthlyVolume, monthly_volume_rows)
       establishments
     end
 
@@ -283,7 +283,7 @@ module BinImport
         daily_rows.concat(daily_revenue_rows(batch, establishment, row))
       end
       RevenueSnapshot.insert_all!(snapshot_rows)
-      DailyRevenue.insert_all!(daily_rows)
+      BulkCopy.insert(DailyRevenue, daily_rows)
     end
 
     def daily_revenue_rows(batch, establishment, row)

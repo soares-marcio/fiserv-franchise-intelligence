@@ -68,7 +68,7 @@ module BinImport
           source_import_batch_id: @batch.id, revised_count: revision_count(existing[key], row),
           created_at: @now, updated_at: @now }
       end
-      DailyRevenueConsolidated.upsert_all(rows, unique_by: "index_daily_revenues_consolidated_primary") if rows.any?
+      BulkCopy.upsert(DailyRevenueConsolidated, rows, conflict_columns: %i[establishment_id period day])
     end
 
     def delete_daily_scope(period, cutoff, establishment_ids, provisional: nil)
@@ -92,8 +92,7 @@ module BinImport
       ).index_by { |row| monthly_key(row) }
       record_closed_month_revisions(rows, existing)
       upserts = monthly_upserts(rows)
-      MonthlyVolumeConsolidated.upsert_all(upserts,
-        unique_by: "index_monthly_volumes_consolidated_primary") if upserts.any?
+      BulkCopy.upsert(MonthlyVolumeConsolidated, upserts, conflict_columns: %i[establishment_id period metric])
     end
 
     def record_closed_month_revisions(rows, existing)
