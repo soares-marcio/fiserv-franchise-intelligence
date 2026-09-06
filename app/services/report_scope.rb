@@ -9,8 +9,11 @@ class ReportScope
     @channel_id = channel_id
   end
 
+  # As agregações do dashboard só mudam numa consolidação ou num ajuste de corte, e os dois
+  # tocam period_coverages: o carimbo dela na chave invalida o cache sozinho, como no
+  # recorrente e no 3M. O corte entra porque o recorte do canal muda o dia de comparação.
   def revenue_by_sub_channel
-    @revenue_by_sub_channel ||= aligned_revenue_by_sub_channel
+    @revenue_by_sub_channel ||= cached("by_sub_channel") { aligned_revenue_by_sub_channel }
   end
 
   def revenue_by_establishment(sub_channel_id:, period: nil, from_day: nil, to_day: nil, **filters)
@@ -84,6 +87,16 @@ class ReportScope
     cutoff = cutoff_day
     return empty_totals unless cutoff
 
+    cached("totals") { aligned_totals(cutoff) }
+  end
+
+  private
+
+  def cached(name, &block)
+    Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @channel_id, cutoff_day ], &block)
+  end
+
+  def aligned_totals(cutoff)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id, cutoff: cutoff.to_i } ])
       WITH open_cover AS (
         SELECT channel_id, period, max_known_day,
@@ -106,8 +119,6 @@ class ReportScope
       current_revenue: row["current_revenue"].to_d
     }
   end
-
-  private
 
   def establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)
     window = establishment_window(period:, from_day:, to_day:)
