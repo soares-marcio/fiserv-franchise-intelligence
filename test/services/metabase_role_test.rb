@@ -16,7 +16,41 @@ class MetabaseRoleTest < ActiveSupport::TestCase
     end
   end
 
+  test "usa a senha do ambiente quando definida" do
+    with_env("METABASE_RO_PASSWORD" => "s3nha") do
+      assert_equal "s3nha", MetabaseRole.readonly_password
+    end
+  end
+
+  # O papel é do cluster, compartilhado pelos bancos de todos os ambientes: um seed em
+  # development sem a variável trocaria a senha que o Metabase da stack está usando pela
+  # padrão. Só em teste, onde a CI não a define, a senha é indiferente.
+  test "fora de teste, sem a variável, falha em vez de cair na senha padrão" do
+    with_env("METABASE_RO_PASSWORD" => nil) do
+      assert_equal "metabase_ro", MetabaseRole.readonly_password
+      with_rails_env("development") do
+        assert_raises(KeyError) { MetabaseRole.readonly_password }
+      end
+    end
+  end
+
   private
+
+  def with_rails_env(name)
+    previous = Rails.env
+    Rails.env = name
+    yield
+  ensure
+    Rails.env = previous
+  end
+
+  def with_env(values)
+    previous = values.keys.to_h { |key| [ key, ENV[key] ] }
+    values.each { |key, value| ENV[key] = value }
+    yield
+  ensure
+    previous.each { |key, value| ENV[key] = value }
+  end
 
   def privilege?(connection, relation, privilege)
     connection.select_value(

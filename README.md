@@ -218,7 +218,11 @@ mostra o intervalo possível sem escolher uma delas.
 ## Metabase
 
 `MetabaseRole.ensure!` cria o papel somente-leitura `metabase_ro` com `SELECT` restrito às
-views de auditoria. `METABASE_RO_PASSWORD` é obrigatória em produção.
+views de auditoria e redefine a senha toda vez que roda. O papel é do cluster, compartilhado
+por todos os bancos, e por isso `METABASE_RO_PASSWORD` é obrigatória fora do ambiente de
+teste: sem ela, o seed falha em vez de trocar a senha que o Metabase está usando pela padrão.
+O `bin/rails` no host não lê o `.env` — exporte a variável antes de `bin/setup`, `db:seed`
+ou `db:rebuild` em development.
 
 ## Testes
 
