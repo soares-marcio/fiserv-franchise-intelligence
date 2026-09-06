@@ -10,11 +10,22 @@ class AuditViews
     audit_stalled_companies audit_revenue_by_company audit_revenue_by_sub_channel
   ].freeze
 
+  # Tabelas que as views leem. O refresh roda logo depois de cada carga em massa, antes de o
+  # autoanalyze acordar; sem estatísticas o planejador estimava as tabelas como vazias e as
+  # duas views de faturamento levavam segundos em nested loops (2,1 s e 2,4 s contra 84 ms e
+  # 108 ms com estatísticas, no import sintético de 556 ECs).
+  SOURCE_TABLES = %w[
+    import_batches period_coverages sub_channels companies establishments
+    revenue_snapshots map_snapshots map_snapshot_actions conversation_actions
+    daily_revenues_consolidated monthly_volumes_consolidated
+  ].freeze
+
   # Dias sem venda a partir do qual um CNPJ entra no relatório de clientes parados.
   STALLED_THRESHOLD = 7
 
   def self.refresh!
     connection = ApplicationRecord.connection
+    connection.execute("ANALYZE #{SOURCE_TABLES.join(', ')}")
     in_transaction = connection.transaction_open?
     NAMES.each do |name|
       concurrently = "CONCURRENTLY " if !in_transaction && populated?(name)
