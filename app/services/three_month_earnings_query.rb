@@ -76,6 +76,13 @@ class ThreeMonthEarningsQuery
   # Só os ECs cujo M0 é o mês escolhido: assim M0, M1 e M2 significam a mesma coisa em
   # todos os cards, e a janela da tela é exatamente a janela de apuração deles.
   def by_establishment(sub_channel_id:)
+    key = [ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods, sub_channel_id ]
+    Rails.cache.fetch(key) { compute_by_establishment(sub_channel_id:) }
+  end
+
+  private
+
+  def compute_by_establishment(sub_channel_id:)
     accreditations = accreditation_rows(sub_channel_id:)
     accredited_in_window = accreditations.select { |_, row| row["m0_period"].to_date == @periods.first }
     return [] if accredited_in_window.empty?
@@ -99,8 +106,6 @@ class ThreeMonthEarningsQuery
       ).merge(accreditation: accreditations[establishment_id])
     end.sort_by { |row| row[:ec].to_s }
   end
-
-  private
 
   def compute_by_sub_channel
     volumes = volume_rows(group: "m.sub_channel_id")
