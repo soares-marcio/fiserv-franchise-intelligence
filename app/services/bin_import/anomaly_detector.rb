@@ -75,21 +75,29 @@ module BinImport
 
     def detect_changed_sub_channels!
       current = snapshots.includes(:establishment, :sub_channel).to_a
-      # ordem crescente + index_by mantém o snapshot mais recente de cada estabelecimento
-      previous_by_establishment = MapSnapshot.where(establishment_id: current.map(&:establishment_id))
-        .where.not(import_batch: @batch).order(:id).includes(:sub_channel)
-        .index_by(&:establishment_id)
+      previous_by_establishment = previous_sub_channels
 
       current.each do |snapshot|
-        previous = previous_by_establishment[snapshot.establishment_id]
-        next unless previous && previous.sub_channel_id != snapshot.sub_channel_id
+        previous_id, previous_name = previous_by_establishment[snapshot.establishment_id]
+        next unless previous_id && previous_id != snapshot.sub_channel_id
 
         Anomalies.record!(
           batch: @batch, type: "ec_changed_sub_channel", severity: "info",
           company: snapshot.establishment.company, establishment: snapshot.establishment,
-          details: { previous: previous.sub_channel.name, current: snapshot.sub_channel.name }
+          details: { previous: previous_name, current: snapshot.sub_channel.name }
         )
       end
+    end
+
+    # Só o snapshot imediatamente anterior de cada EC do lote: a história inteira do Mapa,
+    # que cresce a cada planilha semanal, fica no banco.
+    def previous_sub_channels
+      MapSnapshot.where(establishment_id: snapshots.select(:establishment_id))
+        .where.not(import_batch: @batch).joins(:sub_channel)
+        .select("DISTINCT ON (map_snapshots.establishment_id) map_snapshots.establishment_id, " \
+          "map_snapshots.sub_channel_id, sub_channels.name")
+        .order("map_snapshots.establishment_id, map_snapshots.id DESC")
+        .map { |row| [ row.establishment_id, [ row.sub_channel_id, row.name ] ] }.to_h
     end
 
     def snapshots
