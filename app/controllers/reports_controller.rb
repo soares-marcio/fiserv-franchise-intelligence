@@ -76,6 +76,17 @@ class ReportsController < ApplicationController
       @scope.contract_statuses(sub_channel_id: @sub_channel.id) |
         EstablishmentsHelper::CONTRACT_STATUSES
     ).sort
+    # A página só existe na tela; a exportação leva o recorte inteiro e não precisa dela.
+    respond_to do |format|
+      format.html { load_listing }
+      format.csv { send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
+      format.xlsx { send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
+    end
+  end
+
+  private
+
+  def load_listing
     @listing = @scope.revenue_by_establishment(
       sub_channel_id: @sub_channel.id,
       variation: @selected_variation,
@@ -96,15 +107,7 @@ class ReportsController < ApplicationController
     @per_page = @listing.per_page
     @total_count = @listing.total_count
     @total_pages = @listing.total_pages
-
-    respond_to do |format|
-      format.html
-      format.csv { send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
-      format.xlsx { send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
-    end
   end
-
-  private
 
   def load_scope
     @channels = Channel.order(:name)

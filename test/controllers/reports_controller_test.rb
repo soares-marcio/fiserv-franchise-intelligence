@@ -2,6 +2,8 @@ require "test_helper"
 require "csv"
 
 class ReportsControllerTest < ActionDispatch::IntegrationTest
+  include ActiveRecord::Assertions::QueryAssertions
+
   test "trilha de navegação: agrupamento do menu não aparece, só páginas reais" do
     get stalled_reports_path
 
@@ -399,6 +401,18 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid, variation: "baixa", format: :csv)
 
     assert_equal [ "22222222", "TOTAL" ], CSV.parse(response.body, headers: true).map { |row| row["EC"] }
+  end
+
+  # A exportação não tem página: montar a listagem paginada antes de responder era rodar o SQL
+  # mais caro do app três vezes (resumo, página que ninguém vê, e as linhas do arquivo).
+  test "a exportação roda a consulta da listagem uma vez só" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    assert_queries_match(/LEFT JOIN LATERAL/, count: 1) do
+      get sub_channel_report_path(sub_channel, channel_id: channel.uuid, format: :csv)
+    end
+    assert_response :success
   end
 
   test "exporta a listagem do subcanal em XLSX" do
