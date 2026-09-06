@@ -59,7 +59,6 @@ class ReportsController < ApplicationController
     end
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
-    @cutoff_day = @scope.cutoff_day
     @selected_variation = params[:variation].to_s.presence_in(EstablishmentListingQuery::VARIATION_CLAUSES.keys)
     @selected_statuses = Array(params[:status]).map(&:to_s).compact_blank.uniq
     @selected_date_kinds = Array(params[:date_kind]).map(&:to_s) & EstablishmentListingQuery::DATE_KINDS.keys

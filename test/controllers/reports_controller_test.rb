@@ -415,6 +415,20 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # period_coverages é lida para o corte do cabeçalho e para os períodos da janela; a tela e
+  # a exportação reaproveitam as duas leituras em vez de repeti-las a cada chamada do scope.
+  test "a tela do subcanal lê period_coverages duas vezes, e a exportação também" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+
+    assert_queries_match(/FROM period_coverages/, count: 2) do
+      get sub_channel_report_path(sub_channel, channel_id: channel.uuid)
+    end
+    assert_queries_match(/FROM period_coverages/, count: 2) do
+      get sub_channel_report_path(sub_channel, channel_id: channel.uuid, format: :csv)
+    end
+  end
+
   test "exporta a listagem do subcanal em XLSX" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)

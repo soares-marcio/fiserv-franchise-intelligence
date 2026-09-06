@@ -39,14 +39,17 @@ class ReportScope
       .distinct.order(:contract_status).pluck(:contract_status)
   end
 
+  # Memoizado: a janela é montada para a tela e de novo para a listagem, no mesmo scope.
   def available_periods
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
-      SELECT period, max_known_day, closed
-      FROM period_coverages
-      WHERE #{CHANNEL_PREDICATE}
-      ORDER BY period DESC
-    SQL
-    ApplicationRecord.connection.exec_query(sql).to_a
+    @available_periods ||= begin
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+        SELECT period, max_known_day, closed
+        FROM period_coverages
+        WHERE #{CHANNEL_PREDICATE}
+        ORDER BY period DESC
+      SQL
+      ApplicationRecord.connection.exec_query(sql).to_a
+    end
   end
 
   def establishment_window(period: nil, from_day: nil, to_day: nil)
