@@ -125,6 +125,7 @@ module BinImport
       now = Time.current
       snapshot_rows = []
       monthly_volume_rows = []
+      preload_identities(rows)
       establishments = rows.to_h do |row|
         sub_channel = find_sub_channel(batch.channel, row["SUB-CANAL"])
         establishment = find_establishment(batch.channel, row)
@@ -143,6 +144,15 @@ module BinImport
     def find_sub_channel(channel, value)
       name = value.to_s.strip
       (@sub_channels ||= {})[name] ||= channel.sub_channels.find_or_create_by!(name: name)
+    end
+
+    # Do segundo lote em diante quase tudo já existe: duas consultas trazem os conhecidos, e
+    # find_company/find_establishment só vão ao banco pelo que a planilha traz de novo.
+    def preload_identities(rows)
+      cnpjs = rows.map { |row| Normalizer.cnpj(row["CNPJ"]) }.uniq
+      ecs = rows.map { |row| Normalizer.ec(row["EC"]) }.uniq
+      @companies = Company.where(cnpj: cnpjs).index_by(&:cnpj)
+      @establishments = Establishment.where(ec: ecs).index_by(&:ec)
     end
 
     def find_company(cnpj)
