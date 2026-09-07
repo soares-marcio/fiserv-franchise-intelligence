@@ -217,9 +217,23 @@ porque leva caminhos absolutos desta máquina). Carregar é ação manual:
 ```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist
 launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup   # roda agora
+launchctl print gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup | grep "last exit code"
 ```
 
+**Numa máquina nova, carregar não basta.** Este repositório vive num volume externo
+(`/Volumes/macOs`, `Device Location: External`) e agentes do `launchd` não têm permissão para
+ler arquivos ali: o job sobe, dispara e morre com `Operation not permitted`. A permissão é
+concedida em Ajustes do Sistema → Privacidade e Segurança → **Acesso Total ao Disco**,
+adicionando `/bin/bash` (o seletor esconde `/bin`; use Cmd+Shift+G). Ativo desde 07/09/2026,
+com o `last exit code = 0` acima como prova.
+
+O plist executa o `bin/db-backup` **da árvore de trabalho**, não de uma cópia fixa: a branch
+que estiver aberta é a que roda de madrugada.
+
 A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
+
+O Metabase só é reiniciado ao fim se estava de pé quando o backup começou. Parar o serviço é
+decisão de segurança; um backup noturno não pode desfazê-la.
 
 **Último teste de restauração: 2026-09-07**, já com o schema desta branch (remoção das duas
 views de auditoria e das três colunas sem uso). O dump foi restaurado em `fiserv_restore_test`
@@ -231,11 +245,9 @@ sempre que o script ou o schema mudarem.
 
 **Lacunas declaradas:**
 
-- O agendamento **não está ativo**: o `launchctl list` não mostra o agente (verificado em
-  07/09/2026), então todo backup até aqui foi manual. Carregar o plist é o comando acima.
-- O backup fica no mesmo disco do banco. Protege contra `db:rebuild`, import errado e
-  corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia externa é
-  decisão pendente.
+- O backup fica no mesmo disco do banco — e esse disco é **externo**. Protege contra
+  `db:rebuild`, import errado e corrupção lógica; **não** protege contra perda do disco ou da
+  máquina, que é o modo de falha mais provável aqui. Cópia externa é decisão pendente.
 
 ## Views de auditoria
 
