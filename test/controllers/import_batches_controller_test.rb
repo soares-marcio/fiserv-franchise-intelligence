@@ -54,6 +54,53 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Selecione um arquivo.", flash[:alert]
   end
 
+  # Todo .xlsx é um ZIP; um .txt renomeado passa pela extensão mas não pela assinatura.
+  test "recusa arquivo com extensão xlsx que não é um xlsx" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-falso.xlsx")
+    File.write(path, "isto não é uma planilha")
+
+    assert_no_enqueued_jobs(only: ImportBinFileJob) do
+      post import_batches_path, params: { file: upload(path) }
+    end
+
+    assert_equal "O arquivo não é um .xlsx válido.", flash[:alert]
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  # O parse carrega o arquivo inteiro em memória; o limite protege o worker de um envio errado.
+  test "recusa arquivo acima do tamanho máximo" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-enorme.xlsx")
+    File.open(path, "wb") do |file|
+      file.write("PK\x03\x04")
+      file.truncate(Operations::ImportFile::MAX_UPLOAD_BYTES + 1)
+    end
+
+    assert_no_enqueued_jobs(only: ImportBinFileJob) do
+      post import_batches_path, params: { file: upload(path) }
+    end
+
+    assert_equal "Arquivo acima de 20 MB.", flash[:alert]
+  ensure
+    File.delete(path) if path && File.exist?(path)
+  end
+
+  # O cache de teste é null_store e nunca conta; o contador é simulado para provar o limite.
+  test "limita a cinco envios por minuto" do
+    path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-upload.xlsx")
+    BinWorkbook.write(path)
+    count = 0
+    Rails.cache.define_singleton_method(:increment) { |*| count += 1 }
+
+    6.times { post import_batches_path, params: { file: upload(path) } }
+
+    assert_redirected_to import_batches_path
+    assert_equal "Muitos envios em sequência. Aguarde um minuto.", flash[:alert]
+  ensure
+    Rails.cache.singleton_class.remove_method(:increment)
+    File.delete(path) if path && File.exist?(path)
+  end
+
   test "ajusta o dia de corte e propaga para a cobertura" do
     batch = import_synthetic_workbook
 

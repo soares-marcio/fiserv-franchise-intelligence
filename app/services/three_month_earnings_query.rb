@@ -5,13 +5,7 @@ class ThreeMonthEarningsQuery
   # O sub-canal de um EC vive nos snapshots por lote, não em establishments; o lote mais
   # recente validado com revenue_snapshots é o mesmo critério das views de auditoria.
   LATEST_BATCHES_SQL = <<~SQL.freeze
-    latest_batches AS (
-      SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-      FROM import_batches ib
-      WHERE ib.status = 'validated'
-        AND EXISTS (SELECT 1 FROM revenue_snapshots s WHERE s.import_batch_id = ib.id)
-      GROUP BY ib.channel_id
-    ),
+    #{AuditViews.latest_batches_sql.strip},
     latest_map_batches AS (
       SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
       FROM import_batches ib
@@ -43,27 +37,52 @@ class ThreeMonthEarningsQuery
     ApplicationRecord.connection.exec_query(sql).rows.map { |(period)| period.to_date }
   end
 
-  def by_sub_channel
-    volumes = volume_rows(group: "m.sub_channel_id")
-    sub_channels = SubChannel.where(id: volumes.map { |r| r["sub_channel_id"] }.uniq).index_by(&:id)
-    coverages = coverage_by_channel
-    prizes = accreditation_summaries
+  # O mês escolhido é o M0 — o mês de credenciamento —, e a janela avança a partir dele.
+  # Meses ainda sem volume importado aparecem na tela como "sem dado", não somem.
+  def self.window(available_periods, start_period: nil)
+    return if available_periods.empty?
 
-    volumes.group_by { |r| r["sub_channel_id"] }.map do |sub_channel_id, rows|
-      sub_channel = sub_channels.fetch(sub_channel_id)
-      build_row(
-        rows:, coverages:,
-        identity: {
-          sub_channel_id:, uuid: sub_channel.uuid, name: sub_channel.name,
-          channel_id: rows.first["channel_id"]
-        }
-      ).merge(prize: prizes.fetch(sub_channel_id, EMPTY_PRIZE))
-    end.sort_by { |row| row[:name] }
+    start = parse_start_period(available_periods, start_period) || default_start_period(available_periods)
+    [ start, start + 1.month, start + 2.months ]
+  end
+
+  # Sem escolha explícita, abre no M0 mais recente cuja janela ainda cabe nos meses
+  # importados: abrir no último mês mostraria duas colunas vazias por padrão.
+  def self.default_start_period(periods)
+    complete = periods.find do |period|
+      [ period + 1.month, period + 2.months ].all? { |month| periods.include?(month) }
+    end
+    complete || periods.first
+  end
+  private_class_method :default_start_period
+
+  def self.parse_start_period(periods, value)
+    return if value.blank?
+
+    parsed = Date.strptime(value.to_s, "%Y-%m").beginning_of_month
+    parsed if periods.include?(parsed)
+  rescue Date::Error, ArgumentError, TypeError
+    nil
+  end
+  private_class_method :parse_start_period
+
+  # Mesma invalidação do recorrente: o carimbo da última consolidação entra na chave.
+  def by_sub_channel
+    Rails.cache.fetch([ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods ]) do
+      compute_by_sub_channel
+    end
   end
 
   # Só os ECs cujo M0 é o mês escolhido: assim M0, M1 e M2 significam a mesma coisa em
   # todos os cards, e a janela da tela é exatamente a janela de apuração deles.
   def by_establishment(sub_channel_id:)
+    key = [ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods, sub_channel_id ]
+    Rails.cache.fetch(key) { compute_by_establishment(sub_channel_id:) }
+  end
+
+  private
+
+  def compute_by_establishment(sub_channel_id:)
     accreditations = accreditation_rows(sub_channel_id:)
     accredited_in_window = accreditations.select { |_, row| row["m0_period"].to_date == @periods.first }
     return [] if accredited_in_window.empty?
@@ -88,7 +107,23 @@ class ThreeMonthEarningsQuery
     end.sort_by { |row| row[:ec].to_s }
   end
 
-  private
+  def compute_by_sub_channel
+    volumes = volume_rows(group: "m.sub_channel_id")
+    sub_channels = SubChannel.where(id: volumes.map { |r| r["sub_channel_id"] }.uniq).index_by(&:id)
+    coverages = coverage_by_channel
+    prizes = accreditation_summaries
+
+    volumes.group_by { |r| r["sub_channel_id"] }.map do |sub_channel_id, rows|
+      sub_channel = sub_channels.fetch(sub_channel_id)
+      build_row(
+        rows:, coverages:,
+        identity: {
+          sub_channel_id:, uuid: sub_channel.uuid, name: sub_channel.name,
+          channel_id: rows.first["channel_id"]
+        }
+      ).merge(prize: prizes.fetch(sub_channel_id, EMPTY_PRIZE))
+    end.sort_by { |row| row[:name] }
+  end
 
   def volume_rows(group:, sub_channel_id: nil)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, bind_params(sub_channel_id:) ])

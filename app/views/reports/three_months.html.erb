@@ -87,18 +87,19 @@
         </div>
         <span class="badge badge-ghost"><%= @window.map { |p| l(p, format: "%b/%Y") }.join(" · ") %></span>
       </div>
-      <div class="table-scroll">
+      <div class="table-scroll" role="region" tabindex="0"
+      aria-label="Primeiros três meses por subcanal, rolável na horizontal">
         <table class="table">
           <thead>
             <tr>
-              <th>Subcanal</th>
+              <th scope="col">Subcanal</th>
               <%# M0 é o próprio mês de credenciamento escolhido; o mês de calendário ao
                   lado desfaz qualquer ambiguidade. %>
               <% @window.each_with_index do |period, index| %>
-                <th class="text-right">M<%= index %> · <%= l(period, format: "%b/%Y") %></th>
+                <th scope="col" class="text-right">M<%= index %> · <%= l(period, format: "%b/%Y") %></th>
               <% end %>
-              <th class="text-right">ECs no M0</th>
-              <th class="text-right">Prêmio da safra</th>
+              <th scope="col" class="text-right">ECs no M0</th>
+              <th scope="col" class="text-right">Prêmio da safra</th>
             </tr>
           </thead>
           <tbody>

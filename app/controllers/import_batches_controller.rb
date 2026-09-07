@@ -1,4 +1,10 @@
 class ImportBatchesController < ApplicationController
+  # Todo .xlsx é um ZIP: a assinatura barra um arquivo renomeado antes de o parse abri-lo.
+  XLSX_SIGNATURE = "PK\x03\x04".b
+
+  rate_limit to: 5, within: 1.minute, only: :create,
+    with: -> { redirect_to import_batches_path, alert: "Muitos envios em sequência. Aguarde um minuto." }
+
   def index
     @import_batches = ImportBatch.includes(:channel).order(created_at: :desc).limit(50)
     @days_since_last_file = ImportBatch.days_since_last_file
@@ -15,8 +21,8 @@ class ImportBatchesController < ApplicationController
 
   def create
     upload = params.require(:file)
-    unless File.extname(upload.original_filename.to_s).casecmp(".xlsx").zero?
-      redirect_to import_batches_path, alert: "Envie um arquivo .xlsx."
+    if (alert = upload_rejection(upload))
+      redirect_to import_batches_path, alert: alert
       return
     end
 
@@ -53,5 +59,23 @@ class ImportBatchesController < ApplicationController
     redirect_to import_batch_path(batch), notice: "Lote reprocessado."
   rescue ArgumentError => error
     redirect_to import_batch_path(params[:id]), alert: error.message
+  end
+
+  private
+
+  def upload_rejection(upload)
+    return "Envie um arquivo .xlsx." unless File.extname(upload.original_filename.to_s).casecmp(".xlsx").zero?
+    if upload.size > Operations::ImportFile::MAX_UPLOAD_BYTES
+      return "Arquivo acima de #{Operations::ImportFile::MAX_UPLOAD_BYTES / 1.megabyte} MB."
+    end
+
+    "O arquivo não é um .xlsx válido." unless xlsx_signature?(upload)
+  end
+
+  def xlsx_signature?(upload)
+    upload.rewind
+    upload.read(XLSX_SIGNATURE.bytesize) == XLSX_SIGNATURE
+  ensure
+    upload.rewind
   end
 end

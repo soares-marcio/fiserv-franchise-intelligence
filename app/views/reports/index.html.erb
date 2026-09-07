@@ -81,28 +81,29 @@
       <% end %>
     </div>
 
-    <div class="table-scroll">
+    <div class="table-scroll" role="region" tabindex="0"
+      aria-label="Faturamento por subcanal, rolável na horizontal">
       <table class="table">
         <thead>
           <tr>
-            <th>Subcanal</th>
-            <th class="text-right">
+            <th scope="col">Subcanal</th>
+            <th scope="col" class="text-right">
               Mês anterior cheio
               <span class="block font-normal normal-case tracking-normal opacity-60">competência fechada</span>
             </th>
-            <th class="text-right">
+            <th scope="col" class="text-right">
               Mês anterior comparável
               <% if @cutoff_day %>
                 <span class="block font-normal normal-case tracking-normal opacity-60">até dia <%= @cutoff_day %></span>
               <% end %>
             </th>
-            <th class="text-right">
+            <th scope="col" class="text-right">
               Mês atual
               <% if @cutoff_day %>
                 <span class="block font-normal normal-case tracking-normal opacity-60">até dia <%= @cutoff_day %></span>
               <% end %>
             </th>
-            <th class="text-right variation-col">Variação</th>
+            <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>
         <tbody>

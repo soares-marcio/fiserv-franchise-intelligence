@@ -9,38 +9,47 @@ class ReportScope
     @channel_id = channel_id
   end
 
+  # As agregações do dashboard só mudam numa consolidação ou num ajuste de corte, e os dois
+  # tocam period_coverages: o carimbo dela na chave invalida o cache sozinho, como no
+  # recorrente e no 3M. O corte entra porque o recorte do canal muda o dia de comparação.
   def revenue_by_sub_channel
-    @revenue_by_sub_channel ||= aligned_revenue_by_sub_channel
+    @revenue_by_sub_channel ||= cached("by_sub_channel") { aligned_revenue_by_sub_channel }
   end
 
   def revenue_by_establishment(sub_channel_id:, period: nil, from_day: nil, to_day: nil, **filters)
-    window = establishment_window(period:, from_day:, to_day:)
-    return EstablishmentListingQuery.empty_page unless window
+    listing = establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)
+    listing ? listing.call : EstablishmentListingQuery.empty_page
+  end
 
-    EstablishmentListingQuery.new(
-      channel_id: @channel_id, sub_channel_id:, window:, **filters
-    ).call
+  # Mesmo recorte da tela sem a paginação: é o que a exportação leva.
+  def establishment_rows(sub_channel_id:, period: nil, from_day: nil, to_day: nil, **filters)
+    establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)&.all_rows || []
   end
 
   def contract_statuses(sub_channel_id:)
     sub_channel = SubChannel.find(sub_channel_id)
     channel_id = @channel_id || sub_channel.channel_id
+    # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
     import_batch_id = ImportBatch.where(channel_id:, status: "validated")
-      .joins(:revenue_snapshots).maximum(:id)
+      .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)
+      .maximum(:id)
     return [] unless import_batch_id
 
     RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(contract_status: [ nil, "" ])
       .distinct.order(:contract_status).pluck(:contract_status)
   end
 
+  # Memoizado: a janela é montada para a tela e de novo para a listagem, no mesmo scope.
   def available_periods
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
-      SELECT period, max_known_day, closed
-      FROM period_coverages
-      WHERE #{CHANNEL_PREDICATE}
-      ORDER BY period DESC
-    SQL
-    ApplicationRecord.connection.exec_query(sql).to_a
+    @available_periods ||= begin
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+        SELECT period, max_known_day, closed
+        FROM period_coverages
+        WHERE #{CHANNEL_PREDICATE}
+        ORDER BY period DESC
+      SQL
+      ApplicationRecord.connection.exec_query(sql).to_a
+    end
   end
 
   def establishment_window(period: nil, from_day: nil, to_day: nil)
@@ -81,6 +90,16 @@ class ReportScope
     cutoff = cutoff_day
     return empty_totals unless cutoff
 
+    cached("totals") { aligned_totals(cutoff) }
+  end
+
+  private
+
+  def cached(name, &block)
+    Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @channel_id, cutoff_day ], &block)
+  end
+
+  def aligned_totals(cutoff)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id, cutoff: cutoff.to_i } ])
       WITH open_cover AS (
         SELECT channel_id, period, max_known_day,
@@ -88,14 +107,10 @@ class ReportScope
         FROM period_coverages
         WHERE NOT closed AND #{CHANNEL_PREDICATE}
       )
-      SELECT COALESCE(SUM(dr.amount) FILTER (WHERE dr.period = oc.previous_period), 0)
-               AS previous_full_revenue,
-             COALESCE(SUM(dr.amount) FILTER (
-               WHERE dr.period = oc.previous_period AND dr.day <= :cutoff), 0)
-               AS previous_revenue,
-             COALESCE(SUM(dr.amount) FILTER (
-               WHERE dr.period = oc.period AND dr.day <= :cutoff), 0)
-               AS current_revenue
+      SELECT #{AuditViews.aligned_aggregates_sql(
+        table: "dr", previous_period: "oc.previous_period", current_period: "oc.period",
+        day_filter: "dr.day <= :cutoff"
+      ).indent(4).strip}
       FROM daily_revenues_consolidated dr
       JOIN open_cover oc ON oc.channel_id = dr.channel_id
       WHERE dr.period IN (oc.previous_period, oc.period)
@@ -108,7 +123,12 @@ class ReportScope
     }
   end
 
-  private
+  def establishment_listing(sub_channel_id:, period:, from_day:, to_day:, **filters)
+    window = establishment_window(period:, from_day:, to_day:)
+    return unless window
+
+    EstablishmentListingQuery.new(channel_id: @channel_id, sub_channel_id:, window:, **filters)
+  end
 
   def empty_totals
     { previous_full_revenue: 0.to_d, previous_revenue: 0.to_d, current_revenue: 0.to_d }

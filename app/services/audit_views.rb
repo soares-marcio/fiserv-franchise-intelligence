@@ -10,11 +10,22 @@ class AuditViews
     audit_stalled_companies audit_revenue_by_company audit_revenue_by_sub_channel
   ].freeze
 
+  # Tabelas que as views leem. O refresh roda logo depois de cada carga em massa, antes de o
+  # autoanalyze acordar; sem estatísticas o planejador estimava as tabelas como vazias e as
+  # duas views de faturamento levavam segundos em nested loops (2,1 s e 2,4 s contra 84 ms e
+  # 108 ms com estatísticas, no import sintético de 556 ECs).
+  SOURCE_TABLES = %w[
+    import_batches period_coverages sub_channels companies establishments
+    revenue_snapshots map_snapshots map_snapshot_actions conversation_actions
+    daily_revenues_consolidated monthly_volumes_consolidated
+  ].freeze
+
   # Dias sem venda a partir do qual um CNPJ entra no relatório de clientes parados.
   STALLED_THRESHOLD = 7
 
   def self.refresh!
     connection = ApplicationRecord.connection
+    connection.execute("ANALYZE #{SOURCE_TABLES.join(', ')}")
     in_transaction = connection.transaction_open?
     NAMES.each do |name|
       concurrently = "CONCURRENTLY " if !in_transaction && populated?(name)
@@ -40,9 +51,42 @@ class AuditViews
     ALIGNED_VIEWS.map { |name| "DROP MATERIALIZED VIEW IF EXISTS #{name} CASCADE;\n" }.join
   end
 
-  # Regra da comparação alinhada, em um lugar só: o mês anterior cheio nunca é recortado;
-  # os dois períodos comparáveis são recortados pelo mesmo dia. A view materializada usa o
-  # corte de cada canal; o ReportScope injeta o menor corte do recorte selecionado.
+  # O subcanal de um EC vive nos snapshots por lote: o lote mais recente validado que trouxe
+  # faturamento é o que vale. Mesmo critério na view, na listagem e na página 3M — por isso
+  # o CTE mora aqui, e não copiado em cada consulta.
+  def self.latest_batches_sql(channel_predicate: nil)
+    conditions = [ "ib.status = 'validated'", channel_predicate ].compact
+    <<~SQL
+      latest_batches AS (
+        SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
+        FROM import_batches ib
+        WHERE #{conditions.join(" AND ")}
+          AND EXISTS (
+            SELECT 1 FROM revenue_snapshots snapshot WHERE snapshot.import_batch_id = ib.id
+          )
+        GROUP BY ib.channel_id
+      )
+    SQL
+  end
+
+  # Regra da comparação alinhada, em um lugar só: o mês anterior cheio nunca é recortado e os
+  # dois períodos comparáveis levam o mesmo recorte de dias. A view materializada recorta pelo
+  # corte de cada canal; o ReportScope injeta o menor corte do recorte; a listagem usa a faixa
+  # escolhida na tela. Só o recorte muda — a regra é a mesma nos três.
+  def self.aligned_aggregates_sql(table:, previous_period:, current_period:, day_filter:)
+    <<~SQL.strip
+      COALESCE(SUM(#{table}.amount) FILTER (
+        WHERE #{table}.period = #{previous_period}
+      ), 0) AS previous_full_revenue,
+      COALESCE(SUM(#{table}.amount) FILTER (
+        WHERE #{table}.period = #{previous_period} AND #{day_filter}
+      ), 0) AS previous_revenue,
+      COALESCE(SUM(#{table}.amount) FILTER (
+        WHERE #{table}.period = #{current_period} AND #{day_filter}
+      ), 0) AS current_revenue
+    SQL
+  end
+
   def self.revenue_by_sub_channel_sql(cutoff:, channel_predicate: "TRUE")
     <<~SQL
       WITH open_cover AS (
@@ -50,26 +94,11 @@ class AuditViews
           (period - INTERVAL '1 month')::date AS previous_period
         FROM period_coverages
         WHERE NOT closed AND #{channel_predicate}
-      ), latest_batches AS (
-        SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND EXISTS (
-            SELECT 1 FROM revenue_snapshots snapshot WHERE snapshot.import_batch_id = ib.id
-          )
-        GROUP BY ib.channel_id
-      )
+      ), #{latest_batches_sql.strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name AS sub_channel_name,
         cover.previous_period, cover.current_period, #{cutoff} AS max_known_day,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = cover.previous_period
-        ), 0) AS previous_full_revenue,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = cover.previous_period AND revenue.day <= #{cutoff}
-        ), 0) AS previous_revenue,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = cover.current_period AND revenue.day <= #{cutoff}
-        ), 0) AS current_revenue,
+        #{aligned_aggregates_sql(table: 'revenue', previous_period: 'cover.previous_period',
+          current_period: 'cover.current_period', day_filter: "revenue.day <= #{cutoff}").indent(4).strip},
         COUNT(DISTINCT snapshot.establishment_id) FILTER (
           WHERE establishment.primary_establishment_id IS NULL
         ) AS primary_establishments

@@ -1,6 +1,6 @@
 # Listagem paginada de estabelecimentos de um subcanal, com os dois meses alinhados
-# pela mesma faixa de dias. O resumo (contagem e totais) roda sem os agregados diários,
-# que só a página precisa.
+# pela mesma faixa de dias. Duas consultas por página: o resumo (contagens, totais da
+# aba e totais gerais) numa passada só, e as linhas da página.
 class EstablishmentListingQuery
   DATE_KINDS = {
     "credenciamento" => "mapa.accredited_on",
@@ -54,9 +54,16 @@ class EstablishmentListingQuery
 
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
-      totals: summary[:totals], page:, per_page:, variation_counts: fetch_variation_counts,
-      overall_totals: fetch_overall_totals
+      totals: summary[:totals], page:, per_page:, variation_counts: summary[:variation_counts],
+      overall_totals: summary[:overall_totals]
     )
+  end
+
+  # Todas as linhas do recorte, na mesma ordem da tela e sem paginação.
+  def all_rows
+    ApplicationRecord.connection.exec_query(
+      ApplicationRecord.sanitize_sql_array([ rows_sql, binds ])
+    ).to_a
   end
 
   private
@@ -96,63 +103,59 @@ class EstablishmentListingQuery
     }
   end
 
-  # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
-  # a tabela lista. Vale saber que na aba Alta a variação sai positiva por construção (a
-  # aba filtra pela própria métrica) — por isso a tela rotula o recorte no card.
+  # Uma passada só sobre a listagem agregada resolve o resumo inteiro; antes eram três
+  # (aba, contagens e totais gerais), cada uma refazendo o GROUP BY.
   def fetch_summary
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT COUNT(*) AS total_count,
-        COALESCE(SUM(previous_full_revenue), 0) AS previous_full_revenue,
-        COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
-        COALESCE(SUM(current_revenue), 0) AS current_revenue
-      FROM (#{listing_sql}) listings
-      #{variation_where}
-    SQL
-    row = ApplicationRecord.connection.exec_query(sql).first || {}
+    row = ApplicationRecord.connection.exec_query(summary_sql).first || {}
     {
       total_count: row["total_count"].to_i,
       totals: {
         previous_full_revenue: row["previous_full_revenue"].to_d,
         previous_revenue: row["previous_revenue"].to_d,
         current_revenue: row["current_revenue"].to_d
+      },
+      variation_counts: { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i },
+      overall_totals: @variation && {
+        previous_revenue: row["overall_previous_revenue"].to_d,
+        current_revenue: row["overall_current_revenue"].to_d
       }
     }
   end
 
-  # A variação da aba é enviesada por construção (a aba filtra pela própria métrica);
-  # estes totais sem o filtro de aba ancoram a variação verdadeira do recorte no card.
-  def fetch_overall_totals
-    return nil unless @variation
-
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT COALESCE(SUM(previous_revenue), 0) AS previous_revenue,
-        COALESCE(SUM(current_revenue), 0) AS current_revenue
-      FROM (#{listing_sql}) listings
-    SQL
-    row = ApplicationRecord.connection.exec_query(sql).first || {}
-    { previous_revenue: row["previous_revenue"].to_d, current_revenue: row["current_revenue"].to_d }
-  end
-
-  # As contagens das três abas respeitam os demais filtros, nunca a própria aba —
-  # senão os números não fechariam entre si.
-  def fetch_variation_counts
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT COUNT(*) AS todas,
+  # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
+  # a tabela lista. Vale saber que na aba Alta a variação sai positiva por construção (a
+  # aba filtra pela própria métrica) — por isso a tela rotula o recorte no card, e os
+  # totais sem o filtro de aba ancoram a variação verdadeira do recorte. As contagens das
+  # três abas respeitam os demais filtros, nunca a própria aba — senão não fechariam.
+  def summary_sql
+    ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
+      SELECT COUNT(*) FILTER (WHERE #{tab_clause}) AS total_count,
+        COALESCE(SUM(previous_full_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_full_revenue,
+        COALESCE(SUM(previous_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_revenue,
+        COALESCE(SUM(current_revenue) FILTER (WHERE #{tab_clause}), 0) AS current_revenue,
+        COUNT(*) AS todas,
         COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
-        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa
+        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
+        COALESCE(SUM(previous_revenue), 0) AS overall_previous_revenue,
+        COALESCE(SUM(current_revenue), 0) AS overall_current_revenue
       FROM (#{listing_sql}) listings
     SQL
-    row = ApplicationRecord.connection.exec_query(sql).first || {}
-    { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i }
   end
 
   def fetch_rows(page, per_page)
     sql = ApplicationRecord.sanitize_sql_array([
-      "SELECT * FROM (#{listing_sql}) listings #{variation_where} " \
-      "ORDER BY ec, establishment_id LIMIT :per_page OFFSET :offset",
+      "#{rows_sql} LIMIT :per_page OFFSET :offset",
       binds.merge(per_page:, offset: (page - 1) * per_page)
     ])
     ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  def rows_sql
+    "SELECT * FROM (#{listing_sql}) listings #{variation_where} ORDER BY ec, establishment_id"
+  end
+
+  def tab_clause
+    @variation ? VARIATION_CLAUSES.fetch(@variation) : "TRUE"
   end
 
   def variation_where
@@ -169,16 +172,7 @@ class EstablishmentListingQuery
 
   def listing_sql
     <<~SQL
-      WITH latest_batches AS (
-        SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND (:channel_id IS NULL OR ib.channel_id = :channel_id)
-          AND EXISTS (
-            SELECT 1 FROM revenue_snapshots snapshot WHERE snapshot.import_batch_id = ib.id
-          )
-        GROUP BY ib.channel_id
-      )
+      WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
@@ -188,17 +182,10 @@ class EstablishmentListingQuery
         snapshot.previous_month_total, snapshot.current_month_total,
         :previous_period AS previous_period, :current_period AS current_period,
         :to_day AS max_known_day,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = :previous_period
-        ), 0) AS previous_full_revenue,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = :previous_period
-            AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS previous_revenue,
-        COALESCE(SUM(revenue.amount) FILTER (
-          WHERE revenue.period = :current_period
-            AND revenue.day BETWEEN :from_day AND :to_day
-        ), 0) AS current_revenue
+        #{AuditViews.aligned_aggregates_sql(
+          table: "revenue", previous_period: ":previous_period", current_period: ":current_period",
+          day_filter: "revenue.day BETWEEN :from_day AND :to_day"
+        ).indent(4).strip}
       FROM revenue_snapshots snapshot
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id

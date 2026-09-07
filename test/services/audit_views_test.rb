@@ -52,6 +52,34 @@ class AuditViewsTest < ActiveSupport::TestCase
     assert_equal linhas.sum { |row| row["current_revenue"].to_d }, totals[:current_revenue]
   end
 
+  # O refresh roda logo depois de cada carga em massa, antes de o autoanalyze acordar: sem
+  # estatísticas o planejador estimava as tabelas como vazias e as duas views de faturamento
+  # levavam segundos em nested loops. O ANALYZE das fontes vem antes do primeiro REFRESH.
+  test "refresh atualiza as estatísticas das tabelas-fonte antes de refrescar" do
+    statements = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      statements << payload[:sql]
+    end
+    AuditViews.refresh!
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+
+    analyze = statements.index { |sql| sql.start_with?("ANALYZE ") }
+    assert analyze, "nenhum ANALYZE antes do refresh"
+    assert_operator analyze, :<, statements.index { |sql| sql.start_with?("REFRESH") }
+    AuditViews::SOURCE_TABLES.each { |table| assert_includes statements[analyze], table }
+  end
+
+  # Toda tabela que uma view lê tem que estar na lista analisada, senão a view volta a
+  # planejar sobre estatísticas velhas sem ninguém perceber.
+  test "a lista de tabelas-fonte cobre tudo que as views leem" do
+    connection = ApplicationRecord.connection
+    AuditViews::NAMES.each do |view|
+      definition = connection.select_value("SELECT pg_get_viewdef(#{connection.quote(view)})")
+      tables = definition.scan(/public\.(\w+)/).flatten.uniq - AuditViews::NAMES
+      assert_empty tables - AuditViews::SOURCE_TABLES, "#{view} lê tabelas fora de SOURCE_TABLES"
+    end
+  end
+
   test "refresh não quebra quando chamado dentro de uma transação" do
     assert_nothing_raised { ApplicationRecord.transaction { AuditViews.refresh! } }
   end

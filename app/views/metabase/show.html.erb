@@ -13,7 +13,7 @@
       É somente leitura: nada feito lá altera os dados daqui. As telas deste portal continuam
       sendo a referência; o Metabase serve para explorar além delas.
     </p>
-    <%= link_to icon_label("arrow-square-out", "Abrir Metabase"), "http://localhost:3001", class: "btn btn-primary relative z-10 mt-6",
+    <%= link_to icon_label("arrow-square-out", "Abrir Metabase"), @metabase_url, class: "btn btn-primary relative z-10 mt-6",
       target: "_blank", rel: "noreferrer" %>
   </section>
   <section class="surface-card p-6">
@@ -37,12 +37,12 @@
       <div class="mt-3 overflow-x-auto rounded-xl border border-base-300">
         <table class="table w-auto">
           <tbody>
-            <tr><th>Host (Compose)</th><td class="font-mono"><%= @host %></td></tr>
-            <tr><th>Host (máquina local)</th><td class="font-mono">127.0.0.1</td></tr>
-            <tr><th>Porta</th><td class="font-mono"><%= @port %></td></tr>
-            <tr><th>Database</th><td class="font-mono"><%= @database %></td></tr>
-            <tr><th>Usuário</th><td class="font-mono"><%= @username %></td></tr>
-            <tr><th>Senha</th><td>Definida por <span class="font-mono">METABASE_RO_PASSWORD</span></td></tr>
+            <tr><th scope="row">Host (Compose)</th><td class="font-mono"><%= @host %></td></tr>
+            <tr><th scope="row">Host (máquina local)</th><td class="font-mono">127.0.0.1</td></tr>
+            <tr><th scope="row">Porta</th><td class="font-mono"><%= @port %></td></tr>
+            <tr><th scope="row">Database</th><td class="font-mono"><%= @database %></td></tr>
+            <tr><th scope="row">Usuário</th><td class="font-mono"><%= @username %></td></tr>
+            <tr><th scope="row">Senha</th><td>Definida por <span class="font-mono">METABASE_RO_PASSWORD</span></td></tr>
           </tbody>
         </table>
       </div>

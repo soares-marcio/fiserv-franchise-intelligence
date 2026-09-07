@@ -1,4 +1,14 @@
 ENV["RAILS_ENV"] ||= "test"
+
+# Antes de carregar o app: o SimpleCov precisa enxergar os arquivos sendo requeridos.
+# COVERAGE=1 para gerar o relatório; sem a variável a suíte roda como antes.
+if ENV["COVERAGE"]
+  require "simplecov"
+  SimpleCov.start "rails" do
+    enable_coverage :branch
+  end
+end
+
 require_relative "../config/environment"
 require "rails/test_help"
 

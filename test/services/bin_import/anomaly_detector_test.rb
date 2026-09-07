@@ -29,6 +29,45 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
     assert_equal [ "MIC ALFA", "MIC GAMA" ], anomalia.details["sub_channels"]
   end
 
+  # O detector roda dentro da transação do import: uma consulta por empresa divergente
+  # segurava a transação por mais tempo quanto pior fosse a planilha.
+  test "lista os subcanais das empresas divergentes sem uma consulta por empresa" do
+    lojas = (1..3).flat_map do |i|
+      [ "MIC ALFA", "MIC GAMA" ].each_with_index.map do |sub_channel_name, j|
+        BinWorkbook::Loja.new(
+          ec: "30#{i}0000#{j}", cnpj: "5555#{i}666000017",
+          sub_channel_name:, legal_name: "EMPRESA #{i} LTDA", trade_name: "LOJA #{i}#{j}",
+          contract_status: "Active", dias_m1: { 1 => 100 }, dias_atual: { 1 => 50 },
+          melhor_conversa: nil, proposta: false
+        )
+      end
+    end
+    batch = import_synthetic_workbook(lojas:)
+    assert_equal 3, DataAnomaly.where(anomaly_type: "company_in_multiple_sub_channels").count
+
+    counter = QueryCounter.new
+    counter.while { ApplicationRecord.uncached { BinImport::AnomalyDetector.new(batch).call } }
+
+    assert_equal 1, counter.matching(/COUNT\(DISTINCT sub_channel_id\)/).size
+    assert_empty counter.matching(/FROM "companies" WHERE "companies"\."id" = /)
+    assert_equal 1, counter.matching(/INNER JOIN "sub_channels".*"company_id" IN/).size
+  end
+
+  class QueryCounter
+    def initialize = @statements = []
+
+    def while(&block)
+      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+        @statements << payload[:sql] unless payload[:cached]
+      end
+      block.call
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    def matching(pattern) = @statements.grep(pattern)
+  end
+
   test "aponta EC que trocou de subcanal entre lotes" do
     import_synthetic_workbook
     mudadas = BinWorkbook.default_lojas
@@ -39,6 +78,38 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
     assert_equal "30000001", anomalia.establishment.ec
     assert_equal "MIC ALFA", anomalia.details["previous"]
     assert_equal "MIC DELTA", anomalia.details["current"]
+  end
+
+  # "Anterior" é o snapshot imediatamente anterior, não o primeiro da história: um EC que
+  # foi e voltou continua sendo apontado a cada mudança.
+  test "compara com o snapshot imediatamente anterior, não com o primeiro da história" do
+    import_synthetic_workbook
+    mudadas = BinWorkbook.default_lojas
+    mudadas.first.sub_channel_name = "MIC DELTA"
+    import_synthetic_workbook(lojas: mudadas, filename: "BIN_TESTE_20260812.xlsx")
+    # Volta para ALFA com outro faturamento: planilha idêntica à primeira seria recusada
+    # pelo checksum.
+    voltou = BinWorkbook.default_lojas
+    voltou.first.dias_atual = voltou.first.dias_atual.merge(1 => 999)
+    import_synthetic_workbook(lojas: voltou, filename: "BIN_TESTE_20260819.xlsx")
+
+    anomalia = DataAnomaly.where(anomaly_type: "ec_changed_sub_channel").sole
+    assert_equal 2, anomalia.occurrences
+    assert_equal "MIC DELTA", anomalia.details["previous"]
+    assert_equal "MIC ALFA", anomalia.details["current"]
+  end
+
+  # A história do Mapa cresce um snapshot por EC a cada planilha semanal; carregar todos
+  # os anteriores como registros, com endereço e tudo, para ficar com um por EC é trabalho
+  # que o banco faz sozinho.
+  test "escolhe o snapshot anterior no banco, sem carregar a história inteira" do
+    import_synthetic_workbook
+    batch = import_synthetic_workbook(filename: "BIN_TESTE_20260812.xlsx")
+
+    counter = QueryCounter.new
+    counter.while { ApplicationRecord.uncached { BinImport::AnomalyDetector.new(batch).call } }
+
+    assert_empty counter.matching(/SELECT "map_snapshots"\.\* FROM "map_snapshots" WHERE "map_snapshots"\."establishment_id" IN/)
   end
 
   test "aponta linha do Mapa sem CANAL preenchido" do

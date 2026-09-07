@@ -1,7 +1,6 @@
 class MetabaseRole
   NAME = "metabase_ro"
   VIEWS = AuditViews::NAMES
-  WRITABLE_TABLES = %w[raw_import_rows import_batches daily_revenues map_snapshots].freeze
 
   def self.ensure!
     connection = ApplicationRecord.connection
@@ -18,11 +17,13 @@ class MetabaseRole
     end
   end
 
-  # Em produção a senha é obrigatória; fora dela cai no default para não travar setup/CI.
+  # O papel é do cluster, compartilhado pelos bancos de todos os ambientes, e o ensure! sempre
+  # redefine a senha: um seed em development sem a variável trocaria a senha que o Metabase da
+  # stack está usando pela padrão. Só em teste, onde a CI não a define, cai no default.
   def self.readonly_password
     password = ENV["METABASE_RO_PASSWORD"]
     return password if password.present?
-    raise KeyError, "METABASE_RO_PASSWORD é obrigatória em produção" if Rails.env.production?
+    raise KeyError, "METABASE_RO_PASSWORD é obrigatória fora do ambiente de teste" unless Rails.env.test?
 
     "metabase_ro"
   end

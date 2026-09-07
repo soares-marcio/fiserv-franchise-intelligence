@@ -2,6 +2,8 @@ require "test_helper"
 require "caxlsx"
 
 class BinImport::ImporterTest < ActiveSupport::TestCase
+  include ActiveRecord::Assertions::QueryAssertions
+
   # A planilha real da Fiserv não é versionada: fica no franchise-storage ao lado do
   # repositório. Quando existe, o teste de referência no fim deste arquivo roda contra ela.
   REFERENCE_FILE = Pathname.new(ENV.fetch("BIN_REFERENCE_FILE", Rails.root.join(
@@ -25,6 +27,44 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     assert_equal @lojas.count(&:proposta), ActivationProposal.count
     assert_equal lancamentos_esperados, DailyRevenue.count
     assert_equal volumes_esperados, MonthlyVolume.count
+  end
+
+  # Do segundo lote em diante quase todo EC e CNPJ já existem: consultar um a um, dentro da
+  # transação do import, era um round trip por linha do Mapa. Os conhecidos vêm de uma vez;
+  # só o que é novo na planilha ainda gera consulta própria.
+  test "um lote com ECs conhecidos não consulta empresa e EC linha a linha" do
+    import_synthetic_workbook(lojas: @lojas)
+    @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
+
+    assert_no_queries_match(/FROM "companies" WHERE "companies"\."cnpj" = /) do
+      assert_no_queries_match(/FROM "establishments" WHERE "establishments"\."ec" = /) do
+        import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
+      end
+    end
+    assert_equal @lojas.size, Establishment.count
+    assert_equal @lojas.size * 2, MapSnapshot.count
+  end
+
+  # As quatro cargas grandes do import (~11 mil linhas cada na carteira real) entram por COPY:
+  # o ActiveRecord gastava mais tempo montando o INSERT multilinha do que o Postgres
+  # executando-o. O COPY passa por fora do ActiveRecord, então o fuso da aplicação
+  # (America/Sao_Paulo) e a escala dos decimais têm que ser tratados na hora de codificar.
+  test "as cargas grandes entram por COPY, com timestamps em UTC e decimais exatos" do
+    assert_no_queries_match(/INSERT INTO "(daily_revenues|monthly_volumes|daily_revenues_consolidated|monthly_volumes_consolidated)" \(.*\) VALUES/) do
+      import_synthetic_workbook(lojas: @lojas)
+    end
+
+    assert_equal lancamentos_esperados, DailyRevenue.count
+    assert_equal volumes_esperados, MonthlyVolume.count
+    assert_equal lancamentos_esperados, DailyRevenueConsolidated.count
+    assert_equal volumes_esperados, MonthlyVolumeConsolidated.count
+    [ DailyRevenue, MonthlyVolume, DailyRevenueConsolidated, MonthlyVolumeConsolidated ].each do |model|
+      assert_in_delta Time.current, model.minimum(:created_at), 60, "#{model}: created_at fora do fuso"
+    end
+    loja = @lojas.first
+    establishment = Establishment.find_by!(ec: loja.ec)
+    assert_equal loja.dias_atual.fetch(1).to_d,
+      DailyRevenue.find_by!(establishment:, period: BinWorkbook::CURRENT_PERIOD, day: 1).amount
   end
 
   test "grava os totais mensais da aba Faturamento no snapshot" do

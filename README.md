@@ -58,7 +58,7 @@ bin/setup
 bin/dev
 ```
 
-Tudo em contêiner (app, worker, banco e Metabase em `localhost:3001`):
+Tudo em contêiner (app, worker, banco e Metabase):
 
 ```bash
 docker compose up
@@ -67,6 +67,15 @@ docker compose up
 O portal ainda não possui autenticação. Enquanto essa camada não for implementada, exponha
 as portas somente em uma máquina ou rede confiável; não publique o Compose diretamente na
 internet.
+
+### Acesso pela rede
+
+Na LAN o portal é servido por um Caddy em outra máquina, que faz proxy de `http://fiserv.bin`
+para `web` e de `http://fiserv-metabase.bin` para `metabase`; o DNS local resolve os dois
+nomes. Para isso o Compose publica `3000` e `3001` no IP da LAN (`APP_BIND_IP` no `.env`) e
+o Postgres só em `127.0.0.1`. Em produção o app aceita apenas `Host: fiserv.bin` e
+`localhost` (`RAILS_HOSTS` acrescenta outros); `force_ssl` fica desligado enquanto o Caddy
+servir HTTP puro — liga-se quando ele passar a terminar TLS.
 
 ## A planilha BIN
 
@@ -79,6 +88,12 @@ declarados em `BinImport::Template::EXPECTED_HEADERS`:
 
 Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. O nome do arquivo deve terminar em
 `_AAAAMMDD.xlsx`; essa data é usada para conferir a cobertura declarada.
+
+**Os arquivos importados ficam guardados** no volume `storage`, por decisão — nada os apaga
+depois do import. Cada um traz CNPJ, telefone, endereço e faturamento reais, então quem tem
+acesso ao host tem acesso a todos os arquivos já enviados, e o backup (acima) os carrega
+junto. O import roda um por vez (`ImportBinFileJob`), então dois envios simultâneos entram
+em fila em vez de disputar a consolidação.
 
 ### Particularidades da origem
 
@@ -97,7 +112,7 @@ Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. O nome do arquivo deve t
 
 ## Interface
 
-A casca visual (header, sidebar, trilha e busca de páginas) está descrita em
+A casca visual (topbar com menu horizontal, trilha e busca global de dados) está descrita em
 [`docs/layout.md`](docs/layout.md), com tokens, breakpoints e as decisões de design.
 
 ## Recriar o banco
@@ -109,6 +124,76 @@ bin/rails db:rebuild
 Derruba conexões abertas (os containers se recuperam sozinhos), recria os bancos de
 desenvolvimento e de teste a partir de `db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb` garante que o `structure.sql` contém tudo que
 o app precisa — adapters Solid, views, partições, extensões — e que o seed cria o papel.
+
+**O `database.yml` de produção não descreve o que roda aqui.** Ele declara quatro conexões
+(`primary`, `cache`, `queue`, `cable`) em bancos separados, como o gerador do Rails escreve; o
+Compose sobrescreve as quatro com `DATABASE_URL`, `CACHE_DATABASE_URL`, `QUEUE_DATABASE_URL` e
+`CABLE_DATABASE_URL` apontando para **o mesmo banco**. Por isso as tabelas dos três adapters
+Solid vivem no `structure.sql` do primary, e por isso a `db:rebuild` restringe as tasks ao
+`primary` quando o ambiente declara mais de uma config.
+
+O `db:schema:load` do Rails carrega o `structure.sql` chamando `psql` **no host**. Como o
+Postgres vive num container e o host pode não ter cliente nenhum instalado, a task detecta a
+ausência e manda o arquivo pela entrada padrão do container `db`, gravando na
+`ar_internal_metadata` o mesmo `schema_sha1` que o Rails gravaria — sem isso o guarda de
+integridade acusa banco desatualizado. Com `psql` no PATH, o caminho continua sendo o do Rails.
+
+## Backup e restauração
+
+```bash
+bin/db-backup
+```
+
+Grava três arquivos com o mesmo carimbo de data em `BACKUP_DIR` (padrão
+`../franchise-storage/backups`, fora do repositório):
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `fiserv_<data>.dump` | banco inteiro (`pg_dump -Fc`) |
+| `fiserv_<data>_storage.tar.gz` | volume `storage` — as planilhas BIN importadas |
+| `fiserv_<data>_metabase.tar.gz` | volume `metabase_data` — perguntas e dashboards |
+
+O Metabase para pelos segundos do `tar`: o H2 é um arquivo aberto pelo processo e a cópia a
+quente sairia inconsistente. Arquivos com mais de `BACKUP_KEEP_DAYS` dias (padrão 14) são
+apagados ao fim de cada execução.
+
+**Os três arquivos contêm dados reais de cliente.** Ficam fora do repositório e nunca podem
+ser versionados, anexados ou enviados para fora da máquina.
+
+Restaurar:
+
+```bash
+docker compose exec -T db psql -U postgres -c "CREATE DATABASE fiserv_restore_test"
+docker compose exec -T db pg_restore -U postgres -d fiserv_restore_test --no-owner \
+  < ../franchise-storage/backups/fiserv_<data>.dump
+docker run --rm -v fiserv-franchise-intelligence_storage:/data \
+  -v "$(cd ../franchise-storage/backups && pwd)":/backup \
+  alpine tar -xzf /backup/fiserv_<data>_storage.tar.gz -C /data
+```
+
+O `pg_dump` de um banco **não** carrega papéis do cluster: num cluster novo, rodar
+`bin/rails db:seed` depois de restaurar, para recriar o `metabase_ro` e o `GRANT`.
+
+Agendamento diário às 3h30 pelo `launchd`, no arquivo
+`~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist` (não versionado
+porque leva caminhos absolutos desta máquina). Carregar é ação manual:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist
+launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup   # roda agora
+```
+
+A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
+
+**Último teste de restauração: 2026-09-04.** O dump foi restaurado em
+`fiserv_restore_test` e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas,
+1.659 snapshots do mapa, 1.375 de faturamento, 17.809 lançamentos diários (mesma soma de
+`amount`), 4 partições de `daily_revenues` e as 7 views materializadas populadas. Repetir o
+teste — e atualizar esta data — sempre que o script ou o schema mudarem.
+
+**Lacuna declarada:** o backup fica no mesmo disco do banco. Protege contra `db:rebuild`,
+import errado e corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia
+externa é decisão pendente.
 
 ## Views de auditoria
 
@@ -133,7 +218,11 @@ mostra o intervalo possível sem escolher uma delas.
 ## Metabase
 
 `MetabaseRole.ensure!` cria o papel somente-leitura `metabase_ro` com `SELECT` restrito às
-views de auditoria. `METABASE_RO_PASSWORD` é obrigatória em produção.
+views de auditoria e redefine a senha toda vez que roda. O papel é do cluster, compartilhado
+por todos os bancos, e por isso `METABASE_RO_PASSWORD` é obrigatória fora do ambiente de
+teste: sem ela, o seed falha em vez de trocar a senha que o Metabase está usando pela padrão.
+O `bin/rails` no host não lê o `.env` — exporte a variável antes de `bin/setup`, `db:seed`
+ou `db:rebuild` em development.
 
 ## Testes
 
@@ -147,7 +236,7 @@ de desenvolvimento/teste e o Chromium:
 
 ```bash
 docker compose build test
-docker compose run --rm test              # suíte completa: bin/rails test:all
+docker compose run --rm test              # suíte completa: bin/rails db:test:prepare test:all
 docker compose run --rm test bin/rails test:system   # só os de sistema
 ```
 
@@ -155,8 +244,9 @@ O serviço `test` usa o target `test` do Dockerfile e um banco separado. A image
 produção continua sem as gems e os pacotes de navegador usados apenas na verificação.
 
 Os testes de importação usam planilhas sintéticas geradas por `test/support/bin_workbook.rb`;
-nenhum dado real de cliente é versionado. Se a planilha de referência da Fiserv estiver no
-diretório raiz, o teste correspondente roda também contra ela — caso contrário é pulado.
+nenhum dado real de cliente é versionado. Se a planilha de referência da Fiserv estiver em
+`../franchise-storage/storage/` (ver acima), o teste correspondente roda também contra ela —
+caso contrário é pulado.
 
 As views materializadas só são atualizadas nos testes que as leem, via `refresh_audit_views`.
 
