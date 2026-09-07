@@ -37,8 +37,8 @@ que parece existir.
 | --- | --- |
 | > 1400px | Uma linha: marca, menu, busca e sinal |
 | ≤ 1400px | O menu desce inteiro para a segunda linha da barra |
-| ≤ 1200px | A barra de filtros da tela de subcanal passa a uma coluna |
-| ≤ 900px | O menu sai da barra e vira lista vertical atrás do botão `.nav-toggle` (☰) |
+| ≤ 1200px | A barra de filtros da tela de subcanal passa a duas colunas |
+| ≤ 900px | O menu sai da barra e vira lista vertical atrás do botão `.nav-toggle` (☰); a barra de filtros passa a uma coluna |
 | ≤ 560px | Somem a legenda da marca e o atalho da busca (fica o ícone); o sinal encolhe |
 
 Acima de 900px o menu nunca rola nem corta: quebra linha e a barra cresce o que precisar.
@@ -76,14 +76,20 @@ primária do tema propaga para a casca inteira:
 
 | Token | Uso |
 | --- | --- |
-| `--cork-primary-100` / `-200` | Fundo do item ativo do menu (`.nav-link.is-active`) e dos resultados da busca; seleção de texto |
+| `--cork-primary-100` / `-200` | Hover das abas de variação e do resultado de busca; seleção de texto |
 | `--cork-success-100`, `--cork-danger-100`, `--cork-warning-100` | Fundos das badges e do sinal de arquivo |
-| `--cork-dark-100` | Hover neutro do menu (`.nav-link:hover`), bordas leves, fundo do atalho |
+| `--cork-dark-100` | Fundo da `.badge-ghost` |
 | `--cork-muted` / `--cork-strong` | Texto secundário / texto de destaque |
 | `--cork-shadow` | Sombra única dos cards |
 
-Tipografia: **Montserrat** (Google Fonts, carregada no `<head>`), corpo em 0.875rem,
-`letter-spacing: 0` em toda a hierarquia e `tnum` ligado para as colunas de valor.
+O menu é a exceção: como fica sobre a barra escura, o item ativo usa `--color-primary`
+direto e o hover é `color-mix(in oklab, white 8%, transparent)` — token claro sobre fundo
+escuro não teria contraste.
+
+Tipografia: **Montserrat**, servida pelo próprio app (`@font-face` em
+`app/assets/stylesheets/application.css`, arquivos `.woff2` em `app/assets/fonts/`, subsets
+`latin` e `latin-ext`, peso variável), corpo em 0.875rem, `letter-spacing: 0` em toda a
+hierarquia e `tnum` ligado para as colunas de valor.
 
 ## Decisões
 
@@ -108,12 +114,16 @@ Tipografia: **Montserrat** (Google Fonts, carregada no `<head>`), corpo em 0.875
   O que sobreviveu do Cork foi o resto da casca: cards, trilha, tokens `--cork-*`.
 - **Diálogo de busca com foco previsível.** Ao abrir, o foco vai para o campo de filtro; ao
   fechar, volta para quem abriu; `Tab` não sai do diálogo, como `aria-modal` promete.
+- **Nada vem de fora da origem.** A CSP está ligada
+  (`config/initializers/content_security_policy.rb`) com `default_src :self` e nonce por
+  requisição no `script-src`; `style-src` aceita `unsafe-inline` porque o Turbo escreve
+  estilo inline ao animar a troca de página e o nonce não chega lá. Por isso a Montserrat foi
+  vendorizada em `app/assets/fonts/`, como os ícones Phosphor. O teste
+  `test/controllers/content_security_policy_test.rb` falha se alguma página voltar a carregar
+  recurso externo.
 
 ## O que ficou como está, e por quê
 
-- **Montserrat via Google Fonts.** Funciona porque a CSP está desativada. É uma requisição
-  externa em toda página; se a ferramenta for usada em rede restrita ou a CSP for ligada,
-  vendorize a fonte em `vendor/fonts` como já se faz com os ícones Phosphor.
 - **Cadastro manual saiu desta versão.** As rotas, a tela e o botão foram removidos do
   portal; a operação `Operations::RegisterManually` e seus testes ficam, porque a regra de
   identidade (EC preso ao CNPJ e ao canal) continua valendo e o cadastro volta no futuro.

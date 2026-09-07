@@ -70,8 +70,9 @@ t.date :accredited_on, comment: "Origem: coluna \"DATA DE CREDENCIAMENTO\" da ab
 
 ## Particularidades que já causaram bug
 
-O banco é **descartável** nesta fase: será apagado muitas vezes até o schema estabilizar. Três
-comportamentos só aparecem em banco recém-criado, e os três já quebraram o sistema:
+O banco é **descartável** nesta fase: será apagado muitas vezes até o schema estabilizar
+(com a ressalva de custo em "Schema, `structure.sql` e produção"). Três comportamentos só
+aparecem em banco recém-criado, e os três já quebraram o sistema:
 
 1. **Views materializadas nascem `WITH NO DATA`.** `REFRESH ... CONCURRENTLY` exige view populada,
    e `SELECT` numa view não populada levanta erro. Use `AuditViews.populated?` antes das duas coisas.
@@ -89,6 +90,12 @@ validação as aceita por forma, não por lista fixa — o contrato é que **as 
 tragam o mesmo conjunto de meses**, e a parte fixa do cabeçalho continua literal e fatal em
 qualquer divergência. `DEFAULT_VOLUME_MONTHS` existe só para as planilhas sintéticas dos
 testes. O teste da virada de mês vive em `test/services/template_volume_months_test.rb`.
+
+Um quinto é do lado dos testes: a planilha sintética só varia pelo `dcterms:created` do
+`.xlsx`, gravado em **segundos**. Dois `import_synthetic_workbook` seguidos, mesmo com nomes
+de arquivo diferentes, caem no mesmo segundo, geram o mesmo SHA-256 e o segundo é recusado
+com "Arquivo já importado". Quem precisa de dois imports muda o **conteúdo** do segundo —
+um dia de faturamento basta. Isolado, o teste que ignorava isso falhava em 6 de 15 execuções.
 
 ## Modelo de remuneração
 
@@ -110,11 +117,22 @@ a definição pendente até existir uma fonte confiável.
 
 ## Schema, `structure.sql` e produção
 
-O banco é **descartável** nesta fase e será recriado muitas vezes. O caminho para isso é um só:
+O projeto ainda está em construção: **não há deploy de produção**, o schema continua mudando
+e o banco segue descartável por decisão. O que mudou é o custo de descartá-lo. A stack sobe
+`web` e `worker` com `RAILS_ENV=production` apontando para
+`fiserv_franchise_intelligence_development` (`docker-compose.yml:28,62`) — é esse o banco que
+serve a LAN, com os lotes já importados. Recriá-lo custa reimportar as planilhas à mão, e o
+import com o arquivo real é operação do usuário. Por isso:
 
 ```bash
-bin/rails db:rebuild   # DROP … WITH (FORCE) → create → schema:load → seed, para dev e teste
+RAILS_ENV=test bin/rails db:rebuild   # DROP … WITH (FORCE) → create → schema:load → seed
 ```
+
+**Sem o `RAILS_ENV=test`, o `db:rebuild` derruba também o banco de development**
+(`lib/tasks/db_rebuild.rake:39` acrescenta o banco de teste quando o ambiente é development,
+e o de development é o atual). Recriar o de development é legítimo enquanto o schema não
+estabiliza — só não deve ser acidente: antes, `bin/db-backup`, e depois ou o restore ou uma
+reimportação. No dia a dia, mudança de schema entra por `bin/rails db:migrate`.
 
 Pode rodar com os containers de pé: o `FORCE` derruba as conexões deles. O `web` reconecta
 na requisição seguinte, mas o `worker` **encerra** — na janela em que o banco não existe o
@@ -132,8 +150,9 @@ O que esse caminho garante, e por quê cada peça importa:
 2. **Tudo que o app precisa tem que estar nele**: as tabelas do Solid Queue, do Solid Cable
    e do Solid Cache (criadas por migration no banco principal — os `db/*_schema.rb` só
    entram em banco separado, e aqui `CABLE_DATABASE_URL`/`CACHE_DATABASE_URL`/
-   `QUEUE_DATABASE_URL` apontam para o mesmo banco), as seis views materializadas, a
-   partição `daily_revenues_default` e a extensão `pg_trgm`.
+   `QUEUE_DATABASE_URL` apontam para o mesmo banco), as sete views materializadas, a
+   partição `daily_revenues_default` e as quatro extensões — `pg_trgm`, `pgcrypto`,
+   `unaccent` e `vector` (o guarda do item 4 confere só a `pg_trgm`).
 3. **O que o dump não carrega vem do seed**: role e GRANT são objetos do cluster, não do
    banco. `db/seeds.rb` cria o `metabase_ro`; `db:prepare` no primeiro deploy roda o seed.
 4. **`test/db/schema_integrity_test.rb` é o guarda.** Ele roda contra o banco de teste, que
@@ -141,8 +160,35 @@ O que esse caminho garante, e por quê cada peça importa:
    divergir do que está carregado. Foi escrito depois de as tabelas do Solid Cable ficarem
    três dias fora do schema sem ninguém perceber: o broadcast do Turbo falhava em silêncio
    e a tela de importação nunca era avisada.
-5. Migration já aplicada em produção é imutável; enquanto o banco é descartável, editar e
-   recriar é aceitável — depois do primeiro deploy com dados, só migration nova.
+5. **Enquanto não houver deploy de produção, editar migration e recriar é aceitável** — mas
+   editar uma migration já aplicada não muda o banco de development, só o `structure.sql`, e
+   o guarda do item 4 passa a acusar divergência até o banco ser recriado. Ou se recria (com
+   backup antes), ou se escreve migration nova. Depois do primeiro deploy com dados, só
+   migration nova.
+6. **`db:migrate` em development regenera o `structure.sql` com as partições vivas.** O dump
+   sai do banco, e o banco tem as partições mensais criadas pelos imports
+   (`daily_revenues_202607`, `…202608`, `…202609`). Elas não pertencem ao arquivo, que só
+   declara a `default`. O diff aparece como não versionado; descarte com
+   `git checkout -- db/structure.sql`.
+7. **O dump depende de um `pg_dump` no PATH, e ele é keg-only.** Nesta máquina vem do
+   `libpq` do Homebrew (`/opt/homebrew/opt/libpq/bin`), que o shell de login tem e um shell
+   não interativo pode não ter. Sem ele o `db:migrate` **aplica a migration e falha no
+   dump** ("make sure that pg_dump is installed in your PATH"), deixando banco e arquivo
+   fora de sincronia sem alarde. A saída que não depende do PATH é a imagem de teste, que
+   traz `postgresql-client`; como ela não monta o repositório, o arquivo sai pela saída
+   padrão:
+
+   ```bash
+   RAILS_ENV=test bin/rails db:migrate
+   docker compose run --rm -T test sh -c 'bin/rails db:schema:dump >/dev/null; cat db/structure.sql' > /tmp/structure.sql
+   # Arquivo intermediário porque redirecionar direto trunca o destino antes de o dump sair:
+   mv /tmp/structure.sql db/structure.sql
+   RAILS_ENV=test bin/rails db:rebuild      # confere que o arquivo novo carrega
+   ```
+
+   Os dois geradores concordam: com o servidor em 16, o `pg_dump` 18.6 do host e o 17.11 da
+   imagem produzem arquivos **idênticos**, porque `lib/tasks/structure_sql.rake` remove o
+   `SET transaction_timeout` que as versões acima da 16 emitem.
 
 ## Dados de cliente
 
@@ -158,6 +204,13 @@ própria.
 O portal ainda opera sem autenticação por decisão de escopo. Trate-o como ferramenta interna:
 não exponha Rails, PostgreSQL ou Metabase fora de uma máquina ou rede confiável. Antes de qualquer
 publicação externa, autenticação e autorização passam a ser requisito de entrega.
+
+**O Metabase nunca passou pelo setup inicial** (`/api/session/properties` responde
+`has-user-setup: false` com `setup-token` presente, verificado em 07/09/2026). Enquanto
+estiver assim, quem alcança a porta 3001 na LAN conclui o setup e vira administrador dele.
+O Postgres não está exposto na LAN, mas está na rede do Compose, ao alcance do container —
+e as views de auditoria carregam CNPJ e faturamento reais. Concluir o setup (com senha) ou
+parar o serviço fecha a porta; deixar como está é escolha, não descuido.
 
 ## Verificação
 
