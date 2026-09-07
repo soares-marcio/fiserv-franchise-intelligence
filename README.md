@@ -221,6 +221,9 @@ launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup 
 
 A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
 
+O Metabase só é reiniciado ao fim se estava de pé quando o backup começou. Parar o serviço é
+decisão de segurança; um backup noturno não pode desfazê-la.
+
 **Último teste de restauração: 2026-09-07**, já com o schema desta branch (remoção das duas
 views de auditoria e das três colunas sem uso). O dump foi restaurado em `fiserv_restore_test`
 e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snapshots do mapa,
@@ -231,8 +234,16 @@ sempre que o script ou o schema mudarem.
 
 **Lacunas declaradas:**
 
-- O agendamento **não está ativo**: o `launchctl list` não mostra o agente (verificado em
-  07/09/2026), então todo backup até aqui foi manual. Carregar o plist é o comando acima.
+- **O agendamento está carregado mas não roda**, e a causa é do macOS, não do script: este
+  repositório vive num volume **externo** (`/Volumes/macOs`, `Device Location: External`), e
+  agentes do `launchd` não têm permissão para ler arquivos ali. O agente sobe, dispara e
+  morre com `bin/db-backup: Operation not permitted` (`launchctl print` mostra
+  `last exit code = 1`). Testado em 07/09/2026: um job de teste **lista** o diretório, mas
+  não consegue **ler** nenhum arquivo do volume, nem executando direto nem via `bash
+  <script>`. Para destravar, conceda Acesso Total ao Disco a `/bin/bash` em Ajustes do
+  Sistema → Privacidade e Segurança → Acesso Total ao Disco (o seletor esconde `/bin`; use
+  Cmd+Shift+G) e confirme com o `launchctl kickstart` acima. Enquanto isso, **todo backup é
+  manual**.
 - O backup fica no mesmo disco do banco. Protege contra `db:rebuild`, import errado e
   corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia externa é
   decisão pendente.

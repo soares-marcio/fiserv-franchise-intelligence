@@ -42,13 +42,19 @@ echo "Planilhas importadas → ${PREFIX}_storage.tar.gz"
 archive_volume storage "${PREFIX}_storage.tar.gz"
 
 # O H2 do Metabase é um arquivo aberto pelo processo: copiado a quente sairia inconsistente.
-# O serviço para pelo tempo do tar e volta mesmo se o comando falhar.
+# O serviço para pelo tempo do tar e volta mesmo se o comando falhar — mas só volta se estava
+# de pé. Deixá-lo parado é decisão de segurança (ele nunca passou pelo setup inicial, e quem
+# alcança a porta 3001 conclui o setup); um backup noturno não pode desfazê-la.
 echo "Metabase → ${PREFIX}_metabase.tar.gz"
-docker compose stop metabase > /dev/null
-trap 'docker compose start metabase > /dev/null' EXIT
-archive_volume metabase_data "${PREFIX}_metabase.tar.gz"
-docker compose start metabase > /dev/null
-trap - EXIT
+if docker compose ps --status running --services | grep -qx metabase; then
+  docker compose stop metabase > /dev/null
+  trap 'docker compose start metabase > /dev/null' EXIT
+  archive_volume metabase_data "${PREFIX}_metabase.tar.gz"
+  docker compose start metabase > /dev/null
+  trap - EXIT
+else
+  archive_volume metabase_data "${PREFIX}_metabase.tar.gz"
+fi
 
 # Rotação por idade: o disco é o mesmo do banco, então guardar demais não protege nada.
 find "$BACKUP_DIR" -maxdepth 1 -name 'fiserv_*' -type f -mtime "+${BACKUP_KEEP_DAYS}" -delete
