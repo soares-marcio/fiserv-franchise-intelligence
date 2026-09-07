@@ -1888,6 +1888,79 @@ ALTER SEQUENCE public.solid_cache_entries_id_seq OWNED BY public.solid_cache_ent
 
 
 --
+-- Name: solid_queue_batch_executions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.solid_queue_batch_executions (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: solid_queue_batch_executions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.solid_queue_batch_executions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: solid_queue_batch_executions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.solid_queue_batch_executions_id_seq OWNED BY public.solid_queue_batch_executions.id;
+
+
+--
+-- Name: solid_queue_batches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.solid_queue_batches (
+    id bigint NOT NULL,
+    active_job_batch_id character varying,
+    description character varying,
+    on_finish text,
+    on_success text,
+    on_failure text,
+    metadata text,
+    total_jobs integer DEFAULT 0 NOT NULL,
+    completed_jobs integer DEFAULT 0 NOT NULL,
+    failed_jobs integer DEFAULT 0 NOT NULL,
+    enqueued_at timestamp(6) without time zone,
+    finished_at timestamp(6) without time zone,
+    failed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: solid_queue_batches_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.solid_queue_batches_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: solid_queue_batches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.solid_queue_batches_id_seq OWNED BY public.solid_queue_batches.id;
+
+
+--
 -- Name: solid_queue_blocked_executions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1998,7 +2071,8 @@ CREATE TABLE public.solid_queue_jobs (
     finished_at timestamp(6) without time zone,
     concurrency_key character varying,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    batch_id bigint
 );
 
 
@@ -2444,6 +2518,20 @@ ALTER TABLE ONLY public.solid_cache_entries ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
+-- Name: solid_queue_batch_executions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_queue_batch_executions ALTER COLUMN id SET DEFAULT nextval('public.solid_queue_batch_executions_id_seq'::regclass);
+
+
+--
+-- Name: solid_queue_batches id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_queue_batches ALTER COLUMN id SET DEFAULT nextval('public.solid_queue_batches_id_seq'::regclass);
+
+
+--
 -- Name: solid_queue_blocked_executions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2701,6 +2789,22 @@ ALTER TABLE ONLY public.solid_cable_messages
 
 ALTER TABLE ONLY public.solid_cache_entries
     ADD CONSTRAINT solid_cache_entries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: solid_queue_batch_executions solid_queue_batch_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_queue_batch_executions
+    ADD CONSTRAINT solid_queue_batch_executions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: solid_queue_batches solid_queue_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_queue_batches
+    ADD CONSTRAINT solid_queue_batches_pkey PRIMARY KEY (id);
 
 
 --
@@ -3598,6 +3702,34 @@ CREATE INDEX index_solid_cache_entries_on_key_hash_and_byte_size ON public.solid
 
 
 --
+-- Name: index_solid_queue_batch_executions_on_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_queue_batch_executions_on_batch_id ON public.solid_queue_batch_executions USING btree (batch_id);
+
+
+--
+-- Name: index_solid_queue_batch_executions_on_job_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_solid_queue_batch_executions_on_job_id ON public.solid_queue_batch_executions USING btree (job_id);
+
+
+--
+-- Name: index_solid_queue_batches_on_active_job_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_solid_queue_batches_on_active_job_batch_id ON public.solid_queue_batches USING btree (active_job_batch_id);
+
+
+--
+-- Name: index_solid_queue_batches_on_finished_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_queue_batches_on_finished_at ON public.solid_queue_batches USING btree (finished_at);
+
+
+--
 -- Name: index_solid_queue_blocked_executions_for_maintenance; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3665,6 +3797,13 @@ CREATE INDEX index_solid_queue_jobs_for_filtering ON public.solid_queue_jobs USI
 --
 
 CREATE INDEX index_solid_queue_jobs_on_active_job_id ON public.solid_queue_jobs USING btree (active_job_id);
+
+
+--
+-- Name: index_solid_queue_jobs_on_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_solid_queue_jobs_on_batch_id ON public.solid_queue_jobs USING btree (batch_id);
 
 
 --
@@ -4174,6 +4313,14 @@ ALTER TABLE ONLY public.data_anomalies
 
 
 --
+-- Name: solid_queue_batch_executions fk_rails_7c5e073422; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_queue_batch_executions
+    ADD CONSTRAINT fk_rails_7c5e073422 FOREIGN KEY (batch_id) REFERENCES public.solid_queue_batches(id) ON DELETE CASCADE;
+
+
+--
 -- Name: solid_queue_ready_executions fk_rails_81fcbd66af; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4267,6 +4414,14 @@ ALTER TABLE ONLY public.revenue_snapshots
 
 ALTER TABLE ONLY public.import_template_columns
     ADD CONSTRAINT fk_rails_b4e94b48ab FOREIGN KEY (import_template_id) REFERENCES public.import_templates(id);
+
+
+--
+-- Name: solid_queue_batch_executions fk_rails_bc9f981155; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solid_queue_batch_executions
+    ADD CONSTRAINT fk_rails_bc9f981155 FOREIGN KEY (job_id) REFERENCES public.solid_queue_jobs(id) ON DELETE CASCADE;
 
 
 --
@@ -4380,6 +4535,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907000000'),
 ('20260901090000'),
 ('20260831190000'),
 ('20260831120000'),
