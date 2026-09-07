@@ -217,7 +217,18 @@ porque leva caminhos absolutos desta máquina). Carregar é ação manual:
 ```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist
 launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup   # roda agora
+launchctl print gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup | grep "last exit code"
 ```
+
+**Numa máquina nova, carregar não basta.** Este repositório vive num volume externo
+(`/Volumes/macOs`, `Device Location: External`) e agentes do `launchd` não têm permissão para
+ler arquivos ali: o job sobe, dispara e morre com `Operation not permitted`. A permissão é
+concedida em Ajustes do Sistema → Privacidade e Segurança → **Acesso Total ao Disco**,
+adicionando `/bin/bash` (o seletor esconde `/bin`; use Cmd+Shift+G). Ativo desde 07/09/2026,
+com o `last exit code = 0` acima como prova.
+
+O plist executa o `bin/db-backup` **da árvore de trabalho**, não de uma cópia fixa: a branch
+que estiver aberta é a que roda de madrugada.
 
 A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
 
@@ -234,19 +245,9 @@ sempre que o script ou o schema mudarem.
 
 **Lacunas declaradas:**
 
-- **O agendamento está carregado mas não roda**, e a causa é do macOS, não do script: este
-  repositório vive num volume **externo** (`/Volumes/macOs`, `Device Location: External`), e
-  agentes do `launchd` não têm permissão para ler arquivos ali. O agente sobe, dispara e
-  morre com `bin/db-backup: Operation not permitted` (`launchctl print` mostra
-  `last exit code = 1`). Testado em 07/09/2026: um job de teste **lista** o diretório, mas
-  não consegue **ler** nenhum arquivo do volume, nem executando direto nem via `bash
-  <script>`. Para destravar, conceda Acesso Total ao Disco a `/bin/bash` em Ajustes do
-  Sistema → Privacidade e Segurança → Acesso Total ao Disco (o seletor esconde `/bin`; use
-  Cmd+Shift+G) e confirme com o `launchctl kickstart` acima. Enquanto isso, **todo backup é
-  manual**.
-- O backup fica no mesmo disco do banco. Protege contra `db:rebuild`, import errado e
-  corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia externa é
-  decisão pendente.
+- O backup fica no mesmo disco do banco — e esse disco é **externo**. Protege contra
+  `db:rebuild`, import errado e corrupção lógica; **não** protege contra perda do disco ou da
+  máquina, que é o modo de falha mais provável aqui. Cópia externa é decisão pendente.
 
 ## Views de auditoria
 
