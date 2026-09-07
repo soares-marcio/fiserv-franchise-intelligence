@@ -12,7 +12,7 @@ que parece existir.
 │ topbar (sticky, escura)                                              │
 │ [marca]  ▾ Dashboard   ▾ Operação                          [☰] [⌘/] [sinal]  │
 │          └ Faturamento  └ Estabelecimentos                                   │
-│            Clientes parados   Importar arquivo                               │
+│            Mapa cliente       Importar arquivo                               │
 │            Semanal            Metabase                                       │
 │            Ganhos 3M                                                         │
 │            Recorrente                                                        │
@@ -55,7 +55,7 @@ baixe o SVG de `github.com/phosphor-icons/core/assets/regular/` para a pasta e u
 
 | Onde | Ícones |
 | --- | --- |
-| Menu | chart-line-up, pause-circle, calendar-blank, calendar-check, chart-bar, storefront, upload-simple, caret-down (indicador de cada grupo), list-bullets (hambúrguer) |
+| Menu | chart-line-up, storefront (Mapa cliente e Estabelecimentos), calendar-blank, calendar-check, chart-bar, upload-simple, caret-down (indicador de cada grupo), list-bullets (hambúrguer) |
 | Trilha | house em "Início" |
 | Ações | download-simple, funnel, magnifying-glass, eraser, upload-simple, trash, arrow-counter-clockwise, arrow-left, arrow-square-out, x (fechar a busca) |
 | Variação | trend-up, trend-down e minus, em peso **duotone**, por `ApplicationHelper#phosphor_icon` |

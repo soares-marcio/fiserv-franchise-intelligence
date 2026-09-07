@@ -36,7 +36,8 @@ class ReportsController < ApplicationController
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods, start_period: params[:start_period])
+    @window = ThreeMonthEarningsQuery.window(@available_periods,
+      start_period: params[:start_period], end_period: params[:end_period])
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
   end
 
@@ -48,7 +49,8 @@ class ReportsController < ApplicationController
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods, start_period: params[:start_period])
+    @window = ThreeMonthEarningsQuery.window(@available_periods,
+      start_period: params[:start_period], end_period: params[:end_period])
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
   end
 
@@ -81,6 +83,21 @@ class ReportsController < ApplicationController
       format.csv { send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
       format.xlsx { send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
     end
+  end
+
+  # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma
+  # janela e faixa de dias da tela que o abriu.
+  def sub_channel_daily
+    @sub_channel = SubChannel.find_param!(params[:id])
+    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @establishment = Establishment.where(channel_id: @sub_channel.channel_id)
+                                  .find_param!(params[:establishment_id])
+    @window = @scope.establishment_window(
+      period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
+    )
+    @rows = @scope.establishment_daily_revenues(establishment_id: @establishment.id, window: @window)
+
+    render partial: "reports/daily_revenues", layout: false
   end
 
   private

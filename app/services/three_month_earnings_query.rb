@@ -39,12 +39,31 @@ class ThreeMonthEarningsQuery
 
   # O mês escolhido é o M0 — o mês de credenciamento —, e a janela avança a partir dele.
   # Meses ainda sem volume importado aparecem na tela como "sem dado", não somem.
-  def self.window(available_periods, start_period: nil)
+  # A janela abre no M0 escolhido e vai até o mês final, que a tela só oferece entre os dois
+  # meses seguintes: escolher o primeiro deles fecha a janela em dois meses. Qualquer outro
+  # valor volta ao padrão de três, em vez de virar um recorte que a tela não oferece.
+  def self.window(available_periods, start_period: nil, end_period: nil)
     return if available_periods.empty?
 
     start = parse_start_period(available_periods, start_period) || default_start_period(available_periods)
-    [ start, start + 1.month, start + 2.months ]
+    finish = parse_end_period(start, end_period) || start + 2.months
+    (0..((finish.year * 12 + finish.month) - (start.year * 12 + start.month))).map { |offset| start + offset.months }
   end
+
+  # Meses que o segundo seletor oferece, na ordem em que aparecem.
+  def self.window_ends(start)
+    [ start + 1.month, start + 2.months ]
+  end
+
+  def self.parse_end_period(start, value)
+    return if value.blank?
+
+    parsed = Date.strptime(value.to_s, "%Y-%m").beginning_of_month
+    parsed if window_ends(start).include?(parsed)
+  rescue Date::Error, ArgumentError, TypeError
+    nil
+  end
+  private_class_method :parse_end_period
 
   # Sem escolha explícita, abre no M0 mais recente cuja janela ainda cabe nos meses
   # importados: abrir no último mês mostraria duas colunas vazias por padrão.

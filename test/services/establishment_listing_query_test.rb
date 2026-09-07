@@ -25,6 +25,22 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_nil page.overall_totals
   end
 
+  # Decisão do usuário (07/09/2026): a aba conta estabelecimentos, identificados pelo CNPJ;
+  # a listagem continua mostrando um EC por linha. Dois ECs do mesmo CNPJ são um
+  # estabelecimento na contagem e duas linhas na tabela.
+  test "abas contam estabelecimentos distintos por CNPJ; a listagem lista um EC por linha" do
+    irmao = loja("30000006", "11222333000181", "ALFA LANCHES II",
+      dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 })
+    import_synthetic_workbook(lojas: lojas + [ irmao ], filename: "BIN_TESTE_20260812.xlsx")
+
+    page = listing
+
+    assert_equal 6, page.rows.size, "cada EC é uma linha"
+    assert_equal 6, page.total_count, "a paginação conta linhas, não empresas"
+    assert_equal 5, page.variation_counts[:todas],
+      "os dois ECs do mesmo CNPJ contam um estabelecimento"
+  end
+
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do
     row = listing.rows.find { |candidate| candidate["ec"] == "30000001" }
     loja = lojas.first

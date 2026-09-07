@@ -15,7 +15,7 @@
 
   <section class="filter-panel">
     <%= form_with url: three_months_reports_path, method: :get,
-      class: "flex flex-wrap items-end gap-3" do %>
+      class: "flex flex-wrap items-end gap-3", data: { controller: "live-form" } do %>
       <label class="grid gap-1.5">
         <span class="section-label">Canal da carteira</span>
         <%= select_tag :channel_id,
@@ -27,16 +27,31 @@
         <span class="section-label">Mês de credenciamento (M0)</span>
         <%# Só meses com volume mensal importado: a planilha limita a escolha, não o sistema. %>
         <%= select_tag :start_period,
-          options_for_select(@available_periods.map { |period| [three_month_window_label(period), period.strftime("%Y-%m")] },
+          options_for_select(@available_periods.map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
             @window&.first&.strftime("%Y-%m")),
-          class: "select select-bordered w-auto min-w-64 max-w-full" %>
+          class: "select select-bordered w-auto min-w-52 max-w-full",
+          data: { action: "change->live-form#submit" } %>
       </label>
+      <% if @window %>
+      <%# O segundo seletor só oferece os dois meses seguintes ao M0: a janela do prêmio de
+          entrada tem no máximo três meses, e o dado é mensal. Trocar o M0 recarrega a tela
+          para as opções acompanharem. %>
+      <label class="grid gap-1.5">
+        <span class="section-label">Até o mês</span>
+        <%= select_tag :end_period,
+          options_for_select(
+            ThreeMonthEarningsQuery.window_ends(@window.first).map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
+            @window.last.strftime("%Y-%m")),
+          class: "select select-bordered w-auto min-w-52 max-w-full",
+          data: { action: "change->live-form#submit" } %>
+      </label>
+      <% end %>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
       <%# A escolha aplicada fica escrita ao lado do botão: o select sozinho não deixava
           claro o que estava valendo depois do Aplicar. %>
       <% if @window %>
         <p class="metric-hint self-center">
-          Exibindo <strong><%= three_month_window_label(@window.first) %></strong>
+          Exibindo <strong><%= three_month_window_label(@window.first, @window.last) %></strong>
           <%= "· #{@selected_channel.name}" if @selected_channel %>
         </p>
       <% end %>
@@ -110,7 +125,8 @@
                       subcanal numa janela diferente da que está na tela. %>
                   <%= link_to report[:name],
                     three_months_sub_channel_report_path(id: report[:uuid],
-                      start_period: @window.first.strftime("%Y-%m"), channel_id: @selected_channel&.uuid),
+                      start_period: @window.first.strftime("%Y-%m"), end_period: @window.last.strftime("%Y-%m"),
+                      channel_id: @selected_channel&.uuid),
                     class: "link" %>
                 </td>
                 <% report[:months].each do |month| %>

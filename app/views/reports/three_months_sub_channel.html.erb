@@ -14,19 +14,34 @@
 
   <section class="filter-panel">
     <%= form_with url: three_months_sub_channel_report_path(id: @sub_channel.uuid), method: :get,
-      class: "flex flex-wrap items-end gap-3" do %>
+      class: "flex flex-wrap items-end gap-3", data: { controller: "live-form" } do %>
       <label class="grid gap-1.5">
         <span class="section-label">Mês de credenciamento (M0)</span>
         <%= select_tag :start_period,
-          options_for_select(@available_periods.map { |period| [three_month_window_label(period), period.strftime("%Y-%m")] },
+          options_for_select(@available_periods.map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
             @window&.first&.strftime("%Y-%m")),
-          class: "select select-bordered w-auto min-w-64 max-w-full" %>
+          class: "select select-bordered w-auto min-w-52 max-w-full",
+          data: { action: "change->live-form#submit" } %>
       </label>
+      <% if @window %>
+      <%# O segundo seletor só oferece os dois meses seguintes ao M0: a janela do prêmio de
+          entrada tem no máximo três meses, e o dado é mensal. Trocar o M0 recarrega a tela
+          para as opções acompanharem. %>
+      <label class="grid gap-1.5">
+        <span class="section-label">Até o mês</span>
+        <%= select_tag :end_period,
+          options_for_select(
+            ThreeMonthEarningsQuery.window_ends(@window.first).map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
+            @window.last.strftime("%Y-%m")),
+          class: "select select-bordered w-auto min-w-52 max-w-full",
+          data: { action: "change->live-form#submit" } %>
+      </label>
+      <% end %>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
       <% if @window %>
         <p class="metric-hint self-center">
           Credenciados em <strong><%= l(@window.first, format: "%B de %Y") %></strong>,
-          apurados em <%= three_month_window_label(@window.first).downcase %>
+          apurados em <%= three_month_window_label(@window.first, @window.last).downcase %>
         </p>
       <% end %>
     <% end %>

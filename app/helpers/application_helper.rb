@@ -65,7 +65,7 @@ module ApplicationHelper
     when "index"
       [ breadcrumb_current("Faturamento") ]
     when "stalled"
-      [ breadcrumb_current("Clientes parados") ]
+      [ breadcrumb_current("Mapa cliente") ]
     when "weekly"
       [ breadcrumb_current("Semanal") ]
     when "sub_channel"
@@ -229,9 +229,9 @@ module ApplicationHelper
 
   # A opção nomeia o M0 escolhido e a janela que ele abre: quem credenciou em junho é
   # apurado em junho, julho e agosto. Quando a janela atravessa o ano, os dois aparecem.
-  def three_month_window_label(first_period)
+  def three_month_window_label(first_period, last_period = nil)
     first_period = first_period.to_date
-    last_period = first_period >> 2
+    last_period = (last_period || first_period >> 2).to_date
     first = I18n.l(first_period, format: "%B")
     last = I18n.l(last_period, format: "%B de %Y")
     return "#{first} a #{last}".capitalize if first_period.year == last_period.year

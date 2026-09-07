@@ -127,15 +127,21 @@ class EstablishmentListingQuery
   # aba filtra pela própria métrica) — por isso a tela rotula o recorte no card, e os
   # totais sem o filtro de aba ancoram a variação verdadeira do recorte. As contagens das
   # três abas respeitam os demais filtros, nunca a própria aba — senão não fechariam.
+  #
+  # As abas contam estabelecimentos, identificados pelo CNPJ, não linhas: um estabelecimento
+  # com dois ECs conta um no rótulo e ocupa duas linhas na tabela (decisão do usuário). Os
+  # totais em dinheiro continuam somando linha a linha — cada EC tem faturamento próprio,
+  # então somar por EC e somar por CNPJ dão o mesmo número; só a contagem muda. O total_count
+  # segue contando linhas, porque é ele que pagina.
   def summary_sql
     ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT COUNT(*) FILTER (WHERE #{tab_clause}) AS total_count,
         COALESCE(SUM(previous_full_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_full_revenue,
         COALESCE(SUM(previous_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_revenue,
         COALESCE(SUM(current_revenue) FILTER (WHERE #{tab_clause}), 0) AS current_revenue,
-        COUNT(*) AS todas,
-        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
-        COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
+        COUNT(DISTINCT cnpj) AS todas,
+        COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
+        COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
         COALESCE(SUM(previous_revenue), 0) AS overall_previous_revenue,
         COALESCE(SUM(current_revenue), 0) AS overall_current_revenue
       FROM (#{listing_sql}) listings
@@ -174,6 +180,7 @@ class EstablishmentListingQuery
     <<~SQL
       WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
+        establishment.uuid AS establishment_uuid,
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
         mapa.suspended_on, mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,

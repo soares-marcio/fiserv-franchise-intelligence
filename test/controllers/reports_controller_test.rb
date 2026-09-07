@@ -11,7 +11,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # "Dashboard" e "Operação" são agrupamentos da navbar, não páginas — não entram na
     # trilha nem como texto.
     assert_select "nav.breadcrumb-wrap li", text: /Dashboard/, count: 0
-    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clientes parados"
+    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Mapa cliente"
   end
 
   test "cabeçalho mostra há quanto tempo a carteira recebeu arquivo" do
@@ -110,6 +110,31 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td a[href*=?]", "start_period=2026-06"
   end
 
+  # O segundo seletor só oferece os dois meses seguintes ao M0, e escolher o primeiro
+  # deles fecha a janela em dois meses — a tabela perde a coluna M2.
+  test "a página 3M oferece o mês final entre os dois seguintes ao M0" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(start_period: "2026-06")
+
+    assert_select "select[name=end_period] option", count: 2
+    assert_select "select[name=end_period] option[value=?]", "2026-07"
+    assert_select "select[name=end_period] option[selected][value=?]", "2026-08"
+  end
+
+  test "o mês final escolhido encurta a janela apurada" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(start_period: "2026-06", end_period: "2026-07")
+
+    assert_select "th", text: "M0 · jun/2026"
+    assert_select "th", text: "M1 · jul/2026"
+    assert_select "th", text: /M2/, count: 0
+    assert_select "p", text: /Exibindo\s+Junho a julho de 2026/
+  end
+
   test "página 3M lista subcanais e navega para os cards de estabelecimento" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
@@ -175,6 +200,38 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{sub_channel_report_path(sub_channel)}']", text: "MIC A"
   end
 
+  # O EC da listagem abre os lançamentos diários num modal; o conteúdo chega por Turbo
+  # Frame, sem layout, com a mesma janela e faixa de dias da tela que o abriu.
+  test "lançamentos diários do EC chegam sem layout, um dia por linha" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    establishment = Establishment.find_by!(ec: "11111111")
+
+    get sub_channel_daily_report_path(sub_channel, establishment, channel_id: channel.uuid)
+
+    assert_response :success
+    assert_select "turbo-frame#daily_revenues"
+    assert_select "body", false, "o modal chega sem layout"
+    assert_select "h2", text: "EC 11111111"
+    assert_select "tbody th[scope=?]", "row", text: "24"
+    # brl usa espaço não separável entre o símbolo e o número; o regex evita a armadilha.
+    assert_select "td", text: /100,00/
+    assert_select "td", text: /80,00/
+  end
+
+  test "lançamentos diários respeitam a faixa de dias pedida" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    establishment = Establishment.find_by!(ec: "11111111")
+
+    get sub_channel_daily_report_path(sub_channel, establishment,
+      channel_id: channel.uuid, from_day: 1, to_day: 10)
+
+    assert_response :success
+    assert_select "tbody th[scope=?]", "row", count: 10
+    assert_select "tbody th[scope=?]", "row", text: "24", count: 0
+  end
+
   test "mostra os estabelecimentos que compõem os totais do subcanal" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
@@ -182,7 +239,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid)
 
     assert_response :success
-    assert_select "h1", text: "MIC A"
+    # O título da página é o canal; o subcanal nomeia a tabela logo abaixo.
+    assert_select "h1", text: "CANAL A"
+    assert_select "h2", text: "MIC A"
     assert_select "th", text: /Mês anterior cheio/
     assert_select "th", text: /Mês anterior comparável/
     assert_select "td", text: /11111111/

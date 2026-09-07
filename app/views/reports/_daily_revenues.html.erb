@@ -1,0 +1,56 @@
+<%# Conteúdo do modal: o frame é o mesmo da tela de subcanal, então o Turbo troca só isto. %>
+<%= turbo_frame_tag "daily_revenues" do %>
+  <div class="daily-modal__head">
+    <p class="section-label">Lançamentos diários</p>
+    <h2 class="table-title">EC <%= @establishment.ec %></h2>
+    <% if @window %>
+      <p class="page-description">
+        <%= period_option_label(@window.current_period) %> contra
+        <%= period_option_label(@window.previous_period) %>,
+        <%= day_range_label(@window.from_day, @window.to_day) %>.
+      </p>
+    <% end %>
+  </div>
+
+  <% if @rows.any? %>
+    <div class="table-scroll" role="region" tabindex="0"
+      aria-label="Faturamento diário do EC <%= @establishment.ec %>">
+      <table class="table">
+        <caption class="sr-only">
+          Faturamento por dia do EC <%= @establishment.ec %>, mês atual e mês anterior
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Dia</th>
+            <th scope="col" class="text-right"><%= period_option_label(@window.previous_period) %></th>
+            <th scope="col" class="text-right"><%= period_option_label(@window.current_period) %></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @rows.each do |row| %>
+            <% previous = row["previous_amount"].to_d %>
+            <% current = row["current_amount"].to_d %>
+            <tr>
+              <th scope="row" class="font-mono"><%= format("%02d", row["day"].to_i) %></th>
+              <td class="text-right tabular-nums <%= "opacity-40" if previous.zero? %>"><%= brl(previous) %></td>
+              <td class="text-right tabular-nums <%= "opacity-40" if current.zero? %>"><%= brl(current) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th scope="row">Total no período</th>
+            <td class="text-right tabular-nums">
+              <%= brl(@rows.sum { |row| row["previous_amount"].to_d }) %>
+            </td>
+            <td class="text-right tabular-nums">
+              <%= brl(@rows.sum { |row| row["current_amount"].to_d }) %>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  <% else %>
+    <p class="empty-state">Sem competência importada para este canal.</p>
+  <% end %>
+<% end %>

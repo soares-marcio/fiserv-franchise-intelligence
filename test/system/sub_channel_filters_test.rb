@@ -60,4 +60,25 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert_current_path(/date_kind%5B%5D=ativacao/, url: true)
     assert_no_current_path(/credenciamento/, url: true)
   end
+
+  # O EC abre os lançamentos diários num <dialog> nativo, com o conteúdo carregado por
+  # Turbo Frame. O que se prova aqui é o caminho inteiro: clique, diálogo aberto, tabela
+  # preenchida e fechamento.
+  test "clicar no EC abre o modal de lançamentos diários" do
+    visit sub_channel_report_path(@sub_channel)
+
+    assert_no_selector "dialog.daily-modal[open]"
+    # Clique na célula do CNPJ, longe do link do EC: é a linha que abre, não o link.
+    find("tr.daily-row", text: "30000001").all("td")[1].click
+
+    assert_selector "dialog.daily-modal[open]"
+    within "dialog.daily-modal" do
+      assert_selector "h2", text: "EC 30000001"
+      assert_selector "tbody th", text: "01"
+      assert_selector "td", text: /150,00/
+      click_button "Fechar lançamentos diários"
+    end
+
+    assert_no_selector "dialog.daily-modal[open]"
+  end
 end
