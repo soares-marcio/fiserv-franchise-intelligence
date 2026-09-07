@@ -1,6 +1,6 @@
 <% content_for :title, "Buscar" %>
 
-<%= turbo_frame_tag "global-search", target: "_top", data: { cork_layout_target: "searchResults" } do %>
+<%= turbo_frame_tag "global-search", target: "_top", data: { app_layout_target: "searchResults" } do %>
   <% if !@search.searchable? %>
     <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou subcanal.</p>
   <% elsif @search.empty? && @search.base_empty? %>
