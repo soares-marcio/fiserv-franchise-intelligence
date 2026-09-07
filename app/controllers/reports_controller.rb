@@ -36,7 +36,8 @@ class ReportsController < ApplicationController
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods, start_period: params[:start_period])
+    @window = ThreeMonthEarningsQuery.window(@available_periods,
+      start_period: params[:start_period], end_period: params[:end_period])
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
   end
 
@@ -48,7 +49,8 @@ class ReportsController < ApplicationController
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods, start_period: params[:start_period])
+    @window = ThreeMonthEarningsQuery.window(@available_periods,
+      start_period: params[:start_period], end_period: params[:end_period])
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
   end
 

@@ -41,4 +41,25 @@ class ThreeMonthWindowTest < ActiveSupport::TestCase
         ThreeMonthEarningsQuery.window(PERIODS, start_period: value), value.inspect
     end
   end
+
+  # O segundo seletor da tela só oferece os dois meses seguintes ao M0; escolher o
+  # primeiro deles fecha a janela em dois meses.
+  test "o mês final escolhido encurta a janela" do
+    assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1) ],
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-05")
+  end
+
+  test "o segundo mês seguinte mantém a janela cheia" do
+    assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ],
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-06")
+  end
+
+  # Fora dos dois meses seguintes — antes do M0, no próprio M0 ou além do M2 — a janela
+  # volta ao padrão de três meses em vez de virar um recorte que a tela não oferece.
+  test "mês final fora do alcance cai na janela de três meses" do
+    [ "2026-03", "2026-04", "2026-07", "não é mês", "", nil ].each do |value|
+      assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ],
+        ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: value), value.inspect
+    end
+  end
 end

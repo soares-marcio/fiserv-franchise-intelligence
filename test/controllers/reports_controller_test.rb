@@ -11,7 +11,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # "Dashboard" e "Operação" são agrupamentos da navbar, não páginas — não entram na
     # trilha nem como texto.
     assert_select "nav.breadcrumb-wrap li", text: /Dashboard/, count: 0
-    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clientes parados"
+    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Mapa cliente"
   end
 
   test "cabeçalho mostra há quanto tempo a carteira recebeu arquivo" do
@@ -108,6 +108,31 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
     # O link do subcanal precisa carregar o mesmo M0, senão o nível 2 abre deslocado.
     assert_select "td a[href*=?]", "start_period=2026-06"
+  end
+
+  # O segundo seletor só oferece os dois meses seguintes ao M0, e escolher o primeiro
+  # deles fecha a janela em dois meses — a tabela perde a coluna M2.
+  test "a página 3M oferece o mês final entre os dois seguintes ao M0" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(start_period: "2026-06")
+
+    assert_select "select[name=end_period] option", count: 2
+    assert_select "select[name=end_period] option[value=?]", "2026-07"
+    assert_select "select[name=end_period] option[selected][value=?]", "2026-08"
+  end
+
+  test "o mês final escolhido encurta a janela apurada" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(start_period: "2026-06", end_period: "2026-07")
+
+    assert_select "th", text: "M0 · jun/2026"
+    assert_select "th", text: "M1 · jul/2026"
+    assert_select "th", text: /M2/, count: 0
+    assert_select "p", text: /Exibindo\s+Junho a julho de 2026/
   end
 
   test "página 3M lista subcanais e navega para os cards de estabelecimento" do
