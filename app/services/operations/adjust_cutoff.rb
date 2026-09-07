@@ -1,7 +1,5 @@
 module Operations
   class AdjustCutoff
-    NAME = "ajustar_dia_corte_mes_atual"
-
     def self.call(batch:, max_known_day:)
       cutoff = Integer(max_known_day)
       raise ArgumentError, "Dia de corte deve estar entre 1 e 31" unless cutoff.between?(1, 31)

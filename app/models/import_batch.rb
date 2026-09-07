@@ -19,7 +19,6 @@ class ImportBatch < ApplicationRecord
 
   validates :file_checksum, uniqueness: true
 
-  scope :pending, -> { where(status: "pending") }
   scope :validated, -> { where(status: "validated") }
 
   # Atualiza a tela de importação sozinha quando o lote muda de status.
