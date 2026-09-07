@@ -242,7 +242,7 @@
     <% end %>
   </nav>
 
-  <section class="table-frame" data-controller="sticky-table">
+  <section class="table-frame" data-controller="sticky-table daily-modal">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por estabelecimento</p>
@@ -302,9 +302,17 @@
             <% previous = report["previous_revenue"].to_d %>
             <% previous_full = report["previous_full_revenue"].to_d %>
             <% current = report["current_revenue"].to_d %>
-            <tr>
+            <%# A linha inteira abre os lançamentos diários; o link do EC continua sendo o
+                caminho por teclado e para leitor de tela. %>
+            <tr class="daily-row" data-action="click->daily-modal#openFromRow">
               <td class="font-mono">
-                <%= report["ec"] %>
+                <%= link_to report["ec"], sub_channel_daily_report_path(
+                      @sub_channel, report["establishment_uuid"],
+                      period: @period, from_day: @from_day, to_day: @to_day
+                    ),
+                    class: "daily-trigger",
+                    title: "Ver lançamentos diários",
+                    data: { turbo_frame: "daily_revenues", action: "daily-modal#open" } %>
                 <% mdr = net_mdr_label(report["net_mdr"], report["net_mdr_status"]) %>
                 <% equipment = equipment_summary(report) %>
                 <% if mdr || equipment %>
@@ -379,6 +387,21 @@
           aria: { disabled: @page >= @total_pages } %>
       </nav>
     <% end %>
+
+    <%# Lançamentos diários do EC clicado. O frame nasce vazio e o Turbo o preenche. %>
+    <dialog class="daily-modal" data-daily-modal-target="dialog"
+      aria-label="Lançamentos diários do estabelecimento"
+      data-action="click->daily-modal#closeOnBackdrop close->daily-modal#close">
+      <div class="daily-modal__body">
+        <button type="button" class="btn-toggle daily-modal__close"
+          data-action="daily-modal#close" aria-label="Fechar lançamentos diários">
+          <%= icon("x", css: "icon") %>
+        </button>
+        <%= turbo_frame_tag "daily_revenues" do %>
+          <p class="empty-state">Carregando lançamentos…</p>
+        <% end %>
+      </div>
+    </dialog>
   </section>
   </div>
 

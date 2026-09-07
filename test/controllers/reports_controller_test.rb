@@ -175,6 +175,38 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{sub_channel_report_path(sub_channel)}']", text: "MIC A"
   end
 
+  # O EC da listagem abre os lançamentos diários num modal; o conteúdo chega por Turbo
+  # Frame, sem layout, com a mesma janela e faixa de dias da tela que o abriu.
+  test "lançamentos diários do EC chegam sem layout, um dia por linha" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    establishment = Establishment.find_by!(ec: "11111111")
+
+    get sub_channel_daily_report_path(sub_channel, establishment, channel_id: channel.uuid)
+
+    assert_response :success
+    assert_select "turbo-frame#daily_revenues"
+    assert_select "body", false, "o modal chega sem layout"
+    assert_select "h2", text: "EC 11111111"
+    assert_select "tbody th[scope=?]", "row", text: "24"
+    # brl usa espaço não separável entre o símbolo e o número; o regex evita a armadilha.
+    assert_select "td", text: /100,00/
+    assert_select "td", text: /80,00/
+  end
+
+  test "lançamentos diários respeitam a faixa de dias pedida" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    establishment = Establishment.find_by!(ec: "11111111")
+
+    get sub_channel_daily_report_path(sub_channel, establishment,
+      channel_id: channel.uuid, from_day: 1, to_day: 10)
+
+    assert_response :success
+    assert_select "tbody th[scope=?]", "row", count: 10
+    assert_select "tbody th[scope=?]", "row", text: "24", count: 0
+  end
+
   test "mostra os estabelecimentos que compõem os totais do subcanal" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)

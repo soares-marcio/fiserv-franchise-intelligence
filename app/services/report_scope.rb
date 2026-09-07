@@ -56,6 +56,27 @@ class ReportScope
     PeriodWindow.from_coverages(available_periods, period:, from_day:, to_day:)
   end
 
+  # Lançamentos diários de um EC, um dia por linha e os dois meses lado a lado. A série de
+  # dias vem do generate_series, não do que existe na tabela: dia sem venda precisa aparecer
+  # zerado, senão o modal esconde exatamente o buraco que o usuário foi ver.
+  def establishment_daily_revenues(establishment_id:, window:)
+    return [] unless window
+
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, window.to_binds.merge(establishment_id:) ])
+      SELECT dias.day,
+        COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :current_period), 0) AS current_amount,
+        COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :previous_period), 0) AS previous_amount
+      FROM generate_series(:from_day::int, :to_day::int) AS dias(day)
+      LEFT JOIN daily_revenues_consolidated revenue
+        ON revenue.day = dias.day
+        AND revenue.establishment_id = :establishment_id
+        AND revenue.period IN (:previous_period, :current_period)
+      GROUP BY dias.day
+      ORDER BY dias.day
+    SQL
+    ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
   def stalled_companies
     query(:stalled_companies, "cnpj")
   end

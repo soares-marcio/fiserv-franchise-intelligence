@@ -1262,6 +1262,60 @@
     flex: none;
   }
 
+  /* Modal dos lançamentos diários: <dialog> nativo, então o fundo vem do ::backdrop. */
+  .daily-modal {
+    width: min(38rem, 92vw);
+    max-height: 86vh;
+    padding: 0;
+    border: 1px solid var(--color-base-300);
+    border-radius: 0.75rem;
+    background: var(--color-base-100);
+    color: inherit;
+    box-shadow: 0 20px 45px rgb(31 45 61 / 18%);
+  }
+
+  .daily-modal::backdrop {
+    background: rgb(6 8 24 / 48%);
+  }
+
+  .daily-modal__body {
+    position: relative;
+    padding: 1.25rem 1.35rem 1.4rem;
+  }
+
+  .daily-modal__close {
+    position: absolute;
+    top: 0.9rem;
+    right: 1rem;
+  }
+
+  .daily-modal__head {
+    display: grid;
+    gap: 0.15rem;
+    margin-bottom: 0.9rem;
+    padding-right: 2.5rem;
+  }
+
+  .daily-modal .table-scroll {
+    max-height: 60vh;
+  }
+
+  .daily-row {
+    cursor: pointer;
+  }
+
+  .daily-trigger {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--color-primary);
+    text-underline-offset: 3px;
+  }
+
+  .daily-trigger:hover,
+  .daily-trigger:focus-visible {
+    color: var(--color-primary);
+  }
+
   .search-modal {
     position: fixed;
     z-index: 70;

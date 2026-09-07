@@ -180,6 +180,7 @@ class EstablishmentListingQuery
     <<~SQL
       WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
+        establishment.uuid AS establishment_uuid,
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
         mapa.suspended_on, mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,

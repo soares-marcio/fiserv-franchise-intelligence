@@ -83,6 +83,21 @@ class ReportsController < ApplicationController
     end
   end
 
+  # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma
+  # janela e faixa de dias da tela que o abriu.
+  def sub_channel_daily
+    @sub_channel = SubChannel.find_param!(params[:id])
+    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @establishment = Establishment.where(channel_id: @sub_channel.channel_id)
+                                  .find_param!(params[:establishment_id])
+    @window = @scope.establishment_window(
+      period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
+    )
+    @rows = @scope.establishment_daily_revenues(establishment_id: @establishment.id, window: @window)
+
+    render partial: "reports/daily_revenues", layout: false
+  end
+
   private
 
   def load_listing
