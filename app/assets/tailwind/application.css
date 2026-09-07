@@ -1575,6 +1575,15 @@
     color: var(--cork-muted);
   }
 
+  /* Intervalo não cabe numa linha e o .metric-value corta com reticências: entre esconder
+     o número e quebrar a linha, quebra. É o valor da apuração — não pode virar "R$ 6.54…". */
+  .metric-value--range {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    overflow: visible;
+    white-space: normal;
+  }
+
   .filter-panel {
     padding: 1.25rem;
   }

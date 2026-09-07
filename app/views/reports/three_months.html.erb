@@ -80,7 +80,7 @@
       </article>
       <article class="metric-card" data-tone="green">
         <p class="metric-label">Adicional por faturamento</p>
-        <p class="metric-value">
+        <p class="metric-value <%= "metric-value--range" if addon_without != addon_with %>">
           <% if addon_without == addon_with %>
             <%= brl(addon_without) %>
           <% else %>
