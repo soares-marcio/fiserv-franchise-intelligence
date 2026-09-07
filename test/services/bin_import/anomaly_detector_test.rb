@@ -104,7 +104,11 @@ class BinImport::AnomalyDetectorTest < ActiveSupport::TestCase
   # que o banco faz sozinho.
   test "escolhe o snapshot anterior no banco, sem carregar a história inteira" do
     import_synthetic_workbook
-    batch = import_synthetic_workbook(filename: "BIN_TESTE_20260812.xlsx")
+    # O .xlsx só muda pelo carimbo de criação, em segundos: duas gravações no mesmo segundo
+    # dão o mesmo checksum e a segunda é recusada como "Arquivo já importado".
+    semana_seguinte = BinWorkbook.default_lojas
+    semana_seguinte.first.dias_atual = semana_seguinte.first.dias_atual.merge(1 => 999)
+    batch = import_synthetic_workbook(lojas: semana_seguinte, filename: "BIN_TESTE_20260812.xlsx")
 
     counter = QueryCounter.new
     counter.while { ApplicationRecord.uncached { BinImport::AnomalyDetector.new(batch).call } }
