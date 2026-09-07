@@ -893,6 +893,24 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
 
 
 --
+-- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.daily_revenues_consolidated (
+    establishment_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    day integer NOT NULL,
+    amount numeric(18,2) NOT NULL,
+    provisional boolean NOT NULL,
+    source_import_batch_id bigint NOT NULL,
+    revised_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
 -- Name: establishments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -904,12 +922,26 @@ CREATE TABLE public.establishments (
     channel_id bigint NOT NULL,
     primary_establishment_id bigint,
     duplicate_reason character varying,
-    duplicate_confirmed_by character varying,
     duplicate_confirmed_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
     CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
+);
+
+
+--
+-- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.period_coverages (
+    channel_id bigint NOT NULL,
+    period date NOT NULL,
+    max_known_day integer NOT NULL,
+    closed boolean DEFAULT false NOT NULL,
+    last_import_batch_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -1070,112 +1102,6 @@ COMMENT ON COLUMN public.revenue_snapshots.previous_month_total IS 'Origem: colu
 --
 
 COMMENT ON COLUMN public.revenue_snapshots.current_month_total IS 'Origem: coluna "FATURAMENTO TOTAL DESTE MÊS" da aba Faturamento';
-
-
---
--- Name: audit_company_ec_divergence; Type: MATERIALIZED VIEW; Schema: public; Owner: -
---
-
-CREATE MATERIALIZED VIEW public.audit_company_ec_divergence AS
- SELECT rs.channel_id,
-    e.company_id,
-    count(DISTINCT rs.contract_status) AS distinct_contract_statuses,
-    count(DISTINCT ms.performed_segment) AS distinct_performed_segments
-   FROM ((public.revenue_snapshots rs
-     JOIN public.establishments e ON ((e.id = rs.establishment_id)))
-     LEFT JOIN public.map_snapshots ms ON (((ms.import_batch_id = rs.import_batch_id) AND (ms.establishment_id = rs.establishment_id))))
-  GROUP BY rs.channel_id, e.company_id
- HAVING ((count(DISTINCT rs.contract_status) > 1) OR (count(DISTINCT ms.performed_segment) > 1))
-  WITH NO DATA;
-
-
---
--- Name: conversation_actions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.conversation_actions (
-    id bigint NOT NULL,
-    text character varying NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: COLUMN conversation_actions.text; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.conversation_actions.text IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
-
-
---
--- Name: map_snapshot_actions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.map_snapshot_actions (
-    id bigint NOT NULL,
-    map_snapshot_id bigint NOT NULL,
-    conversation_action_id bigint NOT NULL,
-    "position" integer NOT NULL
-);
-
-
---
--- Name: COLUMN map_snapshot_actions."position"; Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON COLUMN public.map_snapshot_actions."position" IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
-
-
---
--- Name: audit_pending_actions; Type: MATERIALIZED VIEW; Schema: public; Owner: -
---
-
-CREATE MATERIALIZED VIEW public.audit_pending_actions AS
- SELECT ms.channel_id,
-    ms.sub_channel_id,
-    e.company_id,
-    ca.text,
-    count(*) AS total
-   FROM (((public.map_snapshot_actions msa
-     JOIN public.map_snapshots ms ON ((ms.id = msa.map_snapshot_id)))
-     JOIN public.establishments e ON ((e.id = ms.establishment_id)))
-     JOIN public.conversation_actions ca ON ((ca.id = msa.conversation_action_id)))
-  GROUP BY ms.channel_id, ms.sub_channel_id, e.company_id, ca.text
-  WITH NO DATA;
-
-
---
--- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.daily_revenues_consolidated (
-    establishment_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    period date NOT NULL,
-    day integer NOT NULL,
-    amount numeric(18,2) NOT NULL,
-    provisional boolean NOT NULL,
-    source_import_batch_id bigint NOT NULL,
-    revised_count integer DEFAULT 0 NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: period_coverages; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.period_coverages (
-    channel_id bigint NOT NULL,
-    period date NOT NULL,
-    max_known_day integer NOT NULL,
-    closed boolean DEFAULT false NOT NULL,
-    last_import_batch_id bigint NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
 
 
 --
@@ -1379,6 +1305,25 @@ CREATE SEQUENCE public.companies_id_seq
 --
 
 ALTER SEQUENCE public.companies_id_seq OWNED BY public.companies.id;
+
+
+--
+-- Name: conversation_actions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.conversation_actions (
+    id bigint NOT NULL,
+    text character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: COLUMN conversation_actions.text; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.conversation_actions.text IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
 
 
 --
@@ -1626,8 +1571,6 @@ CREATE TABLE public.import_template_columns (
     import_template_id bigint NOT NULL,
     sheet_name character varying NOT NULL,
     source_header character varying NOT NULL,
-    target_table character varying,
-    target_field character varying,
     required boolean DEFAULT false NOT NULL,
     normalization_rule character varying,
     created_at timestamp(6) without time zone NOT NULL,
@@ -1684,6 +1627,25 @@ CREATE SEQUENCE public.import_templates_id_seq
 --
 
 ALTER SEQUENCE public.import_templates_id_seq OWNED BY public.import_templates.id;
+
+
+--
+-- Name: map_snapshot_actions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.map_snapshot_actions (
+    id bigint NOT NULL,
+    map_snapshot_id bigint NOT NULL,
+    conversation_action_id bigint NOT NULL,
+    "position" integer NOT NULL
+);
+
+
+--
+-- Name: COLUMN map_snapshot_actions."position"; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.map_snapshot_actions."position" IS 'Origem: coluna "MELHOR CONVERSA" da aba Mapa de Clientes BIN';
 
 
 --
@@ -3142,20 +3104,6 @@ CREATE UNIQUE INDEX index_audit_accreditation_earnings ON public.audit_accredita
 
 
 --
--- Name: index_audit_company_ec_divergence; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_audit_company_ec_divergence ON public.audit_company_ec_divergence USING btree (channel_id, company_id);
-
-
---
--- Name: index_audit_pending_actions; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_audit_pending_actions ON public.audit_pending_actions USING btree (channel_id, sub_channel_id, company_id, text);
-
-
---
 -- Name: index_audit_revenue_by_company; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4535,6 +4483,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260907170000'),
 ('20260907000000'),
 ('20260901090000'),
 ('20260831190000'),

@@ -150,7 +150,7 @@ O que esse caminho garante, e por quê cada peça importa:
 2. **Tudo que o app precisa tem que estar nele**: as tabelas do Solid Queue, do Solid Cable
    e do Solid Cache (criadas por migration no banco principal — os `db/*_schema.rb` só
    entram em banco separado, e aqui `CABLE_DATABASE_URL`/`CACHE_DATABASE_URL`/
-   `QUEUE_DATABASE_URL` apontam para o mesmo banco), as sete views materializadas, a
+   `QUEUE_DATABASE_URL` apontam para o mesmo banco), as cinco views materializadas, a
    partição `daily_revenues_default` e as quatro extensões — `pg_trgm`, `pgcrypto`,
    `unaccent` e `vector` (o guarda do item 4 confere só a `pg_trgm`).
 3. **O que o dump não carrega vem do seed**: role e GRANT são objetos do cluster, não do
