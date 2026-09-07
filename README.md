@@ -243,11 +243,13 @@ e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snap
 migrações. O banco temporário foi apagado ao fim. Repetir o teste — e atualizar esta data —
 sempre que o script ou o schema mudarem.
 
-**Lacunas declaradas:**
-
-- O backup fica no mesmo disco do banco — e esse disco é **externo**. Protege contra
-  `db:rebuild`, import errado e corrupção lógica; **não** protege contra perda do disco ou da
-  máquina, que é o modo de falha mais provável aqui. Cópia externa é decisão pendente.
+**Risco aceito, por decisão (07/09/2026):** o backup fica no mesmo disco externo do banco.
+Protege contra `db:rebuild`, import errado e corrupção lógica; **não** protege contra perda
+do disco ou da máquina. Cópia para fora foi avaliada e adiada — não há destino configurado
+(nenhum compartilhamento de rede montado, sem Dropbox/Drive/OneDrive), e mandar para fora
+exigiria criptografar antes, porque os três arquivos carregam CNPJ e faturamento reais. Cada
+conjunto ocupa ~3,7 MB, então volume não é o obstáculo: é a escolha do destino. Reavaliar
+antes de o piloto virar operação.
 
 ## Views de auditoria
 
