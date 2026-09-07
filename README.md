@@ -20,14 +20,17 @@ em períodos de mesma duração.
 | **Repasse recorrente** | Alíquota (débito e crédito, escolhidas pela faixa de **Net MDR da carteira**) × volume da modalidade. Vitalício, desde a primeira transação. |
 | **Acelerador / redutor** | Mutuamente exclusivos, mês contra mês ("MxM"): crescimento ≥ 20% remunera um % do faturamento **incremental**; queda aplica um % de redução sobre a **remuneração**. Entre 0% e 19,99% de crescimento não há ajuste. |
 | **Página 3M** | Janela de 3 meses de calendário à escolha do usuário, com débito/crédito por competência (`monthly_volumes`) e o modelo de remuneração aplicado por sub-canal e por EC. |
+| **Cliente parado** | Empresa (CNPJ) cuja última venda está a `AuditViews::STALLED_THRESHOLD` dias ou mais do dia de corte — hoje 7. Quem nunca vendeu no mês conta o corte inteiro. |
 
 Quando o recorte cobre mais de um canal, usa-se o **menor** dia de corte disponível: comparar
 períodos de durações diferentes entre canais distorceria a variação.
 
-Gabaritos oficiais da Fiserv usados como teste de aceitação (ver
-`test/services/sub_channel_compensation_rules_test.rb`): carteira de R$ 582.000 (45% débito,
-55% crédito) na faixa 0,35–0,39% rende R$ 157,14 + R$ 384,12 = **R$ 541,26**; credenciamento
-com meses de 18k/15k/55k paga R$ 50, nada e R$ 39 — total igual à faixa do mês de pico.
+Gabaritos oficiais da Fiserv: carteira de R$ 582.000 (45% débito, 55% crédito) na faixa
+0,35–0,39% rende R$ 157,14 + R$ 384,12 = **R$ 541,26** — este é teste de aceitação em
+`test/services/sub_channel_compensation_rules_test.rb`. Credenciamento com meses de
+18k/15k/55k paga R$ 50, nada e R$ 39, total igual à faixa do mês de pico: a **regra** da
+marca d'água é coberta por `test/services/three_month_earnings_test.rb`, mas este gabarito
+não tem teste com esses números.
 
 ## Onde ficam as coisas
 
@@ -47,15 +50,15 @@ quando ela não está lá. `BIN_REFERENCE_FILE` sobrescreve o caminho.
 ## Requisitos
 
 - Ruby 4.0.6 (`.ruby-version`)
-- PostgreSQL 16 com as extensões `pg_trgm` e `pgvector` (a imagem `pgvector/pgvector:pg16` já traz)
+- PostgreSQL 16 com as extensões que o `structure.sql` declara — `pg_trgm`, `pgcrypto`,
+  `unaccent` e `vector` (a imagem `pgvector/pgvector:pg16` traz as quatro)
 
 ## Setup
 
 ```bash
 cp .env.example .env          # defina METABASE_RO_PASSWORD e SECRET_KEY_BASE
 docker compose up -d db
-bin/setup
-bin/dev
+bin/setup                     # termina subindo o bin/dev; use --skip-server para não subir
 ```
 
 Tudo em contêiner (app, worker, banco e Metabase):
@@ -77,17 +80,32 @@ o Postgres só em `127.0.0.1`. Em produção o app aceita apenas `Host: fiserv.b
 `localhost` (`RAILS_HOSTS` acrescenta outros); `force_ssl` fica desligado enquanto o Caddy
 servir HTTP puro — liga-se quando ele passar a terminar TLS.
 
+A imagem traz o Thruster como `CMD` (`./bin/thrust ./bin/rails server`), mas o Compose
+**sobrescreve** com `bin/rails server -b 0.0.0.0`: na stack quem atende a porta 3000 é o Puma,
+sem cache de assets nem compressão do Thruster. Isso não é só preferência — o
+`bin/docker-entrypoint` roda `db:prepare` apenas quando os **dois primeiros** argumentos são
+`bin/rails server`, e com o `CMD` da imagem o primeiro é `./bin/thrust`. Voltar ao Thruster,
+portanto, exige também resolver o `db:prepare` no boot; do jeito que está, ele deixaria de
+rodar em silêncio.
+
 ## A planilha BIN
 
-O arquivo `.xlsx` precisa ter exatamente três abas, nesta ordem, com os cabeçalhos exatos
-declarados em `BinImport::Template::EXPECTED_HEADERS`:
+O arquivo `.xlsx` precisa trazer estas três abas, com os cabeçalhos declarados em
+`BinImport::Template::EXPECTED_HEADERS`:
 
 1. **Faturamento** — faturamento diário (`DIA 01`..`DIA 31` do mês atual e `_M_1` do anterior)
 2. **Ativacao** — propostas de credenciamento
 3. **Mapa de Clientes BIN** — cadastro e volumes mensais consolidados
 
-Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. O nome do arquivo deve terminar em
-`_AAAAMMDD.xlsx`; essa data é usada para conferir a cobertura declarada.
+As abas são localizadas pelo nome: **abas extras são ignoradas** (o analista costuma anexar
+suas próprias planilhas ao arquivo) e a ordem entre elas não é verificada. Em `Faturamento` e
+`Ativacao` os cabeçalhos são comparados ao literal, inclusive na ordem; no `Mapa de Clientes
+BIN` só a parte fixa é literal, porque as competências das colunas de volume avançam a cada
+planilha e são validadas por forma (`VOLUME_HEADER_PATTERN`).
+
+Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. Quando o nome termina em
+`_AAAAMMDD.xlsx`, essa data confere a cobertura declarada e pode gerar a anomalia
+`cutoff_below_file_date`; sem esse sufixo o import segue, apenas sem a conferência.
 
 **Os arquivos importados ficam guardados** no volume `storage`, por decisão — nada os apaga
 depois do import. Cada um traz CNPJ, telefone, endereço e faturamento reais, então quem tem
@@ -109,21 +127,37 @@ em fila em vez de disputar a consolidação.
 - A importação **carrega as três abas em memória** (~96 MB de RSS para 553 ECs). O `Validator`
   faz reconciliação cruzada entre abas, então leitura em streaming exigiria mais de uma passada
   no arquivo. Reavalie se os arquivos crescerem uma ordem de grandeza.
+- As quatro tabelas grandes do import (snapshots do Mapa e de faturamento, faturamento diário
+  e volumes consolidados) entram por **`COPY`** (`BinImport::BulkCopy`), não por `insert_all!`:
+  com ~11 mil linhas cada, o ActiveRecord gastava mais tempo montando o `INSERT` multilinha do
+  que o Postgres executando-o.
 
 ## Interface
 
 A casca visual (topbar com menu horizontal, trilha e busca global de dados) está descrita em
 [`docs/layout.md`](docs/layout.md), com tokens, breakpoints e as decisões de design.
 
+Nenhuma página carrega recurso de fora: a CSP está ligada com `default_src :self` e nonce por
+requisição no `script-src`, e fonte, ícones e JavaScript são servidos pelo próprio app.
+`test/controllers/content_security_policy_test.rb` falha se isso deixar de valer.
+
 ## Recriar o banco
 
 ```bash
-bin/rails db:rebuild
+RAILS_ENV=test bin/rails db:rebuild
 ```
 
-Derruba conexões abertas (os containers se recuperam sozinhos), recria os bancos de
-desenvolvimento e de teste a partir de `db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb` garante que o `structure.sql` contém tudo que
-o app precisa — adapters Solid, views, partições, extensões — e que o seed cria o papel.
+Derruba conexões abertas (os containers se recuperam sozinhos), recria o banco a partir de
+`db/structure.sql` e roda o seed (papel do Metabase). `test/db/schema_integrity_test.rb`
+garante que o `structure.sql` contém tudo que o app precisa — adapters Solid, views,
+partições, extensões — e que o seed cria o papel.
+
+> **Sem `RAILS_ENV=test` ele recria também o banco de development — e é esse que a stack
+> serve.** O Compose sobe `web` e `worker` com `RAILS_ENV=production` apontando para
+> `fiserv_franchise_intelligence_development`, onde estão os lotes já importados. O banco
+> ainda é descartável (o projeto não foi para produção), mas recriá-lo custa reimportar as
+> planilhas: rode `bin/db-backup` antes e escolha entre restaurar ou reimportar. No dia a
+> dia, mudança de schema entra por `bin/rails db:migrate`.
 
 **O `database.yml` de produção não descreve o que roda aqui.** Ele declara quatro conexões
 (`primary`, `cache`, `queue`, `cable`) em bancos separados, como o gerador do Rails escreve; o
@@ -155,7 +189,9 @@ Grava três arquivos com o mesmo carimbo de data em `BACKUP_DIR` (padrão
 
 O Metabase para pelos segundos do `tar`: o H2 é um arquivo aberto pelo processo e a cópia a
 quente sairia inconsistente. Arquivos com mais de `BACKUP_KEEP_DAYS` dias (padrão 14) são
-apagados ao fim de cada execução.
+apagados ao fim de cada execução. `BACKUP_DIR`, `BACKUP_KEEP_DAYS` e `BACKUP_DB_NAME` (o
+banco do dump, padrão `fiserv_franchise_intelligence_development`) saem do `.env`, que o
+script lê sozinho.
 
 **Os três arquivos contêm dados reais de cliente.** Ficam fora do repositório e nunca podem
 ser versionados, anexados ou enviados para fora da máquina.
@@ -185,15 +221,21 @@ launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup 
 
 A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
 
-**Último teste de restauração: 2026-09-04.** O dump foi restaurado em
-`fiserv_restore_test` e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas,
-1.659 snapshots do mapa, 1.375 de faturamento, 17.809 lançamentos diários (mesma soma de
-`amount`), 4 partições de `daily_revenues` e as 7 views materializadas populadas. Repetir o
-teste — e atualizar esta data — sempre que o script ou o schema mudarem.
+**Último teste de restauração: 2026-09-07**, refeito porque o schema mudou (migração dos
+batches do Solid Queue). O dump foi restaurado em `fiserv_restore_test` e as contagens
+conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snapshots do mapa, 1.375 de
+faturamento, 17.809 lançamentos diários (mesma soma de `amount`), 4 partições de
+`daily_revenues` (três mensais e a `default`), as 7 views materializadas populadas e as 20
+migrações, inclusive a última. O banco temporário foi apagado ao fim. Repetir o teste — e
+atualizar esta data — sempre que o script ou o schema mudarem.
 
-**Lacuna declarada:** o backup fica no mesmo disco do banco. Protege contra `db:rebuild`,
-import errado e corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia
-externa é decisão pendente.
+**Lacunas declaradas:**
+
+- O agendamento **não está ativo**: o `launchctl list` não mostra o agente (verificado em
+  07/09/2026), então todo backup até aqui foi manual. Carregar o plist é o comando acima.
+- O backup fica no mesmo disco do banco. Protege contra `db:rebuild`, import errado e
+  corrupção lógica; **não** protege contra perda do disco ou da máquina. Cópia externa é
+  decisão pendente.
 
 ## Views de auditoria
 
@@ -252,5 +294,7 @@ As views materializadas só são atualizadas nos testes que as leem, via `refres
 
 A suíte roda em processo único (`parallelize(workers: 1)`): com paralelismo por processo os
 workers forkados dão segfault no gem `pg` em `connect_start` e o processo pai fica pendurado
-no DRb. Em ~35s single-process não compensa perseguir isso; `PARALLEL_WORKERS` continua
+no DRb. O mesmo segfault aparece ao rodar `bin/jobs` direto no host — o worker roda em Linux,
+onde isso não acontece. Em menos de um minuto de suíte com a máquina livre (medi de 46 s a
+3 min 45 s conforme a carga) não compensa perseguir isso; `PARALLEL_WORKERS` continua
 sobrescrevendo se quiser testar de novo.
