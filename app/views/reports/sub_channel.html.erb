@@ -214,7 +214,10 @@
       estável e EC novo faturando ficam em Alta. Trocar de aba zera a página. %>
   <% counts = @listing.variation_counts %>
   <%# Cada aba carrega o próprio critério: o rótulo com a contagem e, embaixo, a regra
-      do filtro em palavras — quem procura "para onde foi aquele EC?" lê na barra. %>
+      do filtro em palavras — quem procura "para onde foi aquele EC?" lê na barra.
+      A contagem é de estabelecimentos, identificados pelo CNPJ, não de linhas: a tabela
+      abaixo continua listando um EC por linha, então um estabelecimento com dois ECs conta
+      um aqui e ocupa duas ali. %>
   <div class="variation-tabs-wrap">
   <%# Links de navegação, não um tablist: cada aba troca a página inteira, e a atual se
       anuncia com aria-current. %>
@@ -223,7 +226,7 @@
       class: ("is-active" if @selected_variation.nil?),
       aria: { current: ("page" if @selected_variation.nil?) } do %>
       <span class="tab-title">Todos · <%= counts[:todas] %></span>
-      <span class="tab-hint">todos os estabelecimentos</span>
+      <span class="tab-hint">estabelecimentos distintos, por CNPJ</span>
     <% end %>
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
       class: ("is-active" if @selected_variation == "alta"),
