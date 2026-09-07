@@ -182,7 +182,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid)
 
     assert_response :success
-    assert_select "h1", text: "MIC A"
+    # O título da página é o canal; o subcanal nomeia a tabela logo abaixo.
+    assert_select "h1", text: "CANAL A"
+    assert_select "h2", text: "MIC A"
     assert_select "th", text: /Mês anterior cheio/
     assert_select "th", text: /Mês anterior comparável/
     assert_select "td", text: /11111111/
