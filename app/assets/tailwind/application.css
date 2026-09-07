@@ -39,7 +39,6 @@
   --cork-success-100: color-mix(in oklab, var(--color-success) 12%, white);
   --cork-warning-100: color-mix(in oklab, var(--color-warning) 16%, white);
   --cork-danger-100: color-mix(in oklab, var(--color-error) 12%, white);
-  --cork-secondary-100: color-mix(in oklab, var(--color-secondary) 10%, white);
   --cork-dark-100: color-mix(in oklab, var(--color-neutral) 10%, white);
   --cork-dark-500: var(--color-neutral);
   --cork-muted: color-mix(in oklab, var(--color-base-content) 60%, white);
@@ -207,7 +206,6 @@
     font-size: 0.72rem;
   }
 
-  .card,
   .surface-card,
   .filter-panel {
     border: 1px solid color-mix(in oklab, var(--color-base-300) 86%, white);
@@ -215,7 +213,6 @@
     box-shadow: 0 16px 45px rgb(68 47 34 / 7%);
   }
 
-  .card,
   .surface-card {
     border-radius: 1.25rem 1.25rem 1.25rem 0.4rem;
   }
@@ -983,11 +980,6 @@
     opacity: 1;
   }
 
-  .collapse {
-    border-radius: 0.85rem 0.85rem 0.85rem 0.25rem;
-    background: var(--color-base-100);
-  }
-
   .topbar {
     position: sticky;
     z-index: 30;
@@ -1452,7 +1444,6 @@
   }
 
   .page-hero,
-  .card,
   .surface-card,
   .filter-panel,
   .table-frame,
@@ -1568,15 +1559,6 @@
     position: sticky;
     z-index: 2;
     top: calc(var(--topbar-height, 4.75rem) + var(--toolbar-height, 0px));
-  }
-
-  /* Dentro do diálogo o scrollport é o próprio modal-box. */
-  .modal .table-frame .table-toolbar {
-    top: 0;
-  }
-
-  .modal .table-frame thead th {
-    top: var(--toolbar-height, 0px);
   }
 
   .table-toolbar {

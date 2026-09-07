@@ -441,7 +441,7 @@ abertos e pertencem ao escopo do Hermes/`search-company`, não a este repositór
 | Item | Situação | Evidência |
 | --- | --- | --- |
 | 1 | **Parcial.** O Compose publica o Postgres só em `127.0.0.1` (`docker-compose.yml:15`) e a porta 5432 é recusada a partir da LAN; `web` e `metabase` saem no IP da LAN por `APP_BIND_IP`, atrás do Caddy. `pg_hba.conf` do container e firewall do host **não** foram revisados. | README, "Acesso pela rede" |
-| 2 | **Feito.** `MetabaseRole.ensure!` cria o `metabase_ro` com `SELECT` só nas sete views de auditoria; o teste afirma que ele lê as views e não lê as tabelas graváveis. | `app/services/metabase_role.rb`, `test/services/metabase_role_test.rb` |
+| 2 | **Feito.** `MetabaseRole.ensure!` cria o `metabase_ro` com `SELECT` só nas views de auditoria; o teste afirma que ele lê as views e não lê as tabelas graváveis. | `app/services/metabase_role.rb`, `test/services/metabase_role_test.rb` |
 | 3 | **Feito, com o agendamento pendente.** `bin/db-backup` grava banco, planilhas e volume do Metabase; a restauração foi validada em 07/09/2026 com as contagens conferidas. O agente do `launchd` ainda não foi carregado, então os backups são manuais. | README, "Backup e restauração" |
 
 ## 15. Critérios revisados para iniciar o piloto

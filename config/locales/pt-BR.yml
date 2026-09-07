@@ -15,7 +15,6 @@ pt-BR:
   date:
     formats:
       default: "%d/%m/%Y"
-      long: "%d de %B de %Y"
     abbr_month_names:
       - ~
       - jan

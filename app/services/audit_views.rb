@@ -1,8 +1,7 @@
 class AuditViews
   NAMES = %w[
     audit_revenue_by_sub_channel audit_revenue_by_company audit_stalled_companies
-    audit_weekly_revenue audit_pending_actions audit_company_ec_divergence
-    audit_accreditation_earnings
+    audit_weekly_revenue audit_accreditation_earnings
   ].freeze
 
   # Views recriadas por este serviço; as demais nascem nas migrações que as criaram.
@@ -16,7 +15,7 @@ class AuditViews
   # 108 ms com estatísticas, no import sintético de 556 ECs).
   SOURCE_TABLES = %w[
     import_batches period_coverages sub_channels companies establishments
-    revenue_snapshots map_snapshots map_snapshot_actions conversation_actions
+    revenue_snapshots map_snapshots
     daily_revenues_consolidated monthly_volumes_consolidated
   ].freeze
 

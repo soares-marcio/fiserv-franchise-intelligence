@@ -221,13 +221,13 @@ launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup 
 
 A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
 
-**Último teste de restauração: 2026-09-07**, refeito porque o schema mudou (migração dos
-batches do Solid Queue). O dump foi restaurado em `fiserv_restore_test` e as contagens
-conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snapshots do mapa, 1.375 de
-faturamento, 17.809 lançamentos diários (mesma soma de `amount`), 4 partições de
-`daily_revenues` (três mensais e a `default`), as 7 views materializadas populadas e as 20
-migrações, inclusive a última. O banco temporário foi apagado ao fim. Repetir o teste — e
-atualizar esta data — sempre que o script ou o schema mudarem.
+**Último teste de restauração: 2026-09-07**, já com o schema desta branch (remoção das duas
+views de auditoria e das três colunas sem uso). O dump foi restaurado em `fiserv_restore_test`
+e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snapshots do mapa,
+1.375 de faturamento, 17.809 lançamentos diários (mesma soma de `amount`), 4 partições de
+`daily_revenues` (três mensais e a `default`), as 5 views materializadas populadas e as 21
+migrações. O banco temporário foi apagado ao fim. Repetir o teste — e atualizar esta data —
+sempre que o script ou o schema mudarem.
 
 **Lacunas declaradas:**
 
@@ -242,6 +242,12 @@ atualizar esta data — sempre que o script ou o schema mudarem.
 `AuditViews` é dona do DDL das views materializadas de comparação alinhada e do SQL que o
 `ReportScope` executa — a regra vive em um lugar só. Depois de mexer nelas, crie uma migração
 que chame `AuditViews.recreate!`.
+
+São cinco, todas com leitor: `audit_revenue_by_sub_channel` alimenta `audit_revenue_by_company`,
+que alimenta `audit_stalled_companies`; esta e `audit_weekly_revenue` são lidas pelo
+`ReportScope`, e `audit_accreditation_earnings` pela página 3M. `AuditViews::SOURCE_TABLES`
+lista as tabelas que elas leem e é o que o `ANALYZE` do refresh cobre — o teste
+`test/services/audit_views_test.rb` falha se uma view passar a ler tabela fora da lista.
 
 `AuditViews.refresh!` usa `REFRESH ... CONCURRENTLY` fora de transação (e refresh bloqueante
 dentro, porque o Postgres recusa o concorrente em transação). Nunca chame dentro de um
