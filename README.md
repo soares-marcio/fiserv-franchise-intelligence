@@ -28,9 +28,9 @@ períodos de durações diferentes entre canais distorceria a variação.
 Gabaritos oficiais da Fiserv: carteira de R$ 582.000 (45% débito, 55% crédito) na faixa
 0,35–0,39% rende R$ 157,14 + R$ 384,12 = **R$ 541,26** — este é teste de aceitação em
 `test/services/sub_channel_compensation_rules_test.rb`. Credenciamento com meses de
-18k/15k/55k paga R$ 50, nada e R$ 39, total igual à faixa do mês de pico: a **regra** da
-marca d'água é coberta por `test/services/three_month_earnings_test.rb`, mas este gabarito
-não tem teste com esses números.
+18k/15k/55k paga R$ 50, nada e R$ 39, total igual à faixa do mês de pico — também teste de
+aceitação, no mesmo arquivo; a regra da marca d'água ponta a ponta, pela view, é coberta por
+`test/services/three_month_earnings_test.rb`.
 
 ## Onde ficam as coisas
 
