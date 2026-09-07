@@ -34,6 +34,26 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
     assert_in_delta 541.26, debit + credit, 0.001
   end
 
+  # Gabarito oficial da Fiserv: meses de 18k/15k/55k pagam R$ 50, nada e R$ 39. A propriedade
+  # que ele demonstra — soma da marca d'água igual à faixa do mês de pico — é o que autoriza
+  # `audit_accreditation_earnings` a apurar a janela a partir do pico, sem percorrer mês a mês.
+  test "gabarito oficial de credenciamento: marca d'água de três meses fecha na faixa do pico" do
+    meses = [ 18_000, 15_000, 55_000 ]
+    pago = 0
+
+    parcelas = meses.map do |revenue|
+      faixa = SubChannelCompensationRules.accreditation_bracket_value(revenue, with_auto: false)
+      diferenca = [ faixa - pago, 0 ].max
+      pago += diferenca
+      diferenca
+    end
+
+    assert_equal [ 50, 0, 39 ], parcelas
+    assert_equal 89, pago
+    assert_equal SubChannelCompensationRules.accreditation_bracket_value(meses.max, with_auto: false),
+      pago, "a janela tem que fechar na faixa do mês de pico"
+  end
+
   test "acelerador só a partir de 20% e com a faixa superior em 100% exato" do
     assert_equal 0.0, SubChannelCompensationRules.accelerator_rate(0.1999)
     assert_equal 0.0004, SubChannelCompensationRules.accelerator_rate(0.20)
