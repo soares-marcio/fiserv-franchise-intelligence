@@ -12,7 +12,10 @@ export default class extends Controller {
   ]
   static values = {
     fromDate: String,
-    toDate: String
+    toDate: String,
+    // Mês em que o calendário abre quando nada foi escolhido. A tela 3M manda a competência
+    // mais recente importada: abrir no mês do relógio mostraria um calendário sem dado.
+    openOn: String
   }
 
   connect() {
@@ -37,6 +40,16 @@ export default class extends Controller {
   prevMonth(event) {
     event.preventDefault()
     this.shiftMonth(-1)
+  }
+
+  prevYear(event) {
+    event.preventDefault()
+    this.shiftMonth(-12)
+  }
+
+  nextYear(event) {
+    event.preventDefault()
+    this.shiftMonth(12)
   }
 
   nextMonth(event) {
@@ -128,7 +141,7 @@ export default class extends Controller {
   }
 
   initialMonth() {
-    const iso = this.fromDateValue || this.toDateValue
+    const iso = this.fromDateValue || this.toDateValue || this.openOnValue
     if (!iso) return new Date()
 
     const date = new Date(`${iso}T00:00:00`)

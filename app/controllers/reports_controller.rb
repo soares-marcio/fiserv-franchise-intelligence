@@ -36,8 +36,7 @@ class ReportsController < ApplicationController
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods,
-      start_period: params[:start_period], end_period: params[:end_period])
+    @window = three_month_window
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
   end
 
@@ -49,8 +48,7 @@ class ReportsController < ApplicationController
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods,
-      start_period: params[:start_period], end_period: params[:end_period])
+    @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
   end
 
@@ -101,6 +99,14 @@ class ReportsController < ApplicationController
   end
 
   private
+
+  # A janela do 3M vem do calendário (from_date/to_date). Os parâmetros antigos continuam
+  # aceitos para não quebrar link salvo: o que muda é a origem, não a regra.
+  def three_month_window
+    ThreeMonthEarningsQuery.window(@available_periods,
+      start_period: params[:from_date].presence || params[:start_period],
+      end_period: params[:to_date].presence || params[:end_period])
+  end
 
   def load_listing
     @listing = @scope.revenue_by_establishment(

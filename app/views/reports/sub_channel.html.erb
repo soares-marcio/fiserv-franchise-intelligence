@@ -142,53 +142,8 @@
           </div>
         </div>
 
-        <div class="filter-field" data-controller="date-range-picker"
-          data-date-range-picker-from-date-value="<%= @from_date %>"
-          data-date-range-picker-to-date-value="<%= @to_date %>">
-          <span class="section-label">Intervalo da data</span>
-          <%= hidden_field_tag :from_date, @from_date,
-            data: { date_range_picker_target: "fromDate" } %>
-          <%= hidden_field_tag :to_date, @to_date,
-            data: { date_range_picker_target: "toDate" } %>
-          <button type="button" id="date_range_trigger" class="date-range"
-            data-date-range-picker-target="trigger" aria-haspopup="dialog" aria-expanded="false"
-            aria-controls="date_range_panel" data-action="click->date-range-picker#toggle">
-            <span class="date-range__icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/>
-                <path d="M8 3.5v3.5M16 3.5v3.5M3.5 10h17"/>
-              </svg>
-            </span>
-            <span class="date-range__label" data-date-range-picker-target="triggerLabel">
-              <%= iso_range_label(@from_date, @to_date) %>
-            </span>
-            <span class="tag-select__chevron" aria-hidden="true">⌄</span>
-          </button>
-          <div id="date_range_panel" class="datepicker" data-date-range-picker-target="panel"
-            hidden role="dialog" aria-label="Escolher intervalo de datas">
-            <div class="datepicker__nav">
-              <button type="button" class="datepicker__nav-btn"
-                data-action="click->date-range-picker#prevMonth" aria-label="Mês anterior">
-                ‹
-              </button>
-              <p class="datepicker__month" data-date-range-picker-target="monthLabel"
-                aria-live="polite"></p>
-              <button type="button" class="datepicker__nav-btn"
-                data-action="click->date-range-picker#nextMonth" aria-label="Próximo mês">
-                ›
-              </button>
-            </div>
-            <div class="datepicker__grid" data-date-range-picker-target="grid"
-              data-action="click->date-range-picker#pick keydown->date-range-picker#navigate"></div>
-            <p class="datepicker__hint" data-date-range-picker-target="hint" aria-live="polite"></p>
-            <div class="datepicker__actions">
-              <button type="button" class="btn btn-ghost btn-sm"
-                data-action="click->date-range-picker#clear">Limpar datas</button>
-              <button type="button" class="btn btn-primary btn-sm"
-                data-action="click->date-range-picker#finish">Concluir</button>
-            </div>
-          </div>
-        </div>
+        <%= render "reports/date_range_picker", label: "Intervalo da data",
+          from_date: @from_date, to_date: @to_date, open_on: nil %>
 
         <div class="filter-field">
           <label class="section-label" for="establishment_query">Buscar estabelecimento</label>

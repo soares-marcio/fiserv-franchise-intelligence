@@ -81,4 +81,31 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
 
     assert_no_selector "dialog.daily-modal[open]"
   end
+
+  # O 3M passou a escolher a janela por calendário, com navegação de mês e de ano. O que
+  # se prova aqui é que a escolha chega à URL e à apuração.
+  test "escolhe a janela do 3M pelo calendário, navegando por ano" do
+    visit three_months_reports_path
+
+    find("#date_range_trigger").click
+    assert_selector "#date_range_panel", visible: true
+
+    # Abre no M0 da janela aplicada — junho, o padrão com volume nos três meses.
+    assert_selector ".datepicker__month", text: /junho de 2026/i
+    click_button "Ano anterior"
+    assert_selector ".datepicker__month", text: /junho de 2025/i
+    click_button "Próximo ano"
+    assert_selector ".datepicker__month", text: /junho de 2026/i
+
+    # Maio a junho: o usuário escolhe, mesmo maio não tendo volume importado.
+    click_button "Mês anterior"
+    find("#date_range_panel button[data-day='9']").click
+    click_button "Próximo mês"
+    find("#date_range_panel button[data-day='20']").click
+    click_button "Concluir"
+    click_button "Aplicar"
+
+    assert_current_path(/from_date=2026-05-09/)
+    assert_selector "p", text: /Exibindo\s+Maio a junho de 2026/i
+  end
 end

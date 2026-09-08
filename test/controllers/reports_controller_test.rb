@@ -93,21 +93,27 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "o mês aplicado continua selecionado no seletor e escrito na tela" do
+  # A janela vem do calendário, mas o link salvo com start_period continua valendo.
+  test "o intervalo aplicado volta no calendário e escrito na tela" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(from_date: "2026-06-01", to_date: "2026-08-15")
+
+    assert_select "input[name=from_date][value=?]", "2026-06-01"
+    assert_select "input[name=to_date][value=?]", "2026-08-01"
+    assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
+    # O link do subcanal precisa carregar a mesma janela, senão o nível 2 abre deslocado.
+    assert_select "td a[href*=?]", "from_date=2026-06-01"
+  end
+
+  test "link antigo com start_period continua abrindo a mesma janela" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
     get three_months_reports_path(start_period: "2026-06")
 
-    # O select apontava para o fim da janela: escolher junho deixava agosto marcado, e
-    # aplicar de novo abria outra janela.
-    assert_select "select[name=start_period] option[selected][value=?]", "2026-06"
-    assert_select "option[value=?]", "2026-08" do |options|
-      assert_nil options.first["selected"]
-    end
     assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
-    # O link do subcanal precisa carregar o mesmo M0, senão o nível 2 abre deslocado.
-    assert_select "td a[href*=?]", "start_period=2026-06"
   end
 
   # O segundo seletor só oferece os dois meses seguintes ao M0, e escolher o primeiro
@@ -125,22 +131,24 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p.metric-value.metric-value--range", text: /–/
   end
 
-  test "a página 3M oferece o mês final entre os dois seguintes ao M0" do
+  # O calendário abre na competência mais recente importada: abrir no mês do relógio
+  # mostraria um calendário sem dado nenhum.
+  test "o calendário do 3M abre ancorado na competência mais recente" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
-    get three_months_reports_path(start_period: "2026-06")
+    get three_months_reports_path
 
-    assert_select "select[name=end_period] option", count: 2
-    assert_select "select[name=end_period] option[value=?]", "2026-07"
-    assert_select "select[name=end_period] option[selected][value=?]", "2026-08"
+    assert_select "div[data-date-range-picker-open-on-value=?]", "2026-08-01"
+    assert_select "button[aria-label=?]", "Ano anterior"
+    assert_select "button[aria-label=?]", "Próximo ano"
   end
 
-  test "o mês final escolhido encurta a janela apurada" do
+  test "o fim escolhido no calendário encurta a janela apurada" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
-    get three_months_reports_path(start_period: "2026-06", end_period: "2026-07")
+    get three_months_reports_path(from_date: "2026-06-10", to_date: "2026-07-22")
 
     assert_select "th", text: "M0 · jun/2026"
     assert_select "th", text: "M1 · jul/2026"
