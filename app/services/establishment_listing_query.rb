@@ -18,6 +18,11 @@ class EstablishmentListingQuery
     "current_revenue" => "Mês atual"
   }.freeze
   SORT_DIRECTIONS = %w[desc asc].freeze
+  # A tela abre pelo mês anterior cheio, do maior para o menor: é a única coluna com valor
+  # em toda competência — o mês atual fica zerado até a planilha do mês chegar — e a
+  # primeira pergunta de uma auditoria é quem mais fatura. Ordem por EC não responde nada.
+  DEFAULT_SORT = "previous_full_revenue".freeze
+  DEFAULT_DIRECTION = "desc".freeze
 
   # Abas por variação alinhada. "Novo" de verdade é só quem foi ativado neste mês ou no
   # anterior (na falta da ativação, vale o credenciamento): EC antigo que estava zerado e
@@ -46,10 +51,10 @@ class EstablishmentListingQuery
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
     @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
-    @sort = sort.to_s.presence_in(SORT_COLUMNS.keys)
+    @sort = sort.to_s.presence_in(SORT_COLUMNS.keys) || DEFAULT_SORT
     # Primeiro clique na coluna ordena do maior para o menor: é o que se procura numa
     # auditoria de faturamento.
-    @direction = direction.to_s.presence_in(SORT_DIRECTIONS) || "desc"
+    @direction = direction.to_s.presence_in(SORT_DIRECTIONS) || DEFAULT_DIRECTION
 
     @page = page
     @per_page = per_page
@@ -196,8 +201,6 @@ class EstablishmentListingQuery
   # O EC continua sendo o desempate: sem ele, linhas de mesmo valor trocariam de lugar
   # entre páginas a cada consulta.
   def order_by
-    return "ec, establishment_id" unless @sort
-
     "#{@sort} #{@direction.upcase} NULLS LAST, ec, establishment_id"
   end
 

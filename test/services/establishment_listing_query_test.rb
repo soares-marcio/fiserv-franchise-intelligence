@@ -15,10 +15,12 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       .update_all(activated_on: Date.new(2026, 8, 3))
   end
 
-  test "lista os ECs do subcanal em ordem de EC, com contagens por aba" do
+  # A tela abre pelo mês anterior cheio, do maior para o menor: 1.000, 400, 50 e dois
+  # zerados desempatados por EC. Ordem por EC não respondia a nenhuma pergunta.
+  test "lista os ECs do subcanal na ordem padrão, com contagens por aba" do
     page = listing
 
-    assert_equal %w[30000001 30000002 30000003 30000004 30000005], page.rows.map { |row| row["ec"] }
+    assert_equal %w[30000001 30000003 30000002 30000004 30000005], page.rows.map { |row| row["ec"] }
     assert_equal 5, page.total_count
     assert_equal({ todas: 5, alta: 2, baixa: 3 }, page.variation_counts)
     assert_equal [ 1, EstablishmentListingQuery::DEFAULT_PER_PAGE ], [ page.page, page.per_page ]
@@ -81,7 +83,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_equal %w[30000001 30000003 30000002 30000004 30000005], por_anterior
   end
 
-  test "coluna desconhecida ou sentido inválido caem na ordem por EC" do
+  test "coluna desconhecida ou sentido inválido caem na ordem padrão" do
     padrao = listing.rows.map { |row| row["ec"] }
 
     assert_equal padrao, listing(sort: "cnpj; DROP TABLE").rows.map { |row| row["ec"] }
@@ -114,7 +116,8 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   test "aba alta traz quem cresceu ou é novo; aba baixa quem caiu, zerou ou voltou a vender" do
     assert_equal %w[30000001 30000005], listing(variation: "alta").rows.map { |row| row["ec"] }
-    assert_equal %w[30000002 30000003 30000004], listing(variation: "baixa").rows.map { |row| row["ec"] }
+    # Ordem padrão dentro da aba: 400 (SUSPENSA), 50 (EXPRESS) e o zerado (RETORNO).
+    assert_equal %w[30000003 30000002 30000004], listing(variation: "baixa").rows.map { |row| row["ec"] }
   end
 
   test "contagens por aba ignoram a aba ativa e os totais gerais ancoram a variação" do
@@ -128,7 +131,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   test "pagina e normaliza página e tamanho fora das opções" do
     segunda = listing(page: 2, per_page: 2)
-    assert_equal %w[30000003 30000004], segunda.rows.map { |row| row["ec"] }
+    assert_equal %w[30000002 30000004], segunda.rows.map { |row| row["ec"] }
     assert_equal [ 2, 2, 3 ], [ segunda.page, segunda.per_page, segunda.total_pages ]
 
     alem = listing(page: 99, per_page: 2)

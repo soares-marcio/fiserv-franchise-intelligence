@@ -224,6 +224,17 @@
               <span class="table-toolbar__breakdown-unit">por CNPJ</span>
             </span>
           <% end %>
+          <%# A ordem vale para a tela e para a exportação, então precisa estar escrita. %>
+          <span class="table-toolbar__breakdown">
+            <%= sort_sentence(@sort, @direction) %>
+            <% unless default_sort?(@sort, @direction) %>
+              ·
+              <%= link_to "Voltar à ordem padrão",
+                sub_channel_report_path(@sub_channel,
+                  sub_channel_listing_params(sort: nil, direction: nil, page: nil)),
+                class: "sort-reset" %>
+            <% end %>
+          </span>
           <div class="per-page">
             <span class="section-label">Por página</span>
             <div class="join">
@@ -258,13 +269,17 @@
             ].each do |column, label, hint| %>
               <th scope="col" class="text-right"
                 aria-sort="<%= sort_aria(column, @sort, @direction) %>">
+                <%# O link ocupa a célula inteira: com o cabeçalho em duas linhas, clicar
+                    na dica ou na sobra da célula não podia ser um clique perdido. %>
                 <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(
                       sort: column, direction: sort_direction_for(column, @sort, @direction), page: nil
-                    )), class: "sort-link #{"is-sorted" if column == @sort}" do %>
-                  <%= label %><%= sort_indicator(column, @sort, @direction) %>
-                <% end %>
-                <% if hint %>
-                  <span class="block font-normal normal-case tracking-normal opacity-60"><%= hint %></span>
+                    )),
+                    class: "sort-link #{"is-sorted" if column == @sort}",
+                    title: "Ordenar por #{label}, #{sort_direction_for(column, @sort, @direction) == 'desc' ? 'do maior para o menor' : 'do menor para o maior'}" do %>
+                  <span class="sort-link__label"><%= label %><%= sort_indicator(column, @sort, @direction) %></span>
+                  <% if hint %>
+                    <span class="block font-normal normal-case tracking-normal opacity-60"><%= hint %></span>
+                  <% end %>
                 <% end %>
               </th>
             <% end %>

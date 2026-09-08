@@ -253,10 +253,26 @@ module ApplicationHelper
     current_direction == "desc" ? "descending" : "ascending"
   end
 
+  # Coluna ordenável sem indicador não se anuncia: quem não passa o mouse não descobre que
+  # dá para clicar. O símbolo neutro fica apagado; a coluna ativa mostra o sentido.
   def sort_indicator(column, current_sort, current_direction)
-    return if column != current_sort
+    ativa = column == current_sort
+    simbolo = ativa ? (current_direction == "desc" ? "▼" : "▲") : "⇅"
+    tag.span(simbolo, class: "sort-indicator #{"is-idle" unless ativa}", aria: { hidden: true })
+  end
 
-    tag.span(current_direction == "desc" ? "▼" : "▲", class: "sort-indicator", aria: { hidden: true })
+  # Frase que diz em que ordem a tela está — e, portanto, em que ordem a exportação sai.
+  def sort_sentence(sort, direction)
+    coluna = EstablishmentListingQuery::SORT_COLUMNS[sort]
+    return unless coluna
+
+    sentido = direction == "desc" ? "do maior para o menor" : "do menor para o maior"
+    "Ordenado por #{coluna}, #{sentido}"
+  end
+
+  def default_sort?(sort, direction)
+    sort == EstablishmentListingQuery::DEFAULT_SORT &&
+      direction == EstablishmentListingQuery::DEFAULT_DIRECTION
   end
 
   def day_range_label(from_day, to_day)

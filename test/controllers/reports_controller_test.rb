@@ -232,9 +232,14 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     get sub_channel_report_path(sub_channel)
 
+    # A tela abre ordenada pelo mês anterior cheio e diz isso por escrito.
+    assert_select "th[aria-sort=descending] a.sort-link.is-sorted", text: /Mês anterior cheio/
+    assert_select ".table-toolbar__breakdown", text: /Ordenado por Mês anterior cheio, do maior para o menor/
     assert_select "th[aria-sort=none] a.sort-link", text: /Mês atual/
-    assert_select "a.sort-link[href*=?]", "sort=current_revenue"
-    assert_select "a.sort-link[href*=?]", "direction=desc"
+    # Coluna não ordenada mostra o símbolo neutro: sem ele, ninguém descobre que dá clique.
+    assert_select "a.sort-link .sort-indicator.is-idle", text: "⇅"
+    # Sem ordenação escolhida não há por que oferecer volta ao padrão.
+    assert_select ".sort-reset", count: 0
 
     get sub_channel_report_path(sub_channel, sort: "current_revenue", direction: "desc", q: "ALFA")
 
@@ -242,6 +247,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # O segundo clique inverte e preserva a busca.
     assert_select "a.sort-link[href*=?]", "direction=asc"
     assert_select "a.sort-link[href*=?]", "q=ALFA"
+    # E há caminho de volta, levando a busca junto.
+    assert_select "a.sort-reset[href*=?]", "q=ALFA"
+    assert_select "a.sort-reset[href*=?]", "sort=", count: 0
   end
 
   # A barra da tabela diz quantos ECs do recorte estão ativos e quantos suspensos.

@@ -65,8 +65,12 @@ class ReportsController < ApplicationController
     @from_date = parse_filter_date(params[:from_date])
     @to_date = parse_filter_date(params[:to_date])
     @query = params[:q].to_s.strip
-    @sort = params[:sort].to_s.presence_in(EstablishmentListingQuery::SORT_COLUMNS.keys)
-    @direction = params[:direction].to_s.presence_in(EstablishmentListingQuery::SORT_DIRECTIONS) || "desc"
+    # A tela precisa saber a ordem efetiva, não só a pedida: sem isso o cabeçalho não marca
+    # a coluna que está ordenando quando o usuário não escolheu nenhuma.
+    @sort = params[:sort].to_s.presence_in(EstablishmentListingQuery::SORT_COLUMNS.keys) ||
+      EstablishmentListingQuery::DEFAULT_SORT
+    @direction = params[:direction].to_s.presence_in(EstablishmentListingQuery::SORT_DIRECTIONS) ||
+      EstablishmentListingQuery::DEFAULT_DIRECTION
     @window = @scope.establishment_window(
       period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
     )
@@ -171,6 +175,11 @@ class ReportsController < ApplicationController
     nil
   end
 
+  def default_sort_selected?
+    @sort == EstablishmentListingQuery::DEFAULT_SORT &&
+      @direction == EstablishmentListingQuery::DEFAULT_DIRECTION
+  end
+
   def sub_channel_listing_params(overrides = {})
     {
       channel_id: @selected_channel&.uuid,
@@ -180,8 +189,9 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       q: @query,
-      sort: @sort,
-      direction: (@direction if @sort),
+      # A ordem padrão não vai na URL: ela é o estado natural da tela.
+      sort: (@sort unless default_sort_selected?),
+      direction: (@direction unless default_sort_selected?),
       period: @period,
       from_day: @from_day,
       to_day: @to_day,
