@@ -58,6 +58,19 @@ class ListingSortTest < ActiveSupport::TestCase
       build(column: "current_revenue", direction: "asc").sort_rows(rows).map { |row| row["current_revenue"] }
   end
 
+  # Variação sem base comparável não tem percentual: o extrator devolve nil. Sem tratamento
+  # isso viraria zero e a linha apareceria entre quem caiu e quem cresceu.
+  test "linha sem valor fica no fim nos dois sentidos" do
+    rows = [ { "v" => 10 }, { "v" => nil }, { "v" => 300 } ]
+    colunas = { "v" => "Variação" }
+
+    desc = ListingSort.new(columns: colunas, default: "v", column: "v")
+    asc = ListingSort.new(columns: colunas, default: "v", column: "v", direction: "asc")
+
+    assert_equal [ 300, 10, nil ], desc.sort_rows(rows).map { |row| row["v"] }
+    assert_equal [ 10, 300, nil ], asc.sort_rows(rows).map { |row| row["v"] }
+  end
+
   # As telas de ganho montam hashes aninhados: o valor não está sob a chave da coluna.
   test "linha com valor aninhado ordena pelo extrator que a tela informa" do
     rows = [ { prize: { total: 5 } }, { prize: { total: 90 } } ]

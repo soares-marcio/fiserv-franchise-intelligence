@@ -32,6 +32,22 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_equal valores.sort, valores, "a coluna Mês atual precisa sair em ordem crescente"
   end
 
+  # "Quem caiu mais?" é a pergunta desta tela, e a variação não é coluna da consulta: é a
+  # razão entre o mês atual e a base comparável, calculada na leitura.
+  test "a listagem de subcanais ordena pela variação" do
+    get reports_path(sort: "variation", direction: "asc")
+
+    assert_response :success
+    assert_select "th[aria-sort=ascending].variation-col a.sort-link", text: /Variação/
+    assert_select ".sort-sentence", text: /Ordenado por Variação, do menor para o maior/
+
+    variacoes = css_select("tbody .variation-chip__value").map do |chip|
+      chip.text.strip.gsub(/[^\d,-]/, "").tr(",", ".").to_d
+    end
+    assert_operator variacoes.size, :>=, 2, "com menos de duas linhas a ordem passa por vacuidade"
+    assert_equal variacoes.sort, variacoes, "a variação precisa sair em ordem crescente"
+  end
+
   # A tela 3M ordena por mês da janela, por ECs credenciados e pelo prêmio; os links levam a
   # janela junto, senão ordenar recomeçaria a apuração noutro recorte.
   test "a tela 3M ordena por mês da janela e mantém o recorte" do

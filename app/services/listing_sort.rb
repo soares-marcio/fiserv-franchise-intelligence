@@ -70,8 +70,13 @@ class ListingSort
   # valor sob a chave da coluna — as telas de ganho montam hashes aninhados.
   def sort_rows(rows, &extractor)
     extractor ||= ->(row) { row[column] || row[column.to_sym] }
-    ordenadas = rows.sort_by { |row| comparable(extractor.call(row)) }
-    direction == "desc" ? ordenadas.reverse : ordenadas
+    # Linha sem valor não tem lugar na ordem — variação sem base comparável, por exemplo.
+    # Vai para o fim nos dois sentidos, como o NULLS LAST do SQL; sem isso ela viraria zero
+    # e apareceria no meio, entre quem caiu e quem cresceu.
+    sem_valor, com_valor = rows.partition { |row| extractor.call(row).nil? }
+    ordenadas = com_valor.sort_by { |row| comparable(extractor.call(row)) }
+    ordenadas.reverse! if direction == "desc"
+    ordenadas + sem_valor
   end
 
   private

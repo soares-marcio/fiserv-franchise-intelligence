@@ -14,7 +14,8 @@ class ReportScope
   SUB_CHANNEL_SORT_COLUMNS = {
     "previous_full_revenue" => "Mês anterior cheio",
     "previous_revenue" => "Mês anterior comparável",
-    "current_revenue" => "Mês atual"
+    "current_revenue" => "Mês atual",
+    "variation" => "Variação"
   }.freeze
 
   VIEWS = {

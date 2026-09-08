@@ -93,9 +93,9 @@
             <% caminho = ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
             <% ReportScope::SUB_CHANNEL_SORT_COLUMNS.each do |column, label| %>
               <%= render "shared/sortable_header", sort: @order, column:, label:, path: caminho,
-                hint: (column == "previous_full_revenue" ? "competência fechada" : ("até dia #{@cutoff_day}" if @cutoff_day)) %>
+                hint: (column == "previous_full_revenue" ? "competência fechada" : ("até dia #{@cutoff_day}" if @cutoff_day)),
+                extra_class: ("variation-col" if column == "variation") %>
             <% end %>
-            <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>
         <tbody>

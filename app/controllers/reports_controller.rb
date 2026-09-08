@@ -4,7 +4,7 @@ class ReportsController < ApplicationController
   def index
     @order = ListingSort.new(columns: ReportScope::SUB_CHANNEL_SORT_COLUMNS,
       default: "previous_full_revenue", column: params[:sort], direction: params[:direction])
-    @reports = @order.sort_rows(@scope.revenue_by_sub_channel)
+    @reports = @order.sort_rows(@scope.revenue_by_sub_channel) { |row| sub_channel_sort_value(row) }
     @totals = @scope.totals
     respond_to do |format|
       format.html
@@ -116,6 +116,18 @@ class ReportsController < ApplicationController
   private
 
   # O card do recorrente ordena por valores da janela inteira. O nome sai como string, então
+  # A variação não é coluna da consulta: é a razão entre o mês atual e a base comparável.
+  # Sem base não há percentual possível — a linha sai como nil e o ListingSort a manda para
+  # o fim nos dois sentidos, como o NULLS LAST da ordenação em SQL.
+  def sub_channel_sort_value(row)
+    return row[@order.column].to_d unless @order.column == "variation"
+
+    previous = row["previous_revenue"].to_d
+    return if previous.zero?
+
+    (row["current_revenue"].to_d - previous) / previous
+  end
+
   # sort_rows recebe o texto e a comparação é alfabética; os demais são dinheiro.
   def recurring_sort_value(row)
     case @order.column
