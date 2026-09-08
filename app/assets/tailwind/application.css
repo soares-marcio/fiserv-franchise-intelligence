@@ -814,14 +814,9 @@
     box-shadow: var(--cork-shadow);
   }
 
-  /* Mesma anatomia em todo card: é o que deixa o olho comparar os totais na grade, que era
-     a leitura fácil que a coluna da tabela dava. */
   .earnings-card__head {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1.5rem;
-    align-items: start;
-    justify-content: space-between;
+    display: grid;
+    gap: 0.1rem;
   }
 
   .earnings-card__name {
@@ -829,12 +824,24 @@
     font-weight: 700;
   }
 
+  /* Bloco fechado, alinhado à esquerda como os cards do topo: é o que faz o número pertencer
+     ao rótulo. Rótulo à esquerda e valor à direita deixavam meio card de vazio entre os dois,
+     e o valor lido sozinho não dizia de que era. */
   .earnings-card__total {
-    text-align: right;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.75rem;
+    background: var(--cork-primary-100);
   }
 
   .earnings-card__total .metric-value {
-    font-size: 1.45rem;
+    margin-top: 0.1rem;
+    font-size: 1.5rem;
+  }
+
+  .earnings-card__breakdown {
+    margin-top: 0.25rem;
+    color: var(--cork-muted);
+    font-size: 0.75rem;
   }
 
   /* No desktop o .table-scroll geral fica overflow: visible, para o cabeçalho fixo da
