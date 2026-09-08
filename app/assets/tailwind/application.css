@@ -660,17 +660,24 @@
     color: var(--color-primary);
   }
 
+  /* Tamanho absoluto de propósito: o cabeçalho é pequeno e em maiúsculas, e um indicador
+     em em ficava com ~8px — invisível justamente para quem ainda não sabe que pode clicar. */
   .sort-indicator {
-    font-size: 0.7em;
+    display: inline-block;
+    min-width: 1em;
+    font-size: 0.95rem;
+    line-height: 1;
+    vertical-align: -0.05em;
   }
 
   .sort-indicator.is-idle {
-    opacity: 0.35;
+    opacity: 0.55;
   }
 
   .sort-link:hover .sort-indicator.is-idle,
   .sort-link:focus-visible .sort-indicator.is-idle {
-    opacity: 0.9;
+    color: var(--color-primary);
+    opacity: 1;
   }
 
   .sort-reset {
