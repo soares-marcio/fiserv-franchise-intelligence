@@ -964,8 +964,24 @@
     background: color-mix(in oklab, var(--color-base-200) 74%, white);
   }
 
+  /* No hover, a célula de variação assume a cor da própria variação. O tom vem do chip que
+     está dentro, com :has(), e não de um cálculo na view: quem decide a cor é a regra do
+     chip — base zero vira "Novo" (alta) ou "Voltou a vender" (neutro) por outro critério,
+     e repetir isso no ERB criaria duas verdades. */
   .establishment-revenue-table tbody tr:hover td:last-child {
     background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
+  }
+
+  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--up) {
+    background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
+  }
+
+  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--down) {
+    background: color-mix(in oklab, var(--color-error) 16%, var(--color-base-100));
+  }
+
+  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--flat) {
+    background: var(--color-base-200);
   }
 
   /* Linhas de apoio sob o número do EC: NET MDR e equipamentos do Mapa. */

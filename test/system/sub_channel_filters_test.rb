@@ -154,4 +154,28 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
 
     assert colado, "o cabeçalho da tabela precisa ficar no topo do scroll do modal"
   end
+
+  # No hover, a célula de variação assume a cor da própria variação — verde para alta,
+  # vermelho para queda. A cor vem do chip que está dentro, então o teste passa o mouse e
+  # compara o fundo das duas linhas.
+  test "a coluna de variação muda de cor no hover conforme a variação" do
+    visit sub_channel_report_path(@sub_channel)
+
+    fundo = lambda do |ec|
+      linha = find("tr.daily-row", text: ec)
+      page.driver.browser.action.move_to(linha.native).perform
+      page.evaluate_script(<<~JS)
+        (() => {
+          const linha = [...document.querySelectorAll("tr.daily-row")]
+            .find((tr) => tr.textContent.includes("#{ec}"))
+          return getComputedStyle(linha.querySelector("td:last-child")).backgroundColor
+        })()
+      JS
+    end
+
+    alta = fundo.call("30000001")
+    queda = fundo.call("90000001")
+
+    assert_not_equal alta, queda, "alta e queda precisam ter fundos diferentes no hover"
+  end
 end
