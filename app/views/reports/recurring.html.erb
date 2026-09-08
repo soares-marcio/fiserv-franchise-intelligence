@@ -64,22 +64,12 @@
     </section>
 
     <section class="grid gap-4">
+      <% caminho = ->(ordem) { recurring_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
       <div class="earnings-card-bar">
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "subcanal", "subcanais") %></span>
-        <%= render "shared/sort_status", sort: @order,
-          path: ->(ordem) { recurring_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
-        <nav class="earnings-card-bar__sort" aria-label="Ordenar os subcanais">
-          <% caminho = ->(ordem) { recurring_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
-          <% ReportScope::RECURRING_SORT_COLUMNS.each do |column, label| %>
-            <%= link_to caminho.call(sort: column, direction: @order.next_direction_for(column)),
-              class: "sort-link #{"is-sorted" if @order.active?(column)}",
-              aria: { current: ("true" if @order.active?(column)) } do %>
-              <span class="sort-link__label">
-                <%= label %><%= sort_indicator(column, @order.column, @order.direction) %>
-              </span>
-            <% end %>
-          <% end %>
-        </nav>
+        <%= render "shared/sort_status", sort: @order, path: caminho %>
+        <%= render "shared/sort_links", sort: @order, path: caminho,
+          label: "Ordenar os subcanais" %>
       </div>
 
       <%# Cards em duas colunas: a série de sete colunas não cabe em card de um terço. %>

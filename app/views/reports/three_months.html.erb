@@ -74,78 +74,30 @@
       </article>
     </section>
 
-    <section class="table-frame" data-controller="sticky-table">
-      <div class="table-toolbar">
-        <div>
-          <p class="section-label">Subcanais</p>
-          <h2 class="table-title">Ganho por subcanal na janela</h2>
-        </div>
+    <section class="grid gap-4">
+      <% caminho = ->(ordem) { three_months_reports_path(three_month_order_params(**ordem.except(:page))) } %>
+      <div class="earnings-card-bar">
+        <span class="badge badge-ghost"><%= pluralize(@reports.size, "subcanal", "subcanais") %></span>
         <span class="badge badge-ghost"><%= @window.map { |p| l(p, format: "%b/%Y") }.join(" · ") %></span>
-        <%= render "shared/sort_status", sort: @order,
-          path: ->(ordem) { three_months_reports_path(three_month_order_params(**ordem.except(:page))) } %>
+        <%= render "shared/sort_status", sort: @order, path: caminho %>
+        <%= render "shared/sort_links", sort: @order, path: caminho,
+          label: "Ordenar os subcanais" %>
       </div>
-      <div class="table-scroll" role="region" tabindex="0"
-      aria-label="Primeiros três meses por subcanal, rolável na horizontal">
-        <table class="table">
-          <thead>
-            <tr>
-              <th scope="col">Subcanal</th>
-              <%# M0 é o próprio mês de credenciamento escolhido; o mês de calendário ao
-                  lado desfaz qualquer ambiguidade. %>
-              <% caminho = ->(ordem) { three_months_reports_path(three_month_order_params(**ordem.except(:page))) } %>
-              <% @window.each_with_index do |period, index| %>
-                <%= render "shared/sortable_header", sort: @order, column: "m#{index}",
-                  label: "M#{index}", hint: l(period, format: "%b/%Y"), path: caminho %>
-              <% end %>
-              <%= render "shared/sortable_header", sort: @order, column: "accredited",
-                label: "ECs no M0", hint: nil, path: caminho %>
-              <%= render "shared/sortable_header", sort: @order, column: "prize",
-                label: "Prêmio da safra", hint: nil, path: caminho %>
-            </tr>
-          </thead>
-          <tbody>
-            <% @reports.each do |report| %>
-              <tr>
-                <td>
-                  <%# Leva o M0, não o fim da janela: passar o último mês abriria o
-                      subcanal numa janela diferente da que está na tela. %>
-                  <%= link_to report[:name],
-                    three_months_sub_channel_report_path(id: report[:uuid],
-                      from_date: @window.first, to_date: @window.last,
-                      channel_id: @selected_channel&.uuid),
-                    class: "link" %>
-                </td>
-                <% report[:months].each do |month| %>
-                  <td class="text-right tabular-nums">
-                    <% if month[:covered] %>
-                      <%= brl(month[:total]) %>
-                      <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
-                      <p class="metric-hint">D <%= brl(month[:debit]) %> · C <%= brl(month[:credit]) %></p>
-                    <% else %>
-                      <span class="metric-hint">sem dado</span>
-                    <% end %>
-                  </td>
-                <% end %>
-                <td class="text-right tabular-nums"><%= report[:prize][:accredited] %></td>
-                <td class="text-right tabular-nums font-semibold">
-                  <% prize = report[:prize] %>
-                  <% if prize[:accredited].zero? %>
-                    —
-                  <% elsif prize[:addon_without_auto] == prize[:addon_with_auto] %>
-                    <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %>
-                  <% else %>
-                    <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %> –
-                    <%= brl(prize[:digitalization] + prize[:addon_with_auto]) %>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-        <% if @reports.empty? %>
-          <div class="empty-state">Nenhum volume mensal na janela escolhida.</div>
+
+      <%# Cards em duas colunas: cada um traz a matriz de três meses por débito, crédito e
+          total, que não cabia numa célula de tabela. %>
+      <div class="earnings-card-grid">
+        <% @reports.each do |report| %>
+          <%= render "three_month_card", report:, window: @window,
+            channel_id: @selected_channel&.uuid %>
         <% end %>
       </div>
+
+      <% if @reports.empty? %>
+        <div class="table-frame">
+          <div class="empty-state">Nenhum volume mensal na janela escolhida.</div>
+        </div>
+      <% end %>
     </section>
   <% else %>
     <section class="table-frame">

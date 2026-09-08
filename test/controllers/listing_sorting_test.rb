@@ -42,7 +42,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
       sort: "m1", direction: "asc")
 
     assert_response :success
-    assert_select "th[aria-sort=ascending] a.sort-link", text: /M1/
+    assert_select ".earnings-card-bar__sort a.sort-link.is-sorted[aria-current=true]", text: /M1/
     assert_select "a.sort-link[href*=?]", "from_date=2026-06-01"
     assert_select ".sort-sentence", text: /Ordenado por M1, do menor para o maior/
   end

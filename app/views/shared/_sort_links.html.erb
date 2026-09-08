@@ -1,0 +1,15 @@
+<%# Links de ordenação fora de tabela: nas telas de card não existe cabeçalho de coluna
+    para clicar. Mesma regra e mesmo indicador do cabeçalho ordenável — o que muda é onde
+    o link mora. Espera `sort` (um ListingSort), `path`, a lambda que monta a URL da tela,
+    e `label`, o que a navegação ordena. %>
+<nav class="earnings-card-bar__sort" aria-label="<%= label %>">
+  <% sort.columns.each do |column, rotulo| %>
+    <%= link_to path.call(sort: column, direction: sort.next_direction_for(column)),
+      class: "sort-link #{"is-sorted" if sort.active?(column)}",
+      aria: { current: ("true" if sort.active?(column)) } do %>
+      <span class="sort-link__label">
+        <%= rotulo %><%= sort_indicator(column, sort.column, sort.direction) %>
+      </span>
+    <% end %>
+  <% end %>
+</nav>

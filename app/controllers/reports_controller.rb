@@ -130,7 +130,7 @@ class ReportsController < ApplicationController
   # A linha da tela 3M é o subcanal, e cada mês da janela é uma coluna: ordenar por M0, M1
   # ou M2 é ordenar por aquele mês; "ECs no M0" e "prêmio" são valores da linha inteira.
   def three_month_order
-    columns = { "accredited" => "ECs no M0", "prize" => "Prêmio da safra" }
+    columns = { "prize" => "Prêmio da safra", "accredited" => "ECs no M0" }
     Array(@window).each_with_index { |period, index| columns["m#{index}"] = "M#{index}" }
     ListingSort.new(columns:, default: "prize", column: params[:sort], direction: params[:direction])
   end

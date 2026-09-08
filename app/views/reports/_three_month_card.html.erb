@@ -1,0 +1,79 @@
+<%# Card de um subcanal na janela 3M. A tabela já tinha o eixo certo — uma linha por
+    subcanal —, mas cada célula de mês carregava três números: o total na linha e o débito
+    e o crédito em subtexto. Era uma matriz de três meses por três valores espremida em
+    três células. Aqui a matriz ganha tabela própria, e o prêmio da safra, que é o que esta
+    tela apura, vira o número do card.
+    Espera `report`, `window` (para o link levar a mesma janela) e `channel_id`. %>
+<article class="earnings-card">
+  <header class="earnings-card__head">
+    <p class="section-label">Subcanal</p>
+    <h3 class="earnings-card__name">
+      <%# Leva o M0, não o fim da janela: passar o último mês abriria o subcanal numa
+          janela diferente da que está na tela. %>
+      <%= link_to report[:name],
+        three_months_sub_channel_report_path(id: report[:uuid],
+          from_date: window.first, to_date: window.last, channel_id:),
+        class: "link" %>
+    </h3>
+  </header>
+
+  <% prize = report[:prize] %>
+  <% intervalo = prize[:addon_without_auto] != prize[:addon_with_auto] %>
+  <div class="earnings-card__total">
+    <p class="metric-label">Prêmio da safra</p>
+    <p class="metric-value <%= "metric-value--range" if intervalo %>">
+      <% if prize[:accredited].zero? %>
+        —
+      <% elsif intervalo %>
+        <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %> –
+        <%= brl(prize[:digitalization] + prize[:addon_with_auto]) %>
+      <% else %>
+        <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %>
+      <% end %>
+    </p>
+    <p class="earnings-card__breakdown">
+      <%= pluralize(prize[:accredited], "EC credenciado", "ECs credenciados") %> no M0
+      · digitalização <%= brl(prize[:digitalization]) %>
+      <% if intervalo %>
+        · adicional <%= brl(prize[:addon_without_auto]) %> –
+        <%= brl(prize[:addon_with_auto]) %>, intervalo pendente da definição de antecipação
+      <% else %>
+        · adicional <%= brl(prize[:addon_without_auto]) %>
+      <% end %>
+    </p>
+  </div>
+
+  <div class="table-scroll" role="region" tabindex="0"
+    aria-label="Faturamento da carteira de <%= report[:name] %> em M0, M1 e M2">
+    <table class="table earnings-card__table">
+      <caption class="sr-only">
+        Faturamento da carteira de <%= report[:name] %> em cada mês da janela
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Mês</th>
+          <th scope="col" class="text-right">Débito</th>
+          <th scope="col" class="text-right">Crédito</th>
+          <th scope="col" class="text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% report[:months].each_with_index do |month, index| %>
+          <tr>
+            <th scope="row" class="font-normal">
+              M<%= index %> · <%= l(month[:period], format: "%b/%Y") %>
+              <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
+            </th>
+            <% if month[:covered] %>
+              <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
+              <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
+              <td class="text-right tabular-nums font-semibold"><%= brl(month[:total]) %></td>
+            <% else %>
+              <td colspan="3" class="text-right metric-hint">sem dado</td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</article>
