@@ -153,12 +153,20 @@ module BinImport
       return if months_by_family.keys.sort == VOLUME_FAMILIES.sort &&
         months_by_family.values.uniq.size == 1
 
+      if months_by_family.empty?
+        raise ArgumentError,
+          "A aba Mapa de Clientes BIN não tem nenhuma coluna de volume mensal — são as " \
+          "\"VOLUME DE FATURAMENTO TOTAL AAAAMM\" e as três famílias irmãs. São elas que " \
+          "dizem quais competências o arquivo cobre."
+      end
+
       familias = months_by_family.map { |family, months| "#{family}: #{months.join(', ')}" }
+        .to_sentence(two_words_connector: " e ", last_word_connector: " e ")
       raise ArgumentError,
         "As colunas de volume mensal do Mapa não fecham entre si. As quatro famílias " \
         "(total, débito, crédito e antecipação) precisam trazer as mesmas competências, e " \
-        "este arquivo traz #{familias.to_sentence}. Confira se algum mês ficou de fora de " \
-        "uma das famílias na exportação."
+        "este arquivo traz #{familias}. Confira se algum mês ficou de fora de uma das " \
+        "famílias na exportação."
     end
 
     # Cabeçalho de origem para cada campo de nome, respeitando a inversão por aba.
