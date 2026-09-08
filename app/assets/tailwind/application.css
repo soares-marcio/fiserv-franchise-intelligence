@@ -830,11 +830,14 @@
   .earnings-card__total {
     padding: 0.7rem 0.85rem;
     border-radius: 0.75rem;
-    background: var(--cork-primary-100);
+    background: var(--color-base-200);
   }
 
+  /* Laranja da marca, não um tom qualquer: verde e vermelho já significam variação nesta
+     tela, e um fundo rosado no bloco fazia o total parecer um estado ruim. */
   .earnings-card__total .metric-value {
     margin-top: 0.1rem;
+    color: var(--color-primary);
     font-size: 1.5rem;
   }
 
@@ -875,17 +878,21 @@
 
   .earnings-card-bar__sort {
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    align-items: center;
     margin-left: auto;
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
-  .earnings-card-footer {
-    padding: 1.1rem 1.25rem;
-    border: 1px dashed var(--color-base-300);
-    border-radius: 1rem 1rem 1rem 0.35rem;
+  /* O .sort-link nasceu para <th>, onde ocupar a célula inteira é o certo. Aqui ele é item
+     de flex: com width: 100% os três disputavam a largura, o rótulo quebrava em duas linhas
+     e a seta ficava centralizada entre elas, longe da palavra. */
+  .earnings-card-bar__sort .sort-link {
+    width: auto;
+    white-space: nowrap;
   }
 
   .table-toolbar__breakdown {

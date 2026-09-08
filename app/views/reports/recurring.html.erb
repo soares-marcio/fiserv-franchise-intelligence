@@ -9,7 +9,8 @@
       mês</strong> × faturamento de débito e crédito <strong>daquele mês</strong>, mais o
       acelerador ou redutor da variação contra o mês anterior. O Net MDR de cada mês vem do
       último arquivo importado daquele mês; meses anteriores ao primeiro arquivo usam o mais
-      antigo disponível e ficam marcados.
+      antigo disponível e ficam marcados com <strong>†</strong> na coluna Net MDR — com os
+      arquivos semanais, cada mês novo fica ancorado no MDR da própria época.
     </p>
   </section>
 
@@ -86,14 +87,6 @@
         <% @reports.each do |report| %>
           <%= render "recurring_card", report: %>
         <% end %>
-      </div>
-
-      <div class="earnings-card-footer">
-        <p class="metric-hint">
-          † Net MDR do arquivo mais antigo disponível: a competência é anterior ao primeiro
-          arquivo importado. Com os arquivos semanais, cada mês novo fica ancorado no MDR
-          da própria época.
-        </p>
       </div>
     </section>
   <% else %>

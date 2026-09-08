@@ -52,7 +52,7 @@
             <td class="text-right tabular-nums">
               <%= month[:net_mdr] ? number_with_precision(month[:net_mdr], precision: 2) + "%" : "—" %>
               <% if month[:mdr_fallback] %>
-                <span class="metric-hint" title="MDR do arquivo mais antigo: não havia arquivo deste mês">†</span>
+                <span class="metric-hint" title="Net MDR do arquivo mais antigo disponível: não havia arquivo importado desta competência">†</span>
               <% end %>
             </td>
             <td class="text-right tabular-nums"><%= brl(month[:recurring]) %></td>
