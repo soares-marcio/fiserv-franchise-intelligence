@@ -93,6 +93,24 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       listing(sort: "current_revenue", direction: "seja lá o que for").rows.map { |row| row["ec"] }
   end
 
+  # Ticket médio da carteira: mês anterior cheio dividido pelos CNPJs ativos do recorte
+  # (decisão do usuário, 08/09/2026). Mistura o mês fechado com o status de hoje de
+  # propósito — é "quanto rende cada cliente ativo" —, e por isso a tela escreve o divisor.
+  test "ticket médio divide o mês anterior cheio pelos CNPJs ativos" do
+    page = listing
+
+    ativos = page.status_counts["Active"]
+    assert_equal 4, ativos
+    assert_in_delta page.totals[:previous_full_revenue] / ativos, page.average_ticket, 0.01
+  end
+
+  test "sem CNPJ ativo no recorte, o ticket médio não existe" do
+    page = listing(query: "ALFA SUSPENSA")
+
+    assert_equal 0, page.status_counts["Active"]
+    assert_nil page.average_ticket
+  end
+
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do
     row = listing.rows.find { |candidate| candidate["ec"] == "30000001" }
     loja = lojas.first

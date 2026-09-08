@@ -35,7 +35,7 @@
     </div>
 
     <% if @window %>
-      <div class="metric-grid relative z-10">
+      <div class="metric-grid metric-grid--5 relative z-10">
         <article class="metric-card" data-tone="teal">
           <p class="metric-label">Mês anterior cheio</p>
           <p class="metric-value"><%= brl(@totals[:previous_full_revenue]) %></p>
@@ -72,6 +72,21 @@
           <% else %>
             <p class="metric-hint">Períodos com a mesma duração</p>
           <% end %>
+        </article>
+        <%# Ticket médio da carteira: mês anterior cheio dividido pelos CNPJs ativos do
+            recorte. O divisor fica escrito porque a conta mistura o mês fechado com o
+            status de hoje — sem isso, quem lê entende "média de quem vendeu". %>
+        <article class="metric-card" data-tone="teal">
+          <p class="metric-label">Ticket médio</p>
+          <p class="metric-value"><%= @listing.average_ticket ? brl(@listing.average_ticket) : "—" %></p>
+          <p class="metric-hint">
+            <% ativos = @listing.status_counts["Active"].to_i %>
+            <% if ativos.positive? %>
+              Mês anterior cheio ÷ <%= pluralize(ativos, "CNPJ ativo", "CNPJs ativos") %>
+            <% else %>
+              Nenhum CNPJ ativo no recorte
+            <% end %>
+          </p>
         </article>
       </div>
     <% end %>

@@ -257,6 +257,20 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.sort-reset[href*=?]", "sort=", count: 0
   end
 
+  # O quinto card traz o ticket médio da carteira, com o divisor escrito: a conta mistura o
+  # mês fechado com o status de hoje, e sem a explicação vira outra coisa na cabeça de quem lê.
+  test "a tela do subcanal mostra o ticket médio e o divisor" do
+    import_synthetic_workbook
+    refresh_audit_views
+    sub_channel = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(sub_channel)
+
+    assert_response :success
+    assert_select ".metric-card .metric-label", text: "Ticket médio"
+    assert_select ".metric-card .metric-hint", text: /Mês anterior cheio ÷ 1 CNPJ ativo/
+  end
+
   # A barra da tabela diz quantos ECs do recorte estão ativos e quantos suspensos.
   test "a barra da listagem mostra ativos e suspensos do recorte" do
     import_synthetic_workbook
