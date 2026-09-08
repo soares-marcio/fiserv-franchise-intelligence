@@ -83,7 +83,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
         )
       )
     end
-    assert_match(/dias não reconciliam/, error.message)
+    assert_match(/a soma dos dias não bate com a coluna/, error.message)
   end
 
   test "recusa competências de faturamento não consecutivas" do
@@ -113,7 +113,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     end
 
     error = assert_raises(ArgumentError) { BinImport::Validator.new(rows).validate_identity! }
-    assert_match(/ECs de Faturamento ausentes no Mapa/, error.message)
+    assert_match(/da aba Faturamento não está na aba Mapa de Clientes BIN/, error.message)
   end
 
   private

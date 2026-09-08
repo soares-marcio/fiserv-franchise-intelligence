@@ -90,7 +90,9 @@ module BinImport
       missing = SHEETS - workbook.sheets
       if missing.any?
         raise ArgumentError,
-          "Abas ausentes: #{missing.join(', ')}; encontrado #{workbook.sheets.join(', ')}"
+          "O arquivo não tem #{missing.one? ? 'a aba' : 'as abas'} #{lista(missing)}. " \
+            "Abas encontradas: #{lista(workbook.sheets)}. O nome da aba precisa ser exatamente " \
+            "esse; abas a mais o arquivo pode ter."
       end
 
       EXPECTED_HEADERS.each do |sheet_name, expected|
@@ -151,9 +153,12 @@ module BinImport
       return if months_by_family.keys.sort == VOLUME_FAMILIES.sort &&
         months_by_family.values.uniq.size == 1
 
+      familias = months_by_family.map { |family, months| "#{family}: #{months.join(', ')}" }
       raise ArgumentError,
-        "Colunas de volume mensal inconsistentes em Mapa de Clientes BIN: as quatro " \
-        "famílias devem trazer o mesmo conjunto de competências"
+        "As colunas de volume mensal do Mapa não fecham entre si. As quatro famílias " \
+        "(total, débito, crédito e antecipação) precisam trazer as mesmas competências, e " \
+        "este arquivo traz #{familias.to_sentence}. Confira se algum mês ficou de fora de " \
+        "uma das famílias na exportação."
     end
 
     # Cabeçalho de origem para cada campo de nome, respeitando a inversão por aba.

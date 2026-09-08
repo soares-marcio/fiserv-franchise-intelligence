@@ -42,7 +42,8 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
       post import_batches_path, params: { file: upload(path, "text/plain") }
     end
 
-    assert_equal "Envie um arquivo .xlsx.", flash[:alert]
+    assert_match(/precisa ser \.xlsx/, flash[:alert])
+    assert_match(/salve como \.xlsx/, flash[:alert])
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -63,7 +64,8 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
       post import_batches_path, params: { file: upload(path) }
     end
 
-    assert_equal "O arquivo não é um .xlsx válido.", flash[:alert]
+    assert_match(/o conteúdo não é de uma planilha/, flash[:alert])
+    assert_match(/renomeado à mão/, flash[:alert])
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -80,7 +82,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
       post import_batches_path, params: { file: upload(path) }
     end
 
-    assert_equal "Arquivo acima de 20 MB.", flash[:alert]
+    assert_match(/o limite é 20 MB/, flash[:alert])
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -180,7 +182,8 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     assert_no_difference -> { ImportBatch.count } do
       post import_batches_path, params: { file: upload(path) }
     end
-    assert_equal "Arquivo já importado", flash[:alert]
+    assert_match(/já foi importado em/, flash[:alert])
+    assert_match(/exporte de novo da origem/, flash[:alert])
   ensure
     File.delete(path) if path && File.exist?(path)
   end

@@ -27,7 +27,7 @@ class Operations::ImportFileTest < ActiveJob::TestCase
 
     assert_no_difference [ -> { ImportBatch.count }, -> { ActiveStorage::Blob.count } ] do
       error = assert_raises(ArgumentError) { Operations::ImportFile.call(upload) }
-      assert_equal "Arquivo já está sendo importado", error.message
+      assert_match(/já está na fila de importação/, error.message)
     end
     assert_enqueued_jobs 1, only: ImportBinFileJob
   end

@@ -145,8 +145,9 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     end
 
     error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
-    assert_equal "Abas ausentes: Faturamento, Ativacao, Mapa de Clientes BIN; encontrado Planilha1",
-      error.message
+    assert_match(/não tem as abas/, error.message)
+    assert_match(/"Faturamento"/, error.message)
+    assert_match(/Abas encontradas: "Planilha1"/, error.message)
   ensure
     File.delete(path) if path && File.exist?(path)
   end
