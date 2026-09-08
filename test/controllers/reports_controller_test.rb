@@ -307,6 +307,26 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /80,00/
   end
 
+  # Três competências no banco é o estado da operação real: cada planilha traz duas, e a
+  # mais antiga fica das importações passadas. A coluna do penúltimo mês só existe nesse caso.
+  test "com a penúltima competência coberta, o modal mostra os três meses" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    establishment = Establishment.find_by!(ec: "11111111")
+    cover_penultimate_period(channel, establishment, Date.new(2026, 6, 1), amount: 60)
+
+    get sub_channel_daily_report_path(sub_channel, establishment, channel_id: channel.uuid)
+
+    assert_response :success
+    assert_select "thead th", count: 4, message: "Dia mais as três competências"
+    assert_select "thead th", text: "junho de 2026"
+    assert_select "thead th", text: "julho de 2026"
+    assert_select "thead th", text: "agosto de 2026"
+    # O valor tem que sair na coluna certa: é a soma da penúltima competência, não de outra.
+    assert_select "tfoot td:first-of-type", text: /60,00/
+    assert_select "tfoot td", count: 3
+  end
+
   # A faixa de dias da tela não recorta o modal: ele espelha a planilha, que traz
   # DIA 01..DIA 31 das duas competências.
   test "lançamentos diários trazem o mês inteiro mesmo com a tela filtrada" do
@@ -640,6 +660,24 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       contract_status: "Active", previous_month_total: 20, current_month_total: 30
     )
     second
+  end
+
+  # A terceira competência do modal não vem do arquivo atual: no banco real ela ficou das
+  # importações anteriores. Aqui bastam a cobertura e um lançamento.
+  def cover_penultimate_period(channel, establishment, period, amount:)
+    now = Time.current
+    batch_id = ImportBatch.last.id
+    PeriodCoverage.upsert_all(
+      [ { channel_id: channel.id, period:, max_known_day: 30, closed: true,
+          last_import_batch_id: batch_id, created_at: now, updated_at: now } ],
+      unique_by: "index_period_coverages_on_channel_id_and_period"
+    )
+    DailyRevenueConsolidated.upsert_all(
+      [ { establishment_id: establishment.id, channel_id: channel.id, period:, day: 24, amount:,
+          provisional: false, source_import_batch_id: batch_id, revised_count: 0,
+          created_at: now, updated_at: now } ],
+      unique_by: "index_daily_revenues_consolidated_primary"
+    )
   end
 
   def seed_subchannel_revenue(template)

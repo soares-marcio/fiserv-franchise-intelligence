@@ -5,55 +5,55 @@
     <h2 class="table-title">EC <%= @establishment.ec %></h2>
     <% if @window %>
       <p class="page-description">
-        Mês inteiro das duas competências, como a planilha entrega.
+        Mês inteiro de cada competência, como a planilha entrega.
         O mês atual vai até o dia <%= @window.max_day %> de cobertura.
       </p>
     <% end %>
   </div>
 
   <% if @rows.any? %>
+    <%# Uma coluna por competência, da mais antiga para a mais nova. A lista vem da janela
+        porque a penúltima só existe quando foi importada — o laço evita repetir a mesma
+        célula três vezes no cabeçalho, no corpo e no rodapé. %>
+    <% colunas = @window.daily_columns.map { |period, key| [ period, key, Time.days_in_month(period.month, period.year) ] } %>
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Faturamento diário do EC <%= @establishment.ec %>">
       <table class="table">
         <caption class="sr-only">
-          Faturamento por dia do EC <%= @establishment.ec %>, mês atual e mês anterior
+          Faturamento por dia do EC <%= @establishment.ec %>, uma coluna por competência
         </caption>
         <thead>
           <tr>
             <th scope="col">Dia</th>
-            <th scope="col" class="text-right"><%= period_option_label(@window.previous_period) %></th>
-            <th scope="col" class="text-right"><%= period_option_label(@window.current_period) %></th>
+            <% colunas.each do |period, _key, _dias| %>
+              <th scope="col" class="text-right"><%= period_option_label(period) %></th>
+            <% end %>
           </tr>
         </thead>
         <tbody>
-          <% dias_anterior = Time.days_in_month(@window.previous_period.month, @window.previous_period.year) %>
-          <% dias_atual = Time.days_in_month(@window.current_period.month, @window.current_period.year) %>
           <% @rows.each do |row| %>
             <% day = row["day"].to_i %>
-            <% previous = row["previous_amount"].to_d %>
-            <% current = row["current_amount"].to_d %>
             <tr>
               <th scope="row" class="font-mono"><%= format("%02d", day) %></th>
-              <%# Dia que não existe na competência: travessão, não zero — 31 de setembro
-                  não é "sem venda". %>
-              <td class="text-right tabular-nums <%= "opacity-40" if previous.zero? %>">
-                <%= day > dias_anterior ? "—" : brl(previous) %>
-              </td>
-              <td class="text-right tabular-nums <%= "opacity-40" if current.zero? %>">
-                <%= day > dias_atual ? "—" : brl(current) %>
-              </td>
+              <% colunas.each do |_period, key, dias_no_mes| %>
+                <% valor = row[key].to_d %>
+                <%# Dia que não existe na competência: travessão, não zero — 31 de setembro
+                    não é "sem venda". %>
+                <td class="text-right tabular-nums <%= "opacity-40" if valor.zero? %>">
+                  <%= day > dias_no_mes ? "—" : brl(valor) %>
+                </td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>
         <tfoot>
           <tr>
             <th scope="row">Total no período</th>
-            <td class="text-right tabular-nums">
-              <%= brl(@rows.sum { |row| row["previous_amount"].to_d }) %>
-            </td>
-            <td class="text-right tabular-nums">
-              <%= brl(@rows.sum { |row| row["current_amount"].to_d }) %>
-            </td>
+            <% colunas.each do |_period, key, _dias| %>
+              <td class="text-right tabular-nums">
+                <%= brl(@rows.sum { |row| row[key].to_d }) %>
+              </td>
+            <% end %>
           </tr>
         </tfoot>
       </table>
