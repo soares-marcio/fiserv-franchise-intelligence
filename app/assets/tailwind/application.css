@@ -1294,8 +1294,9 @@
 
   /* Modal dos lançamentos diários: <dialog> nativo, então o fundo vem do ::backdrop. */
   .daily-modal {
-    width: min(38rem, 92vw);
-    max-height: 86vh;
+    width: min(54rem, 94vw);
+    max-height: 88vh;
+    margin: auto;
     padding: 0;
     border: 1px solid var(--color-base-300);
     border-radius: 0.75rem;
@@ -1308,8 +1309,13 @@
     background: rgb(6 8 24 / 48%);
   }
 
+  /* Corpo em coluna: o cabeçalho do modal fica parado no topo e só a tabela rola, com o
+     thead colado logo abaixo dele. */
   .daily-modal__body {
+    display: flex;
     position: relative;
+    flex-direction: column;
+    max-height: 88vh;
     padding: 1.25rem 1.35rem 1.4rem;
   }
 
@@ -1321,13 +1327,25 @@
 
   .daily-modal__head {
     display: grid;
+    flex: none;
     gap: 0.15rem;
     margin-bottom: 0.9rem;
     padding-right: 2.5rem;
   }
 
   .daily-modal .table-scroll {
-    max-height: 60vh;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+  /* O diálogo vive dentro do .table-frame da listagem e herdava o cabeçalho fixo ancorado
+     na topbar da página: dentro do modal ele parava no meio da tabela. Aqui o scrollport é
+     a própria tabela, então o cabeçalho cola no topo dela. */
+  .daily-modal thead th {
+    top: 0;
+    background: var(--color-base-100);
   }
 
   .daily-row {
