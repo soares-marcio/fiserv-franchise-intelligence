@@ -60,9 +60,10 @@ module BinWorkbook
 
   # volume_months permite simular a virada da planilha (um mês novo por ciclo), que é o
   # regime real de operação; o padrão preserva os totais dos testes existentes.
-  def self.write(path, lojas: default_lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS)
+  def self.write(path, lojas: default_lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS,
+    canal: CANAL)
     Axlsx::Package.new do |package|
-      sheet_rows(lojas, volume_months:).each do |sheet_name, rows|
+      sheet_rows(lojas, volume_months:, canal:).each do |sheet_name, rows|
         headers = headers_for(sheet_name, volume_months)
         package.workbook.add_worksheet(name: sheet_name) do |worksheet|
           worksheet.add_row headers
@@ -84,18 +85,18 @@ module BinWorkbook
     ]
   end
 
-  def self.sheet_rows(lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS)
+  def self.sheet_rows(lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: CANAL)
     {
-      "Faturamento" => lojas.map { |loja| faturamento_row(loja) },
-      "Ativacao" => lojas.select(&:proposta).map { |loja| ativacao_row(loja) },
-      "Mapa de Clientes BIN" => lojas.map { |loja| mapa_row(loja, volume_months:) }
+      "Faturamento" => lojas.map { |loja| faturamento_row(loja, canal:) },
+      "Ativacao" => lojas.select(&:proposta).map { |loja| ativacao_row(loja, canal:) },
+      "Mapa de Clientes BIN" => lojas.map { |loja| mapa_row(loja, volume_months:, canal:) }
     }
   end
 
   # Mapa vem com os cabeçalhos de nome corretos.
-  def self.mapa_row(loja, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS)
+  def self.mapa_row(loja, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: CANAL)
     {
-      "REPORT_ID" => REPORT_ID, "HIERARQUIA" => CANAL, "CANAL" => CANAL,
+      "REPORT_ID" => REPORT_ID, "HIERARQUIA" => canal, "CANAL" => canal,
       "SUB-CANAL" => loja.sub_channel_name, "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "TIPO DE PESSOA" => "PJ", "RAZÃO SOCIAL" => loja.legal_name,
       "NOME FANTASIA" => loja.trade_name, "STATUS DO CONTRATO" => loja.contract_status,
@@ -109,14 +110,14 @@ module BinWorkbook
   end
 
   # Faturamento e Ativacao vêm com razão social e nome fantasia trocados na origem.
-  def self.faturamento_row(loja)
+  def self.faturamento_row(loja, canal: CANAL)
     dias = (1..31).to_h do |day|
       [ format("DIA %02d", day), loja.dias_atual.fetch(day, 0) ]
     end.merge((1..31).to_h do |day|
       [ format("DIA %02d_M_1", day), loja.dias_m1.fetch(day, 0) ]
     end)
     {
-      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.sub_channel_name,
+      "HIERARQUIA" => canal, "CANAL" => canal, "SUB-CANAL" => loja.sub_channel_name,
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,
       "STATUS DO CONTRATO" => loja.contract_status, "CIDADE" => "GOIANIA", "ESTADO" => "GO",
@@ -125,9 +126,9 @@ module BinWorkbook
     }.merge(dias)
   end
 
-  def self.ativacao_row(loja)
+  def self.ativacao_row(loja, canal: CANAL)
     {
-      "HIERARQUIA" => CANAL, "CANAL" => CANAL, "SUB-CANAL" => loja.sub_channel_name,
+      "HIERARQUIA" => canal, "CANAL" => canal, "SUB-CANAL" => loja.sub_channel_name,
       "NR DA PROPOSTA" => "P#{loja.ec}", "DATA DA PROPOSTA" => "2026-01-10",
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,

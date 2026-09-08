@@ -29,7 +29,9 @@ module BinImport
       report_ids = values(@map_rows, "REPORT_ID")
       channels = @rows.values.flat_map { |sheet_rows| values(sheet_rows, "CANAL") }.uniq
       raise ArgumentError, "Arquivo deve conter exatamente um REPORT_ID" unless report_ids.one?
-      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" unless channels.one?
+      # A ausência de CANAL não recusa o arquivo: o import cria o canal fictício
+      # ChannelResolver::FALLBACK_NAME e marca cada linha sem CANAL como anomalia.
+      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" if channels.many?
     end
 
     def validate_required_values!
@@ -37,12 +39,25 @@ module BinImport
         required = Template::REQUIRED_HEADERS.fetch(sheet_name)
         sheet_rows.each do |row|
           missing = required.select { |header| row[header].blank? }
-          missing.delete("CANAL") if sheet_name == "Mapa de Clientes BIN"
+          missing.delete("CANAL") if canal_dispensavel?(sheet_name)
           next if missing.empty?
 
           raise ArgumentError, "#{sheet_name} linha #{row['_row_number']}: campos obrigatórios vazios: #{missing.join(', ')}"
         end
       end
+    end
+
+    # O Mapa sempre tolera linha sem CANAL — vira anomalia. As outras abas só toleram quando
+    # o arquivo inteiro chega sem canal: aí a carteira entra sob o nome fictício. Arquivo
+    # parcialmente preenchido continua sendo recusado, porque aí falta dado, não a coluna.
+    def canal_dispensavel?(sheet_name)
+      sheet_name == "Mapa de Clientes BIN" || sem_canal_no_arquivo?
+    end
+
+    def sem_canal_no_arquivo?
+      return @sem_canal unless @sem_canal.nil?
+
+      @sem_canal = @rows.values.flat_map { |sheet_rows| values(sheet_rows, "CANAL") }.empty?
     end
 
     def validate_ec_identity!

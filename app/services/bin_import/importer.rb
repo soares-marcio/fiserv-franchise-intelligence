@@ -84,7 +84,9 @@ module BinImport
       report_ids = map_rows.pluck("REPORT_ID").compact.map(&:to_s).uniq
       canals = map_rows.pluck("CANAL").compact.map(&:to_s).reject(&:blank?).uniq
       raise ArgumentError, "Arquivo deve conter exatamente um REPORT_ID" unless report_ids.one?
-      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" unless canals.one?
+      # Sem CANAL o arquivo ainda entra, sob o nome fictício; com mais de um, não há o que
+      # decidir, porque cada arquivo cobre uma carteira só.
+      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" if canals.many?
 
       ChannelResolver.call(report_id: report_ids.first, name: canals.first)
     end
