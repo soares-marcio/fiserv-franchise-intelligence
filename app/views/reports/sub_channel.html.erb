@@ -332,6 +332,9 @@
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
+              <%# Ticket médio do cliente: faturamento do CNPJ dividido pelos ECs dele no
+                  recorte. Em cliente de um EC só, repete o mês anterior cheio de propósito. %>
+              <td class="text-right tabular-nums"><%= brl(report["cnpj_average_ticket"]) %></td>
               <td class="text-right variation-col">
                 <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
                     anterior; antigo que saiu do zero vira "Voltou a vender". %>

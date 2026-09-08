@@ -111,6 +111,35 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_nil page.average_ticket
   end
 
+  # Ticket médio do cliente, na linha de cada EC: o faturamento do CNPJ no mês anterior
+  # cheio dividido pelos ECs que ele tem no recorte. Para cliente de um EC só, é o próprio
+  # faturamento; para quem tem mais de um, é a média entre os pontos de venda.
+  test "cada linha traz o ticket médio do CNPJ dela" do
+    irmao = loja("30000006", "11222333000181", "ALFA LANCHES II",
+      dias_m1: { 1 => 500 }, dias_atual: { 1 => 20 })
+    import_synthetic_workbook(lojas: lojas + [ irmao ], filename: "BIN_TESTE_20260812.xlsx")
+
+    linhas = listing.rows.index_by { |row| row["ec"] }
+
+    # ALFA LANCHES (1.000) e ALFA LANCHES II (500) dividem o CNPJ: 1.500 em dois ECs.
+    assert_equal 750.to_d, linhas["30000001"]["cnpj_average_ticket"].to_d
+    assert_equal 750.to_d, linhas["30000006"]["cnpj_average_ticket"].to_d
+    # CNPJ de um EC só: o ticket é o próprio faturamento do mês anterior cheio.
+    assert_equal linhas["30000003"]["previous_full_revenue"].to_d,
+      linhas["30000003"]["cnpj_average_ticket"].to_d
+  end
+
+  # A média segue o recorte, como todo o resto da tela: filtrar tira ECs do divisor.
+  test "o ticket do CNPJ acompanha a aba escolhida" do
+    irmao = loja("30000006", "11222333000181", "ALFA LANCHES II",
+      dias_m1: { 1 => 500 }, dias_atual: {})
+    import_synthetic_workbook(lojas: lojas + [ irmao ], filename: "BIN_TESTE_20260812.xlsx")
+
+    # Na aba Em queda o irmão entra sozinho (não vendeu); o ticket é só o dele.
+    queda = listing(variation: "baixa").rows.index_by { |row| row["ec"] }
+    assert_equal 500.to_d, queda["30000006"]["cnpj_average_ticket"].to_d
+  end
+
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do
     row = listing.rows.find { |candidate| candidate["ec"] == "30000001" }
     loja = lojas.first

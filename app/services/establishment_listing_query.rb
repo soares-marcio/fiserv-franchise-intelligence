@@ -15,7 +15,8 @@ class EstablishmentListingQuery
   SORT_COLUMNS = {
     "previous_full_revenue" => "Mês anterior cheio",
     "previous_revenue" => "Mês anterior comparável",
-    "current_revenue" => "Mês atual"
+    "current_revenue" => "Mês atual",
+    "cnpj_average_ticket" => "Ticket médio do cliente"
   }.freeze
   SORT_DIRECTIONS = %w[desc asc].freeze
   # A tela abre pelo mês anterior cheio, do maior para o menor: é a única coluna com valor
@@ -197,8 +198,17 @@ class EstablishmentListingQuery
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
+  # A média por CNPJ é janela, não subconsulta: janela roda depois do WHERE, então o divisor
+  # já é o recorte que a tela mostra — filtrar ou trocar de aba muda a média junto.
   def rows_sql
-    "SELECT * FROM (#{listing_sql}) listings #{variation_where} ORDER BY #{order_by}"
+    <<~SQL
+      SELECT *,
+        SUM(previous_full_revenue) OVER (PARTITION BY cnpj)
+          / NULLIF(COUNT(*) OVER (PARTITION BY cnpj), 0) AS cnpj_average_ticket
+      FROM (#{listing_sql}) listings
+      #{variation_where}
+      ORDER BY #{order_by}
+    SQL
   end
 
   # O EC continua sendo o desempate: sem ele, linhas de mesmo valor trocariam de lugar
