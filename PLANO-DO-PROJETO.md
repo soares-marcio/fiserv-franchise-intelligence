@@ -1,5 +1,16 @@
 # Fiserv Franchise Intelligence
 
+> **O que este documento é, e o que não é (nota de 08/09/2026).** Ele planeja o programa de
+> prospecção sobre a base de empresas da Receita Federal hospedada no `berry` — evolução do
+> Django `search-company`, com o Hermes Agent na camada de análise. **Não descreve este
+> repositório**, que é outro produto: a auditoria de faturamento da carteira BIN, em Rails,
+> alimentada pela planilha que a Fiserv entrega. Os dois compartilham o nome e nada mais:
+> nenhuma linha de score, lead ou Receita Federal existe neste código. A documentação desta
+> aplicação é o [`README.md`](README.md), a de interface é
+> [`docs/layout.md`](docs/layout.md), e as regras de trabalho estão no
+> [`CLAUDE.md`](CLAUDE.md). O plano fica porque a Fase 0 e o diagnóstico do `berry` (seção 14)
+> são registro de inspeções reais, que não se reconstrói.
+
 ## 1. Visão do projeto
 
 O Fiserv Franchise Intelligence será uma aplicação interna de inteligência comercial para apoiar a avaliação e a operação de uma possível franquia ou master franquia Bin/Fiserv.

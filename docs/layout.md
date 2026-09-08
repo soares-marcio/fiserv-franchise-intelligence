@@ -37,7 +37,7 @@ que parece existir.
 | --- | --- |
 | > 1400px | Uma linha: marca, menu, busca e sinal |
 | ≤ 1400px | O menu desce inteiro para a segunda linha da barra |
-| ≤ 1200px | A barra de filtros da tela de subcanal passa a duas colunas |
+| ≤ 1200px | A barra de filtros da tela de subcanal passa a duas colunas; a grade de cards do recorrente e do 3M passa a uma coluna |
 | ≤ 900px | O menu sai da barra e vira lista vertical atrás do botão `.nav-toggle` (☰); a barra de filtros passa a uma coluna |
 | ≤ 560px | Somem a legenda da marca e o atalho da busca (fica o ícone); o sinal encolhe |
 
@@ -68,6 +68,85 @@ O formulário de busca mira o Turbo Frame `establishments` que envolve a listage
 (`data-turbo-frame`), com `data-turbo-action="advance"` para a URL acompanhar o filtro. O
 controller Stimulus `live-form` submete 250ms depois da última tecla; o botão e o Enter
 continuam funcionando sem JavaScript. É o mesmo mecanismo da busca global.
+
+### Listagem: tabela ou card
+
+Duas telas viraram grade de cards; as outras continuam tabela. A regra que separa as duas é
+o que a linha carrega:
+
+**Card quando a linha tem estrutura interna** — uma série ou uma matriz que não cabe numa
+célula:
+
+| Tela | Partial | O que a tabela fazia antes |
+| --- | --- | --- |
+| Recorrente (`/reports/recurring`) | `reports/_recurring_card.html.erb` | Uma linha por subcanal **e** mês — hoje 10 subcanais × 6 competências, 60 linhas —, e "ordenar por débito" não tinha resposta única |
+| Ganhos 3M (`/reports/three_months`) | `reports/_three_month_card.html.erb` | Uma linha por subcanal, mas cada célula de mês guardava três números (total, e débito e crédito em subtexto) — uma matriz de 3×3 espremida em três células |
+
+**Tabela quando cada célula é um número só e a comparação é entre linhas.** É o caso do
+faturamento por subcanal (`/reports`): a leitura é varredura de coluna ("quem caiu mais?"),
+e o `tfoot` põe cada total sob a sua coluna, o que deixa conferir que as partes fecham o
+todo. Numa grade de cards não há onde pôr esse rodapé.
+
+Anatomia do card, igual nos dois (`.earnings-card`):
+
+1. cabeçalho com o nome do subcanal, que leva ao nível seguinte;
+2. bloco fechado com o número que a tela apura — ganho na janela, prêmio da safra — e a
+   composição dele logo abaixo (no 3M, pares rótulo/valor em `.earnings-card__parts`);
+3. tabela com a série, dentro do card.
+
+O card é o próprio scrollport da tabela que ele contém (`min-width: 0` no item da grade e
+`overflow-x: auto` no `.table-scroll` de dentro). Sem isso a tabela larga esticava a coluna
+da grade e vazava por cima do card vizinho — `test/system/layout_and_import_test.rb` compara
+`scrollWidth` e `clientWidth` de cada card e falha se voltar a acontecer.
+
+### Ordenação das listagens
+
+A regra vive em `ListingSort`, num lugar só. A coluna e o sentido vêm da URL e são validados
+contra a **lista fechada** de cada tela: na listagem paginada o nome da coluna vira SQL, e em
+qualquer tela coluna inexistente cai no padrão em vez de quebrar a página. O primeiro clique
+traz o maior valor no topo — é o que se procura numa auditoria; o clique seguinte inverte.
+
+O mecanismo **não** é escondido atrás de abstração, porque os dois casos são diferentes de
+verdade: quem tem paginação ordena no banco (`sql_order_by`), senão ordenaria só a página
+visível; quem já traz o array inteiro na memória ordena em Ruby (`sort_rows`).
+
+| Tela | Colunas ordenáveis | Padrão |
+| --- | --- | --- |
+| Faturamento (`/reports`) | mês anterior cheio, base comparável, mês atual, variação | mês anterior cheio |
+| Estabelecimentos do subcanal | mês anterior cheio, base comparável, mês atual | mês anterior cheio (no banco, com desempate) |
+| Semanal | faturamento, ECs com movimento | faturamento |
+| Recorrente | ganho na janela, último mês fechado, subcanal | ganho na janela |
+| Ganhos 3M | prêmio da safra, ECs no M0, M0, M1, M2 | prêmio da safra |
+
+Linha **sem valor** vai para o fim nos dois sentidos, como o `NULLS LAST` do SQL: a variação
+de um subcanal sem base comparável não é um percentual, e tratá-la como zero a colocaria
+entre quem caiu e quem cresceu.
+
+Três partials, conforme onde o link mora:
+
+| Partial | Onde |
+| --- | --- |
+| `shared/_sortable_header` | cabeçalho de tabela; o link ocupa a célula inteira, dica incluída |
+| `shared/_sort_links` | barra acima da grade, nas telas de card, onde não há cabeçalho para clicar |
+| `shared/_sort_status` | a frase "Ordenado por…" e o link de volta à ordem padrão |
+
+### Modal de lançamentos diários
+
+Clicar na linha do estabelecimento, na tela de subcanal, abre `.daily-modal` por Turbo Frame
+(`reports/_daily_revenues.html.erb`). Ele mostra **três competências** lado a lado —
+penúltimo mês, último e atual —, um dia por linha, com o cabeçalho da tabela colado no topo
+ao rolar (o scrollport é a própria tabela, não a página).
+
+Três regras que o modal segue de propósito:
+
+- **Mês inteiro, não a faixa de dias dos filtros.** O modal é a leitura do lançamento, não o
+  recorte da comparação.
+- **Dia sem venda aparece zerado**, nunca sumido: é justamente o buraco que se abre o modal
+  para ver. Já o dia que não existe na competência mostra travessão — 31 de setembro não é
+  "sem venda".
+- **A terceira coluna é condicional.** A planilha traz duas competências; a mais antiga só
+  existe se importações anteriores a cobriram. Ela aparece quando está em `period_coverages`
+  — coluna zerada diria "sem venda" onde a verdade é "sem dado".
 
 ### Tokens
 

@@ -6,7 +6,7 @@
 > `legal_name`, `current_month_cutoff_day`…). O plano fica como registro histórico; a convenção
 > vigente está em `CLAUDE.md`.
 
-Fonte única deste plano: o arquivo [1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx](./1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx). Nada abaixo vem de outro sistema (search-company, Hermes, Receita Federal). Toda contagem citada foi medida no arquivo.
+Fonte única deste plano: o arquivo `1478_MASTER_FRANQUEADO_RAMOS_E_SILVA_20260825.xlsx`, que vive em `../franchise-storage/storage/` e nunca entrou no repositório — planilha da Fiserv traz CNPJ, telefone, endereço e faturamento reais. Nada abaixo vem de outro sistema (search-company, Hermes, Receita Federal). Toda contagem citada foi medida no arquivo.
 
 ## Eixo do modelo
 
