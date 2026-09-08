@@ -78,6 +78,8 @@
       </div>
       <% if @reports.any? %>
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "subcanal", "subcanais") %></span>
+        <%= render "shared/sort_status", sort: @order,
+          path: ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
       <% end %>
     </div>
 
@@ -87,22 +89,12 @@
         <thead>
           <tr>
             <th scope="col">Subcanal</th>
-            <th scope="col" class="text-right">
-              Mês anterior cheio
-              <span class="block font-normal normal-case tracking-normal opacity-60">competência fechada</span>
-            </th>
-            <th scope="col" class="text-right">
-              Mês anterior comparável
-              <% if @cutoff_day %>
-                <span class="block font-normal normal-case tracking-normal opacity-60">até dia <%= @cutoff_day %></span>
-              <% end %>
-            </th>
-            <th scope="col" class="text-right">
-              Mês atual
-              <% if @cutoff_day %>
-                <span class="block font-normal normal-case tracking-normal opacity-60">até dia <%= @cutoff_day %></span>
-              <% end %>
-            </th>
+            <%# As três colunas de valor ordenam a listagem, como na tela do subcanal. %>
+            <% caminho = ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+            <% ReportScope::SUB_CHANNEL_SORT_COLUMNS.each do |column, label| %>
+              <%= render "shared/sortable_header", sort: @order, column:, label:, path: caminho,
+                hint: (column == "previous_full_revenue" ? "competência fechada" : ("até dia #{@cutoff_day}" if @cutoff_day)) %>
+            <% end %>
             <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>

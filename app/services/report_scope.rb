@@ -1,4 +1,13 @@
 class ReportScope
+  # Colunas de valor que a tela de faturamento por subcanal deixa ordenar, com o rótulo que
+  # levam no cabeçalho. A listagem vem inteira da consulta em cache: a ordem é aplicada na
+  # leitura e nunca entra na chave do cache, senão cada clique viraria uma entrada nova.
+  SUB_CHANNEL_SORT_COLUMNS = {
+    "previous_full_revenue" => "Mês anterior cheio",
+    "previous_revenue" => "Mês anterior comparável",
+    "current_revenue" => "Mês atual"
+  }.freeze
+
   VIEWS = {
     stalled_companies: "audit_stalled_companies",
     weekly_revenue: "audit_weekly_revenue"

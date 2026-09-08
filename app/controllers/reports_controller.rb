@@ -2,7 +2,9 @@ class ReportsController < ApplicationController
   before_action :load_scope
 
   def index
-    @reports = @scope.revenue_by_sub_channel
+    @order = ListingSort.new(columns: ReportScope::SUB_CHANNEL_SORT_COLUMNS,
+      default: "previous_full_revenue", column: params[:sort], direction: params[:direction])
+    @reports = @order.sort_rows(@scope.revenue_by_sub_channel)
     @totals = @scope.totals
     respond_to do |format|
       format.html
@@ -23,7 +25,11 @@ class ReportsController < ApplicationController
   end
 
   def weekly
-    @reports = @scope.weekly_revenue
+    @order = ListingSort.new(
+      columns: { "revenue" => "Faturamento", "establishments" => "ECs com movimento" },
+      default: "revenue", column: params[:sort], direction: params[:direction]
+    )
+    @reports = @order.sort_rows(@scope.weekly_revenue)
   end
 
   # Série mensal do ganho recorrente: todas as competências disponíveis, sem seletor —
@@ -38,6 +44,8 @@ class ReportsController < ApplicationController
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
     @window = three_month_window
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
+    @order = three_month_order
+    @reports = @order.sort_rows(@reports) { |row| three_month_value(row) }
   end
 
   def three_months_sub_channel
@@ -104,6 +112,22 @@ class ReportsController < ApplicationController
   end
 
   private
+
+  # A linha da tela 3M é o subcanal, e cada mês da janela é uma coluna: ordenar por M0, M1
+  # ou M2 é ordenar por aquele mês; "ECs no M0" e "prêmio" são valores da linha inteira.
+  def three_month_order
+    columns = { "accredited" => "ECs no M0", "prize" => "Prêmio da safra" }
+    Array(@window).each_with_index { |period, index| columns["m#{index}"] = "M#{index}" }
+    ListingSort.new(columns:, default: "prize", column: params[:sort], direction: params[:direction])
+  end
+
+  def three_month_value(row)
+    case @order.column
+    when "accredited" then row.dig(:prize, :accredited).to_d
+    when "prize" then row.dig(:prize, :addon_without_auto).to_d + row.dig(:prize, :digitalization).to_d
+    else row[:months][@order.column.delete_prefix("m").to_i]&.fetch(:total).to_d
+    end
+  end
 
   # A janela do 3M vem do calendário (from_date/to_date). Os parâmetros antigos continuam
   # aceitos para não quebrar link salvo: o que muda é a origem, não a regra.
@@ -193,4 +217,15 @@ class ReportsController < ApplicationController
     }.merge(overrides).compact_blank
   end
   helper_method :sub_channel_listing_params
+
+  # Os links de ordenação da tela 3M levam o canal e a janela do calendário junto, senão
+  # ordenar recomeçaria a apuração noutra janela.
+  def three_month_order_params(overrides = {})
+    {
+      channel_id: @selected_channel&.uuid,
+      from_date: @window&.first,
+      to_date: @window&.last
+    }.merge(overrides).compact_blank
+  end
+  helper_method :three_month_order_params
 end

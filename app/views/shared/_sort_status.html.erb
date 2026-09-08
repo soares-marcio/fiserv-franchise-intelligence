@@ -1,0 +1,11 @@
+<%# Diz em que ordem a listagem está — e, portanto, em que ordem a exportação sai — e
+    oferece a volta quando a escolha difere do padrão. Espera `sort` (um ListingSort) e
+    `path`, a mesma lambda usada nos cabeçalhos. %>
+<span class="table-toolbar__breakdown sort-sentence">
+  <%= sort.sentence %>
+  <% unless sort.default? %>
+    ·
+    <%= link_to "Voltar à ordem padrão", path.call(sort: nil, direction: nil, page: nil),
+      class: "sort-reset" %>
+  <% end %>
+</span>

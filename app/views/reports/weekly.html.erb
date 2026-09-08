@@ -15,6 +15,10 @@
         <p class="section-label">Evolução</p>
         <h2 class="table-title">Movimento por semana</h2>
       </div>
+      <% if @reports.any? %>
+        <%= render "shared/sort_status", sort: @order,
+          path: ->(ordem) { weekly_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+      <% end %>
     </div>
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Faturamento por semana, rolável na horizontal">
@@ -23,8 +27,11 @@
           <tr>
             <th scope="col">Competência</th>
             <th scope="col">Semana</th>
-            <th scope="col" class="text-right">Faturamento</th>
-            <th scope="col" class="text-right">ECs com movimento</th>
+            <% caminho = ->(ordem) { weekly_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+            <%= render "shared/sortable_header", sort: @order, column: "revenue",
+              label: "Faturamento", hint: nil, path: caminho %>
+            <%= render "shared/sortable_header", sort: @order, column: "establishments",
+              label: "ECs com movimento", hint: nil, path: caminho %>
           </tr>
         </thead>
         <tbody>

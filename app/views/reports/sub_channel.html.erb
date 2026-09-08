@@ -1,5 +1,7 @@
 <% content_for :title, @sub_channel.name %>
 
+<% caminho_da_ordem = ->(ordem) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(**ordem)) } %>
+
 <div class="grid gap-5">
   <section class="page-hero">
     <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
@@ -224,17 +226,7 @@
               <span class="table-toolbar__breakdown-unit">por CNPJ</span>
             </span>
           <% end %>
-          <%# A ordem vale para a tela e para a exportação, então precisa estar escrita. %>
-          <span class="table-toolbar__breakdown">
-            <%= @order.sentence %>
-            <% unless @order.default? %>
-              ·
-              <%= link_to "Voltar à ordem padrão",
-                sub_channel_report_path(@sub_channel,
-                  sub_channel_listing_params(sort: nil, direction: nil, page: nil)),
-                class: "sort-reset" %>
-            <% end %>
-          </span>
+          <%= render "shared/sort_status", sort: @order, path: caminho_da_ordem %>
           <div class="per-page">
             <span class="section-label">Por página</span>
             <div class="join">
@@ -262,10 +254,10 @@
             <th scope="col">Datas do ciclo</th>
             <%# As três colunas de valor ordenam a listagem: o cabeçalho é compartilhado
                 com as demais telas que têm valor. %>
-            <% caminho = ->(ordem) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(**ordem)) } %>
+
             <% EstablishmentListingQuery::SORT_COLUMNS.each do |column, label| %>
               <%= render "shared/sortable_header", sort: @order, column:, label:,
-                path: caminho,
+                path: caminho_da_ordem,
                 hint: (column == "previous_full_revenue" ? "competência fechada" : (day_range_label(@from_day, @to_day) if @window)) %>
             <% end %>
             <th scope="col" class="text-right variation-col">Variação</th>
