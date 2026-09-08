@@ -5,9 +5,8 @@
     <h2 class="table-title">EC <%= @establishment.ec %></h2>
     <% if @window %>
       <p class="page-description">
-        <%= period_option_label(@window.current_period) %> contra
-        <%= period_option_label(@window.previous_period) %>,
-        <%= day_range_label(@window.from_day, @window.to_day) %>.
+        Mês inteiro das duas competências, como a planilha entrega.
+        O mês atual vai até o dia <%= @window.max_day %> de cobertura.
       </p>
     <% end %>
   </div>
@@ -27,13 +26,22 @@
           </tr>
         </thead>
         <tbody>
+          <% dias_anterior = Time.days_in_month(@window.previous_period.month, @window.previous_period.year) %>
+          <% dias_atual = Time.days_in_month(@window.current_period.month, @window.current_period.year) %>
           <% @rows.each do |row| %>
+            <% day = row["day"].to_i %>
             <% previous = row["previous_amount"].to_d %>
             <% current = row["current_amount"].to_d %>
             <tr>
-              <th scope="row" class="font-mono"><%= format("%02d", row["day"].to_i) %></th>
-              <td class="text-right tabular-nums <%= "opacity-40" if previous.zero? %>"><%= brl(previous) %></td>
-              <td class="text-right tabular-nums <%= "opacity-40" if current.zero? %>"><%= brl(current) %></td>
+              <th scope="row" class="font-mono"><%= format("%02d", day) %></th>
+              <%# Dia que não existe na competência: travessão, não zero — 31 de setembro
+                  não é "sem venda". %>
+              <td class="text-right tabular-nums <%= "opacity-40" if previous.zero? %>">
+                <%= day > dias_anterior ? "—" : brl(previous) %>
+              </td>
+              <td class="text-right tabular-nums <%= "opacity-40" if current.zero? %>">
+                <%= day > dias_atual ? "—" : brl(current) %>
+              </td>
             </tr>
           <% end %>
         </tbody>

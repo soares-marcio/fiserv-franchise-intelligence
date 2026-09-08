@@ -240,7 +240,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /80,00/
   end
 
-  test "lançamentos diários respeitam a faixa de dias pedida" do
+  # A faixa de dias da tela não recorta o modal: ele espelha a planilha, que traz
+  # DIA 01..DIA 31 das duas competências.
+  test "lançamentos diários trazem o mês inteiro mesmo com a tela filtrada" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
     establishment = Establishment.find_by!(ec: "11111111")
@@ -249,8 +251,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       channel_id: channel.uuid, from_day: 1, to_day: 10)
 
     assert_response :success
-    assert_select "tbody th[scope=?]", "row", count: 10
-    assert_select "tbody th[scope=?]", "row", text: "24", count: 0
+    assert_select "tbody th[scope=?]", "row", count: 31
+    assert_select "tbody th[scope=?]", "row", text: "24"
   end
 
   test "mostra os estabelecimentos que compõem os totais do subcanal" do
