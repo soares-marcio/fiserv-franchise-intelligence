@@ -205,17 +205,23 @@
       </div>
       <% if @total_count.to_i.positive? %>
         <div class="table-toolbar__meta">
-          <span class="badge badge-ghost">
-            <%= pluralize(@total_count, "estabelecimento", "estabelecimentos") %>
-          </span>
-          <%# Composição do recorte por status do contrato: a barra já dizia quantos são,
-              agora diz quantos estão de pé. Segue a aba e os demais filtros. %>
+          <%# O badge conta ECs (uma linha por EC); os status contam CNPJs, porque a
+              suspensão é do cliente. São números de coisas diferentes, de propósito. %>
+          <span class="badge badge-ghost"><%= pluralize(@total_count, "EC", "ECs") %></span>
           <% status_counts = @listing.status_counts %>
           <% if status_counts.values.sum.positive? %>
             <span class="table-toolbar__breakdown">
               com
-              <strong><%= status_counts["Active"].to_i %></strong> ativos e
-              <strong><%= status_counts["Suspended"].to_i %></strong> suspensos
+              <span class="tooltip tooltip-bottom" tabindex="0"
+                data-tip="Cliente com pelo menos um EC ativo. Quem trocou de EC — o antigo suspenso, o novo aberto no lugar — continua contando como ativo.">
+                <strong><%= status_counts["Active"].to_i %></strong> ativos
+              </span>
+              e
+              <span class="tooltip tooltip-bottom" tabindex="0"
+                data-tip="Cliente com todos os ECs suspensos. Basta um EC ativo para o CNPJ sair desta contagem.">
+                <strong><%= status_counts["Suspended"].to_i %></strong> suspensos
+              </span>
+              <span class="table-toolbar__breakdown-unit">por CNPJ</span>
             </span>
           <% end %>
           <div class="per-page">

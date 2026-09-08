@@ -232,8 +232,13 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel)
 
     assert_response :success
-    # A planilha sintética põe a loja suspensa em MIC BETA; em MIC ALFA os dois são ativos.
-    assert_select ".table-toolbar__breakdown", text: /2 ativos e 0 suspensos/
+    # Em MIC ALFA a fixture tem dois ECs no mesmo CNPJ, ambos ativos: o badge conta os dois
+    # ECs, e a composição conta o cliente uma vez. É a diferença de unidade, na prática.
+    assert_select ".badge", text: /2 ECs/
+    assert_select ".table-toolbar__breakdown", text: /1 ativos.*0 suspensos.*por CNPJ/m
+    # Cada contagem carrega a regra em tooltip, para a tela explicar sozinha.
+    assert_select ".table-toolbar__breakdown .tooltip[data-tip*=?]", "pelo menos um EC ativo"
+    assert_select ".table-toolbar__breakdown .tooltip[data-tip*=?]", "todos os ECs suspensos"
   end
 
   test "lançamentos diários do EC chegam sem layout, um dia por linha" do

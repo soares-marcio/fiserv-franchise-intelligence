@@ -643,6 +643,15 @@
     font-size: 0.8rem;
   }
 
+  .table-toolbar__breakdown .tooltip {
+    cursor: help;
+    border-bottom: 1px dotted currentcolor;
+  }
+
+  .table-toolbar__breakdown-unit {
+    opacity: 0.7;
+  }
+
   .table-toolbar {
     display: flex;
     padding: 1rem 1.25rem;

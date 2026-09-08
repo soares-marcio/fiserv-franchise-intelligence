@@ -41,15 +41,28 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       "os dois ECs do mesmo CNPJ contam um estabelecimento"
   end
 
-  # A barra da tabela mostra quantos ECs do recorte estão ativos e quantos suspensos.
-  # A fixture tem uma loja suspensa; as contagens seguem a aba e os demais filtros.
-  test "conta ativos e suspensos do recorte" do
+  # A barra conta CNPJs, não ECs: a suspensão é do cliente. As contagens seguem a aba e os
+  # demais filtros; status sem ninguém volta zerado, porque quem lê a barra precisa do zero.
+  test "conta ativos e suspensos do recorte, por CNPJ" do
     assert_equal({ "Active" => 4, "Suspended" => 1 }, listing.status_counts)
     # A aba Em queda tem três: ALFA EXPRESS (caiu), ALFA RETORNO (voltou do zero) e a
     # suspensa, que não vendeu.
     assert_equal({ "Active" => 2, "Suspended" => 1 }, listing(variation: "baixa").status_counts)
-    # Status sem ninguém volta zerado, não some: quem lê a barra precisa do zero explícito.
     assert_equal({ "Active" => 1, "Suspended" => 0 }, listing(query: "ALFA EXPRESS").status_counts)
+  end
+
+  # Decisão do usuário (07/09/2026): o CNPJ é ativo se ao menos um EC estiver ativo, e só
+  # entra em suspensos quando todos os ECs dele estão suspensos. Na carteira real, oito dos
+  # nove CNPJs com status misto são troca de EC — o antigo suspenso, o novo aberto no lugar.
+  test "CNPJ com um EC ativo e outro suspenso conta como ativo" do
+    misto = lojas + [ loja("30000006", "11222333000181", "ALFA LANCHES II",
+      contract_status: "Suspended", dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 }) ]
+    import_synthetic_workbook(lojas: misto, filename: "BIN_TESTE_20260812.xlsx")
+
+    counts = listing.status_counts
+
+    assert_equal 4, counts["Active"], "o CNPJ com um EC ativo continua ativo"
+    assert_equal 1, counts["Suspended"], "só a ALFA SUSPENSA tem todos os ECs suspensos"
   end
 
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do

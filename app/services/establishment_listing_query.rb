@@ -115,14 +115,25 @@ class EstablishmentListingQuery
         current_revenue: row["current_revenue"].to_d
       },
       variation_counts: { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i },
-      status_counts: {
-        "Active" => row["active_count"].to_i, "Suspended" => row["suspended_count"].to_i
-      },
+      status_counts: status_counts(row),
       overall_totals: @variation && {
         previous_revenue: row["overall_previous_revenue"].to_d,
         current_revenue: row["overall_current_revenue"].to_d
       }
     }
+  end
+
+  # Decisão do usuário (07/09/2026): a suspensão é do cliente, não do ponto de venda. Um
+  # CNPJ é ativo se tiver ao menos um EC ativo, e só entra em suspensos quando todos os ECs
+  # dele estão suspensos — por isso o suspenso é o que sobra, e não uma contagem própria.
+  # Na carteira real, oito dos nove CNPJs com status misto são troca de EC: o antigo
+  # suspenso, o novo aberto no lugar. Contá-los como suspensos marcaria como parado quem
+  # apenas migrou. O contrato só tem dois status (EstablishmentsHelper::CONTRACT_STATUSES);
+  # se surgir um terceiro, ele cai em suspensos e este cálculo precisa mudar.
+  def status_counts(row)
+    cnpjs = row["tab_cnpj_count"].to_i
+    active = row["active_count"].to_i
+    { "Active" => active, "Suspended" => cnpjs - active }
   end
 
   # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
@@ -142,8 +153,10 @@ class EstablishmentListingQuery
         COALESCE(SUM(previous_full_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_full_revenue,
         COALESCE(SUM(previous_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_revenue,
         COALESCE(SUM(current_revenue) FILTER (WHERE #{tab_clause}), 0) AS current_revenue,
-        COUNT(*) FILTER (WHERE (#{tab_clause}) AND contract_status = 'Active') AS active_count,
-        COUNT(*) FILTER (WHERE (#{tab_clause}) AND contract_status = 'Suspended') AS suspended_count,
+        COUNT(DISTINCT cnpj) FILTER (WHERE (#{tab_clause})) AS tab_cnpj_count,
+        COUNT(DISTINCT cnpj) FILTER (
+          WHERE (#{tab_clause}) AND contract_status = 'Active'
+        ) AS active_count,
         COUNT(DISTINCT cnpj) AS todas,
         COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
         COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
