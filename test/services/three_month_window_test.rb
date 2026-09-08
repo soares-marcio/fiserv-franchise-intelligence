@@ -50,9 +50,15 @@ class ThreeMonthWindowTest < ActiveSupport::TestCase
       ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-05")
   end
 
-  test "intervalo dentro de um mês só apura esse mês" do
-    assert_equal [ Date.new(2026, 4, 1) ],
-      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-04")
+  # O calendário preenche as duas datas com a mesma no primeiro clique; escolher um dia só
+  # abre a janela cheia, em vez de encolher a apuração para aquele mês sem o usuário pedir.
+  test "as duas datas no mesmo mês mantêm a janela de três meses" do
+    janela = [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ]
+
+    assert_equal janela,
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04-01", end_period: "2026-04-01")
+    assert_equal janela,
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04-01", end_period: "2026-04-20")
   end
 
   # O modelo é dos três primeiros meses: intervalo maior é cortado no M2, não recusado.

@@ -58,11 +58,13 @@ class ThreeMonthEarningsQuery
   end
   private_class_method :months_between
 
+  # O calendário preenche as duas datas com a mesma no primeiro clique: escolher um dia só
+  # não pode encurtar a janela para aquele mês. Só um fim em mês posterior encurta.
   def self.parse_end_period(start, value)
     return if value.blank?
 
     parsed = parse_month(value)
-    return if parsed.nil? || parsed < start
+    return if parsed.nil? || parsed <= start
 
     [ parsed, start + (MAX_WINDOW_MONTHS - 1).months ].min
   end

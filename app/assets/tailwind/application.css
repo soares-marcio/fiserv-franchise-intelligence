@@ -458,12 +458,16 @@
     display: none;
   }
 
+  /* Ancorado à esquerda do campo: com right: 0 o painel crescia para fora da tela quando o
+     campo era estreito e ficava perto da borda esquerda, como na tela 3M — sumiam a coluna
+     de domingo, o botão de ano anterior e o "Limpar datas". */
   .datepicker {
     position: absolute;
     z-index: 40;
     top: calc(100% + 0.4rem);
-    right: 0;
+    left: 0;
     width: min(22rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
     padding: 1rem;
     border: 1px solid color-mix(in oklab, var(--color-base-300) 86%, white);
     border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
