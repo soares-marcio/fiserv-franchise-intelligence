@@ -109,7 +109,7 @@
         <thead>
           <tr>
             <th scope="col">Arquivo</th>
-            <th scope="col">Canal</th>
+            <th scope="col">Master</th>
             <th scope="col">Corte</th>
             <th scope="col">Status</th>
             <th scope="col">Quando</th>
@@ -120,7 +120,7 @@
           <% @import_batches.each do |batch| %>
             <tr>
               <td><%= link_to batch.source_filename, batch, class: "link" %></td>
-              <td><%= batch.channel&.name || "—" %></td>
+              <td><%= channel_name(batch.channel) || "—" %></td>
               <td><%= batch.current_month_cutoff_day ? "dia #{batch.current_month_cutoff_day}" : "—" %></td>
               <td>
                 <%= import_status_badge(batch) %>

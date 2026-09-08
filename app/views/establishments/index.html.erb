@@ -5,7 +5,7 @@
     <p class="eyebrow">Carteira ativa</p>
     <h1 class="page-title">Estabelecimentos</h1>
     <p class="page-description">
-      Cadastro corrente do mapa: nome, CNAE, endereço e sub-canal do último lote
+      Cadastro corrente do mapa: nome, CNAE, endereço e MIC do último lote
       validado. O EC continua sendo o grão técnico; o cliente é o CNPJ.
     </p>
   </section>
@@ -18,7 +18,7 @@
       <label class="grid w-full max-w-xl min-w-0 gap-1.5">
         <span class="section-label">Buscar</span>
         <%= search_field_tag :q, @query, class: "input input-bordered w-full",
-          placeholder: "EC, CNPJ, nome, cidade, CNAE ou sub-canal", autocomplete: "off",
+          placeholder: "EC, CNPJ, nome, cidade, CNAE ou MIC", autocomplete: "off",
           data: { action: "input->live-form#submit" } %>
       </label>
       <%# Digitar reinicia a página, mas mantém o tamanho escolhido. %>
@@ -64,7 +64,7 @@
       <tr>
         <th scope="col">Cliente</th>
         <th scope="col">CNPJ</th>
-        <th scope="col">Sub-canal</th>
+        <th scope="col">MIC</th>
         <th scope="col">Endereço</th>
         <th scope="col">CNAE</th>
         <th scope="col">Status</th>
@@ -92,7 +92,7 @@
           <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(company.cnpj) %></td>
           <td>
             <p><%= establishments.filter_map { |e| e.current_map_snapshot&.sub_channel&.name }.uniq.join(" · ").presence || "—" %></p>
-            <p class="text-xs opacity-60"><%= lead.channel.name %></p>
+            <p class="text-xs opacity-60"><%= channel_name(lead.channel) %></p>
           </td>
           <td>
             <p class="max-w-xs"><%= present_or_dash(snapshot&.street_address) %></p>

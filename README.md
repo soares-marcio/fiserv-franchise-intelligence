@@ -8,6 +8,8 @@ em períodos de mesma duração.
 
 | Termo | Significado |
 | --- | --- |
+| **Master** | Como a interface chama o **canal** da carteira. É o vocabulário do negócio e o dos próprios dados: o canal importado chama-se `MASTER FRANQUEADO ...`. No banco, no código e nas mensagens do import a palavra continua sendo `channel` / `CANAL` — esta última porque aponta uma coluna da planilha com esse nome. |
+| **MIC** | Como a interface chama o **subcanal**. Idem: os dez subcanais da carteira se chamam `MIC ...`. No banco é `sub_channel`; na planilha, `SUB-CANAL`. |
 | **EC** | Código do estabelecimento comercial (8 dígitos). |
 | **Competência** | Mês de referência do faturamento, sempre no primeiro dia do mês. |
 | **M-1** | Competência anterior à que está aberta. |

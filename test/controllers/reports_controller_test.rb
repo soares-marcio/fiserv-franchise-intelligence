@@ -71,7 +71,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     refresh_audit_views
     get recurring_reports_path
     assert_response :success
-    assert_select "h1", text: "Ganho recorrente por subcanal"
+    assert_select "h1", text: "Ganho recorrente por MIC"
     # A tela virou cards: o subcanal nomeia o card e a série fica na tabela interna.
     assert_select "article.earnings-card .earnings-card__name a", text: "MIC GAMA"
     assert_select "article.earnings-card tbody th[scope=row]", text: /ago\/2026/
@@ -82,7 +82,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   test "a página 3M abre sem volume importado e explica a dependência da planilha" do
     get three_months_reports_path
     assert_response :success
-    assert_select "h1", text: "Ganhos 3M por subcanal"
+    assert_select "h1", text: "Ganhos 3M por MIC"
     assert_select ".empty-state", text: /depende das colunas de volume da planilha/
   end
 
@@ -159,7 +159,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "p", text: /Exibindo\s+Junho a julho de 2026/
   end
 
-  test "página 3M lista subcanais e navega para os cards de estabelecimento" do
+  test "página 3M lista MICs e navega para os cards de estabelecimento" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
@@ -203,7 +203,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Mês anterior comparável"
   end
 
-  test "seleciona um canal e o preserva nas exportações" do
+  test "seleciona um Master e o preserva nas exportações" do
     selected = Channel.create!(external_id: "1", name: "CANAL A")
     Channel.create!(external_id: "2", name: "CANAL B")
 
@@ -216,7 +216,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{reports_path(format: :xlsx, channel_id: selected.uuid)}']", text: "Exportar XLSX"
   end
 
-  test "liga cada subcanal à sua listagem de estabelecimentos" do
+  test "liga cada MIC à sua listagem de estabelecimentos" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -260,7 +260,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O quinto card traz o ticket médio da carteira, com o divisor escrito: a conta mistura o
   # mês fechado com o status de hoje, e sem a explicação vira outra coisa na cabeça de quem lê.
-  test "a tela do subcanal mostra o ticket médio e o divisor" do
+  test "a tela do MIC mostra o ticket médio e o divisor" do
     import_synthetic_workbook
     refresh_audit_views
     sub_channel = SubChannel.find_by!(name: "MIC ALFA")
@@ -342,7 +342,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody th[scope=?]", "row", text: "24"
   end
 
-  test "mostra os estabelecimentos que compõem os totais do subcanal" do
+  test "mostra os estabelecimentos que compõem os totais do MIC" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -468,7 +468,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_select ".metric-value", text: "R$\u00A0100,00"
     # A variação verdadeira do subcanal fica ancorada ao lado da enviesada da aba.
-    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*Subcanal inteiro:.*\+25,0%/m
+    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*MIC inteiro:.*\+25,0%/m
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_select ".metric-value", text: "R$\u00A0100,00", count: 0
@@ -535,7 +535,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   # A tela de subcanal é a que tem filtros, abas e paginação — e era a única sem exportação.
   # O arquivo leva o recorte da tela inteiro, menos a paginação: exportar só a página seria
   # entregar um recorte que ninguém pediu.
-  test "exporta a listagem do subcanal em CSV com todas as linhas do recorte" do
+  test "exporta a listagem do MIC em CSV com todas as linhas do recorte" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
     seed_second_establishment(channel, sub_channel)
@@ -586,7 +586,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # period_coverages é lida para o corte do cabeçalho e para os períodos da janela; a tela e
   # a exportação reaproveitam as duas leituras em vez de repeti-las a cada chamada do scope.
-  test "a tela do subcanal lê period_coverages duas vezes, e a exportação também" do
+  test "a tela do MIC lê period_coverages duas vezes, e a exportação também" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -598,7 +598,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "exporta a listagem do subcanal em XLSX" do
+  test "exporta a listagem do MIC em XLSX" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -609,7 +609,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.headers["Content-Disposition"], "mic-a"
   end
 
-  test "a tela de subcanal oferece os dois formatos preservando o recorte" do
+  test "a tela de MIC oferece os dois formatos preservando o recorte" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -643,7 +643,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.variation-tabs a[aria-current='page'] .tab-title", text: /Em queda/
   end
 
-  test "responde não encontrado para subcanal desconhecido" do
+  test "responde não encontrado para MIC desconhecido" do
     get sub_channel_report_path(id: SecureRandom.uuid)
     assert_response :not_found
   end

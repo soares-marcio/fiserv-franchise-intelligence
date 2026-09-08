@@ -15,11 +15,11 @@ class ReportsExporterTest < ActiveSupport::TestCase
     @totals = { previous_full_revenue: 1800.to_d, previous_revenue: 600.to_d, current_revenue: 600.to_d }
   end
 
-  test "csv traz cabeçalho, uma linha por subcanal e o total" do
+  test "csv traz cabeçalho, uma linha por MIC e o total" do
     table = CSV.parse(exporter.to_csv, headers: true)
 
     assert_equal ReportsExporter::HEADERS, table.headers
-    assert_equal [ "MIC ALFA", "MIC BETA", "TOTAL" ], table.map { |row| row["Sub-canal"] }
+    assert_equal [ "MIC ALFA", "MIC BETA", "TOTAL" ], table.map { |row| row["MIC"] }
     assert_equal "400.0", table[0]["Mês anterior comparável"]
     assert_equal "1000.0", table[0]["Mês anterior (cheio)"]
   end

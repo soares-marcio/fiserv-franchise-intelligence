@@ -70,14 +70,14 @@ module ApplicationHelper
       [ breadcrumb_current("Semanal") ]
     when "sub_channel"
       [ breadcrumb_link("Faturamento", reports_path),
-        breadcrumb_current(@sub_channel&.name || "Subcanal") ]
+        breadcrumb_current(@sub_channel&.name || "MIC") ]
     when "three_months"
       [ breadcrumb_current("Ganhos 3M") ]
     when "recurring"
       [ breadcrumb_current("Ganho recorrente") ]
     when "three_months_sub_channel"
       [ breadcrumb_link("Ganhos 3M", three_months_reports_path),
-        breadcrumb_current(@sub_channel&.name || "Subcanal") ]
+        breadcrumb_current(@sub_channel&.name || "MIC") ]
     else
       [ breadcrumb_current("Faturamento") ]
     end
@@ -221,6 +221,16 @@ module ApplicationHelper
 
     verb = VARIATION_VERBS.fetch(direction)
     safe_join([ variation_icon_tip(direction, verb), signed_variation(previous, current) ], " ")
+  end
+
+  # Master é como a tela chama o canal — o vocabulário do negócio, e o que os próprios dados
+  # dizem: o canal da carteira se chama "MASTER FRANQUEADO ...". A exceção é o canal fictício,
+  # que nasce com o nome da coluna que faltou na planilha: no banco ele continua "SEM CANAL",
+  # que é o que o analista procura no arquivo e o que a mensagem de import cita.
+  def channel_name(channel)
+    return if channel.nil?
+
+    channel.name == BinImport::ChannelResolver::FALLBACK_NAME ? "SEM MASTER" : channel.name
   end
 
   def period_option_label(date)

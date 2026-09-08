@@ -37,8 +37,8 @@
   <%= render "detail_group", title: "Identidade", rows: [
     [ "EC", @establishment.ec ],
     [ "CNPJ", formatted_cnpj(@establishment.company.cnpj) ],
-    [ "Canal", @establishment.channel.name ],
-    [ "Sub-canal", @snapshot&.sub_channel&.name ],
+    [ "Master", channel_name(@establishment.channel) ],
+    [ "MIC", @snapshot&.sub_channel&.name ],
     [ "Status do contrato", @snapshot&.contract_status ],
     [ "Tipo de pessoa", @snapshot&.entity_type ]
   ] %>

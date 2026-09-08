@@ -64,7 +64,7 @@
       <button class="search-content" type="button" data-action="click->app-layout#openSearch"
         data-app-layout-target="searchTrigger" aria-haspopup="dialog">
         <%= icon("magnifying-glass", css: "icon") %>
-        <span class="sr-only">Buscar EC, CNPJ, nome ou subcanal</span>
+        <span class="sr-only">Buscar EC, CNPJ, nome ou MIC</span>
         <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
       </button>
       <%= header_file_status %>
@@ -84,14 +84,14 @@
       </button>
     </div>
     <div class="search-modal__field">
-      <input type="search" class="search-modal__input" placeholder="EC, CNPJ, nome, cidade, CNAE ou subcanal"
-        aria-label="Buscar estabelecimentos e subcanais" autocomplete="off"
+      <input type="search" class="search-modal__input" placeholder="EC, CNPJ, nome, cidade, CNAE ou MIC"
+        aria-label="Buscar estabelecimentos e MICs" autocomplete="off"
         data-app-layout-target="searchInput"
         data-action="input->app-layout#search keydown->app-layout#searchKeydown">
     </div>
     <div class="search-results">
       <%= turbo_frame_tag "global-search", target: "_top", data: { app_layout_target: "searchResults" } do %>
-        <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou subcanal.</p>
+        <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou MIC.</p>
       <% end %>
     </div>
   </div>

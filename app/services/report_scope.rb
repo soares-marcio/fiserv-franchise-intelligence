@@ -8,7 +8,7 @@ class ReportScope
   RECURRING_SORT_COLUMNS = {
     "earnings" => "Ganho na janela",
     "last_month" => "Último mês fechado",
-    "name" => "Subcanal"
+    "name" => "MIC"
   }.freeze
 
   SUB_CHANNEL_SORT_COLUMNS = {

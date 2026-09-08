@@ -1,6 +1,6 @@
 class ReportsExporter
   HEADERS = [
-    "Sub-canal", "Dia de corte atual", "Mês anterior (cheio)",
+    "MIC", "Dia de corte atual", "Mês anterior (cheio)",
     "Mês anterior comparável", "Mês atual", "Variação alinhada %"
   ].freeze
 

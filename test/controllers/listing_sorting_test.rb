@@ -9,7 +9,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     refresh_audit_views
   end
 
-  test "faturamento por subcanal abre ordenado pelo mês anterior cheio" do
+  test "faturamento por MIC abre ordenado pelo mês anterior cheio" do
     get reports_path
 
     assert_response :success
@@ -17,7 +17,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_select ".sort-sentence", text: /Ordenado por Mês anterior cheio, do maior para o menor/
   end
 
-  test "a coluna escolhida ordena e o link preserva o canal" do
+  test "a coluna escolhida ordena e o link preserva o Master" do
     channel = Channel.first
 
     get reports_path(sort: "current_revenue", direction: "asc", channel_id: channel.uuid)
@@ -34,7 +34,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
 
   # "Quem caiu mais?" é a pergunta desta tela, e a variação não é coluna da consulta: é a
   # razão entre o mês atual e a base comparável, calculada na leitura.
-  test "a listagem de subcanais ordena pela variação" do
+  test "a listagem de MICs ordena pela variação" do
     get reports_path(sort: "variation", direction: "asc")
 
     assert_response :success
@@ -75,7 +75,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
   # A tela do recorrente virou cards: o card é o subcanal e a série de meses vive dentro
   # dele. Isso resolve a ambiguidade que a tabela tinha — "ordenar por débito de qual mês?"
   # deixou de existir, porque o que se ordena é o ganho da janela inteira.
-  test "o recorrente lista cards de subcanal ordenados pelo ganho da janela" do
+  test "o recorrente lista cards de MIC ordenados pelo ganho da janela" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
@@ -92,14 +92,14 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_select "article.earnings-card tbody th[scope=row]", minimum: 1
   end
 
-  test "o recorrente aceita ordenar por nome do subcanal" do
+  test "o recorrente aceita ordenar por nome do MIC" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
     get recurring_reports_path(sort: "name", direction: "asc")
 
     assert_response :success
-    assert_select ".sort-sentence", text: /Ordenado por Subcanal, do menor para o maior/
+    assert_select ".sort-sentence", text: /Ordenado por MIC, do menor para o maior/
     assert_select "a.sort-reset"
     # A ordem dos cards precisa ser a alfabética de verdade, não só o rótulo.
     nomes = css_select("article.earnings-card .earnings-card__name").map { |node| node.text.strip }

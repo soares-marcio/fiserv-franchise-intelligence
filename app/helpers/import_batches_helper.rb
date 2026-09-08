@@ -7,7 +7,7 @@ module ImportBatchesHelper
       "Arquivo: #{batch.source_filename}",
       "Enviado em: #{batch.created_at.strftime('%d/%m/%Y %H:%M')}",
       "Lote ##{batch.id} · identificação do arquivo: #{batch.file_checksum.first(12)}",
-      ("Canal: #{batch.channel.name}" if batch.channel),
+      ("Master: #{batch.channel.name}" if batch.channel),
       "Status: #{batch.status}",
       "",
       *batch.validation_errors

@@ -6,7 +6,7 @@
     <p class="eyebrow">Detalhes do lote</p>
     <h1 class="page-title break-words"><%= @import_batch.source_filename %></h1>
     <p class="page-description">
-      <%= @import_batch.channel&.name || "canal ainda não identificado" %> ·
+      <%= channel_name(@import_batch.channel) || "Master ainda não identificado" %> ·
       <%= import_status_badge(@import_batch) %>
       <% if @import_batch.current_month_cutoff_day %>
         · corte dia <%= @import_batch.current_month_cutoff_day %>

@@ -89,7 +89,7 @@ todo. Numa grade de cards não há onde pôr esse rodapé.
 
 Anatomia do card, igual nos dois (`.earnings-card`):
 
-1. cabeçalho com o nome do subcanal, que leva ao nível seguinte;
+1. cabeçalho com o nome do MIC, que leva ao nível seguinte;
 2. bloco fechado com o número que a tela apura — ganho na janela, prêmio de entrada — e a
    composição dele logo abaixo (no 3M, pares rótulo/valor em `.earnings-card__parts`);
 3. tabela com a série, dentro do card.
@@ -115,7 +115,7 @@ visível; quem já traz o array inteiro na memória ordena em Ruby (`sort_rows`)
 | Faturamento (`/reports`) | mês anterior cheio, base comparável, mês atual, variação | mês anterior cheio |
 | Estabelecimentos do subcanal | mês anterior cheio, base comparável, mês atual | mês anterior cheio (no banco, com desempate) |
 | Semanal | faturamento, ECs com movimento | faturamento |
-| Recorrente | ganho na janela, último mês fechado, subcanal | ganho na janela |
+| Recorrente | ganho na janela, último mês fechado, MIC | ganho na janela |
 | Ganhos 3M | prêmio de entrada, ECs no M0, M0, M1, M2 | prêmio de entrada |
 
 Linha **sem valor** vai para o fim nos dois sentidos, como o `NULLS LAST` do SQL: a variação
@@ -147,6 +147,30 @@ Três regras que o modal segue de propósito:
 - **A terceira coluna é condicional.** A planilha traz duas competências; a mais antiga só
   existe se importações anteriores a cobriram. Ela aparece quando está em `period_coverages`
   — coluna zerada diria "sem venda" onde a verdade é "sem dado".
+
+### Vocabulário da tela
+
+A interface chama **Master** o que o banco chama `channel`, e **MIC** o que ele chama
+`sub_channel`. Não é apelido inventado: é o que os próprios dados dizem — o canal da carteira
+se chama `MASTER FRANQUEADO ...` e os dez subcanais começam com `MIC`.
+
+A fronteira que mantém o import intacto não é de camada, é de **referente**:
+
+| A frase aponta | Palavra | Onde |
+| --- | --- | --- |
+| A coluna da planilha | `CANAL`, `SUB-CANAL` | `EXPECTED_HEADERS`, mensagens do import, o nome `SEM CANAL` gravado no banco |
+| A entidade no código | `channel`, `sub_channel` | tabelas, models, parâmetros de URL |
+| O que o usuário lê | **Master**, **MIC** | rótulos, títulos, filtros, contagens, exportação |
+
+O importador lê células pelo nome do cabeçalho e escreve linhas; ele nunca lê rótulo de tela.
+Por isso a terceira faixa muda sozinha. E a mensagem "confira o CANAL da planilha" **não**
+muda: ela manda o analista a uma coluna que se chama assim no arquivo — traduzi-la a tornaria
+falsa.
+
+O canal fictício é o único ponto onde as duas se encontram: no banco ele continua `SEM CANAL`
+(é o que o analista procura no arquivo), e `ApplicationHelper#channel_name` o exibe como
+`SEM MASTER`. `test/controllers/vocabulary_test.rb` abre as dez telas e falha se alguma voltar
+a escrever a palavra antiga — foi ele que achou as duas dicas de busca esquecidas nesta troca.
 
 ### Tokens
 

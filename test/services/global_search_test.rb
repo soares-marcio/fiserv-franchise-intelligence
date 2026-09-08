@@ -20,7 +20,7 @@ class GlobalSearchTest < ActiveSupport::TestCase
     assert_not search.empty?, "termo curto não é 'nada encontrado', é busca não feita"
   end
 
-  test "acha o subcanal pelo nome, em qualquer caixa" do
+  test "acha o MIC pelo nome, em qualquer caixa" do
     import_synthetic_workbook
 
     assert_equal [ "MIC ALFA" ], GlobalSearch.new("mic alfa").sub_channels.map(&:name)

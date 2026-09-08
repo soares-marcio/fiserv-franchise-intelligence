@@ -7,11 +7,11 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     assert_selector "nav[aria-label='Navegação principal']"
     assert_selector "nav[aria-label='Trilha de navegação']", text: "Importar arquivo"
 
-    click_button "Buscar EC, CNPJ, nome ou subcanal"
+    click_button "Buscar EC, CNPJ, nome ou MIC"
     assert_selector "[role='dialog']", visible: true
-    assert_selector "input[aria-label='Buscar estabelecimentos e subcanais']:focus"
+    assert_selector "input[aria-label='Buscar estabelecimentos e MICs']:focus"
 
-    find("input[aria-label='Buscar estabelecimentos e subcanais']").set("teste")
+    find("input[aria-label='Buscar estabelecimentos e MICs']").set("teste")
     assert_text "A carteira ainda não tem arquivo importado"
 
     find("body").send_keys(:escape)
