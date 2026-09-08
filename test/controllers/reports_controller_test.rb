@@ -223,6 +223,19 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O EC da listagem abre os lançamentos diários num modal; o conteúdo chega por Turbo
   # Frame, sem layout, com a mesma janela e faixa de dias da tela que o abriu.
+  # A barra da tabela diz quantos ECs do recorte estão ativos e quantos suspensos.
+  test "a barra da listagem mostra ativos e suspensos do recorte" do
+    import_synthetic_workbook
+    refresh_audit_views
+    sub_channel = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(sub_channel)
+
+    assert_response :success
+    # A planilha sintética põe a loja suspensa em MIC BETA; em MIC ALFA os dois são ativos.
+    assert_select ".table-toolbar__breakdown", text: /2 ativos e 0 suspensos/
+  end
+
   test "lançamentos diários do EC chegam sem layout, um dia por linha" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)

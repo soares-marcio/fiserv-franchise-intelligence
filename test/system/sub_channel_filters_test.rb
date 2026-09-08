@@ -133,4 +133,25 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert_current_path(/from_date=2026-04-04/)
     assert_current_path(/to_date=2026-07-09/)
   end
+
+  # O modal fica dentro do .table-frame da listagem e herdava o cabeçalho fixo ancorado na
+  # topbar da página: o thead parava no meio da tabela. Aqui o scrollport é a própria
+  # tabela, então o cabeçalho tem que colar no topo dela ao rolar.
+  test "cabeçalho da tabela do modal cola no topo ao rolar" do
+    visit sub_channel_report_path(@sub_channel)
+    find("tr.daily-row", text: "30000001").all("td")[1].click
+    assert_selector "dialog.daily-modal[open]"
+    assert_selector "dialog.daily-modal tbody th", text: "01"
+
+    page.execute_script("document.querySelector('dialog.daily-modal .table-scroll').scrollTop = 400")
+    colado = page.evaluate_script(<<~JS)
+      (() => {
+        const scroll = document.querySelector("dialog.daily-modal .table-scroll")
+        const th = scroll.querySelector("thead th")
+        return Math.abs(th.getBoundingClientRect().top - scroll.getBoundingClientRect().top) < 2
+      })()
+    JS
+
+    assert colado, "o cabeçalho da tabela precisa ficar no topo do scroll do modal"
+  end
 end

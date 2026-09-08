@@ -208,6 +208,16 @@
           <span class="badge badge-ghost">
             <%= pluralize(@total_count, "estabelecimento", "estabelecimentos") %>
           </span>
+          <%# Composição do recorte por status do contrato: a barra já dizia quantos são,
+              agora diz quantos estão de pé. Segue a aba e os demais filtros. %>
+          <% status_counts = @listing.status_counts %>
+          <% if status_counts.values.sum.positive? %>
+            <span class="table-toolbar__breakdown">
+              com
+              <strong><%= status_counts["Active"].to_i %></strong> ativos e
+              <strong><%= status_counts["Suspended"].to_i %></strong> suspensos
+            </span>
+          <% end %>
           <div class="per-page">
             <span class="section-label">Por página</span>
             <div class="join">

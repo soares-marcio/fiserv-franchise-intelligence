@@ -638,6 +638,11 @@
     box-shadow: 0 16px 45px rgb(68 47 34 / 7%);
   }
 
+  .table-toolbar__breakdown {
+    color: var(--cork-muted);
+    font-size: 0.8rem;
+  }
+
   .table-toolbar {
     display: flex;
     padding: 1rem 1.25rem;
@@ -1340,12 +1345,15 @@
     overflow: auto;
   }
 
-  /* O diálogo vive dentro do .table-frame da listagem e herdava o cabeçalho fixo ancorado
-     na topbar da página: dentro do modal ele parava no meio da tabela. Aqui o scrollport é
-     a própria tabela, então o cabeçalho cola no topo dela. */
-  .daily-modal thead th {
+  /* O diálogo vive dentro do .table-frame da listagem e herda o cabeçalho fixo ancorado na
+     topbar da página, que o fazia parar no meio da tabela. Dentro do modal o scrollport é a
+     própria tabela. Três classes de propósito: com duas, a especificidade empatava com
+     .table-frame thead th e vencia a que viesse depois no arquivo — que é a de lá. */
+  .daily-modal .table-scroll thead th {
     top: 0;
+    z-index: 3;
     background: var(--color-base-100);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
   }
 
   .daily-row {

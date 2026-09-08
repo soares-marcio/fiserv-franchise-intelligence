@@ -55,7 +55,7 @@ class EstablishmentListingQuery
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
       totals: summary[:totals], page:, per_page:, variation_counts: summary[:variation_counts],
-      overall_totals: summary[:overall_totals]
+      status_counts: summary[:status_counts], overall_totals: summary[:overall_totals]
     )
   end
 
@@ -115,6 +115,9 @@ class EstablishmentListingQuery
         current_revenue: row["current_revenue"].to_d
       },
       variation_counts: { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i },
+      status_counts: {
+        "Active" => row["active_count"].to_i, "Suspended" => row["suspended_count"].to_i
+      },
       overall_totals: @variation && {
         previous_revenue: row["overall_previous_revenue"].to_d,
         current_revenue: row["overall_current_revenue"].to_d
@@ -139,6 +142,8 @@ class EstablishmentListingQuery
         COALESCE(SUM(previous_full_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_full_revenue,
         COALESCE(SUM(previous_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_revenue,
         COALESCE(SUM(current_revenue) FILTER (WHERE #{tab_clause}), 0) AS current_revenue,
+        COUNT(*) FILTER (WHERE (#{tab_clause}) AND contract_status = 'Active') AS active_count,
+        COUNT(*) FILTER (WHERE (#{tab_clause}) AND contract_status = 'Suspended') AS suspended_count,
         COUNT(DISTINCT cnpj) AS todas,
         COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
         COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
