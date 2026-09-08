@@ -71,7 +71,11 @@
           <% report[:months].each_with_index do |month, index| %>
             <th scope="col" class="text-right">
               M<%= index %> · <%= l(month[:period], format: "%b/%Y") %>
-              <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
+              <%# Mesma dica dos cabeçalhos ordenáveis: badge ao lado do mês competia com ele
+                  e alargava a coluna; abaixo, miúdo, é o que qualifica a coluna. %>
+              <% if month[:partial] %>
+                <span class="block font-normal normal-case tracking-normal opacity-60">parcial</span>
+              <% end %>
             </th>
           <% end %>
         </tr>
