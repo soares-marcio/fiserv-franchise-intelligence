@@ -1,0 +1,17 @@
+<%# Cabeçalho de coluna que ordena a listagem. O link ocupa a célula inteira, dica incluída:
+    com cabeçalho de duas linhas, clicar na dica não podia ser um clique perdido.
+    Espera `sort` (um ListingSort), `column`, `label`, `hint` e `path`, uma lambda que recebe
+    os parâmetros de ordenação e devolve a URL da tela. %>
+<th scope="col" class="text-right" aria-sort="<%= sort.aria_for(column) %>">
+  <% proxima = sort.next_direction_for(column) %>
+  <%= link_to path.call(sort: column, direction: proxima, page: nil),
+      class: "sort-link #{"is-sorted" if sort.active?(column)}",
+      title: "Ordenar por #{label}, #{proxima == 'desc' ? 'do maior para o menor' : 'do menor para o maior'}" do %>
+    <span class="sort-link__label">
+      <%= label %><%= sort_indicator(column, sort.column, sort.direction) %>
+    </span>
+    <% if hint.present? %>
+      <span class="block font-normal normal-case tracking-normal opacity-60"><%= hint %></span>
+    <% end %>
+  <% end %>
+</th>

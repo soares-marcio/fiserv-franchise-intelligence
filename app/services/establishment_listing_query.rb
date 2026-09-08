@@ -51,13 +51,16 @@ class EstablishmentListingQuery
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
     @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
-    @sort = sort.to_s.presence_in(SORT_COLUMNS.keys) || DEFAULT_SORT
-    # Primeiro clique na coluna ordena do maior para o menor: é o que se procura numa
-    # auditoria de faturamento.
-    @direction = direction.to_s.presence_in(SORT_DIRECTIONS) || DEFAULT_DIRECTION
+    @order = self.class.listing_sort(column: sort, direction:)
 
     @page = page
     @per_page = per_page
+  end
+
+  # A tela e a consulta falam do mesmo objeto de ordenação: uma lista fechada só.
+  def self.listing_sort(column: nil, direction: nil)
+    ListingSort.new(columns: SORT_COLUMNS, default: DEFAULT_SORT,
+      default_direction: DEFAULT_DIRECTION, column:, direction:)
   end
 
   def self.empty_page
@@ -201,7 +204,7 @@ class EstablishmentListingQuery
   # O EC continua sendo o desempate: sem ele, linhas de mesmo valor trocariam de lugar
   # entre páginas a cada consulta.
   def order_by
-    "#{@sort} #{@direction.upcase} NULLS LAST, ec, establishment_id"
+    @order.sql_order_by(tiebreak: "ec, establishment_id")
   end
 
   def tab_clause
