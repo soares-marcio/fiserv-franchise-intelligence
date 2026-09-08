@@ -46,6 +46,20 @@
         <p class="metric-value"><%= adjustment.zero? ? "—" : brl(adjustment) %></p>
         <p class="metric-hint">Acelerador ou redutor, mês contra mês</p>
       </article>
+      <%# O total da janela morava num rodapé abaixo dos cards; na primeira dobra ele é lido
+          junto dos dois números do último mês, que é a comparação que interessa. %>
+      <article class="metric-card" data-tone="green">
+        <p class="metric-label">Ganho na janela</p>
+        <p class="metric-value">
+          <%= brl(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
+        </p>
+        <p class="metric-hint">
+          Soma dos <%= @reports.size %> subcanais · repasse
+          <%= brl(@reports.sum { |r| r[:recurring_total] }) %> · ajuste
+          <%= brl(@reports.sum { |r| r[:adjustment_total] }) %>. Cada competência é apurada
+          sozinha.
+        </p>
+      </article>
     </section>
 
     <section class="grid gap-4">
@@ -75,15 +89,6 @@
       </div>
 
       <div class="earnings-card-footer">
-        <p class="section-label">Soma de todos os subcanais</p>
-        <p class="metric-value">
-          <%= brl(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
-        </p>
-        <p class="metric-hint">
-          Informativa: cada competência é apurada sozinha. Repasse
-          <%= brl(@reports.sum { |r| r[:recurring_total] }) %> · ajuste
-          <%= brl(@reports.sum { |r| r[:adjustment_total] }) %>.
-        </p>
         <p class="metric-hint">
           † Net MDR do arquivo mais antigo disponível: a competência é anterior ao primeiro
           arquivo importado. Com os arquivos semanais, cada mês novo fica ancorado no MDR

@@ -784,6 +784,13 @@
   /* Ganho recorrente em cards: o card é o subcanal, e a série de meses vive dentro dele.
      Duas colunas em tela larga porque a tabela interna tem sete colunas — em card de um
      terço ela viraria rolagem horizontal permanente. */
+  /* Dinheiro não quebra em duas linhas. O brl já protege o espaço entre "R$" e o número,
+     mas o hífen do negativo continua sendo ponto de quebra: numa célula estreita, o "-"
+     ficava numa linha e o valor na seguinte, saindo do alinhamento da linha. */
+  .table .tabular-nums {
+    white-space: nowrap;
+  }
+
   .earnings-card-grid {
     display: grid;
     gap: 1rem;
