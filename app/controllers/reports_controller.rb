@@ -65,6 +65,8 @@ class ReportsController < ApplicationController
     @from_date = parse_filter_date(params[:from_date])
     @to_date = parse_filter_date(params[:to_date])
     @query = params[:q].to_s.strip
+    @sort = params[:sort].to_s.presence_in(EstablishmentListingQuery::SORT_COLUMNS.keys)
+    @direction = params[:direction].to_s.presence_in(EstablishmentListingQuery::SORT_DIRECTIONS) || "desc"
     @window = @scope.establishment_window(
       period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
     )
@@ -120,6 +122,8 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       query: @query,
+      sort: @sort,
+      direction: @direction,
       page: params[:page],
       per_page: params[:per_page]
     )
@@ -145,7 +149,8 @@ class ReportsController < ApplicationController
       sub_channel_id: @sub_channel.id, variation: @selected_variation,
       statuses: @selected_statuses, period: params[:period],
       from_day: params[:from_day], to_day: params[:to_day],
-      date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query
+      date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query,
+      sort: @sort, direction: @direction
     )
     EstablishmentListingExporter.new(rows, sub_channel_name: @sub_channel.name, window: @window)
   end
@@ -175,6 +180,8 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       q: @query,
+      sort: @sort,
+      direction: (@direction if @sort),
       period: @period,
       from_day: @from_day,
       to_day: @to_day,

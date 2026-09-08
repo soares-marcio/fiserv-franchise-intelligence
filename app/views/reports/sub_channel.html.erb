@@ -249,22 +249,25 @@
             <th scope="col">CNPJ</th>
             <th scope="col">Estabelecimento</th>
             <th scope="col">Datas do ciclo</th>
-            <th scope="col" class="text-right">
-              Mês anterior cheio
-              <span class="block font-normal normal-case tracking-normal opacity-60">competência fechada</span>
-            </th>
-            <th scope="col" class="text-right">
-              Mês anterior comparável
-              <% if @window %>
-                <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
-              <% end %>
-            </th>
-            <th scope="col" class="text-right">
-              Mês atual
-              <% if @window %>
-                <span class="block font-normal normal-case tracking-normal opacity-60"><%= day_range_label(@from_day, @to_day) %></span>
-              <% end %>
-            </th>
+            <%# As três colunas de valor ordenam a listagem: o rótulo é um link que troca o
+                sentido a cada clique e leva os filtros junto. %>
+            <% [
+              [ "previous_full_revenue", "Mês anterior cheio", "competência fechada" ],
+              [ "previous_revenue", "Mês anterior comparável", (day_range_label(@from_day, @to_day) if @window) ],
+              [ "current_revenue", "Mês atual", (day_range_label(@from_day, @to_day) if @window) ]
+            ].each do |column, label, hint| %>
+              <th scope="col" class="text-right"
+                aria-sort="<%= sort_aria(column, @sort, @direction) %>">
+                <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(
+                      sort: column, direction: sort_direction_for(column, @sort, @direction), page: nil
+                    )), class: "sort-link #{"is-sorted" if column == @sort}" do %>
+                  <%= label %><%= sort_indicator(column, @sort, @direction) %>
+                <% end %>
+                <% if hint %>
+                  <span class="block font-normal normal-case tracking-normal opacity-60"><%= hint %></span>
+                <% end %>
+              </th>
+            <% end %>
             <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>

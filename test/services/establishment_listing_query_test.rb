@@ -65,6 +65,32 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_equal 1, counts["Suspended"], "só a ALFA SUSPENSA tem todos os ECs suspensos"
   end
 
+  # As três colunas de valor podem ordenar a listagem; o EC continua sendo o critério de
+  # desempate, senão a paginação embaralha linhas de mesmo valor entre páginas.
+  test "ordena pelas colunas de valor, nos dois sentidos" do
+    por_atual = listing(sort: "current_revenue", direction: "desc").rows.map { |row| row["ec"] }
+    assert_equal %w[30000001 30000004 30000005 30000002 30000003], por_atual
+
+    # Os cinco valores são distintos, então crescente é a lista invertida.
+    assert_equal por_atual.reverse,
+      listing(sort: "current_revenue", direction: "asc").rows.map { |row| row["ec"] }
+
+    # Mês anterior cheio: 1.000 (ALFA LANCHES), 400 (SUSPENSA), 50 (EXPRESS) e dois zerados,
+    # que caem no fim desempatados por EC.
+    por_anterior = listing(sort: "previous_full_revenue", direction: "desc").rows.map { |row| row["ec"] }
+    assert_equal %w[30000001 30000003 30000002 30000004 30000005], por_anterior
+  end
+
+  test "coluna desconhecida ou sentido inválido caem na ordem por EC" do
+    padrao = listing.rows.map { |row| row["ec"] }
+
+    assert_equal padrao, listing(sort: "cnpj; DROP TABLE").rows.map { |row| row["ec"] }
+    assert_equal padrao, listing(sort: nil, direction: "desc").rows.map { |row| row["ec"] }
+    # Sentido inválido com coluna válida vale como desc, que é o primeiro clique na tela.
+    assert_equal listing(sort: "current_revenue", direction: "desc").rows.map { |row| row["ec"] },
+      listing(sort: "current_revenue", direction: "seja lá o que for").rows.map { |row| row["ec"] }
+  end
+
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do
     row = listing.rows.find { |candidate| candidate["ec"] == "30000001" }
     loja = lojas.first

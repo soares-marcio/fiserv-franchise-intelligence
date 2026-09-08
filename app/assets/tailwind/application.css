@@ -638,6 +638,27 @@
     box-shadow: 0 16px 45px rgb(68 47 34 / 7%);
   }
 
+  .sort-link {
+    display: inline-flex;
+    gap: 0.3rem;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .sort-link:hover,
+  .sort-link:focus-visible {
+    color: var(--color-primary);
+  }
+
+  .sort-link.is-sorted {
+    color: var(--color-primary);
+  }
+
+  .sort-indicator {
+    font-size: 0.7em;
+  }
+
   .table-toolbar__breakdown {
     color: var(--cork-muted);
     font-size: 0.8rem;

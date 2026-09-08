@@ -223,6 +223,27 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O EC da listagem abre os lançamentos diários num modal; o conteúdo chega por Turbo
   # Frame, sem layout, com a mesma janela e faixa de dias da tela que o abriu.
+  # As três colunas de valor ordenam a listagem pelo clique no rótulo; o link leva os
+  # filtros junto e o sentido alterna a cada clique.
+  test "as colunas de valor ordenam a listagem e anunciam o sentido" do
+    import_synthetic_workbook
+    refresh_audit_views
+    sub_channel = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(sub_channel)
+
+    assert_select "th[aria-sort=none] a.sort-link", text: /Mês atual/
+    assert_select "a.sort-link[href*=?]", "sort=current_revenue"
+    assert_select "a.sort-link[href*=?]", "direction=desc"
+
+    get sub_channel_report_path(sub_channel, sort: "current_revenue", direction: "desc", q: "ALFA")
+
+    assert_select "th[aria-sort=descending] a.sort-link.is-sorted", text: /Mês atual/
+    # O segundo clique inverte e preserva a busca.
+    assert_select "a.sort-link[href*=?]", "direction=asc"
+    assert_select "a.sort-link[href*=?]", "q=ALFA"
+  end
+
   # A barra da tabela diz quantos ECs do recorte estão ativos e quantos suspensos.
   test "a barra da listagem mostra ativos e suspensos do recorte" do
     import_synthetic_workbook
