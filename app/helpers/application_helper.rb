@@ -233,6 +233,17 @@ module ApplicationHelper
     channel.name == BinImport::ChannelResolver::FALLBACK_NAME ? "SEM MASTER" : channel.name
   end
 
+  # Intensidade da célula do calendário em cinco faixas, não num gradiente contínuo: cinco
+  # tons se distinguem de relance, e o que se quer é ver o padrão da semana sem ler número.
+  # Dia zerado fica sem preenchimento — ausência de venda não é um tom de laranja.
+  def calendar_heat(revenue, max_revenue)
+    revenue = revenue.to_d
+    max_revenue = max_revenue.to_d
+    return 0 if revenue <= 0 || max_revenue <= 0
+
+    [ (revenue / max_revenue * 5).ceil, 5 ].min
+  end
+
   def period_option_label(date)
     I18n.l(date.to_date, format: "%B de %Y")
   end

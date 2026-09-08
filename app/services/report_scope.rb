@@ -125,6 +125,52 @@ class ReportScope
     query(:weekly_revenue, "period, week")
   end
 
+  # Faturamento de cada dia da competência, para o calendário. O generate_series vai até o
+  # dia coberto pelo arquivo, e não até o fim do mês: dia coberto sem venda é zero — o buraco
+  # que o usuário abre a tela para ver —, mas dia além da cobertura não tem linha nenhuma, e a
+  # tela o mostra como "sem dado". Zero ali seria afirmar que a carteira não vendeu.
+  def daily_calendar(period:, covered_days:)
+    calendar_rows(<<~SQL, period:, covered_days:)
+      SELECT dias.day,
+        COALESCE(SUM(revenue.amount), 0) AS revenue,
+        COUNT(DISTINCT revenue.establishment_id) FILTER (WHERE revenue.amount <> 0) AS establishments
+      FROM generate_series(1, :covered_days::int) AS dias(day)
+      LEFT JOIN daily_revenues_consolidated revenue
+        ON revenue.day = dias.day AND revenue.period = :period
+        AND (:channel_id IS NULL OR revenue.channel_id = :channel_id)
+      GROUP BY dias.day
+      ORDER BY dias.day
+    SQL
+  end
+
+  # Uma linha por semana de calendário, começando no domingo — a convenção do datepicker do
+  # projeto. Os ECs são contados distintos na semana: somar os dias contaria o mesmo EC uma
+  # vez por dia em que ele vendeu.
+  def weekly_calendar(period:, covered_days:)
+    calendar_rows(<<~SQL, period:, covered_days:)
+      SELECT ((:period::date + (day - 1)) - EXTRACT(DOW FROM (:period::date + (day - 1)))::int) AS week_start,
+        SUM(amount) AS revenue,
+        COUNT(DISTINCT establishment_id) FILTER (WHERE amount <> 0) AS establishments
+      FROM daily_revenues_consolidated
+      WHERE period = :period AND day <= :covered_days::int
+        AND (:channel_id IS NULL OR channel_id = :channel_id)
+      GROUP BY 1
+      ORDER BY 1
+    SQL
+  end
+
+  # Total da competência até um dia. O mesmo método serve ao mês escolhido e à âncora do mês
+  # anterior — é o corte que muda, não a conta.
+  def month_totals(period:, up_to_day:)
+    calendar_rows(<<~SQL, period:, covered_days: up_to_day).first
+      SELECT COALESCE(SUM(amount), 0) AS revenue,
+        COUNT(DISTINCT establishment_id) FILTER (WHERE amount <> 0) AS establishments
+      FROM daily_revenues_consolidated
+      WHERE period = :period AND day <= :covered_days::int
+        AND (:channel_id IS NULL OR channel_id = :channel_id)
+    SQL
+  end
+
   # Menor corte entre os canais do recorte: comparar períodos de durações diferentes
   # entre canais distorceria a variação.
   def cutoff_day
@@ -143,6 +189,11 @@ class ReportScope
   end
 
   private
+
+  def calendar_rows(sql, period:, covered_days:)
+    binds = { period:, covered_days:, channel_id: @channel_id }
+    ApplicationRecord.connection.exec_query(ApplicationRecord.sanitize_sql_array([ sql, binds ])).to_a
+  end
 
   def cached(name, &block)
     Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @channel_id, cutoff_day ], &block)

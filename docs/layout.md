@@ -114,7 +114,6 @@ visível; quem já traz o array inteiro na memória ordena em Ruby (`sort_rows`)
 | --- | --- | --- |
 | Faturamento (`/reports`) | mês anterior cheio, base comparável, mês atual, variação | mês anterior cheio |
 | Estabelecimentos do subcanal | mês anterior cheio, base comparável, mês atual | mês anterior cheio (no banco, com desempate) |
-| Semanal | faturamento, ECs com movimento | faturamento |
 | Recorrente | ganho na janela, último mês fechado, MIC | ganho na janela |
 | Ganhos 3M | prêmio de entrada, ECs no M0, M0, M1, M2 | prêmio de entrada |
 
@@ -129,6 +128,36 @@ Três partials, conforme onde o link mora:
 | `shared/_sortable_header` | cabeçalho de tabela; o link ocupa a célula inteira, dica incluída |
 | `shared/_sort_links` | barra acima da grade, nas telas de card, onde não há cabeçalho para clicar |
 | `shared/_sort_status` | a frase "Ordenado por…" e o link de volta à ordem padrão |
+
+### Calendário do ritmo
+
+A tela `/reports/weekly` mostra a competência escolhida como calendário: uma linha por semana
+começando no **domingo**, cada dia sob o seu dia da semana, com faturamento e ECs na célula e
+o total da semana ao fim da linha.
+
+A troca não foi estética. A tabela anterior agrupava em faixas de sete dias a partir do dia 1,
+e isso embaralha os dias da semana: medido em agosto de 2026, **sábado fatura 78% mais que
+domingo** (R$ 318.584 contra R$ 179.024 de média diária). Uma faixa com dois sábados vale
+~320 mil a mais que outra com um só — 20% de uma semana —, e a tela apresentava essa diferença
+de calendário como diferença de desempenho. No calendário o mix de dias é o que se lê.
+
+Três estados de célula, e é neles que mora a honestidade da tela (`RevenueCalendar`):
+
+| Estado | Quando | Como aparece |
+| --- | --- | --- |
+| fora | dia de outra competência, nas bordas da grade | célula vazia |
+| sem dado | dia além do corte do arquivo | travessão, apagado |
+| coberto | dia que o arquivo cobre | valor, zero inclusive |
+
+Sem essa distinção o mês corrente — coberto só até o dia de corte — mostraria dezenas de
+células afirmando R$ 0,00. A intensidade da cor sai de `ApplicationHelper#calendar_heat`, em
+cinco faixas do laranja da marca (tokens `--cork-heat-1..5`), normalizadas pelo maior dia do
+próprio mês; dia zerado não recebe cor, porque ausência de venda não é um tom.
+
+O total da semana conta **ECs distintos**, nunca a soma dos dias: o mesmo EC vende em vários
+dias da mesma semana. E a âncora do mês anterior segue a regra de alinhamento da casa — mês
+escolhido parcial compara com o anterior até o mesmo dia; competência anterior não importada
+declara a lacuna em vez de mostrar zero.
 
 ### Modal de lançamentos diários
 

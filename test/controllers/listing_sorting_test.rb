@@ -63,15 +63,6 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_select ".sort-sentence", text: /Ordenado por M1, do menor para o maior/
   end
 
-  # A semanal é uma linha por semana: faturamento e ECs são valores da própria linha.
-  test "a tela semanal ordena por faturamento" do
-    get weekly_reports_path(sort: "establishments", direction: "desc")
-
-    assert_response :success
-    assert_select "th[aria-sort=descending] a.sort-link", text: /ECs com movimento/
-    assert_select ".sort-sentence", text: /Ordenado por ECs com movimento/
-  end
-
   # A tela do recorrente virou cards: o card é o subcanal e a série de meses vive dentro
   # dele. Isso resolve a ambiguidade que a tabela tinha — "ordenar por débito de qual mês?"
   # deixou de existir, porque o que se ordena é o ganho da janela inteira.

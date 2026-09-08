@@ -62,6 +62,71 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # O calendário do ritmo. Agosto de 2026 começa num sábado, então a primeira linha da grade
+  # tem só o dia 1 — e é isso que a tabela antiga apresentava como "semana fraca".
+  test "o calendário abre na competência mais recente, com uma linha por semana" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path
+
+    assert_response :success
+    assert_select "h1", text: "Faturamento diário"
+    assert_select "table.revenue-calendar tbody tr", count: 6
+    assert_select "tbody th[scope=row]", text: "dia 1"
+    assert_select "tbody th[scope=row]", text: "2–8"
+    assert_select "tbody th[scope=row]", text: "30–31"
+    # Sete dias da semana mais a faixa de dias e o total da semana.
+    assert_select "thead th[scope=col]", count: 9
+  end
+
+  # A regra que a tela existe para não quebrar: o arquivo cobre até o dia de corte, e do dia
+  # seguinte em diante não é "não vendeu", é "não sabemos".
+  test "dia além da cobertura aparece como sem dado, não como zero" do
+    import_synthetic_workbook(lojas: [ BinWorkbook.default_lojas.first ])
+    refresh_audit_views
+    ultimo = PeriodCoverage.order(:period).last
+
+    get weekly_reports_path(period: ultimo.period.to_s)
+
+    assert_response :success
+    assert_select "td.calendar-cell.is-uncovered", minimum: 1
+    assert_select "td.calendar-cell.is-uncovered", text: /—/
+  end
+
+  # ECs da semana são distintos: os dois ECs vendem nos dias 3 e 4, que caem na mesma linha
+  # da grade. Somar os dias diria 4; a resposta é 2.
+  test "o total da semana conta ECs distintos, não a soma dos dias" do
+    lojas = [
+      BinWorkbook::Loja.new(ec: "30000001", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
+        legal_name: "ALFA LTDA", trade_name: "ALFA", contract_status: "Active",
+        dias_m1: { 1 => 10 }, dias_atual: { 3 => 100, 4 => 200 }),
+      BinWorkbook::Loja.new(ec: "30000002", cnpj: "44555666000172", sub_channel_name: "MIC BETA",
+        legal_name: "BETA LTDA", trade_name: "BETA", contract_status: "Active",
+        dias_m1: { 1 => 10 }, dias_atual: { 3 => 50, 4 => 70 })
+    ]
+    import_synthetic_workbook(lojas:)
+    refresh_audit_views
+
+    get weekly_reports_path(period: "2026-08-01")
+
+    assert_response :success
+    semana = css_select("tbody tr")[1].css("td.calendar-week").text
+    assert_match(/420,00/, semana, "a semana soma os quatro lançamentos")
+    assert_match(/\b2 ECs/, semana, "e conta dois ECs distintos, não quatro")
+  end
+
+  # Julho é escolhível e junho não foi importado: a âncora declara a lacuna em vez de zerar.
+  test "sem competência anterior importada, a âncora diz que não há comparação" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path(period: "2026-07-01")
+
+    assert_response :success
+    assert_select ".metric-hint", text: /Competência não importada/
+  end
+
   test "ganho recorrente abre vazio, e com dados mostra a série mensal" do
     get recurring_reports_path
     assert_response :success

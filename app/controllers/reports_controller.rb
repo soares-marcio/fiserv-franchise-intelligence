@@ -25,11 +25,47 @@ class ReportsController < ApplicationController
   end
 
   def weekly
-    @order = ListingSort.new(
-      columns: { "revenue" => "Faturamento", "establishments" => "ECs com movimento" },
-      default: "revenue", column: params[:sort], direction: params[:direction]
+    @period = calendar_period
+    return if @period.nil?
+
+    @covered_days = covered_days_for(@period)
+    @calendar = RevenueCalendar.new(period: @period, covered_days: @covered_days,
+      days: @scope.daily_calendar(period: @period, covered_days: @covered_days),
+      weeks: @scope.weekly_calendar(period: @period, covered_days: @covered_days))
+    @totals = @scope.month_totals(period: @period, up_to_day: @covered_days)
+    load_previous_month_anchor
+  end
+
+  # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
+  # é oferecido nem aceito. Sem escolha, abre na mais recente.
+  def calendar_period
+    disponiveis = @scope.available_periods.map { |row| row["period"].to_date }
+    pedida = begin
+      params[:period].presence&.to_date&.beginning_of_month
+    rescue Date::Error, ArgumentError, TypeError
+      nil
+    end
+    disponiveis.include?(pedida) ? pedida : disponiveis.first
+  end
+
+  def covered_days_for(period)
+    coverage = @scope.available_periods.find { |row| row["period"].to_date == period }
+    [ coverage["max_known_day"].to_i, Time.days_in_month(period.month, period.year) ].min
+  end
+
+  # Âncora do mês anterior, com a regra de alinhamento da casa: mês escolhido fechado compara
+  # com o anterior inteiro; mês escolhido parcial compara com o anterior **até o mesmo dia**.
+  # Sem isso, setembro com dois dias apareceria como queda de 93%.
+  def load_previous_month_anchor
+    @previous_period = @period.prev_month
+    disponiveis = @scope.available_periods.map { |row| row["period"].to_date }
+    return unless disponiveis.include?(@previous_period)
+
+    @aligned = @covered_days < Time.days_in_month(@period.month, @period.year)
+    @previous_totals = @scope.month_totals(
+      period: @previous_period,
+      up_to_day: @aligned ? @covered_days : covered_days_for(@previous_period)
     )
-    @reports = @order.sort_rows(@scope.weekly_revenue)
   end
 
   # Série mensal do ganho recorrente: todas as competências disponíveis, sem seletor —

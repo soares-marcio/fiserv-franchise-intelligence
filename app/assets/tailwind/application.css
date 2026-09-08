@@ -36,6 +36,14 @@
   --noise: 0;
   --cork-primary-100: color-mix(in oklab, var(--color-primary) 12%, white);
   --cork-primary-200: color-mix(in oklab, var(--color-primary) 24%, white);
+  /* Escala do calendário: cinco degraus do mesmo laranja da marca. Como token, e não como
+     color-mix dentro do background, porque o compilador resolve a propriedade e emitiria um
+     laranja sólido de fallback em cada célula. */
+  --cork-heat-1: color-mix(in oklab, var(--color-primary) 5%, white);
+  --cork-heat-2: color-mix(in oklab, var(--color-primary) 12%, white);
+  --cork-heat-3: color-mix(in oklab, var(--color-primary) 20%, white);
+  --cork-heat-4: color-mix(in oklab, var(--color-primary) 30%, white);
+  --cork-heat-5: color-mix(in oklab, var(--color-primary) 42%, white);
   --cork-success-100: color-mix(in oklab, var(--color-success) 12%, white);
   --cork-warning-100: color-mix(in oklab, var(--color-warning) 16%, white);
   --cork-danger-100: color-mix(in oklab, var(--color-error) 12%, white);
@@ -789,6 +797,65 @@
      ficava numa linha e o valor na seguinte, saindo do alinhamento da linha. */
   .table .tabular-nums {
     white-space: nowrap;
+  }
+
+  /* Calendário do ritmo: sete colunas de dia da semana, mais a faixa de dias à esquerda e o
+     total da semana à direita. */
+  .revenue-calendar td,
+  .revenue-calendar th {
+    vertical-align: top;
+  }
+
+  .calendar-cell {
+    min-width: 5.5rem;
+    border-radius: 0.5rem;
+  }
+
+  .calendar-cell__day {
+    display: block;
+    color: var(--cork-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+
+  .calendar-cell__value {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .calendar-cell__meta {
+    display: block;
+    color: var(--cork-muted);
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .calendar-cell[data-heat="1"] { background: var(--cork-heat-1); }
+  .calendar-cell[data-heat="2"] { background: var(--cork-heat-2); }
+  .calendar-cell[data-heat="3"] { background: var(--cork-heat-3); }
+  .calendar-cell[data-heat="4"] { background: var(--cork-heat-4); }
+  .calendar-cell[data-heat="5"] { background: var(--cork-heat-5); }
+
+  /* Dia de outra competência e dia sem cobertura não são estados de valor: não recebem cor da
+     escala, e o sem-cobertura fica visivelmente apagado. */
+  .calendar-cell.is-outside {
+    background: transparent;
+  }
+
+  .calendar-cell.is-uncovered {
+    opacity: 0.45;
+  }
+
+  .calendar-week {
+    border-left: 1px solid var(--color-base-300);
+    white-space: nowrap;
+  }
+
+  .calendar-week__value {
+    display: block;
+    font-weight: 700;
   }
 
   .earnings-card-grid {
