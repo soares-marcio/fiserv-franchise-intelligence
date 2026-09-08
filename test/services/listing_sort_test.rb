@@ -67,6 +67,17 @@ class ListingSortTest < ActiveSupport::TestCase
     assert_equal [ 90, 5 ], ordenadas.map { |row| row[:prize][:total] }
   end
 
+  # Nem toda coluna é dinheiro: a tela do recorrente ordena por nome do subcanal. Sem
+  # tratar texto, "MIC GAMA".to_d viraria zero e a ordenação não faria nada.
+  test "coluna de texto ordena alfabeticamente, ignorando maiúsculas" do
+    rows = [ { "nome" => "MIC GAMA" }, { "nome" => "mic alfa" }, { "nome" => "MIC BETA" } ]
+    sort = ListingSort.new(columns: { "nome" => "Subcanal" }, default: "nome",
+      column: "nome", direction: "asc")
+
+    assert_equal [ "mic alfa", "MIC BETA", "MIC GAMA" ],
+      sort.sort_rows(rows).map { |row| row["nome"] }
+  end
+
   private
 
   def build(column: nil, direction: nil)

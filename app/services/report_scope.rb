@@ -2,6 +2,15 @@ class ReportScope
   # Colunas de valor que a tela de faturamento por subcanal deixa ordenar, com o rótulo que
   # levam no cabeçalho. A listagem vem inteira da consulta em cache: a ordem é aplicada na
   # leitura e nunca entra na chave do cache, senão cada clique viraria uma entrada nova.
+  # A tela do recorrente ordena cards, não linhas: o card é o subcanal com a série dele.
+  # Por isso as opções são valores da janela inteira, e não de um mês — "ordenar por débito"
+  # não teria resposta única com seis competências por subcanal.
+  RECURRING_SORT_COLUMNS = {
+    "earnings" => "Ganho na janela",
+    "last_month" => "Último mês fechado",
+    "name" => "Subcanal"
+  }.freeze
+
   SUB_CHANNEL_SORT_COLUMNS = {
     "previous_full_revenue" => "Mês anterior cheio",
     "previous_revenue" => "Mês anterior comparável",

@@ -48,77 +48,43 @@
       </article>
     </section>
 
-    <section class="table-frame" data-controller="sticky-table">
-      <div class="table-toolbar">
-        <div>
-          <p class="section-label">Série mensal</p>
-          <h2 class="table-title">Ganho de cada mês, por subcanal</h2>
-        </div>
-      </div>
-      <div class="table-scroll" role="region" tabindex="0"
-      aria-label="Ganho recorrente por subcanal, rolável na horizontal">
-        <table class="table">
-          <thead>
-            <tr>
-              <th scope="col">Subcanal</th>
-              <th scope="col">Mês</th>
-              <th scope="col" class="text-right">Débito</th>
-              <th scope="col" class="text-right">Crédito</th>
-              <th scope="col" class="text-right">Net MDR</th>
-              <th scope="col" class="text-right">Repasse</th>
-              <th scope="col" class="text-right">Ajuste</th>
-              <th scope="col" class="text-right">Ganho do mês</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% @reports.each do |report| %>
-              <% report[:months].each_with_index do |month, index| %>
-                <tr>
-                  <td>
-                    <% if index.zero? %>
-                      <%= link_to report[:name], sub_channel_report_path(id: report[:uuid]), class: "link" %>
-                    <% end %>
-                  </td>
-                  <td>
-                    <%= l(month[:period], format: "%b/%Y") %>
-                    <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
-                  </td>
-                  <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
-                  <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
-                  <td class="text-right tabular-nums">
-                    <%= month[:net_mdr] ? number_with_precision(month[:net_mdr], precision: 2) + "%" : "—" %>
-                    <% if month[:mdr_fallback] %>
-                      <span class="metric-hint" title="MDR do arquivo mais antigo: não havia arquivo deste mês">†</span>
-                    <% end %>
-                  </td>
-                  <td class="text-right tabular-nums"><%= brl(month[:recurring]) %></td>
-                  <td class="text-right tabular-nums">
-                    <% adjustment = month[:accelerator] - month[:reducer] %>
-                    <% if adjustment.zero? %>
-                      —
-                    <% else %>
-                      <span class="<%= adjustment.positive? ? "text-success" : "text-error" %>"><%= brl(adjustment) %></span>
-                    <% end %>
-                  </td>
-                  <td class="text-right tabular-nums font-semibold">
-                    <%= brl(month[:recurring] + month[:accelerator] - month[:reducer]) %>
-                  </td>
-                </tr>
-              <% end %>
+    <section class="grid gap-4">
+      <div class="earnings-card-bar">
+        <span class="badge badge-ghost"><%= pluralize(@reports.size, "subcanal", "subcanais") %></span>
+        <%= render "shared/sort_status", sort: @order,
+          path: ->(ordem) { recurring_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+        <nav class="earnings-card-bar__sort" aria-label="Ordenar os subcanais">
+          <% caminho = ->(ordem) { recurring_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+          <% ReportScope::RECURRING_SORT_COLUMNS.each do |column, label| %>
+            <%= link_to caminho.call(sort: column, direction: @order.next_direction_for(column)),
+              class: "sort-link #{"is-sorted" if @order.active?(column)}",
+              aria: { current: ("true" if @order.active?(column)) } do %>
+              <span class="sort-link__label">
+                <%= label %><%= sort_indicator(column, @order.column, @order.direction) %>
+              </span>
             <% end %>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="5">Soma dos meses exibidos (informativa — cada mês é apurado sozinho)</td>
-              <td class="text-right tabular-nums"><%= brl(@reports.sum { |r| r[:recurring_total] }) %></td>
-              <td class="text-right tabular-nums"><%= brl(@reports.sum { |r| r[:adjustment_total] }) %></td>
-              <td class="text-right tabular-nums font-semibold">
-                <%= brl(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-        <p class="metric-hint m-3">
+          <% end %>
+        </nav>
+      </div>
+
+      <%# Cards em duas colunas: a série de sete colunas não cabe em card de um terço. %>
+      <div class="earnings-card-grid">
+        <% @reports.each do |report| %>
+          <%= render "recurring_card", report: %>
+        <% end %>
+      </div>
+
+      <div class="earnings-card-footer">
+        <p class="section-label">Soma de todos os subcanais</p>
+        <p class="metric-value">
+          <%= brl(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
+        </p>
+        <p class="metric-hint">
+          Informativa: cada competência é apurada sozinha. Repasse
+          <%= brl(@reports.sum { |r| r[:recurring_total] }) %> · ajuste
+          <%= brl(@reports.sum { |r| r[:adjustment_total] }) %>.
+        </p>
+        <p class="metric-hint">
           † Net MDR do arquivo mais antigo disponível: a competência é anterior ao primeiro
           arquivo importado. Com os arquivos semanais, cada mês novo fica ancorado no MDR
           da própria época.

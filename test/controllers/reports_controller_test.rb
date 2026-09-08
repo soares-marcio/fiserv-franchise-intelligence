@@ -72,8 +72,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get recurring_reports_path
     assert_response :success
     assert_select "h1", text: "Ganho recorrente por subcanal"
-    assert_select "td a", text: "MIC GAMA"
-    assert_select "td", text: /ago\/2026/
+    # A tela virou cards: o subcanal nomeia o card e a série fica na tabela interna.
+    assert_select "article.earnings-card .earnings-card__name a", text: "MIC GAMA"
+    assert_select "article.earnings-card tbody th[scope=row]", text: /ago\/2026/
     assert_no_match(/translation missing/i, response.body)
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Ganho recorrente"
   end

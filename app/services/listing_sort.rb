@@ -70,7 +70,16 @@ class ListingSort
   # valor sob a chave da coluna — as telas de ganho montam hashes aninhados.
   def sort_rows(rows, &extractor)
     extractor ||= ->(row) { row[column] || row[column.to_sym] }
-    ordenadas = rows.sort_by { |row| extractor.call(row).to_d }
+    ordenadas = rows.sort_by { |row| comparable(extractor.call(row)) }
     direction == "desc" ? ordenadas.reverse : ordenadas
+  end
+
+  private
+
+  # Nem toda coluna é dinheiro: a tela do recorrente ordena por nome de subcanal. Sem tratar
+  # texto, "MIC GAMA".to_d viraria zero e a ordenação não faria nada — falharia em silêncio,
+  # que é o pior jeito de falhar.
+  def comparable(value)
+    value.is_a?(String) ? value.downcase : value.to_d
   end
 end

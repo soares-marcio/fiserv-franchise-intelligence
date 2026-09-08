@@ -35,7 +35,9 @@ class ReportsController < ApplicationController
   # Série mensal do ganho recorrente: todas as competências disponíveis, sem seletor —
   # a tela cresce um mês a cada ciclo de planilhas.
   def recurring
-    @reports = @scope.recurring_earnings
+    @order = ListingSort.new(columns: ReportScope::RECURRING_SORT_COLUMNS, default: "earnings",
+      column: params[:sort], direction: params[:direction])
+    @reports = @order.sort_rows(@scope.recurring_earnings) { |row| recurring_sort_value(row) }
   end
 
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
@@ -112,6 +114,18 @@ class ReportsController < ApplicationController
   end
 
   private
+
+  # O card do recorrente ordena por valores da janela inteira. O nome sai como string, então
+  # sort_rows recebe o texto e a comparação é alfabética; os demais são dinheiro.
+  def recurring_sort_value(row)
+    case @order.column
+    when "name" then row[:name]
+    when "last_month"
+      fechado = row[:months].reject { |month| month[:partial] }.max_by { |month| month[:period] }
+      fechado ? fechado[:recurring] + fechado[:accelerator] - fechado[:reducer] : 0
+    else row[:recurring_total] + row[:adjustment_total]
+    end
+  end
 
   # A linha da tela 3M é o subcanal, e cada mês da janela é uma coluna: ordenar por M0, M1
   # ou M2 é ordenar por aquele mês; "ECs no M0" e "prêmio" são valores da linha inteira.
