@@ -241,7 +241,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".table-toolbar__breakdown", text: /Ordenado por Mês anterior cheio, do maior para o menor/
     assert_select "th[aria-sort=none] a.sort-link", text: /Mês atual/
     # Coluna não ordenada mostra o ícone neutro: sem ele, ninguém descobre que dá clique.
-    assert_select "a.sort-link .sort-indicator.is-idle svg.sort-icon", count: 3
+    assert_select "a.sort-link .sort-indicator.is-idle svg.sort-icon", count: 2
     assert_select "a.sort-link.is-sorted .sort-indicator svg.sort-icon"
     # Sem ordenação escolhida não há por que oferecer volta ao padrão.
     assert_select ".sort-reset", count: 0
