@@ -847,6 +847,32 @@
     font-size: 0.75rem;
   }
 
+  /* As parcelas do prêmio são dado, não nota de rodapé: rótulo pequeno em cima, valor com
+     peso embaixo, separadas do número grande por um filete. */
+  .earnings-card__parts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.75rem;
+    margin-top: 0.65rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .earnings-card__parts dt {
+    color: var(--cork-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .earnings-card__parts dd {
+    color: var(--cork-strong);
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* No desktop o .table-scroll geral fica overflow: visible, para o cabeçalho fixo da
      listagem principal funcionar. Dentro do card isso fazia a tabela de sete colunas vazar
      por cima do card vizinho: aqui o scrollport é o próprio card, e o item de grid precisa

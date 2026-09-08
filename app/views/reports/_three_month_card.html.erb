@@ -31,16 +31,29 @@
         <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %>
       <% end %>
     </p>
-    <p class="earnings-card__breakdown">
-      <%= pluralize(prize[:accredited], "EC credenciado", "ECs credenciados") %> no M0
-      · digitalização <%= brl(prize[:digitalization]) %>
-      <% if intervalo %>
-        · adicional <%= brl(prize[:addon_without_auto]) %> –
-        <%= brl(prize[:addon_with_auto]) %>, intervalo pendente da definição de antecipação
-      <% else %>
-        · adicional <%= brl(prize[:addon_without_auto]) %>
-      <% end %>
-    </p>
+    <%# A composição é o que explica o prêmio: as duas parcelas somam o número de cima, e a
+        safra diz de quantos ECs ele saiu. Em frase corrida esses valores ficavam com o peso
+        de nota de rodapé. %>
+    <dl class="earnings-card__parts">
+      <div>
+        <dt>ECs no M0</dt>
+        <dd><%= prize[:accredited] %></dd>
+      </div>
+      <div>
+        <dt>Digitalização</dt>
+        <dd><%= brl(prize[:digitalization]) %></dd>
+      </div>
+      <div>
+        <dt>Adicional por faturamento</dt>
+        <dd>
+          <%= brl(prize[:addon_without_auto]) %><% if intervalo %> –
+            <%= brl(prize[:addon_with_auto]) %><% end %>
+        </dd>
+      </div>
+    </dl>
+    <% if intervalo %>
+      <p class="earnings-card__breakdown">Intervalo pendente da definição de antecipação</p>
+    <% end %>
   </div>
 
   <div class="table-scroll" role="region" tabindex="0"
