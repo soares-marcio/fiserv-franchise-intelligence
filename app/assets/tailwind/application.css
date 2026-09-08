@@ -798,6 +798,7 @@
 
   .earnings-card {
     display: grid;
+    min-width: 0;
     gap: 0.9rem;
     padding: 1.15rem 1.25rem;
     border: 1px solid var(--color-base-300);
@@ -829,7 +830,21 @@
     font-size: 1.45rem;
   }
 
+  /* No desktop o .table-scroll geral fica overflow: visible, para o cabeçalho fixo da
+     listagem principal funcionar. Dentro do card isso fazia a tabela de sete colunas vazar
+     por cima do card vizinho: aqui o scrollport é o próprio card, e o item de grid precisa
+     de min-width: 0, senão a tabela larga estica a coluna inteira. */
+  .earnings-card .table-scroll {
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .earnings-card__head > * {
+    min-width: 0;
+  }
+
   .earnings-card__table {
+    min-width: 34rem;
     font-size: 0.82rem;
   }
 

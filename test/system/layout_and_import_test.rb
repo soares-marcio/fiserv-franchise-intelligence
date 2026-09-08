@@ -32,4 +32,24 @@ class LayoutAndImportTest < ApplicationSystemTestCase
   ensure
     File.delete(path) if path && File.exist?(path)
   end
+
+  # A tabela de sete colunas dentro do card vazava por cima do card vizinho: no desktop o
+  # .table-scroll geral é overflow: visible, e o item de grid sem min-width: 0 esticava a
+  # coluna inteira. O card tem que conter a própria tabela, rolando por dentro.
+  test "os cards do recorrente contêm a tabela em vez de vazar" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    visit recurring_reports_path
+    assert_selector "article.earnings-card"
+
+    vazamento = page.evaluate_script(<<~JS)
+      (() => {
+        const cards = [...document.querySelectorAll("article.earnings-card")]
+        return cards.filter((card) => card.scrollWidth > card.clientWidth + 1).length
+      })()
+    JS
+
+    assert_equal 0, vazamento, "nenhum card pode transbordar o próprio limite"
+  end
 end
