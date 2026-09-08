@@ -254,11 +254,14 @@ module ApplicationHelper
   end
 
   # Coluna ordenável sem indicador não se anuncia: quem não passa o mouse não descobre que
-  # dá para clicar. O símbolo neutro fica apagado; a coluna ativa mostra o sentido.
+  # dá para clicar. Ícones Phosphor, como o resto da casca: caret-up-down em repouso e o
+  # sentido na coluna ativa.
+  SORT_ICONS = { idle: "caret-up-down", "desc" => "caret-down", "asc" => "caret-up" }.freeze
+
   def sort_indicator(column, current_sort, current_direction)
     ativa = column == current_sort
-    simbolo = ativa ? (current_direction == "desc" ? "▼" : "▲") : "⇅"
-    tag.span(simbolo, class: "sort-indicator #{"is-idle" unless ativa}", aria: { hidden: true })
+    nome = ativa ? SORT_ICONS.fetch(current_direction) : SORT_ICONS.fetch(:idle)
+    tag.span(icon(nome, css: "sort-icon"), class: "sort-indicator #{"is-idle" unless ativa}")
   end
 
   # Frase que diz em que ordem a tela está — e, portanto, em que ordem a exportação sai.

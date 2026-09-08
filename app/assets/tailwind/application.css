@@ -660,18 +660,26 @@
     color: var(--color-primary);
   }
 
-  /* Tamanho absoluto de propósito: o cabeçalho é pequeno e em maiúsculas, e um indicador
-     em em ficava com ~8px — invisível justamente para quem ainda não sabe que pode clicar. */
+  /* Ícone, não glifo de texto: o cabeçalho é pequeno e em maiúsculas, e um caractere em em
+     ficava com ~8px. Tamanho absoluto e traço grosso para o indicador se ver de longe. */
   .sort-indicator {
-    display: inline-block;
-    min-width: 1em;
-    font-size: 0.95rem;
-    line-height: 1;
-    vertical-align: -0.05em;
+    display: inline-flex;
+    width: 1.05rem;
+    height: 1.05rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sort-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    stroke: currentcolor;
+    stroke-width: 12;
   }
 
   .sort-indicator.is-idle {
-    opacity: 0.55;
+    color: var(--cork-strong);
+    opacity: 0.8;
   }
 
   .sort-link:hover .sort-indicator.is-idle,
