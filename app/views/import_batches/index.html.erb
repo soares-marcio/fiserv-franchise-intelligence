@@ -57,7 +57,7 @@
       <p class="metric-value">Falhou</p>
       <p class="metric-hint">
         <%= link_to @last_batch.source_filename, @last_batch, class: "link" %> —
-        <%= @last_batch.validation_errors.first %>
+        o que houve e como reportar está logo abaixo.
       </p>
     </article>
   <% elsif @last_batch %>
@@ -91,6 +91,10 @@
     </p>
   </article>
 </div>
+
+<% if @last_batch&.status == "failed" && @last_batch.validation_errors.any? %>
+  <%= render "failure_report", batch: @last_batch %>
+<% end %>
 
 <section class="table-frame mt-5" data-controller="sticky-table">
   <div class="table-toolbar">

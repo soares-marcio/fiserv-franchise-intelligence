@@ -169,8 +169,9 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     get import_batch_path(batch)
     assert_response :success
-    assert_select "div.alert-error", text: /A importação falhou/
-    assert_select "li", text: /#{Regexp.escape(batch.validation_errors.first)}/
+    # A falha passou a ter bloco próprio, com o relato pronto para reportar.
+    assert_select ".failure-report .section-label", text: /A importação falhou/
+    assert_select ".failure-report__message", text: /#{Regexp.escape(batch.validation_errors.first)}/
   end
 
   test "recusa reenviar um arquivo já importado" do
@@ -223,7 +224,9 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".metric-card[data-tone=rose]", text: /Falhou/
     assert_select ".metric-card[data-tone=rose] a[href=?]", import_batch_path(batch)
-    assert_select ".metric-card[data-tone=rose]", text: /Abas ausentes: Faturamento/
+    # O card ficou curto e aponta para o bloco de falha, que traz a mensagem inteira.
+    assert_select ".metric-card[data-tone=rose]", text: /como reportar está logo abaixo/
+    assert_select ".failure-report__message", text: /Abas ausentes: Faturamento/
   end
 
   test "card do worker reflete o batimento do Solid Queue" do
@@ -297,5 +300,34 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
   def upload(path, content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     Rack::Test::UploadedFile.new(path, content_type)
+  end
+
+  # Quando falha, o usuário precisa reportar ao administrador sem inventar: a tela mostra a
+  # mensagem inteira e um bloco pronto para copiar, com o que identifica o lote.
+  test "a tela de importação traz o relato da falha pronto para copiar" do
+    batch = ImportBatch.create!(
+      source_filename: "BIN_TESTE_20260903.xlsx", file_checksum: "abc123def456789",
+      status: "failed",
+      validation_errors: [ "A aba \"Mapa de Clientes BIN\" está sem a coluna \"CNPJ\"." ]
+    )
+
+    get import_batches_path
+
+    assert_response :success
+    assert_select ".failure-report" do
+      assert_select "p", text: /está sem a coluna "CNPJ"/
+      assert_select "textarea[data-copy-report-target=source]", text: /Lote ##{batch.id}/
+      assert_select "textarea[data-copy-report-target=source]", text: /BIN_TESTE_20260903\.xlsx/
+      assert_select "textarea[data-copy-report-target=source]", text: /abc123def456/
+      assert_select "button[data-action*=?]", "copy-report#copy"
+    end
+  end
+
+  test "lote importado não mostra bloco de falha" do
+    ImportBatch.create!(source_filename: "ok.xlsx", file_checksum: "ok123", status: "validated")
+
+    get import_batches_path
+
+    assert_select ".failure-report", count: 0
   end
 end
