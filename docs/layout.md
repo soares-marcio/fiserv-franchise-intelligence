@@ -90,7 +90,7 @@ todo. Numa grade de cards não há onde pôr esse rodapé.
 Anatomia do card, igual nos dois (`.earnings-card`):
 
 1. cabeçalho com o nome do subcanal, que leva ao nível seguinte;
-2. bloco fechado com o número que a tela apura — ganho na janela, prêmio da safra — e a
+2. bloco fechado com o número que a tela apura — ganho na janela, prêmio de entrada — e a
    composição dele logo abaixo (no 3M, pares rótulo/valor em `.earnings-card__parts`);
 3. tabela com a série, dentro do card.
 
@@ -116,7 +116,7 @@ visível; quem já traz o array inteiro na memória ordena em Ruby (`sort_rows`)
 | Estabelecimentos do subcanal | mês anterior cheio, base comparável, mês atual | mês anterior cheio (no banco, com desempate) |
 | Semanal | faturamento, ECs com movimento | faturamento |
 | Recorrente | ganho na janela, último mês fechado, subcanal | ganho na janela |
-| Ganhos 3M | prêmio da safra, ECs no M0, M0, M1, M2 | prêmio da safra |
+| Ganhos 3M | prêmio de entrada, ECs no M0, M0, M1, M2 | prêmio de entrada |
 
 Linha **sem valor** vai para o fim nos dois sentidos, como o `NULLS LAST` do SQL: a variação
 de um subcanal sem base comparável não é um percentual, e tratá-la como zero a colocaria

@@ -174,7 +174,7 @@ class ThreeMonthEarningsQuery
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
-  # Resumo do prêmio da safra por subcanal: só ECs com M0 no mês escolhido. O prêmio
+  # Resumo do prêmio de entrada por subcanal: só ECs com M0 no mês escolhido. O prêmio
   # herda a honestidade do card — valor único quando as hipóteses de antecipação
   # coincidem, intervalo quando divergem.
   def accreditation_summaries
