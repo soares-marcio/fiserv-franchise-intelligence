@@ -16,12 +16,14 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     find("#date_range_trigger").click
     assert_selector "#date_range_panel", visible: true
 
-    # O calendário abre no mês corrente; o intervalo de agosto exige voltar um mês.
+    # O calendário do subcanal abre no mês corrente; um passo atrás traz agosto, e
+    # setembro fica ao lado.
     click_button "Mês anterior"
-    assert_selector ".datepicker__month", text: /agosto/i
+    assert_selector ".datepicker__month", text: /agosto de 2026/i
+    assert_selector ".datepicker__month", text: /setembro de 2026/i
 
-    find("#date_range_panel button[data-day='5']").click
-    find("#date_range_panel button[data-day='9']").click
+    find("#date_range_panel button[data-date='2026-08-05']").click
+    find("#date_range_panel button[data-date='2026-08-09']").click
     click_button "Concluir"
 
     assert_no_selector "#date_range_panel", visible: true
@@ -90,8 +92,9 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     find("#date_range_trigger").click
     assert_selector "#date_range_panel", visible: true
 
-    # Abre no M0 da janela aplicada — junho, o padrão com volume nos três meses.
+    # Abre no M0 da janela aplicada — junho —, com julho ao lado.
     assert_selector ".datepicker__month", text: /junho de 2026/i
+    assert_selector ".datepicker__month", text: /julho de 2026/i
     click_button "Ano anterior"
     assert_selector ".datepicker__month", text: /junho de 2025/i
     click_button "Próximo ano"
@@ -99,13 +102,35 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
 
     # Maio a junho: o usuário escolhe, mesmo maio não tendo volume importado.
     click_button "Mês anterior"
-    find("#date_range_panel button[data-day='9']").click
-    click_button "Próximo mês"
-    find("#date_range_panel button[data-day='20']").click
+    find("#date_range_panel button[data-date='2026-05-09']").click
+    find("#date_range_panel button[data-date='2026-06-20']").click
     click_button "Concluir"
     click_button "Aplicar"
 
     assert_current_path(/from_date=2026-05-09/)
     assert_selector "p", text: /Exibindo\s+Maio a junho de 2026/i
+  end
+
+  # Reprodução do relato: marcar o dia inicial, navegar meses à frente e marcar o dia final
+  # sem voltar ao mês inicial. O intervalo tem que valer assim mesmo.
+  test "intervalo entre meses distantes vale sem voltar ao mês inicial" do
+    visit three_months_reports_path
+
+    find("#date_range_trigger").click
+    2.times { click_button "Mês anterior" }
+    find("#date_range_panel button[data-date='2026-04-04']").click
+    assert_selector ".date-range__label", text: "04/04/2026"
+
+    3.times { click_button "Próximo mês" }
+    assert_selector ".datepicker__month", text: /julho de 2026/i
+    find("#date_range_panel button[data-date='2026-07-09']").click
+
+    # Sem voltar ao mês inicial: o rótulo já mostra o intervalo inteiro.
+    assert_selector ".date-range__label", text: "04/04/2026 a 09/07/2026"
+    click_button "Concluir"
+    click_button "Aplicar"
+
+    assert_current_path(/from_date=2026-04-04/)
+    assert_current_path(/to_date=2026-07-09/)
   end
 end

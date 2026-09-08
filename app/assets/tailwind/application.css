@@ -466,13 +466,39 @@
     z-index: 40;
     top: calc(100% + 0.4rem);
     left: 0;
-    width: min(22rem, calc(100vw - 2rem));
+    width: min(40rem, calc(100vw - 2rem));
     max-width: calc(100vw - 2rem);
     padding: 1rem;
     border: 1px solid color-mix(in oklab, var(--color-base-300) 86%, white);
     border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
     background: var(--color-base-100);
     box-shadow: 0 22px 48px rgb(68 47 34 / 16%);
+  }
+
+  .datepicker__months {
+    display: grid;
+    gap: 1.1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datepicker__pane {
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+  }
+
+  .datepicker__nav-spacer {
+    flex: 1;
+  }
+
+  @media (max-width: 700px) {
+    .datepicker__months {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .datepicker__pane--next {
+      display: none;
+    }
   }
 
   .datepicker__nav {

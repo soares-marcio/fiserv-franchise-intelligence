@@ -34,8 +34,7 @@
                 data-action="click->date-range-picker#prevMonth" aria-label="Mês anterior">
                 ‹
               </button>
-              <p class="datepicker__month" data-date-range-picker-target="monthLabel"
-                aria-live="polite"></p>
+              <p class="datepicker__nav-spacer" aria-hidden="true"></p>
               <button type="button" class="datepicker__nav-btn"
                 data-action="click->date-range-picker#nextMonth" aria-label="Próximo mês">
                 ›
@@ -45,8 +44,21 @@
                 »
               </button>
             </div>
-            <div class="datepicker__grid" data-date-range-picker-target="grid"
-              data-action="click->date-range-picker#pick keydown->date-range-picker#navigate"></div>
+            <%# Dois meses lado a lado: um intervalo que cruza o mês se escolhe sem navegar. %>
+            <div class="datepicker__months">
+              <div class="datepicker__pane">
+                <p class="datepicker__month" data-date-range-picker-target="monthLabel"
+                  aria-live="polite"></p>
+                <div class="datepicker__grid" data-date-range-picker-target="grid"
+                  data-action="click->date-range-picker#pick keydown->date-range-picker#navigate"></div>
+              </div>
+              <div class="datepicker__pane datepicker__pane--next">
+                <p class="datepicker__month" data-date-range-picker-target="monthLabel"
+                  aria-live="polite"></p>
+                <div class="datepicker__grid" data-date-range-picker-target="grid"
+                  data-action="click->date-range-picker#pick keydown->date-range-picker#navigate"></div>
+              </div>
+            </div>
             <p class="datepicker__hint" data-date-range-picker-target="hint" aria-live="polite"></p>
             <div class="datepicker__actions">
               <button type="button" class="btn btn-ghost btn-sm"
