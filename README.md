@@ -8,6 +8,8 @@ em períodos de mesma duração.
 
 | Termo | Significado |
 | --- | --- |
+| **Master** | Como a interface chama o **canal** da carteira. É o vocabulário do negócio e o dos próprios dados: o canal importado chama-se `MASTER FRANQUEADO ...`. No banco, no código e nas mensagens do import a palavra continua sendo `channel` / `CANAL` — esta última porque aponta uma coluna da planilha com esse nome. |
+| **MIC** | Como a interface chama o **subcanal**. Idem: os dez subcanais da carteira se chamam `MIC ...`. No banco é `sub_channel`; na planilha, `SUB-CANAL`. |
 | **EC** | Código do estabelecimento comercial (8 dígitos). |
 | **Competência** | Mês de referência do faturamento, sempre no primeiro dia do mês. |
 | **M-1** | Competência anterior à que está aberta. |
@@ -31,6 +33,30 @@ Gabaritos oficiais da Fiserv: carteira de R$ 582.000 (45% débito, 55% crédito)
 18k/15k/55k paga R$ 50, nada e R$ 39, total igual à faixa do mês de pico — também teste de
 aceitação, no mesmo arquivo; a regra da marca d'água ponta a ponta, pela view, é coberta por
 `test/services/three_month_earnings_test.rb`.
+
+## Contagens e rótulos da tela de subcanal
+
+Quatro números da tela são derivados, e a regra de cada um é decisão registrada — não convém
+adivinhar pela tela:
+
+- **ECs e CNPJs não se misturam.** A listagem tem **uma linha por EC**, porque cada EC tem
+  faturamento próprio; as abas e as contagens do topo somam **CNPJs distintos**. Um cliente
+  com dois ECs conta um no rótulo e ocupa duas linhas na tabela.
+- **Ativo ou suspenso é do cliente, não do ponto de venda.** Um CNPJ é ativo se tiver ao
+  menos um EC ativo (`STATUS DO CONTRATO`, da aba Mapa de Clientes BIN) e só entra em
+  suspensos quando **todos** os ECs dele estão suspensos. Na carteira real, oito dos nove
+  CNPJs com status misto são troca de EC — o antigo suspenso, o novo aberto no lugar —, e
+  contá-los como suspensos marcaria como parado quem apenas migrou. Cada rótulo leva a regra
+  em tooltip. O contrato só tem dois status; se surgir um terceiro, ele cai em suspensos e o
+  cálculo precisa mudar.
+- **Ticket médio** = mês anterior cheio ÷ CNPJs **ativos** do recorte. Mistura o mês fechado
+  com o status de hoje de propósito — a leitura é "quanto rende cada cliente ativo" —, e por
+  isso a tela escreve o divisor ao lado do valor. Sem CNPJ ativo o card mostra `—`: zero seria
+  outra afirmação.
+- **Base zero não vira percentual.** Sem faturamento no mês anterior não há divisão possível,
+  e a variação sai como rótulo: **Novo** (vendeu agora, primeira venda na base), **Voltou a
+  vender** (ativação antiga, estava zerado e voltou — mora na aba de queda, porque é atenção,
+  não crescimento) e **Sem venda** (zerado nos dois períodos).
 
 ## Onde ficam as coisas
 
@@ -118,6 +144,21 @@ conhecido, o nome dele é mantido — planilha incompleta não renomeia carteira
 `_AAAAMMDD.xlsx`, essa data confere a cobertura declarada e pode gerar a anomalia
 `cutoff_below_file_date`; sem esse sufixo o import segue, apenas sem a conferência.
 
+### Quando o arquivo é recusado
+
+As mensagens de recusa são escritas para quem tem a planilha na mão, não para quem tem o
+código: cada uma diz **o que está errado, onde, e o que fazer** — a aba e a linha da planilha,
+o cabeçalho exato que falta ou sobra, os valores que não fecham. A regra vale para as
+validações de template, de reconciliação entre abas e de competência.
+
+Na tela de importação o lote que falhou ganha um bloco próprio
+(`app/views/import_batches/_failure_report.html.erb`) com a mensagem, os fatos de
+identificação — lote, arquivo, data do envio, canal e os 12 primeiros caracteres do checksum —
+e um texto pronto para copiar (`ImportBatchesHelper#import_failure_report`), para o operador
+reportar ao admin sem transcrever nada errado. A cópia usa a API de área de transferência com
+recuo para `execCommand`, porque o portal é servido em HTTP e a API moderna exige contexto
+seguro.
+
 **Os arquivos importados ficam guardados** no volume `storage`, por decisão — nada os apaga
 depois do import. Cada um traz CNPJ, telefone, endereço e faturamento reais, então quem tem
 acesso ao host tem acesso a todos os arquivos já enviados, e o backup (acima) os carrega
@@ -146,7 +187,10 @@ em fila em vez de disputar a consolidação.
 ## Interface
 
 A casca visual (topbar com menu horizontal, trilha e busca global de dados) está descrita em
-[`docs/layout.md`](docs/layout.md), com tokens, breakpoints e as decisões de design.
+[`docs/layout.md`](docs/layout.md), com tokens, breakpoints e as decisões de design — entre
+elas quando uma listagem é tabela e quando vira grade de cards (recorrente e 3M), a regra de
+ordenação das listagens (`ListingSort`) e o modal de lançamentos diários, que mostra as três
+últimas competências dia a dia.
 
 Nenhuma página carrega recurso de fora: a CSP está ligada com `default_src :self` e nonce por
 requisição no `script-src`, e fonte, ícones e JavaScript são servidos pelo próprio app.
@@ -246,8 +290,9 @@ A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
 O Metabase só é reiniciado ao fim se estava de pé quando o backup começou. Parar o serviço é
 decisão de segurança; um backup noturno não pode desfazê-la.
 
-**Último teste de restauração: 2026-09-07**, já com o schema desta branch (remoção das duas
-views de auditoria e das três colunas sem uso). O dump foi restaurado em `fiserv_restore_test`
+**Último teste de restauração: 2026-09-07**, já com o schema atual — o de depois da remoção
+das duas views de auditoria e das três colunas sem uso, e nenhuma migração entrou desde
+então (as 21 continuam sendo as mesmas). O dump foi restaurado em `fiserv_restore_test`
 e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snapshots do mapa,
 1.375 de faturamento, 17.809 lançamentos diários (mesma soma de `amount`), 4 partições de
 `daily_revenues` (três mensais e a `default`), as 5 views materializadas populadas e as 21

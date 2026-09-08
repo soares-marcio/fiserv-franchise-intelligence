@@ -2,7 +2,7 @@
 
 <%= turbo_frame_tag "global-search", target: "_top", data: { app_layout_target: "searchResults" } do %>
   <% if !@search.searchable? %>
-    <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou subcanal.</p>
+    <p class="search-hint">Digite ao menos <%= GlobalSearch::MIN_LENGTH %> caracteres: EC, CNPJ, nome, cidade, CNAE ou MIC.</p>
   <% elsif @search.empty? && @search.base_empty? %>
     <p class="search-empty">
       A carteira ainda não tem arquivo importado, por isso não há o que buscar.
@@ -13,12 +13,12 @@
   <% else %>
     <% if @search.sub_channels.any? %>
       <section class="search-group">
-        <h3>Subcanais</h3>
+        <h3>MICs</h3>
         <% @search.sub_channels.each do |sub_channel| %>
           <%= link_to sub_channel_report_path(sub_channel), class: "search-result" do %>
             <span class="search-result__body">
               <span class="search-result__title"><%= sub_channel.name %></span>
-              <small><%= sub_channel.channel.name %> · faturamento por estabelecimento</small>
+              <small><%= channel_name(sub_channel.channel) %> · faturamento por estabelecimento</small>
             </span>
           <% end %>
         <% end %>

@@ -5,16 +5,16 @@ class SearchControllerTest < ActionDispatch::IntegrationTest
     get search_path
 
     assert_response :success
-    assert_select "turbo-frame#global-search p.search-hint", text: /EC, CNPJ, nome, cidade, CNAE ou subcanal/
+    assert_select "turbo-frame#global-search p.search-hint", text: /EC, CNPJ, nome, cidade, CNAE ou MIC/
   end
 
-  test "encontra subcanal e os estabelecimentos dele" do
+  test "encontra MIC e os estabelecimentos dele" do
     import_synthetic_workbook
     sub_channel = SubChannel.find_by!(name: "MIC ALFA")
 
     get search_path(q: "mic alfa")
 
-    assert_select ".search-group h3", text: "Subcanais"
+    assert_select ".search-group h3", text: "MICs"
     assert_select "a.search-result[href=?]", sub_channel_report_path(sub_channel), text: /MIC ALFA/
     assert_select ".search-group h3", text: "Estabelecimentos"
     assert_select "a.search-result", text: /30000001/

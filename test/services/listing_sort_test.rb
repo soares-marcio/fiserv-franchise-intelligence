@@ -58,6 +58,19 @@ class ListingSortTest < ActiveSupport::TestCase
       build(column: "current_revenue", direction: "asc").sort_rows(rows).map { |row| row["current_revenue"] }
   end
 
+  # Variação sem base comparável não tem percentual: o extrator devolve nil. Sem tratamento
+  # isso viraria zero e a linha apareceria entre quem caiu e quem cresceu.
+  test "linha sem valor fica no fim nos dois sentidos" do
+    rows = [ { "v" => 10 }, { "v" => nil }, { "v" => 300 } ]
+    colunas = { "v" => "Variação" }
+
+    desc = ListingSort.new(columns: colunas, default: "v", column: "v")
+    asc = ListingSort.new(columns: colunas, default: "v", column: "v", direction: "asc")
+
+    assert_equal [ 300, 10, nil ], desc.sort_rows(rows).map { |row| row["v"] }
+    assert_equal [ 10, 300, nil ], asc.sort_rows(rows).map { |row| row["v"] }
+  end
+
   # As telas de ganho montam hashes aninhados: o valor não está sob a chave da coluna.
   test "linha com valor aninhado ordena pelo extrator que a tela informa" do
     rows = [ { prize: { total: 5 } }, { prize: { total: 90 } } ]
@@ -65,6 +78,17 @@ class ListingSortTest < ActiveSupport::TestCase
     ordenadas = build(column: "current_revenue").sort_rows(rows) { |row| row[:prize][:total] }
 
     assert_equal [ 90, 5 ], ordenadas.map { |row| row[:prize][:total] }
+  end
+
+  # Nem toda coluna é dinheiro: a tela do recorrente ordena por nome do subcanal. Sem
+  # tratar texto, "MIC GAMA".to_d viraria zero e a ordenação não faria nada.
+  test "coluna de texto ordena alfabeticamente, ignorando maiúsculas" do
+    rows = [ { "nome" => "MIC GAMA" }, { "nome" => "mic alfa" }, { "nome" => "MIC BETA" } ]
+    sort = ListingSort.new(columns: { "nome" => "Subcanal" }, default: "nome",
+      column: "nome", direction: "asc")
+
+    assert_equal [ "mic alfa", "MIC BETA", "MIC GAMA" ],
+      sort.sort_rows(rows).map { |row| row["nome"] }
   end
 
   private

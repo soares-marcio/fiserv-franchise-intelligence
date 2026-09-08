@@ -7,10 +7,10 @@
     <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
       <div>
         <p class="eyebrow">Visão comercial</p>
-        <h1 class="page-title"><%= @sub_channel.channel.name %></h1>
+        <h1 class="page-title"><%= channel_name(@sub_channel.channel) %></h1>
         <% if @window %>
           <p class="page-description">
-            Estabelecimentos deste subcanal. O mês anterior aparece completo. A variação
+            Estabelecimentos deste MIC. O mês anterior aparece completo. A variação
             compara períodos equivalentes
             <strong><%= day_range_label(@from_day, @to_day) %></strong>
             da competência <%= period_option_label(@period) %>.
@@ -65,7 +65,7 @@
               Somando só a aba <%= @selected_variation == "alta" ? "Em crescimento" : "Em queda" %>
               (<%= @total_count %> ECs)
               <% if (overall = @listing.overall_totals) %>
-                · Subcanal inteiro:
+                · MIC inteiro:
                 <strong><%= signed_variation(overall[:previous_revenue], overall[:current_revenue]) %></strong>
               <% end %>
             </p>

@@ -7,7 +7,7 @@ class EstablishmentTest < ActiveSupport::TestCase
     @beta = Establishment.find_by!(ec: "30000002")
   end
 
-  test "busca por EC, CNPJ com máscara, nome, cidade, CNAE e subcanal" do
+  test "busca por EC, CNPJ com máscara, nome, cidade, CNAE e MIC" do
     {
       "30000002" => [ @beta ], "44.555.666/0001-72" => [ @beta ], "beta cafe" => [ @beta ],
       "BETA SERVICOS" => [ @beta ], "mic beta" => [ @beta ],

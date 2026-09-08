@@ -1,0 +1,101 @@
+<%# Card de um subcanal na janela 3M. A tabela já tinha o eixo certo — uma linha por
+    subcanal —, mas cada célula de mês carregava três números: o total na linha e o débito
+    e o crédito em subtexto. Era uma matriz de três meses por três valores espremida em
+    três células. Aqui a matriz ganha tabela própria, e o prêmio de entrada, que é o que esta
+    tela apura, vira o número do card.
+    Espera `report`, `window` (para o link levar a mesma janela) e `channel_id`. %>
+<article class="earnings-card">
+  <header class="earnings-card__head">
+    <p class="section-label">MIC</p>
+    <h3 class="earnings-card__name">
+      <%# Leva o M0, não o fim da janela: passar o último mês abriria o subcanal numa
+          janela diferente da que está na tela. %>
+      <%= link_to report[:name],
+        three_months_sub_channel_report_path(id: report[:uuid],
+          from_date: window.first, to_date: window.last, channel_id:),
+        class: "link" %>
+    </h3>
+  </header>
+
+  <% prize = report[:prize] %>
+  <% intervalo = prize[:addon_without_auto] != prize[:addon_with_auto] %>
+  <div class="earnings-card__total">
+    <p class="metric-label">Prêmio de entrada</p>
+    <p class="metric-value <%= "metric-value--range" if intervalo %>">
+      <% if prize[:accredited].zero? %>
+        —
+      <% elsif intervalo %>
+        <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %> –
+        <%= brl(prize[:digitalization] + prize[:addon_with_auto]) %>
+      <% else %>
+        <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %>
+      <% end %>
+    </p>
+    <%# A composição é o que explica o prêmio: as duas parcelas somam o número de cima, e a
+        safra diz de quantos ECs ele saiu. Em frase corrida esses valores ficavam com o peso
+        de nota de rodapé. %>
+    <dl class="earnings-card__parts">
+      <div>
+        <dt>ECs no M0</dt>
+        <dd><%= prize[:accredited] %></dd>
+      </div>
+      <div>
+        <dt>Digitalização</dt>
+        <dd><%= brl(prize[:digitalization]) %></dd>
+      </div>
+      <div>
+        <dt>Adicional por faturamento</dt>
+        <dd>
+          <%= brl(prize[:addon_without_auto]) %><% if intervalo %> –
+            <%= brl(prize[:addon_with_auto]) %><% end %>
+        </dd>
+      </div>
+    </dl>
+    <% if intervalo %>
+      <p class="earnings-card__breakdown">Intervalo pendente da definição de antecipação</p>
+    <% end %>
+  </div>
+
+  <%# Meses nas colunas, modalidades nas linhas: a leitura desta tabela é "o débito cresceu de
+      M0 para M2?", e comparar números empilhados na mesma coluna é mais fácil que atravessar
+      a linha. Três meses cabem como coluna; três modalidades, não — por isso a transposta. %>
+  <div class="table-scroll" role="region" tabindex="0"
+    aria-label="Faturamento da carteira de <%= report[:name] %> em M0, M1 e M2">
+    <table class="table earnings-card__table">
+      <caption class="sr-only">
+        Faturamento da carteira de <%= report[:name] %> por modalidade em cada mês da janela
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col"><span class="sr-only">Modalidade</span></th>
+          <% report[:months].each_with_index do |month, index| %>
+            <th scope="col" class="text-right">
+              M<%= index %> · <%= l(month[:period], format: "%b/%Y") %>
+              <%# Mesma dica dos cabeçalhos ordenáveis: badge ao lado do mês competia com ele
+                  e alargava a coluna; abaixo, miúdo, é o que qualifica a coluna. %>
+              <% if month[:partial] %>
+                <span class="block font-normal normal-case tracking-normal opacity-60">parcial</span>
+              <% end %>
+            </th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <%# A modalidade e a chave que a traz em cada mês; o total fecha em negrito. %>
+        <% [ [ "Débito", :debit, nil ], [ "Crédito", :credit, nil ],
+             [ "Total", :total, "font-semibold" ] ].each do |rotulo, chave, peso| %>
+          <tr>
+            <th scope="row" class="font-normal"><%= rotulo %></th>
+            <% report[:months].each do |month| %>
+              <%# Mês sem cobertura: travessão na coluna inteira, não zero — "sem dado" não é
+                  "sem faturamento". %>
+              <td class="text-right tabular-nums <%= peso %>">
+                <%= month[:covered] ? brl(month[chave]) : "—" %>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</article>

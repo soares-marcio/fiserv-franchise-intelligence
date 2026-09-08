@@ -17,7 +17,7 @@
     <div><dt>Enviado em</dt><dd><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></dd></div>
     <div><dt>Identificação do arquivo</dt><dd class="font-mono"><%= batch.file_checksum.first(12) %></dd></div>
     <% if batch.channel %>
-      <div><dt>Canal</dt><dd><%= batch.channel.name %></dd></div>
+      <div><dt>Master</dt><dd><%= batch.channel.name %></dd></div>
     <% end %>
   </dl>
 

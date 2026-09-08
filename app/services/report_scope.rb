@@ -2,10 +2,20 @@ class ReportScope
   # Colunas de valor que a tela de faturamento por subcanal deixa ordenar, com o rótulo que
   # levam no cabeçalho. A listagem vem inteira da consulta em cache: a ordem é aplicada na
   # leitura e nunca entra na chave do cache, senão cada clique viraria uma entrada nova.
+  # A tela do recorrente ordena cards, não linhas: o card é o subcanal com a série dele.
+  # Por isso as opções são valores da janela inteira, e não de um mês — "ordenar por débito"
+  # não teria resposta única com seis competências por subcanal.
+  RECURRING_SORT_COLUMNS = {
+    "earnings" => "Ganho na janela",
+    "last_month" => "Último mês fechado",
+    "name" => "MIC"
+  }.freeze
+
   SUB_CHANNEL_SORT_COLUMNS = {
     "previous_full_revenue" => "Mês anterior cheio",
     "previous_revenue" => "Mês anterior comparável",
-    "current_revenue" => "Mês atual"
+    "current_revenue" => "Mês atual",
+    "variation" => "Variação"
   }.freeze
 
   VIEWS = {
@@ -65,8 +75,11 @@ class ReportScope
     PeriodWindow.from_coverages(available_periods, period:, from_day:, to_day:)
   end
 
-  # Lançamentos diários de um EC, um dia por linha e os dois meses lado a lado — o mesmo
-  # desenho da planilha, que traz DIA 01..DIA 31 do mês atual e do anterior. O mês inteiro
+  # Lançamentos diários de um EC, um dia por linha e as competências lado a lado — o mesmo
+  # desenho da planilha, que traz DIA 01..DIA 31. A penúltima entra porque a leitura do
+  # lançamento é comparativa: dois meses mostram a mudança, três mostram a tendência. O
+  # arquivo traz duas competências; a mais antiga vem das importações anteriores, e por isso
+  # a coluna só aparece quando a competência tem cobertura. O mês inteiro
   # aparece, não a faixa de dias dos filtros: o modal é a leitura do lançamento, não o
   # recorte da comparação. A série vem do generate_series porque dia sem venda precisa
   # aparecer zerado, senão o modal esconde exatamente o buraco que o usuário foi ver.
@@ -79,12 +92,13 @@ class ReportScope
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT dias.day,
         COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :current_period), 0) AS current_amount,
-        COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :previous_period), 0) AS previous_amount
+        COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :previous_period), 0) AS previous_amount,
+        COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :penultimate_period), 0) AS penultimate_amount
       FROM generate_series(:from_day::int, :to_day::int) AS dias(day)
       LEFT JOIN daily_revenues_consolidated revenue
         ON revenue.day = dias.day
         AND revenue.establishment_id = :establishment_id
-        AND revenue.period IN (:previous_period, :current_period)
+        AND revenue.period IN (:penultimate_period, :previous_period, :current_period)
       GROUP BY dias.day
       ORDER BY dias.day
     SQL

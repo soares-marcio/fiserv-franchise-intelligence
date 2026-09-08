@@ -781,6 +781,146 @@
     font-size: 0.8rem;
   }
 
+  /* Ganho recorrente em cards: o card é o subcanal, e a série de meses vive dentro dele.
+     Duas colunas em tela larga porque a tabela interna tem sete colunas — em card de um
+     terço ela viraria rolagem horizontal permanente. */
+  /* Dinheiro não quebra em duas linhas. O brl já protege o espaço entre "R$" e o número,
+     mas o hífen do negativo continua sendo ponto de quebra: numa célula estreita, o "-"
+     ficava numa linha e o valor na seguinte, saindo do alinhamento da linha. */
+  .table .tabular-nums {
+    white-space: nowrap;
+  }
+
+  .earnings-card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 1200px) {
+    .earnings-card-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .earnings-card {
+    display: grid;
+    min-width: 0;
+    gap: 0.9rem;
+    padding: 1.15rem 1.25rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 1rem 1rem 1rem 0.35rem;
+    background: var(--color-base-100);
+    box-shadow: var(--cork-shadow);
+  }
+
+  .earnings-card__head {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .earnings-card__name {
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  /* Bloco fechado, alinhado à esquerda como os cards do topo: é o que faz o número pertencer
+     ao rótulo. Rótulo à esquerda e valor à direita deixavam meio card de vazio entre os dois,
+     e o valor lido sozinho não dizia de que era. */
+  .earnings-card__total {
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.75rem;
+    background: var(--color-base-200);
+  }
+
+  /* Laranja da marca, não um tom qualquer: verde e vermelho já significam variação nesta
+     tela, e um fundo rosado no bloco fazia o total parecer um estado ruim. */
+  .earnings-card__total .metric-value {
+    margin-top: 0.1rem;
+    color: var(--color-primary);
+    font-size: 1.5rem;
+  }
+
+  .earnings-card__breakdown {
+    margin-top: 0.25rem;
+    color: var(--cork-muted);
+    font-size: 0.75rem;
+  }
+
+  /* As parcelas do prêmio são dado, não nota de rodapé: rótulo pequeno em cima, valor com
+     peso embaixo, separadas do número grande por um filete. */
+  .earnings-card__parts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.75rem;
+    margin-top: 0.65rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .earnings-card__parts dt {
+    color: var(--cork-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .earnings-card__parts dd {
+    color: var(--cork-strong);
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* No desktop o .table-scroll geral fica overflow: visible, para o cabeçalho fixo da
+     listagem principal funcionar. Dentro do card isso fazia a tabela de sete colunas vazar
+     por cima do card vizinho: aqui o scrollport é o próprio card, e o item de grid precisa
+     de min-width: 0, senão a tabela larga estica a coluna inteira. */
+  .earnings-card .table-scroll {
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .earnings-card__head > * {
+    min-width: 0;
+  }
+
+  .earnings-card__table {
+    min-width: 34rem;
+    font-size: 0.82rem;
+  }
+
+  .earnings-card__table th[scope="row"] {
+    white-space: nowrap;
+  }
+
+  .earnings-card-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+  }
+
+  .earnings-card-bar__sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    align-items: center;
+    margin-left: auto;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* O .sort-link nasceu para <th>, onde ocupar a célula inteira é o certo. Aqui ele é item
+     de flex: com width: 100% os três disputavam a largura, o rótulo quebrava em duas linhas
+     e a seta ficava centralizada entre elas, longe da palavra. */
+  .earnings-card-bar__sort .sort-link {
+    width: auto;
+    white-space: nowrap;
+  }
+
   .table-toolbar__breakdown {
     color: var(--cork-muted);
     font-size: 0.8rem;

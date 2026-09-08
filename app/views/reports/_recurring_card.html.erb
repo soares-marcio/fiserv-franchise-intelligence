@@ -1,0 +1,75 @@
+<%# Card de um subcanal no ganho recorrente. O card é a unidade do dado — o subcanal com a
+    série dele —, e por isso a ordenação da tela é por card, não por linha: a tabela antiga
+    tinha uma linha por subcanal E mês, e "ordenar por débito" não tinha resposta única.
+    A série fica dentro, em ordem cronológica, que é o que dá sentido ao acelerador e ao
+    redutor: cada mês se compara com o anterior. %>
+<article class="earnings-card">
+  <header class="earnings-card__head">
+    <p class="section-label">MIC</p>
+    <h3 class="earnings-card__name">
+      <%= link_to report[:name], sub_channel_report_path(id: report[:uuid]), class: "link" %>
+    </h3>
+  </header>
+
+  <%# Rótulo, valor e composição num bloco só, na mesma anatomia dos cards do topo da página.
+      Espalhados pela largura do card, os três números não se liam como um conjunto. %>
+  <div class="earnings-card__total">
+    <p class="metric-label">Ganho na janela</p>
+    <p class="metric-value"><%= brl(report[:recurring_total] + report[:adjustment_total]) %></p>
+    <p class="earnings-card__breakdown">
+      <%= pluralize(report[:months].size, "competência apurada", "competências apuradas") %>
+      · repasse <%= brl(report[:recurring_total]) %>
+      <% unless report[:adjustment_total].zero? %>
+        · ajuste <%= brl(report[:adjustment_total]) %>
+      <% end %>
+    </p>
+  </div>
+
+  <div class="table-scroll" role="region" tabindex="0"
+    aria-label="Ganho recorrente mês a mês de <%= report[:name] %>">
+    <table class="table earnings-card__table">
+      <caption class="sr-only">Ganho recorrente de <%= report[:name] %>, mês a mês</caption>
+      <thead>
+        <tr>
+          <th scope="col">Mês</th>
+          <th scope="col" class="text-right">Débito</th>
+          <th scope="col" class="text-right">Crédito</th>
+          <th scope="col" class="text-right">Net MDR</th>
+          <th scope="col" class="text-right">Repasse</th>
+          <th scope="col" class="text-right">Ajuste</th>
+          <th scope="col" class="text-right">Ganho do mês</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% report[:months].each do |month| %>
+          <tr>
+            <th scope="row" class="font-normal">
+              <%= l(month[:period], format: "%b/%Y") %>
+              <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
+            </th>
+            <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
+            <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
+            <td class="text-right tabular-nums">
+              <%= month[:net_mdr] ? number_with_precision(month[:net_mdr], precision: 2) + "%" : "—" %>
+              <% if month[:mdr_fallback] %>
+                <span class="metric-hint" title="Net MDR do arquivo mais antigo disponível: não havia arquivo importado desta competência">†</span>
+              <% end %>
+            </td>
+            <td class="text-right tabular-nums"><%= brl(month[:recurring]) %></td>
+            <td class="text-right tabular-nums">
+              <% adjustment = month[:accelerator] - month[:reducer] %>
+              <% if adjustment.zero? %>
+                —
+              <% else %>
+                <span class="<%= adjustment.positive? ? "text-success" : "text-error" %>"><%= brl(adjustment) %></span>
+              <% end %>
+            </td>
+            <td class="text-right tabular-nums font-semibold">
+              <%= brl(month[:recurring] + month[:accelerator] - month[:reducer]) %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</article>

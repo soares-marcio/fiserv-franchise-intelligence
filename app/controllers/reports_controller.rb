@@ -4,7 +4,7 @@ class ReportsController < ApplicationController
   def index
     @order = ListingSort.new(columns: ReportScope::SUB_CHANNEL_SORT_COLUMNS,
       default: "previous_full_revenue", column: params[:sort], direction: params[:direction])
-    @reports = @order.sort_rows(@scope.revenue_by_sub_channel)
+    @reports = @order.sort_rows(@scope.revenue_by_sub_channel) { |row| sub_channel_sort_value(row) }
     @totals = @scope.totals
     respond_to do |format|
       format.html
@@ -35,7 +35,9 @@ class ReportsController < ApplicationController
   # Série mensal do ganho recorrente: todas as competências disponíveis, sem seletor —
   # a tela cresce um mês a cada ciclo de planilhas.
   def recurring
-    @reports = @scope.recurring_earnings
+    @order = ListingSort.new(columns: ReportScope::RECURRING_SORT_COLUMNS, default: "earnings",
+      column: params[:sort], direction: params[:direction])
+    @reports = @order.sort_rows(@scope.recurring_earnings) { |row| recurring_sort_value(row) }
   end
 
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
@@ -113,10 +115,34 @@ class ReportsController < ApplicationController
 
   private
 
+  # O card do recorrente ordena por valores da janela inteira. O nome sai como string, então
+  # A variação não é coluna da consulta: é a razão entre o mês atual e a base comparável.
+  # Sem base não há percentual possível — a linha sai como nil e o ListingSort a manda para
+  # o fim nos dois sentidos, como o NULLS LAST da ordenação em SQL.
+  def sub_channel_sort_value(row)
+    return row[@order.column].to_d unless @order.column == "variation"
+
+    previous = row["previous_revenue"].to_d
+    return if previous.zero?
+
+    (row["current_revenue"].to_d - previous) / previous
+  end
+
+  # sort_rows recebe o texto e a comparação é alfabética; os demais são dinheiro.
+  def recurring_sort_value(row)
+    case @order.column
+    when "name" then row[:name]
+    when "last_month"
+      fechado = row[:months].reject { |month| month[:partial] }.max_by { |month| month[:period] }
+      fechado ? fechado[:recurring] + fechado[:accelerator] - fechado[:reducer] : 0
+    else row[:recurring_total] + row[:adjustment_total]
+    end
+  end
+
   # A linha da tela 3M é o subcanal, e cada mês da janela é uma coluna: ordenar por M0, M1
   # ou M2 é ordenar por aquele mês; "ECs no M0" e "prêmio" são valores da linha inteira.
   def three_month_order
-    columns = { "accredited" => "ECs no M0", "prize" => "Prêmio da safra" }
+    columns = { "prize" => "Prêmio de entrada", "accredited" => "ECs no M0" }
     Array(@window).each_with_index { |period, index| columns["m#{index}"] = "M#{index}" }
     ListingSort.new(columns:, default: "prize", column: params[:sort], direction: params[:direction])
   end

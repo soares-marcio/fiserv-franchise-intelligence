@@ -71,9 +71,10 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     refresh_audit_views
     get recurring_reports_path
     assert_response :success
-    assert_select "h1", text: "Ganho recorrente por subcanal"
-    assert_select "td a", text: "MIC GAMA"
-    assert_select "td", text: /ago\/2026/
+    assert_select "h1", text: "Ganho recorrente por MIC"
+    # A tela virou cards: o subcanal nomeia o card e a série fica na tabela interna.
+    assert_select "article.earnings-card .earnings-card__name a", text: "MIC GAMA"
+    assert_select "article.earnings-card tbody th[scope=row]", text: /ago\/2026/
     assert_no_match(/translation missing/i, response.body)
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Ganho recorrente"
   end
@@ -81,7 +82,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   test "a página 3M abre sem volume importado e explica a dependência da planilha" do
     get three_months_reports_path
     assert_response :success
-    assert_select "h1", text: "Ganhos 3M por subcanal"
+    assert_select "h1", text: "Ganhos 3M por MIC"
     assert_select ".empty-state", text: /depende das colunas de volume da planilha/
   end
 
@@ -104,7 +105,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name=to_date][value=?]", "2026-08-01"
     assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
     # O link do subcanal precisa carregar a mesma janela, senão o nível 2 abre deslocado.
-    assert_select "td a[href*=?]", "from_date=2026-06-01"
+    assert_select ".earnings-card__name a[href*=?]", "from_date=2026-06-01"
   end
 
   test "link antigo com start_period continua abrindo a mesma janela" do
@@ -150,27 +151,27 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     get three_months_reports_path(from_date: "2026-06-10", to_date: "2026-07-22")
 
-    assert_select "th a.sort-link", text: /M0/
-    assert_select "th", text: /jun\/2026/
-    assert_select "th a.sort-link", text: /M1/
-    assert_select "th", text: /jul\/2026/
-    assert_select "th a.sort-link", text: /M2/, count: 0
+    assert_select ".earnings-card-bar__sort a.sort-link", text: /M0/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M0 · jun\/2026/
+    assert_select ".earnings-card-bar__sort a.sort-link", text: /M1/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M1 · jul\/2026/
+    assert_select ".earnings-card-bar__sort a.sort-link", text: /M2/, count: 0
     assert_select "p", text: /Exibindo\s+Junho a julho de 2026/
   end
 
-  test "página 3M lista subcanais e navega para os cards de estabelecimento" do
+  test "página 3M lista MICs e navega para os cards de estabelecimento" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
     get three_months_reports_path
     assert_response :success
-    assert_select "td a", text: "MIC GAMA"
+    assert_select ".earnings-card__name a", text: "MIC GAMA"
     # O locale precisa dos meses abreviados: %b sem abbr_month_names rendia
-    # "Translation missing" em todos os cabeçalhos de mês. M0 é o mês mais antigo.
-    assert_select "th a.sort-link", text: /M0/
-    assert_select "th", text: /jun\/2026/
-    assert_select "th a.sort-link", text: /M2/
-    assert_select "th", text: /ago\/2026/
+    # "Translation missing" em todos os rótulos de mês. M0 é o mês mais antigo.
+    assert_select ".earnings-card-bar__sort a.sort-link", text: /M0/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M0 · jun\/2026/
+    assert_select ".earnings-card-bar__sort a.sort-link", text: /M2/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M2 · ago\/2026/
     assert_no_match(/translation missing/i, response.body)
 
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
@@ -202,7 +203,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Mês anterior comparável"
   end
 
-  test "seleciona um canal e o preserva nas exportações" do
+  test "seleciona um Master e o preserva nas exportações" do
     selected = Channel.create!(external_id: "1", name: "CANAL A")
     Channel.create!(external_id: "2", name: "CANAL B")
 
@@ -215,7 +216,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href='#{reports_path(format: :xlsx, channel_id: selected.uuid)}']", text: "Exportar XLSX"
   end
 
-  test "liga cada subcanal à sua listagem de estabelecimentos" do
+  test "liga cada MIC à sua listagem de estabelecimentos" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -259,7 +260,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O quinto card traz o ticket médio da carteira, com o divisor escrito: a conta mistura o
   # mês fechado com o status de hoje, e sem a explicação vira outra coisa na cabeça de quem lê.
-  test "a tela do subcanal mostra o ticket médio e o divisor" do
+  test "a tela do MIC mostra o ticket médio e o divisor" do
     import_synthetic_workbook
     refresh_audit_views
     sub_channel = SubChannel.find_by!(name: "MIC ALFA")
@@ -306,6 +307,26 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /80,00/
   end
 
+  # Três competências no banco é o estado da operação real: cada planilha traz duas, e a
+  # mais antiga fica das importações passadas. A coluna do penúltimo mês só existe nesse caso.
+  test "com a penúltima competência coberta, o modal mostra os três meses" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    establishment = Establishment.find_by!(ec: "11111111")
+    cover_penultimate_period(channel, establishment, Date.new(2026, 6, 1), amount: 60)
+
+    get sub_channel_daily_report_path(sub_channel, establishment, channel_id: channel.uuid)
+
+    assert_response :success
+    assert_select "thead th", count: 4, message: "Dia mais as três competências"
+    assert_select "thead th", text: "junho de 2026"
+    assert_select "thead th", text: "julho de 2026"
+    assert_select "thead th", text: "agosto de 2026"
+    # O valor tem que sair na coluna certa: é a soma da penúltima competência, não de outra.
+    assert_select "tfoot td:first-of-type", text: /60,00/
+    assert_select "tfoot td", count: 3
+  end
+
   # A faixa de dias da tela não recorta o modal: ele espelha a planilha, que traz
   # DIA 01..DIA 31 das duas competências.
   test "lançamentos diários trazem o mês inteiro mesmo com a tela filtrada" do
@@ -321,7 +342,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody th[scope=?]", "row", text: "24"
   end
 
-  test "mostra os estabelecimentos que compõem os totais do subcanal" do
+  test "mostra os estabelecimentos que compõem os totais do MIC" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -447,7 +468,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_select ".metric-value", text: "R$\u00A0100,00"
     # A variação verdadeira do subcanal fica ancorada ao lado da enviesada da aba.
-    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*Subcanal inteiro:.*\+25,0%/m
+    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*MIC inteiro:.*\+25,0%/m
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_select ".metric-value", text: "R$\u00A0100,00", count: 0
@@ -514,7 +535,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   # A tela de subcanal é a que tem filtros, abas e paginação — e era a única sem exportação.
   # O arquivo leva o recorte da tela inteiro, menos a paginação: exportar só a página seria
   # entregar um recorte que ninguém pediu.
-  test "exporta a listagem do subcanal em CSV com todas as linhas do recorte" do
+  test "exporta a listagem do MIC em CSV com todas as linhas do recorte" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
     seed_second_establishment(channel, sub_channel)
@@ -565,7 +586,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # period_coverages é lida para o corte do cabeçalho e para os períodos da janela; a tela e
   # a exportação reaproveitam as duas leituras em vez de repeti-las a cada chamada do scope.
-  test "a tela do subcanal lê period_coverages duas vezes, e a exportação também" do
+  test "a tela do MIC lê period_coverages duas vezes, e a exportação também" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -577,7 +598,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "exporta a listagem do subcanal em XLSX" do
+  test "exporta a listagem do MIC em XLSX" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -588,7 +609,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.headers["Content-Disposition"], "mic-a"
   end
 
-  test "a tela de subcanal oferece os dois formatos preservando o recorte" do
+  test "a tela de MIC oferece os dois formatos preservando o recorte" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -622,7 +643,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.variation-tabs a[aria-current='page'] .tab-title", text: /Em queda/
   end
 
-  test "responde não encontrado para subcanal desconhecido" do
+  test "responde não encontrado para MIC desconhecido" do
     get sub_channel_report_path(id: SecureRandom.uuid)
     assert_response :not_found
   end
@@ -639,6 +660,24 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       contract_status: "Active", previous_month_total: 20, current_month_total: 30
     )
     second
+  end
+
+  # A terceira competência do modal não vem do arquivo atual: no banco real ela ficou das
+  # importações anteriores. Aqui bastam a cobertura e um lançamento.
+  def cover_penultimate_period(channel, establishment, period, amount:)
+    now = Time.current
+    batch_id = ImportBatch.last.id
+    PeriodCoverage.upsert_all(
+      [ { channel_id: channel.id, period:, max_known_day: 30, closed: true,
+          last_import_batch_id: batch_id, created_at: now, updated_at: now } ],
+      unique_by: "index_period_coverages_on_channel_id_and_period"
+    )
+    DailyRevenueConsolidated.upsert_all(
+      [ { establishment_id: establishment.id, channel_id: channel.id, period:, day: 24, amount:,
+          provisional: false, source_import_batch_id: batch_id, revised_count: 0,
+          created_at: now, updated_at: now } ],
+      unique_by: "index_daily_revenues_consolidated_primary"
+    )
   end
 
   def seed_subchannel_revenue(template)
