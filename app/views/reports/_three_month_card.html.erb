@@ -56,33 +56,38 @@
     <% end %>
   </div>
 
+  <%# Meses nas colunas, modalidades nas linhas: a leitura desta tabela é "o débito cresceu de
+      M0 para M2?", e comparar números empilhados na mesma coluna é mais fácil que atravessar
+      a linha. Três meses cabem como coluna; três modalidades, não — por isso a transposta. %>
   <div class="table-scroll" role="region" tabindex="0"
     aria-label="Faturamento da carteira de <%= report[:name] %> em M0, M1 e M2">
     <table class="table earnings-card__table">
       <caption class="sr-only">
-        Faturamento da carteira de <%= report[:name] %> em cada mês da janela
+        Faturamento da carteira de <%= report[:name] %> por modalidade em cada mês da janela
       </caption>
       <thead>
         <tr>
-          <th scope="col">Mês</th>
-          <th scope="col" class="text-right">Débito</th>
-          <th scope="col" class="text-right">Crédito</th>
-          <th scope="col" class="text-right">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% report[:months].each_with_index do |month, index| %>
-          <tr>
-            <th scope="row" class="font-normal">
+          <th scope="col"><span class="sr-only">Modalidade</span></th>
+          <% report[:months].each_with_index do |month, index| %>
+            <th scope="col" class="text-right">
               M<%= index %> · <%= l(month[:period], format: "%b/%Y") %>
               <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
             </th>
-            <% if month[:covered] %>
-              <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
-              <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
-              <td class="text-right tabular-nums font-semibold"><%= brl(month[:total]) %></td>
-            <% else %>
-              <td colspan="3" class="text-right metric-hint">sem dado</td>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <%# A modalidade e a chave que a traz em cada mês; o total fecha em negrito. %>
+        <% [ [ "Débito", :debit, nil ], [ "Crédito", :credit, nil ],
+             [ "Total", :total, "font-semibold" ] ].each do |rotulo, chave, peso| %>
+          <tr>
+            <th scope="row" class="font-normal"><%= rotulo %></th>
+            <% report[:months].each do |month| %>
+              <%# Mês sem cobertura: travessão na coluna inteira, não zero — "sem dado" não é
+                  "sem faturamento". %>
+              <td class="text-right tabular-nums <%= peso %>">
+                <%= month[:covered] ? brl(month[chave]) : "—" %>
+              </td>
             <% end %>
           </tr>
         <% end %>

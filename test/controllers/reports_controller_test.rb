@@ -152,9 +152,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get three_months_reports_path(from_date: "2026-06-10", to_date: "2026-07-22")
 
     assert_select ".earnings-card-bar__sort a.sort-link", text: /M0/
-    assert_select "article.earnings-card th[scope=row]", text: /M0 · jun\/2026/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M0 · jun\/2026/
     assert_select ".earnings-card-bar__sort a.sort-link", text: /M1/
-    assert_select "article.earnings-card th[scope=row]", text: /M1 · jul\/2026/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M1 · jul\/2026/
     assert_select ".earnings-card-bar__sort a.sort-link", text: /M2/, count: 0
     assert_select "p", text: /Exibindo\s+Junho a julho de 2026/
   end
@@ -169,9 +169,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # O locale precisa dos meses abreviados: %b sem abbr_month_names rendia
     # "Translation missing" em todos os rótulos de mês. M0 é o mês mais antigo.
     assert_select ".earnings-card-bar__sort a.sort-link", text: /M0/
-    assert_select "article.earnings-card th[scope=row]", text: /M0 · jun\/2026/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M0 · jun\/2026/
     assert_select ".earnings-card-bar__sort a.sort-link", text: /M2/
-    assert_select "article.earnings-card th[scope=row]", text: /M2 · ago\/2026/
+    assert_select "article.earnings-card thead th[scope=col]", text: /M2 · ago\/2026/
     assert_no_match(/translation missing/i, response.body)
 
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
