@@ -28,10 +28,17 @@ module BinImport
     def validate_single_channel!
       report_ids = values(@map_rows, "REPORT_ID")
       channels = @rows.values.flat_map { |sheet_rows| values(sheet_rows, "CANAL") }.uniq
-      raise ArgumentError, "Arquivo deve conter exatamente um REPORT_ID" unless report_ids.one?
+      unless report_ids.one?
+        raise ArgumentError, "A coluna REPORT_ID do Mapa precisa ter um único valor no arquivo " \
+          "inteiro, e este traz #{report_ids.size == 0 ? 'nenhum' : "#{report_ids.size}: #{report_ids.to_sentence}"}. " \
+          "Cada arquivo cobre uma carteira só; separe as carteiras em arquivos diferentes."
+      end
       # A ausência de CANAL não recusa o arquivo: o import cria o canal fictício
       # ChannelResolver::FALLBACK_NAME e marca cada linha sem CANAL como anomalia.
-      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" if channels.many?
+      if channels.many?
+        raise ArgumentError, "O arquivo traz mais de um CANAL: #{channels.to_sentence}. " \
+          "Cada arquivo cobre uma carteira só; separe os canais em arquivos diferentes."
+      end
     end
 
     def validate_required_values!
@@ -42,7 +49,9 @@ module BinImport
           missing.delete("CANAL") if canal_dispensavel?(sheet_name)
           next if missing.empty?
 
-          raise ArgumentError, "#{sheet_name} linha #{row['_row_number']}: campos obrigatórios vazios: #{missing.join(', ')}"
+          raise ArgumentError, "Na aba \"#{sheet_name}\", linha #{row['_row_number']} da planilha, " \
+            "#{missing.one? ? 'o campo obrigatório está vazio' : 'há campos obrigatórios vazios'}: " \
+            "#{missing.join(', ')}. Preencha #{missing.one? ? 'a célula' : 'as células'} e envie de novo."
         end
       end
     end

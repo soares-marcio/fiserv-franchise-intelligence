@@ -61,7 +61,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(valid_attrs.merge("cnpj" => "99999978000195", "report_id" => "1479"))
     end
-    assert_match(/mudou de CNPJ/, error.message)
+    assert_match(/já está cadastrado com outro CNPJ/, error.message)
   end
 
   test "recusa REPORT_ID associado a outro nome de canal" do
@@ -69,7 +69,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
 
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs) }
 
-    assert_equal "REPORT_ID 1478 associado a outro CANAL", error.message
+    assert_match(/REPORT_ID 1478 já pertence ao canal/, error.message)
   end
 
   test "recusa dias de faturamento que não fecham com o total declarado" do

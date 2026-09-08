@@ -25,6 +25,6 @@ class BinImport::ChannelResolverTest < ActiveSupport::TestCase
       BinImport::ChannelResolver.call(report_id: "7788", name: "OUTRA CARTEIRA")
     end
 
-    assert_equal "REPORT_ID 7788 associado a outro CANAL", error.message
+    assert_match(/já pertence ao canal/, error.message)
   end
 end
