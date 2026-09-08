@@ -7,12 +7,17 @@ const MONTHS = [
 ]
 
 export default class extends Controller {
+  // grid e monthLabel são plurais: o painel mostra dois meses lado a lado, como nas buscas
+  // de passagem — escolher um intervalo que cruza o mês deixa de exigir navegação.
   static targets = [
     "panel", "grid", "monthLabel", "trigger", "triggerLabel", "hint", "fromDate", "toDate"
   ]
   static values = {
     fromDate: String,
-    toDate: String
+    toDate: String,
+    // Mês em que o calendário abre quando nada foi escolhido. A tela 3M manda a competência
+    // mais recente importada: abrir no mês do relógio mostraria um calendário sem dado.
+    openOn: String
   }
 
   connect() {
@@ -39,16 +44,25 @@ export default class extends Controller {
     this.shiftMonth(-1)
   }
 
+  prevYear(event) {
+    event.preventDefault()
+    this.shiftMonth(-12)
+  }
+
+  nextYear(event) {
+    event.preventDefault()
+    this.shiftMonth(12)
+  }
+
   nextMonth(event) {
     event.preventDefault()
     this.shiftMonth(1)
   }
 
   pick(event) {
-    const day = Number(event.target.closest("[data-day]")?.dataset.day)
-    if (!day) return
+    const iso = event.target.closest("[data-date]")?.dataset.date
+    if (!iso) return
 
-    const iso = this.isoDate(this.visible, day)
     if (this.picking == null) {
       this.picking = iso
       this.fromDateValue = iso
@@ -95,7 +109,6 @@ export default class extends Controller {
 
   shiftMonth(delta) {
     this.visible = new Date(this.visible.getFullYear(), this.visible.getMonth() + delta, 1)
-    this.monthLabelTarget.textContent = this.monthTitle()
     this.renderGrid()
   }
 
@@ -118,7 +131,7 @@ export default class extends Controller {
     const offsets = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
     if (!(event.key in offsets)) return
 
-    const buttons = [...this.gridTarget.querySelectorAll("button[data-day]")]
+    const buttons = this.dayButtons()
     const current = buttons.indexOf(event.target.closest("button[data-day]"))
     const next = buttons[current + offsets[event.key]]
     if (!next) return
@@ -128,7 +141,7 @@ export default class extends Controller {
   }
 
   initialMonth() {
-    const iso = this.fromDateValue || this.toDateValue
+    const iso = this.fromDateValue || this.toDateValue || this.openOnValue
     if (!iso) return new Date()
 
     const date = new Date(`${iso}T00:00:00`)
@@ -147,14 +160,28 @@ export default class extends Controller {
   }
 
   updateLabels() {
-    this.monthLabelTarget.textContent = this.monthTitle()
+    this.monthLabelTargets.forEach((label, index) => {
+      label.textContent = this.monthTitle(this.monthAt(index))
+    })
     this.triggerLabelTarget.textContent = this.rangeLabel()
     this.hintTarget.textContent = this.hintText()
   }
 
   renderGrid() {
-    const year = this.visible.getFullYear()
-    const month = this.visible.getMonth()
+    this.monthLabelTargets.forEach((label, index) => {
+      label.textContent = this.monthTitle(this.monthAt(index))
+    })
+    this.gridTargets.forEach((grid, index) => this.renderMonth(grid, this.monthAt(index)))
+    this.applyRangeClasses()
+  }
+
+  monthAt(index) {
+    return new Date(this.visible.getFullYear(), this.visible.getMonth() + index, 1)
+  }
+
+  renderMonth(grid, visible) {
+    const year = visible.getFullYear()
+    const month = visible.getMonth()
     const days = new Date(year, month + 1, 0).getDate()
     const offset = new Date(year, month, 1).getDay()
     const cells = WEEKDAYS.map((day) => `<span class="datepicker__dow">${day}</span>`)
@@ -163,23 +190,22 @@ export default class extends Controller {
       cells.push('<span class="datepicker__cell is-empty" aria-hidden="true"></span>')
     }
     for (let day = 1; day <= days; day += 1) {
-      const iso = this.isoDate(this.visible, day)
+      const iso = this.isoDate(visible, day)
       const today = iso === this.todayIso()
       const classes = `datepicker__cell${today ? " is-today" : ""}`
       const current = today ? ' aria-current="date"' : ""
-      cells.push(`<button type="button" class="${classes}" data-day="${day}"
-        aria-label="${this.dayLabel(day)}" aria-pressed="false"${current}>${day}</button>`)
+      cells.push(`<button type="button" class="${classes}" data-day="${day}" data-date="${iso}"
+        aria-label="${this.dayLabel(visible, day)}" aria-pressed="false"${current}>${day}</button>`)
     }
 
-    this.gridTarget.innerHTML = cells.join("")
-    this.applyRangeClasses()
+    grid.innerHTML = cells.join("")
   }
 
   applyRangeClasses() {
     const fromDate = this.fromDateValue
     const toDate = this.toDateValue
-    this.gridTarget.querySelectorAll("button[data-day]").forEach((button) => {
-      const iso = this.isoDate(this.visible, Number(button.dataset.day))
+    this.dayButtons().forEach((button) => {
+      const iso = button.dataset.date
       button.classList.toggle("is-start", iso === fromDate)
       button.classList.toggle("is-end", iso === toDate)
       button.classList.toggle("is-in-range", Boolean(fromDate && toDate && iso > fromDate && iso < toDate))
@@ -206,8 +232,12 @@ export default class extends Controller {
     return "Selecione o primeiro dia do intervalo"
   }
 
-  monthTitle() {
-    return `${MONTHS[this.visible.getMonth()]} de ${this.visible.getFullYear()}`
+  dayButtons() {
+    return this.gridTargets.flatMap((grid) => [...grid.querySelectorAll("button[data-date]")])
+  }
+
+  monthTitle(visible = this.visible) {
+    return `${MONTHS[visible.getMonth()]} de ${visible.getFullYear()}`
   }
 
   isoDate(date, day) {
@@ -221,8 +251,8 @@ export default class extends Controller {
     return this.isoDate(today, today.getDate())
   }
 
-  dayLabel(day) {
-    return `${day} de ${MONTHS[this.visible.getMonth()]} de ${this.visible.getFullYear()}`
+  dayLabel(visible, day) {
+    return `${day} de ${MONTHS[visible.getMonth()]} de ${visible.getFullYear()}`
   }
 
   formatDate(iso) {

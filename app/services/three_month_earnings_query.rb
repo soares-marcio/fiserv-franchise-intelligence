@@ -39,31 +39,46 @@ class ThreeMonthEarningsQuery
 
   # O mês escolhido é o M0 — o mês de credenciamento —, e a janela avança a partir dele.
   # Meses ainda sem volume importado aparecem na tela como "sem dado", não somem.
-  # A janela abre no M0 escolhido e vai até o mês final, que a tela só oferece entre os dois
-  # meses seguintes: escolher o primeiro deles fecha a janela em dois meses. Qualquer outro
-  # valor volta ao padrão de três, em vez de virar um recorte que a tela não oferece.
+  # A janela vai do mês do início ao mês do fim escolhidos no calendário. O dia não entra:
+  # os volumes da planilha são mensais. O modelo é o dos três primeiros meses, então
+  # intervalo maior é cortado no M2 — e fim ausente, ilegível ou anterior ao início cai na
+  # janela cheia, em vez de virar um recorte às avessas.
+  MAX_WINDOW_MONTHS = 3
+
   def self.window(available_periods, start_period: nil, end_period: nil)
     return if available_periods.empty?
 
     start = parse_start_period(available_periods, start_period) || default_start_period(available_periods)
-    finish = parse_end_period(start, end_period) || start + 2.months
-    (0..((finish.year * 12 + finish.month) - (start.year * 12 + start.month))).map { |offset| start + offset.months }
+    finish = parse_end_period(start, end_period) || start + (MAX_WINDOW_MONTHS - 1).months
+    (0..months_between(start, finish)).map { |offset| start + offset.months }
   end
 
-  # Meses que o segundo seletor oferece, na ordem em que aparecem.
-  def self.window_ends(start)
-    [ start + 1.month, start + 2.months ]
+  def self.months_between(start, finish)
+    (finish.year * 12 + finish.month) - (start.year * 12 + start.month)
   end
+  private_class_method :months_between
 
+  # O calendário preenche as duas datas com a mesma no primeiro clique: escolher um dia só
+  # não pode encurtar a janela para aquele mês. Só um fim em mês posterior encurta.
   def self.parse_end_period(start, value)
     return if value.blank?
 
-    parsed = Date.strptime(value.to_s, "%Y-%m").beginning_of_month
-    parsed if window_ends(start).include?(parsed)
+    parsed = parse_month(value)
+    return if parsed.nil? || parsed <= start
+
+    [ parsed, start + (MAX_WINDOW_MONTHS - 1).months ].min
+  end
+  private_class_method :parse_end_period
+
+  # Aceita "2026-04" do seletor e "2026-04-17" do calendário: o mês é o que importa.
+  def self.parse_month(value)
+    text = value.to_s
+    format = text.length > 7 ? "%Y-%m-%d" : "%Y-%m"
+    Date.strptime(text, format).beginning_of_month
   rescue Date::Error, ArgumentError, TypeError
     nil
   end
-  private_class_method :parse_end_period
+  private_class_method :parse_month
 
   # Sem escolha explícita, abre no M0 mais recente cuja janela ainda cabe nos meses
   # importados: abrir no último mês mostraria duas colunas vazias por padrão.
@@ -75,13 +90,12 @@ class ThreeMonthEarningsQuery
   end
   private_class_method :default_start_period
 
-  def self.parse_start_period(periods, value)
+  # O mês escolhido no calendário vale mesmo sem volume importado: a escolha é do usuário e
+  # a tabela já distingue mês sem cobertura. Só a ausência de escolha cai no padrão.
+  def self.parse_start_period(_periods, value)
     return if value.blank?
 
-    parsed = Date.strptime(value.to_s, "%Y-%m").beginning_of_month
-    parsed if periods.include?(parsed)
-  rescue Date::Error, ArgumentError, TypeError
-    nil
+    parse_month(value)
   end
   private_class_method :parse_start_period
 

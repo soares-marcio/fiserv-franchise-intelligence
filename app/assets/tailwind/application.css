@@ -458,17 +458,47 @@
     display: none;
   }
 
+  /* Ancorado à esquerda do campo: com right: 0 o painel crescia para fora da tela quando o
+     campo era estreito e ficava perto da borda esquerda, como na tela 3M — sumiam a coluna
+     de domingo, o botão de ano anterior e o "Limpar datas". */
   .datepicker {
     position: absolute;
     z-index: 40;
     top: calc(100% + 0.4rem);
-    right: 0;
-    width: min(22rem, calc(100vw - 2rem));
+    left: 0;
+    width: min(40rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
     padding: 1rem;
     border: 1px solid color-mix(in oklab, var(--color-base-300) 86%, white);
     border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
     background: var(--color-base-100);
     box-shadow: 0 22px 48px rgb(68 47 34 / 16%);
+  }
+
+  .datepicker__months {
+    display: grid;
+    gap: 1.1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datepicker__pane {
+    display: grid;
+    gap: 0.5rem;
+    align-content: start;
+  }
+
+  .datepicker__nav-spacer {
+    flex: 1;
+  }
+
+  @media (max-width: 700px) {
+    .datepicker__months {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .datepicker__pane--next {
+      display: none;
+    }
   }
 
   .datepicker__nav {
@@ -606,6 +636,76 @@
     border-radius: 1.15rem 1.15rem 1.15rem 0.35rem;
     background: var(--color-base-100);
     box-shadow: 0 16px 45px rgb(68 47 34 / 7%);
+  }
+
+  .sort-link {
+    display: block;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .sort-link__label {
+    display: inline-flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
+
+  .sort-link:hover,
+  .sort-link:focus-visible {
+    color: var(--color-primary);
+  }
+
+  .sort-link.is-sorted {
+    color: var(--color-primary);
+  }
+
+  /* Ícone, não glifo de texto: o cabeçalho é pequeno e em maiúsculas, e um caractere em em
+     ficava com ~8px. Tamanho absoluto e traço grosso para o indicador se ver de longe. */
+  .sort-indicator {
+    display: inline-flex;
+    width: 1.05rem;
+    height: 1.05rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sort-icon {
+    width: 1.05rem;
+    height: 1.05rem;
+    stroke: currentcolor;
+    stroke-width: 12;
+  }
+
+  .sort-indicator.is-idle {
+    color: var(--cork-strong);
+    opacity: 0.8;
+  }
+
+  .sort-link:hover .sort-indicator.is-idle,
+  .sort-link:focus-visible .sort-indicator.is-idle {
+    color: var(--color-primary);
+    opacity: 1;
+  }
+
+  .sort-reset {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .table-toolbar__breakdown {
+    color: var(--cork-muted);
+    font-size: 0.8rem;
+  }
+
+  .table-toolbar__breakdown .tooltip {
+    cursor: help;
+    border-bottom: 1px dotted currentcolor;
+  }
+
+  .table-toolbar__breakdown-unit {
+    opacity: 0.7;
   }
 
   .table-toolbar {
@@ -1264,8 +1364,9 @@
 
   /* Modal dos lançamentos diários: <dialog> nativo, então o fundo vem do ::backdrop. */
   .daily-modal {
-    width: min(38rem, 92vw);
-    max-height: 86vh;
+    width: min(54rem, 94vw);
+    max-height: 88vh;
+    margin: auto;
     padding: 0;
     border: 1px solid var(--color-base-300);
     border-radius: 0.75rem;
@@ -1278,8 +1379,13 @@
     background: rgb(6 8 24 / 48%);
   }
 
+  /* Corpo em coluna: o cabeçalho do modal fica parado no topo e só a tabela rola, com o
+     thead colado logo abaixo dele. */
   .daily-modal__body {
+    display: flex;
     position: relative;
+    flex-direction: column;
+    max-height: 88vh;
     padding: 1.25rem 1.35rem 1.4rem;
   }
 
@@ -1291,13 +1397,28 @@
 
   .daily-modal__head {
     display: grid;
+    flex: none;
     gap: 0.15rem;
     margin-bottom: 0.9rem;
     padding-right: 2.5rem;
   }
 
   .daily-modal .table-scroll {
-    max-height: 60vh;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+
+  /* O diálogo vive dentro do .table-frame da listagem e herda o cabeçalho fixo ancorado na
+     topbar da página, que o fazia parar no meio da tabela. Dentro do modal o scrollport é a
+     própria tabela. Três classes de propósito: com duas, a especificidade empatava com
+     .table-frame thead th e vencia a que viesse depois no arquivo — que é a de lá. */
+  .daily-modal .table-scroll thead th {
+    top: 0;
+    z-index: 3;
+    background: var(--color-base-100);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
   }
 
   .daily-row {
@@ -1573,6 +1694,15 @@
 
   .metric-hint {
     color: var(--cork-muted);
+  }
+
+  /* Intervalo não cabe numa linha e o .metric-value corta com reticências: entre esconder
+     o número e quebrar a linha, quebra. É o valor da apuração — não pode virar "R$ 6.54…". */
+  .metric-value--range {
+    font-size: 1.35rem;
+    line-height: 1.2;
+    overflow: visible;
+    white-space: normal;
   }
 
   .filter-panel {

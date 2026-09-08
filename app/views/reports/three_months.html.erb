@@ -23,29 +23,9 @@
             @selected_channel&.uuid),
           class: "select select-bordered w-auto min-w-52 max-w-full" %>
       </label>
-      <label class="grid gap-1.5">
-        <span class="section-label">Mês de credenciamento (M0)</span>
-        <%# Só meses com volume mensal importado: a planilha limita a escolha, não o sistema. %>
-        <%= select_tag :start_period,
-          options_for_select(@available_periods.map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
-            @window&.first&.strftime("%Y-%m")),
-          class: "select select-bordered w-auto min-w-52 max-w-full",
-          data: { action: "change->live-form#submit" } %>
-      </label>
-      <% if @window %>
-      <%# O segundo seletor só oferece os dois meses seguintes ao M0: a janela do prêmio de
-          entrada tem no máximo três meses, e o dado é mensal. Trocar o M0 recarrega a tela
-          para as opções acompanharem. %>
-      <label class="grid gap-1.5">
-        <span class="section-label">Até o mês</span>
-        <%= select_tag :end_period,
-          options_for_select(
-            ThreeMonthEarningsQuery.window_ends(@window.first).map { |period| [period_option_label(period), period.strftime("%Y-%m")] },
-            @window.last.strftime("%Y-%m")),
-          class: "select select-bordered w-auto min-w-52 max-w-full",
-          data: { action: "change->live-form#submit" } %>
-      </label>
-      <% end %>
+      <%= render "reports/date_range_picker", label: "Intervalo da janela",
+        from_date: @window&.first, to_date: @window&.last,
+        open_on: @available_periods.first %>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
       <%# A escolha aplicada fica escrita ao lado do botão: o select sozinho não deixava
           claro o que estava valendo depois do Aplicar. %>
@@ -80,7 +60,7 @@
       </article>
       <article class="metric-card" data-tone="green">
         <p class="metric-label">Adicional por faturamento</p>
-        <p class="metric-value">
+        <p class="metric-value <%= "metric-value--range" if addon_without != addon_with %>">
           <% if addon_without == addon_with %>
             <%= brl(addon_without) %>
           <% else %>
@@ -125,7 +105,7 @@
                       subcanal numa janela diferente da que está na tela. %>
                   <%= link_to report[:name],
                     three_months_sub_channel_report_path(id: report[:uuid],
-                      start_period: @window.first.strftime("%Y-%m"), end_period: @window.last.strftime("%Y-%m"),
+                      from_date: @window.first, to_date: @window.last,
                       channel_id: @selected_channel&.uuid),
                     class: "link" %>
                 </td>

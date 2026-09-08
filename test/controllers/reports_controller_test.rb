@@ -93,41 +93,62 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "o mês aplicado continua selecionado no seletor e escrito na tela" do
+  # A janela vem do calendário, mas o link salvo com start_period continua valendo.
+  test "o intervalo aplicado volta no calendário e escrito na tela" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(from_date: "2026-06-01", to_date: "2026-08-15")
+
+    assert_select "input[name=from_date][value=?]", "2026-06-01"
+    assert_select "input[name=to_date][value=?]", "2026-08-01"
+    assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
+    # O link do subcanal precisa carregar a mesma janela, senão o nível 2 abre deslocado.
+    assert_select "td a[href*=?]", "from_date=2026-06-01"
+  end
+
+  test "link antigo com start_period continua abrindo a mesma janela" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
     get three_months_reports_path(start_period: "2026-06")
 
-    # O select apontava para o fim da janela: escolher junho deixava agosto marcado, e
-    # aplicar de novo abria outra janela.
-    assert_select "select[name=start_period] option[selected][value=?]", "2026-06"
-    assert_select "option[value=?]", "2026-08" do |options|
-      assert_nil options.first["selected"]
-    end
     assert_select "p", text: /Exibindo\s+Junho a agosto de 2026/
-    # O link do subcanal precisa carregar o mesmo M0, senão o nível 2 abre deslocado.
-    assert_select "td a[href*=?]", "start_period=2026-06"
   end
 
   # O segundo seletor só oferece os dois meses seguintes ao M0, e escolher o primeiro
   # deles fecha a janela em dois meses — a tabela perde a coluna M2.
-  test "a página 3M oferece o mês final entre os dois seguintes ao M0" do
+  # O intervalo das duas hipóteses de antecipação não cabe numa linha, e .metric-value corta
+  # com reticências: sem o modificador, o card mostrava "R$ 6.54…" em vez do número.
+  test "o adicional em intervalo ganha a classe que deixa o valor quebrar linha" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
-    get three_months_reports_path(start_period: "2026-06")
+    # M0 de julho é a safra do EC credenciado na fixture; é a janela em que as duas
+    # hipóteses de antecipação divergem e o card vira intervalo.
+    get three_months_reports_path(start_period: "2026-07")
 
-    assert_select "select[name=end_period] option", count: 2
-    assert_select "select[name=end_period] option[value=?]", "2026-07"
-    assert_select "select[name=end_period] option[selected][value=?]", "2026-08"
+    assert_select "p.metric-value.metric-value--range", text: /–/
   end
 
-  test "o mês final escolhido encurta a janela apurada" do
+  # O calendário abre na competência mais recente importada: abrir no mês do relógio
+  # mostraria um calendário sem dado nenhum.
+  test "o calendário do 3M abre ancorado na competência mais recente" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
-    get three_months_reports_path(start_period: "2026-06", end_period: "2026-07")
+    get three_months_reports_path
+
+    assert_select "div[data-date-range-picker-open-on-value=?]", "2026-08-01"
+    assert_select "button[aria-label=?]", "Ano anterior"
+    assert_select "button[aria-label=?]", "Próximo ano"
+  end
+
+  test "o fim escolhido no calendário encurta a janela apurada" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get three_months_reports_path(from_date: "2026-06-10", to_date: "2026-07-22")
 
     assert_select "th", text: "M0 · jun/2026"
     assert_select "th", text: "M1 · jul/2026"
@@ -202,6 +223,54 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O EC da listagem abre os lançamentos diários num modal; o conteúdo chega por Turbo
   # Frame, sem layout, com a mesma janela e faixa de dias da tela que o abriu.
+  # As três colunas de valor ordenam a listagem pelo clique no rótulo; o link leva os
+  # filtros junto e o sentido alterna a cada clique.
+  test "as colunas de valor ordenam a listagem e anunciam o sentido" do
+    import_synthetic_workbook
+    refresh_audit_views
+    sub_channel = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(sub_channel)
+
+    # A tela abre ordenada pelo mês anterior cheio e diz isso por escrito.
+    assert_select "th[aria-sort=descending] a.sort-link.is-sorted", text: /Mês anterior cheio/
+    assert_select ".table-toolbar__breakdown", text: /Ordenado por Mês anterior cheio, do maior para o menor/
+    assert_select "th[aria-sort=none] a.sort-link", text: /Mês atual/
+    # Coluna não ordenada mostra o ícone neutro: sem ele, ninguém descobre que dá clique.
+    assert_select "a.sort-link .sort-indicator.is-idle svg.sort-icon", count: 2
+    assert_select "a.sort-link.is-sorted .sort-indicator svg.sort-icon"
+    # Sem ordenação escolhida não há por que oferecer volta ao padrão.
+    assert_select ".sort-reset", count: 0
+
+    get sub_channel_report_path(sub_channel, sort: "current_revenue", direction: "desc", q: "ALFA")
+
+    assert_select "th[aria-sort=descending] a.sort-link.is-sorted", text: /Mês atual/
+    # O segundo clique inverte e preserva a busca.
+    assert_select "a.sort-link[href*=?]", "direction=asc"
+    assert_select "a.sort-link[href*=?]", "q=ALFA"
+    # E há caminho de volta, levando a busca junto.
+    assert_select "a.sort-reset[href*=?]", "q=ALFA"
+    assert_select "a.sort-reset[href*=?]", "sort=", count: 0
+  end
+
+  # A barra da tabela diz quantos ECs do recorte estão ativos e quantos suspensos.
+  test "a barra da listagem mostra ativos e suspensos do recorte" do
+    import_synthetic_workbook
+    refresh_audit_views
+    sub_channel = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(sub_channel)
+
+    assert_response :success
+    # Em MIC ALFA a fixture tem dois ECs no mesmo CNPJ, ambos ativos: o badge conta os dois
+    # ECs, e a composição conta o cliente uma vez. É a diferença de unidade, na prática.
+    assert_select ".badge", text: /2 ECs/
+    assert_select ".table-toolbar__breakdown", text: /1 ativos.*0 suspensos.*por CNPJ/m
+    # Cada contagem carrega a regra em tooltip, para a tela explicar sozinha.
+    assert_select ".table-toolbar__breakdown .tooltip[data-tip*=?]", "pelo menos um EC ativo"
+    assert_select ".table-toolbar__breakdown .tooltip[data-tip*=?]", "todos os ECs suspensos"
+  end
+
   test "lançamentos diários do EC chegam sem layout, um dia por linha" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
@@ -219,7 +288,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /80,00/
   end
 
-  test "lançamentos diários respeitam a faixa de dias pedida" do
+  # A faixa de dias da tela não recorta o modal: ele espelha a planilha, que traz
+  # DIA 01..DIA 31 das duas competências.
+  test "lançamentos diários trazem o mês inteiro mesmo com a tela filtrada" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
     establishment = Establishment.find_by!(ec: "11111111")
@@ -228,8 +299,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       channel_id: channel.uuid, from_day: 1, to_day: 10)
 
     assert_response :success
-    assert_select "tbody th[scope=?]", "row", count: 10
-    assert_select "tbody th[scope=?]", "row", text: "24", count: 0
+    assert_select "tbody th[scope=?]", "row", count: 31
+    assert_select "tbody th[scope=?]", "row", text: "24"
   end
 
   test "mostra os estabelecimentos que compõem os totais do subcanal" do

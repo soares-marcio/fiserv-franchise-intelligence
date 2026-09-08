@@ -16,12 +16,14 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     find("#date_range_trigger").click
     assert_selector "#date_range_panel", visible: true
 
-    # O calendário abre no mês corrente; o intervalo de agosto exige voltar um mês.
+    # O calendário do subcanal abre no mês corrente; um passo atrás traz agosto, e
+    # setembro fica ao lado.
     click_button "Mês anterior"
-    assert_selector ".datepicker__month", text: /agosto/i
+    assert_selector ".datepicker__month", text: /agosto de 2026/i
+    assert_selector ".datepicker__month", text: /setembro de 2026/i
 
-    find("#date_range_panel button[data-day='5']").click
-    find("#date_range_panel button[data-day='9']").click
+    find("#date_range_panel button[data-date='2026-08-05']").click
+    find("#date_range_panel button[data-date='2026-08-09']").click
     click_button "Concluir"
 
     assert_no_selector "#date_range_panel", visible: true
@@ -80,5 +82,76 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     end
 
     assert_no_selector "dialog.daily-modal[open]"
+  end
+
+  # O 3M passou a escolher a janela por calendário, com navegação de mês e de ano. O que
+  # se prova aqui é que a escolha chega à URL e à apuração.
+  test "escolhe a janela do 3M pelo calendário, navegando por ano" do
+    visit three_months_reports_path
+
+    find("#date_range_trigger").click
+    assert_selector "#date_range_panel", visible: true
+
+    # Abre no M0 da janela aplicada — junho —, com julho ao lado.
+    assert_selector ".datepicker__month", text: /junho de 2026/i
+    assert_selector ".datepicker__month", text: /julho de 2026/i
+    click_button "Ano anterior"
+    assert_selector ".datepicker__month", text: /junho de 2025/i
+    click_button "Próximo ano"
+    assert_selector ".datepicker__month", text: /junho de 2026/i
+
+    # Maio a junho: o usuário escolhe, mesmo maio não tendo volume importado.
+    click_button "Mês anterior"
+    find("#date_range_panel button[data-date='2026-05-09']").click
+    find("#date_range_panel button[data-date='2026-06-20']").click
+    click_button "Concluir"
+    click_button "Aplicar"
+
+    assert_current_path(/from_date=2026-05-09/)
+    assert_selector "p", text: /Exibindo\s+Maio a junho de 2026/i
+  end
+
+  # Reprodução do relato: marcar o dia inicial, navegar meses à frente e marcar o dia final
+  # sem voltar ao mês inicial. O intervalo tem que valer assim mesmo.
+  test "intervalo entre meses distantes vale sem voltar ao mês inicial" do
+    visit three_months_reports_path
+
+    find("#date_range_trigger").click
+    2.times { click_button "Mês anterior" }
+    find("#date_range_panel button[data-date='2026-04-04']").click
+    assert_selector ".date-range__label", text: "04/04/2026"
+
+    3.times { click_button "Próximo mês" }
+    assert_selector ".datepicker__month", text: /julho de 2026/i
+    find("#date_range_panel button[data-date='2026-07-09']").click
+
+    # Sem voltar ao mês inicial: o rótulo já mostra o intervalo inteiro.
+    assert_selector ".date-range__label", text: "04/04/2026 a 09/07/2026"
+    click_button "Concluir"
+    click_button "Aplicar"
+
+    assert_current_path(/from_date=2026-04-04/)
+    assert_current_path(/to_date=2026-07-09/)
+  end
+
+  # O modal fica dentro do .table-frame da listagem e herdava o cabeçalho fixo ancorado na
+  # topbar da página: o thead parava no meio da tabela. Aqui o scrollport é a própria
+  # tabela, então o cabeçalho tem que colar no topo dela ao rolar.
+  test "cabeçalho da tabela do modal cola no topo ao rolar" do
+    visit sub_channel_report_path(@sub_channel)
+    find("tr.daily-row", text: "30000001").all("td")[1].click
+    assert_selector "dialog.daily-modal[open]"
+    assert_selector "dialog.daily-modal tbody th", text: "01"
+
+    page.execute_script("document.querySelector('dialog.daily-modal .table-scroll').scrollTop = 400")
+    colado = page.evaluate_script(<<~JS)
+      (() => {
+        const scroll = document.querySelector("dialog.daily-modal .table-scroll")
+        const th = scroll.querySelector("thead th")
+        return Math.abs(th.getBoundingClientRect().top - scroll.getBoundingClientRect().top) < 2
+      })()
+    JS
+
+    assert colado, "o cabeçalho da tabela precisa ficar no topo do scroll do modal"
   end
 end

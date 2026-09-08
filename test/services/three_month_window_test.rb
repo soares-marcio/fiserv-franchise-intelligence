@@ -30,8 +30,10 @@ class ThreeMonthWindowTest < ActiveSupport::TestCase
       ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04")
   end
 
-  test "competência fora da lista importada é ignorada" do
-    assert_equal ThreeMonthEarningsQuery.window(PERIODS),
+  # Com o calendário livre, o mês escolhido vale mesmo sem volume importado: a tabela
+  # mostra as colunas sem cobertura em vez de trocar a escolha do usuário em silêncio.
+  test "mês sem volume importado ainda abre a janela pedida" do
+    assert_equal [ Date.new(2019, 1, 1), Date.new(2019, 2, 1), Date.new(2019, 3, 1) ],
       ThreeMonthEarningsQuery.window(PERIODS, start_period: "2019-01")
   end
 
@@ -42,24 +44,40 @@ class ThreeMonthWindowTest < ActiveSupport::TestCase
     end
   end
 
-  # O segundo seletor da tela só oferece os dois meses seguintes ao M0; escolher o
-  # primeiro deles fecha a janela em dois meses.
+  # O calendário entrega duas datas quaisquer; o que vale é o mês de cada uma.
   test "o mês final escolhido encurta a janela" do
     assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1) ],
       ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-05")
   end
 
-  test "o segundo mês seguinte mantém a janela cheia" do
-    assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ],
-      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-06")
+  # O calendário preenche as duas datas com a mesma no primeiro clique; escolher um dia só
+  # abre a janela cheia, em vez de encolher a apuração para aquele mês sem o usuário pedir.
+  test "as duas datas no mesmo mês mantêm a janela de três meses" do
+    janela = [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ]
+
+    assert_equal janela,
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04-01", end_period: "2026-04-01")
+    assert_equal janela,
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04-01", end_period: "2026-04-20")
   end
 
-  # Fora dos dois meses seguintes — antes do M0, no próprio M0 ou além do M2 — a janela
-  # volta ao padrão de três meses em vez de virar um recorte que a tela não oferece.
-  test "mês final fora do alcance cai na janela de três meses" do
-    [ "2026-03", "2026-04", "2026-07", "não é mês", "", nil ].each do |value|
+  # O modelo é dos três primeiros meses: intervalo maior é cortado no M2, não recusado.
+  test "intervalo maior que três meses é cortado no M2" do
+    assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ],
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: "2026-12")
+  end
+
+  # Fim anterior ao início, ou ilegível, não vira recorte às avessas: cai nos três meses.
+  test "fim inválido cai na janela de três meses" do
+    [ "2026-03", "não é mês", "", nil ].each do |value|
       assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1), Date.new(2026, 6, 1) ],
         ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04", end_period: value), value.inspect
     end
+  end
+
+  # As datas chegam do calendário como dia completo; o dia não muda a apuração, que é mensal.
+  test "aceita data completa e usa o mês dela" do
+    assert_equal [ Date.new(2026, 4, 1), Date.new(2026, 5, 1) ],
+      ThreeMonthEarningsQuery.window(PERIODS, start_period: "2026-04-17", end_period: "2026-05-02")
   end
 end

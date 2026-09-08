@@ -10,6 +10,20 @@ class EstablishmentListingQuery
   PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
   DEFAULT_PER_PAGE = 20
 
+  # Colunas que a tela deixa ordenar, com o rótulo que a coluna leva. A lista é fechada
+  # porque o valor vira SQL: qualquer coisa fora dela cai na ordem por EC.
+  SORT_COLUMNS = {
+    "previous_full_revenue" => "Mês anterior cheio",
+    "previous_revenue" => "Mês anterior comparável",
+    "current_revenue" => "Mês atual"
+  }.freeze
+  SORT_DIRECTIONS = %w[desc asc].freeze
+  # A tela abre pelo mês anterior cheio, do maior para o menor: é a única coluna com valor
+  # em toda competência — o mês atual fica zerado até a planilha do mês chegar — e a
+  # primeira pergunta de uma auditoria é quem mais fatura. Ordem por EC não responde nada.
+  DEFAULT_SORT = "previous_full_revenue".freeze
+  DEFAULT_DIRECTION = "desc".freeze
+
   # Abas por variação alinhada. "Novo" de verdade é só quem foi ativado neste mês ou no
   # anterior (na falta da ativação, vale o credenciamento): EC antigo que estava zerado e
   # voltou a vender não é crescimento — é atenção, e cai na aba de queda. Sem nenhuma das
@@ -25,7 +39,8 @@ class EstablishmentListingQuery
   }.freeze
 
   def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
-    from_date: nil, to_date: nil, query: nil, variation: nil, page: 1, per_page: nil)
+    from_date: nil, to_date: nil, query: nil, variation: nil, sort: nil, direction: nil,
+    page: 1, per_page: nil)
     @channel_id = channel_id
     @sub_channel_id = sub_channel_id
     @window = window
@@ -36,6 +51,11 @@ class EstablishmentListingQuery
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
     @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
+    @sort = sort.to_s.presence_in(SORT_COLUMNS.keys) || DEFAULT_SORT
+    # Primeiro clique na coluna ordena do maior para o menor: é o que se procura numa
+    # auditoria de faturamento.
+    @direction = direction.to_s.presence_in(SORT_DIRECTIONS) || DEFAULT_DIRECTION
+
     @page = page
     @per_page = per_page
   end
@@ -55,7 +75,7 @@ class EstablishmentListingQuery
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
       totals: summary[:totals], page:, per_page:, variation_counts: summary[:variation_counts],
-      overall_totals: summary[:overall_totals]
+      status_counts: summary[:status_counts], overall_totals: summary[:overall_totals]
     )
   end
 
@@ -115,11 +135,25 @@ class EstablishmentListingQuery
         current_revenue: row["current_revenue"].to_d
       },
       variation_counts: { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i },
+      status_counts: status_counts(row),
       overall_totals: @variation && {
         previous_revenue: row["overall_previous_revenue"].to_d,
         current_revenue: row["overall_current_revenue"].to_d
       }
     }
+  end
+
+  # Decisão do usuário (07/09/2026): a suspensão é do cliente, não do ponto de venda. Um
+  # CNPJ é ativo se tiver ao menos um EC ativo, e só entra em suspensos quando todos os ECs
+  # dele estão suspensos — por isso o suspenso é o que sobra, e não uma contagem própria.
+  # Na carteira real, oito dos nove CNPJs com status misto são troca de EC: o antigo
+  # suspenso, o novo aberto no lugar. Contá-los como suspensos marcaria como parado quem
+  # apenas migrou. O contrato só tem dois status (EstablishmentsHelper::CONTRACT_STATUSES);
+  # se surgir um terceiro, ele cai em suspensos e este cálculo precisa mudar.
+  def status_counts(row)
+    cnpjs = row["tab_cnpj_count"].to_i
+    active = row["active_count"].to_i
+    { "Active" => active, "Suspended" => cnpjs - active }
   end
 
   # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
@@ -139,6 +173,10 @@ class EstablishmentListingQuery
         COALESCE(SUM(previous_full_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_full_revenue,
         COALESCE(SUM(previous_revenue) FILTER (WHERE #{tab_clause}), 0) AS previous_revenue,
         COALESCE(SUM(current_revenue) FILTER (WHERE #{tab_clause}), 0) AS current_revenue,
+        COUNT(DISTINCT cnpj) FILTER (WHERE (#{tab_clause})) AS tab_cnpj_count,
+        COUNT(DISTINCT cnpj) FILTER (
+          WHERE (#{tab_clause}) AND contract_status = 'Active'
+        ) AS active_count,
         COUNT(DISTINCT cnpj) AS todas,
         COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
         COUNT(DISTINCT cnpj) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,
@@ -157,7 +195,13 @@ class EstablishmentListingQuery
   end
 
   def rows_sql
-    "SELECT * FROM (#{listing_sql}) listings #{variation_where} ORDER BY ec, establishment_id"
+    "SELECT * FROM (#{listing_sql}) listings #{variation_where} ORDER BY #{order_by}"
+  end
+
+  # O EC continua sendo o desempate: sem ele, linhas de mesmo valor trocariam de lugar
+  # entre páginas a cada consulta.
+  def order_by
+    "#{@sort} #{@direction.upcase} NULLS LAST, ec, establishment_id"
   end
 
   def tab_clause

@@ -239,6 +239,45 @@ module ApplicationHelper
     "#{first} de #{first_period.year} a #{last}".capitalize
   end
 
+  # Cabeçalho de coluna que ordena. O primeiro clique traz o maior valor no topo, o segundo
+  # inverte, e a coluna ativa se anuncia por aria-sort para quem usa leitor de tela.
+  def sort_direction_for(column, current_sort, current_direction)
+    return "desc" unless column == current_sort
+
+    current_direction == "desc" ? "asc" : "desc"
+  end
+
+  def sort_aria(column, current_sort, current_direction)
+    return "none" unless column == current_sort
+
+    current_direction == "desc" ? "descending" : "ascending"
+  end
+
+  # Coluna ordenável sem indicador não se anuncia: quem não passa o mouse não descobre que
+  # dá para clicar. Ícones Phosphor, como o resto da casca: caret-up-down em repouso e o
+  # sentido na coluna ativa.
+  SORT_ICONS = { idle: "caret-up-down", "desc" => "caret-down", "asc" => "caret-up" }.freeze
+
+  def sort_indicator(column, current_sort, current_direction)
+    ativa = column == current_sort
+    nome = ativa ? SORT_ICONS.fetch(current_direction) : SORT_ICONS.fetch(:idle)
+    tag.span(icon(nome, css: "sort-icon"), class: "sort-indicator #{"is-idle" unless ativa}")
+  end
+
+  # Frase que diz em que ordem a tela está — e, portanto, em que ordem a exportação sai.
+  def sort_sentence(sort, direction)
+    coluna = EstablishmentListingQuery::SORT_COLUMNS[sort]
+    return unless coluna
+
+    sentido = direction == "desc" ? "do maior para o menor" : "do menor para o maior"
+    "Ordenado por #{coluna}, #{sentido}"
+  end
+
+  def default_sort?(sort, direction)
+    sort == EstablishmentListingQuery::DEFAULT_SORT &&
+      direction == EstablishmentListingQuery::DEFAULT_DIRECTION
+  end
+
   def day_range_label(from_day, to_day)
     from_day = from_day.to_i
     to_day = to_day.to_i

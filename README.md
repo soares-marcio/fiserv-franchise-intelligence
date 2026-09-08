@@ -103,7 +103,12 @@ suas próprias planilhas ao arquivo) e a ordem entre elas não é verificada. Em
 BIN` só a parte fixa é literal, porque as competências das colunas de volume avançam a cada
 planilha e são validadas por forma (`VOLUME_HEADER_PATTERN`).
 
-Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. Quando o nome termina em
+Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. Arquivo que cumpre o template mas
+chega **sem CANAL** não é recusado: a carteira entra sob o canal fictício `SEM CANAL`
+(`BinImport::ChannelResolver::FALLBACK_NAME`), com o `REPORT_ID` do arquivo, e cada linha do
+Mapa sem canal vira a anomalia `row_without_canal`. Se o `REPORT_ID` já for de um canal
+conhecido, o nome dele é mantido — planilha incompleta não renomeia carteira. Mais de um
+`CANAL` no mesmo arquivo continua sendo erro. Quando o nome termina em
 `_AAAAMMDD.xlsx`, essa data confere a cobertura declarada e pode gerar a anomalia
 `cutoff_below_file_date`; sem esse sufixo o import segue, apenas sem a conferência.
 

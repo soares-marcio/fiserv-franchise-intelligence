@@ -36,8 +36,7 @@ class ReportsController < ApplicationController
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods,
-      start_period: params[:start_period], end_period: params[:end_period])
+    @window = three_month_window
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
   end
 
@@ -49,8 +48,7 @@ class ReportsController < ApplicationController
 
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
-    @window = ThreeMonthEarningsQuery.window(@available_periods,
-      start_period: params[:start_period], end_period: params[:end_period])
+    @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
   end
 
@@ -67,6 +65,12 @@ class ReportsController < ApplicationController
     @from_date = parse_filter_date(params[:from_date])
     @to_date = parse_filter_date(params[:to_date])
     @query = params[:q].to_s.strip
+    # A tela precisa saber a ordem efetiva, não só a pedida: sem isso o cabeçalho não marca
+    # a coluna que está ordenando quando o usuário não escolheu nenhuma.
+    @sort = params[:sort].to_s.presence_in(EstablishmentListingQuery::SORT_COLUMNS.keys) ||
+      EstablishmentListingQuery::DEFAULT_SORT
+    @direction = params[:direction].to_s.presence_in(EstablishmentListingQuery::SORT_DIRECTIONS) ||
+      EstablishmentListingQuery::DEFAULT_DIRECTION
     @window = @scope.establishment_window(
       period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
     )
@@ -102,6 +106,14 @@ class ReportsController < ApplicationController
 
   private
 
+  # A janela do 3M vem do calendário (from_date/to_date). Os parâmetros antigos continuam
+  # aceitos para não quebrar link salvo: o que muda é a origem, não a regra.
+  def three_month_window
+    ThreeMonthEarningsQuery.window(@available_periods,
+      start_period: params[:from_date].presence || params[:start_period],
+      end_period: params[:to_date].presence || params[:end_period])
+  end
+
   def load_listing
     @listing = @scope.revenue_by_establishment(
       sub_channel_id: @sub_channel.id,
@@ -114,6 +126,8 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       query: @query,
+      sort: @sort,
+      direction: @direction,
       page: params[:page],
       per_page: params[:per_page]
     )
@@ -139,7 +153,8 @@ class ReportsController < ApplicationController
       sub_channel_id: @sub_channel.id, variation: @selected_variation,
       statuses: @selected_statuses, period: params[:period],
       from_day: params[:from_day], to_day: params[:to_day],
-      date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query
+      date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query,
+      sort: @sort, direction: @direction
     )
     EstablishmentListingExporter.new(rows, sub_channel_name: @sub_channel.name, window: @window)
   end
@@ -160,6 +175,11 @@ class ReportsController < ApplicationController
     nil
   end
 
+  def default_sort_selected?
+    @sort == EstablishmentListingQuery::DEFAULT_SORT &&
+      @direction == EstablishmentListingQuery::DEFAULT_DIRECTION
+  end
+
   def sub_channel_listing_params(overrides = {})
     {
       channel_id: @selected_channel&.uuid,
@@ -169,6 +189,9 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       q: @query,
+      # A ordem padrão não vai na URL: ela é o estado natural da tela.
+      sort: (@sort unless default_sort_selected?),
+      direction: (@direction unless default_sort_selected?),
       period: @period,
       from_day: @from_day,
       to_day: @to_day,

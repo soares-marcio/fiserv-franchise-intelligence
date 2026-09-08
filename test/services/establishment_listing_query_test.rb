@@ -15,10 +15,12 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       .update_all(activated_on: Date.new(2026, 8, 3))
   end
 
-  test "lista os ECs do subcanal em ordem de EC, com contagens por aba" do
+  # A tela abre pelo mês anterior cheio, do maior para o menor: 1.000, 400, 50 e dois
+  # zerados desempatados por EC. Ordem por EC não respondia a nenhuma pergunta.
+  test "lista os ECs do subcanal na ordem padrão, com contagens por aba" do
     page = listing
 
-    assert_equal %w[30000001 30000002 30000003 30000004 30000005], page.rows.map { |row| row["ec"] }
+    assert_equal %w[30000001 30000003 30000002 30000004 30000005], page.rows.map { |row| row["ec"] }
     assert_equal 5, page.total_count
     assert_equal({ todas: 5, alta: 2, baixa: 3 }, page.variation_counts)
     assert_equal [ 1, EstablishmentListingQuery::DEFAULT_PER_PAGE ], [ page.page, page.per_page ]
@@ -39,6 +41,56 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_equal 6, page.total_count, "a paginação conta linhas, não empresas"
     assert_equal 5, page.variation_counts[:todas],
       "os dois ECs do mesmo CNPJ contam um estabelecimento"
+  end
+
+  # A barra conta CNPJs, não ECs: a suspensão é do cliente. As contagens seguem a aba e os
+  # demais filtros; status sem ninguém volta zerado, porque quem lê a barra precisa do zero.
+  test "conta ativos e suspensos do recorte, por CNPJ" do
+    assert_equal({ "Active" => 4, "Suspended" => 1 }, listing.status_counts)
+    # A aba Em queda tem três: ALFA EXPRESS (caiu), ALFA RETORNO (voltou do zero) e a
+    # suspensa, que não vendeu.
+    assert_equal({ "Active" => 2, "Suspended" => 1 }, listing(variation: "baixa").status_counts)
+    assert_equal({ "Active" => 1, "Suspended" => 0 }, listing(query: "ALFA EXPRESS").status_counts)
+  end
+
+  # Decisão do usuário (07/09/2026): o CNPJ é ativo se ao menos um EC estiver ativo, e só
+  # entra em suspensos quando todos os ECs dele estão suspensos. Na carteira real, oito dos
+  # nove CNPJs com status misto são troca de EC — o antigo suspenso, o novo aberto no lugar.
+  test "CNPJ com um EC ativo e outro suspenso conta como ativo" do
+    misto = lojas + [ loja("30000006", "11222333000181", "ALFA LANCHES II",
+      contract_status: "Suspended", dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 }) ]
+    import_synthetic_workbook(lojas: misto, filename: "BIN_TESTE_20260812.xlsx")
+
+    counts = listing.status_counts
+
+    assert_equal 4, counts["Active"], "o CNPJ com um EC ativo continua ativo"
+    assert_equal 1, counts["Suspended"], "só a ALFA SUSPENSA tem todos os ECs suspensos"
+  end
+
+  # As três colunas de valor podem ordenar a listagem; o EC continua sendo o critério de
+  # desempate, senão a paginação embaralha linhas de mesmo valor entre páginas.
+  test "ordena pelas colunas de valor, nos dois sentidos" do
+    por_atual = listing(sort: "current_revenue", direction: "desc").rows.map { |row| row["ec"] }
+    assert_equal %w[30000001 30000004 30000005 30000002 30000003], por_atual
+
+    # Os cinco valores são distintos, então crescente é a lista invertida.
+    assert_equal por_atual.reverse,
+      listing(sort: "current_revenue", direction: "asc").rows.map { |row| row["ec"] }
+
+    # Mês anterior cheio: 1.000 (ALFA LANCHES), 400 (SUSPENSA), 50 (EXPRESS) e dois zerados,
+    # que caem no fim desempatados por EC.
+    por_anterior = listing(sort: "previous_full_revenue", direction: "desc").rows.map { |row| row["ec"] }
+    assert_equal %w[30000001 30000003 30000002 30000004 30000005], por_anterior
+  end
+
+  test "coluna desconhecida ou sentido inválido caem na ordem padrão" do
+    padrao = listing.rows.map { |row| row["ec"] }
+
+    assert_equal padrao, listing(sort: "cnpj; DROP TABLE").rows.map { |row| row["ec"] }
+    assert_equal padrao, listing(sort: nil, direction: "desc").rows.map { |row| row["ec"] }
+    # Sentido inválido com coluna válida vale como desc, que é o primeiro clique na tela.
+    assert_equal listing(sort: "current_revenue", direction: "desc").rows.map { |row| row["ec"] },
+      listing(sort: "current_revenue", direction: "seja lá o que for").rows.map { |row| row["ec"] }
   end
 
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do
@@ -64,7 +116,8 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   test "aba alta traz quem cresceu ou é novo; aba baixa quem caiu, zerou ou voltou a vender" do
     assert_equal %w[30000001 30000005], listing(variation: "alta").rows.map { |row| row["ec"] }
-    assert_equal %w[30000002 30000003 30000004], listing(variation: "baixa").rows.map { |row| row["ec"] }
+    # Ordem padrão dentro da aba: 400 (SUSPENSA), 50 (EXPRESS) e o zerado (RETORNO).
+    assert_equal %w[30000003 30000002 30000004], listing(variation: "baixa").rows.map { |row| row["ec"] }
   end
 
   test "contagens por aba ignoram a aba ativa e os totais gerais ancoram a variação" do
@@ -78,7 +131,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   test "pagina e normaliza página e tamanho fora das opções" do
     segunda = listing(page: 2, per_page: 2)
-    assert_equal %w[30000003 30000004], segunda.rows.map { |row| row["ec"] }
+    assert_equal %w[30000002 30000004], segunda.rows.map { |row| row["ec"] }
     assert_equal [ 2, 2, 3 ], [ segunda.page, segunda.per_page, segunda.total_pages ]
 
     alem = listing(page: 99, per_page: 2)

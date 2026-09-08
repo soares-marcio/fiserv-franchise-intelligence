@@ -56,6 +56,7 @@ baixe o SVG de `github.com/phosphor-icons/core/assets/regular/` para a pasta e u
 | Onde | Ícones |
 | --- | --- |
 | Menu | chart-line-up, storefront (Mapa cliente e Estabelecimentos), calendar-blank, calendar-check, chart-bar, upload-simple, caret-down (indicador de cada grupo), list-bullets (hambúrguer) |
+| Ordenação | caret-up-down (coluna ordenável em repouso), caret-down e caret-up (sentido da coluna ativa) |
 | Trilha | house em "Início" |
 | Ações | download-simple, funnel, magnifying-glass, eraser, upload-simple, trash, arrow-counter-clockwise, arrow-left, arrow-square-out, x (fechar a busca) |
 | Variação | trend-up, trend-down e minus, em peso **duotone**, por `ApplicationHelper#phosphor_icon` |

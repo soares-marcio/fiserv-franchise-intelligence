@@ -35,11 +35,14 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
     assert_equal 0.to_d, valor(rows, 3, "previous_amount")
   end
 
-  test "respeita a faixa de dias escolhida na tela" do
+  # O modal é a leitura do lançamento, não o recorte da comparação: mostra o mês inteiro
+  # mesmo quando a tela está filtrada por alguns dias.
+  test "ignora a faixa de dias da tela e traz o mês inteiro" do
     rows = daily(from_day: 2, to_day: 10)
 
-    assert_equal (2..10).to_a, rows.map { |row| row["day"].to_i }
+    assert_equal (1..31).to_a, rows.map { |row| row["day"].to_i }
     assert_equal 50.to_d, valor(rows, 2, "current_amount")
+    assert_equal 700.to_d, valor(rows, 25, "previous_amount")
   end
 
   test "EC sem lançamento no recorte responde vazio, sem erro" do
