@@ -1,5 +1,7 @@
 <% content_for :title, @sub_channel.name %>
 
+<% caminho_da_ordem = ->(ordem) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(**ordem)) } %>
+
 <div class="grid gap-5">
   <section class="page-hero">
     <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
@@ -33,7 +35,7 @@
     </div>
 
     <% if @window %>
-      <div class="metric-grid relative z-10">
+      <div class="metric-grid metric-grid--5 relative z-10">
         <article class="metric-card" data-tone="teal">
           <p class="metric-label">Mês anterior cheio</p>
           <p class="metric-value"><%= brl(@totals[:previous_full_revenue]) %></p>
@@ -70,6 +72,21 @@
           <% else %>
             <p class="metric-hint">Períodos com a mesma duração</p>
           <% end %>
+        </article>
+        <%# Ticket médio da carteira: mês anterior cheio dividido pelos CNPJs ativos do
+            recorte. O divisor fica escrito porque a conta mistura o mês fechado com o
+            status de hoje — sem isso, quem lê entende "média de quem vendeu". %>
+        <article class="metric-card" data-tone="teal">
+          <p class="metric-label">Ticket médio</p>
+          <p class="metric-value"><%= @listing.average_ticket ? brl(@listing.average_ticket) : "—" %></p>
+          <p class="metric-hint">
+            <% ativos = @listing.status_counts["Active"].to_i %>
+            <% if ativos.positive? %>
+              Mês anterior cheio ÷ <%= pluralize(ativos, "CNPJ ativo", "CNPJs ativos") %>
+            <% else %>
+              Nenhum CNPJ ativo no recorte
+            <% end %>
+          </p>
         </article>
       </div>
     <% end %>
@@ -224,17 +241,7 @@
               <span class="table-toolbar__breakdown-unit">por CNPJ</span>
             </span>
           <% end %>
-          <%# A ordem vale para a tela e para a exportação, então precisa estar escrita. %>
-          <span class="table-toolbar__breakdown">
-            <%= sort_sentence(@sort, @direction) %>
-            <% unless default_sort?(@sort, @direction) %>
-              ·
-              <%= link_to "Voltar à ordem padrão",
-                sub_channel_report_path(@sub_channel,
-                  sub_channel_listing_params(sort: nil, direction: nil, page: nil)),
-                class: "sort-reset" %>
-            <% end %>
-          </span>
+          <%= render "shared/sort_status", sort: @order, path: caminho_da_ordem %>
           <div class="per-page">
             <span class="section-label">Por página</span>
             <div class="join">
@@ -260,28 +267,13 @@
             <th scope="col">CNPJ</th>
             <th scope="col">Estabelecimento</th>
             <th scope="col">Datas do ciclo</th>
-            <%# As três colunas de valor ordenam a listagem: o rótulo é um link que troca o
-                sentido a cada clique e leva os filtros junto. %>
-            <% [
-              [ "previous_full_revenue", "Mês anterior cheio", "competência fechada" ],
-              [ "previous_revenue", "Mês anterior comparável", (day_range_label(@from_day, @to_day) if @window) ],
-              [ "current_revenue", "Mês atual", (day_range_label(@from_day, @to_day) if @window) ]
-            ].each do |column, label, hint| %>
-              <th scope="col" class="text-right"
-                aria-sort="<%= sort_aria(column, @sort, @direction) %>">
-                <%# O link ocupa a célula inteira: com o cabeçalho em duas linhas, clicar
-                    na dica ou na sobra da célula não podia ser um clique perdido. %>
-                <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(
-                      sort: column, direction: sort_direction_for(column, @sort, @direction), page: nil
-                    )),
-                    class: "sort-link #{"is-sorted" if column == @sort}",
-                    title: "Ordenar por #{label}, #{sort_direction_for(column, @sort, @direction) == 'desc' ? 'do maior para o menor' : 'do menor para o maior'}" do %>
-                  <span class="sort-link__label"><%= label %><%= sort_indicator(column, @sort, @direction) %></span>
-                  <% if hint %>
-                    <span class="block font-normal normal-case tracking-normal opacity-60"><%= hint %></span>
-                  <% end %>
-                <% end %>
-              </th>
+            <%# As três colunas de valor ordenam a listagem: o cabeçalho é compartilhado
+                com as demais telas que têm valor. %>
+
+            <% EstablishmentListingQuery::SORT_COLUMNS.each do |column, label| %>
+              <%= render "shared/sortable_header", sort: @order, column:, label:,
+                path: caminho_da_ordem,
+                hint: (column == "previous_full_revenue" ? "competência fechada" : (day_range_label(@from_day, @to_day) if @window)) %>
             <% end %>
             <th scope="col" class="text-right variation-col">Variação</th>
           </tr>

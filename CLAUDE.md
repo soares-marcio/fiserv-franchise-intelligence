@@ -56,8 +56,13 @@ row["agenda_semanal"]      # idem
 snapshot.previous_month_total  # coluna do banco — em inglês
 ```
 
-Renomear um desses quebra o import com "Cabeçalhos divergentes". Antes de qualquer refactor
-que toque strings, confira que `EXPECTED_HEADERS` continua idêntico.
+Renomear um desses quebra o import. Antes de qualquer refactor que toque strings, confira que
+`EXPECTED_HEADERS` continua idêntico.
+
+O que é inviolável é o **nome**, não o conjunto: desde 08/09/2026 a validação exige que toda
+coluna esperada exista e ignora as que sobram, porque a Fiserv acrescenta colunas com o tempo
+e o importador lê as células pelo nome. Renome segue fatal — aparece como falta e sobra ao
+mesmo tempo.
 
 ### Rastreabilidade planilha → banco
 

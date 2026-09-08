@@ -12,8 +12,15 @@ module BinImport
         next unless establishment
 
         cnpj = Normalizer.cnpj(row["CNPJ"])
-        raise ArgumentError, "EC #{establishment.ec} mudou de CNPJ" if establishment.company.cnpj != cnpj
-        raise ArgumentError, "EC #{establishment.ec} mudou de canal" if establishment.channel_id != channel.id
+        if establishment.company.cnpj != cnpj
+        raise ArgumentError, "O EC #{establishment.ec} já está cadastrado com outro CNPJ. " \
+          "O EC é preso ao CNPJ desde a primeira importação: confira as duas colunas na " \
+          "planilha, ou avise a Fiserv se a troca for real."
+        end
+        if establishment.channel_id != channel.id
+        raise ArgumentError, "O EC #{establishment.ec} já pertence a outro canal. " \
+          "Um EC não muda de carteira entre importações: confira o CANAL da planilha."
+        end
       end
     end
   end

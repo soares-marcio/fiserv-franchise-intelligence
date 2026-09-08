@@ -13,7 +13,9 @@ module BinImport
       Template.validate!(@workbook)
       checksum = Digest::SHA256.file(@path).hexdigest
       if ImportBatch.where(status: "validated").exists?(file_checksum: checksum)
-        raise ArgumentError, "Arquivo já importado"
+        raise ArgumentError, "Este arquivo já foi importado antes — o conteúdo é idêntico ao " \
+        "de um lote validado. Se a planilha foi atualizada, exporte de novo da origem: um " \
+        "arquivo com qualquer alteração tem outro checksum."
       end
 
       template = Template.register!(@workbook)
@@ -83,10 +85,16 @@ module BinImport
     def resolve_channel!(map_rows)
       report_ids = map_rows.pluck("REPORT_ID").compact.map(&:to_s).uniq
       canals = map_rows.pluck("CANAL").compact.map(&:to_s).reject(&:blank?).uniq
-      raise ArgumentError, "Arquivo deve conter exatamente um REPORT_ID" unless report_ids.one?
+      unless report_ids.one?
+        raise ArgumentError, "A coluna REPORT_ID do Mapa precisa ter um único valor no arquivo " \
+          "inteiro. Cada arquivo cobre uma carteira só."
+      end
       # Sem CANAL o arquivo ainda entra, sob o nome fictício; com mais de um, não há o que
       # decidir, porque cada arquivo cobre uma carteira só.
-      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" if canals.many?
+      if canals.many?
+        raise ArgumentError, "O arquivo traz mais de um CANAL: #{canals.to_sentence}. " \
+          "Cada arquivo cobre uma carteira só; separe os canais em arquivos diferentes."
+      end
 
       ChannelResolver.call(report_id: report_ids.first, name: canals.first)
     end

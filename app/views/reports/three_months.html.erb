@@ -81,6 +81,8 @@
           <h2 class="table-title">Ganho por subcanal na janela</h2>
         </div>
         <span class="badge badge-ghost"><%= @window.map { |p| l(p, format: "%b/%Y") }.join(" · ") %></span>
+        <%= render "shared/sort_status", sort: @order,
+          path: ->(ordem) { three_months_reports_path(three_month_order_params(**ordem.except(:page))) } %>
       </div>
       <div class="table-scroll" role="region" tabindex="0"
       aria-label="Primeiros três meses por subcanal, rolável na horizontal">
@@ -90,11 +92,15 @@
               <th scope="col">Subcanal</th>
               <%# M0 é o próprio mês de credenciamento escolhido; o mês de calendário ao
                   lado desfaz qualquer ambiguidade. %>
+              <% caminho = ->(ordem) { three_months_reports_path(three_month_order_params(**ordem.except(:page))) } %>
               <% @window.each_with_index do |period, index| %>
-                <th scope="col" class="text-right">M<%= index %> · <%= l(period, format: "%b/%Y") %></th>
+                <%= render "shared/sortable_header", sort: @order, column: "m#{index}",
+                  label: "M#{index}", hint: l(period, format: "%b/%Y"), path: caminho %>
               <% end %>
-              <th scope="col" class="text-right">ECs no M0</th>
-              <th scope="col" class="text-right">Prêmio da safra</th>
+              <%= render "shared/sortable_header", sort: @order, column: "accredited",
+                label: "ECs no M0", hint: nil, path: caminho %>
+              <%= render "shared/sortable_header", sort: @order, column: "prize",
+                label: "Prêmio da safra", hint: nil, path: caminho %>
             </tr>
           </thead>
           <tbody>

@@ -29,7 +29,10 @@ class TemplateVolumeMonthsTest < ActiveSupport::TestCase
     ]
 
     error = assert_raises(ArgumentError) { BinImport::Template.validate_mapa_headers!(headers) }
-    assert_match(/mesmo conjunto de competências/, error.message)
+    assert_match(/não fecham entre si/, error.message)
+    # A mensagem mostra o conjunto de cada família, que é o que o analista precisa comparar.
+    assert_match(/VOLUME DE ANTECIPAÇÃO: 202608/, error.message)
+    assert_no_match(/ and /, error.message, "a lista é lida em português")
   end
 
   test "divergência na parte fixa do Mapa continua fatal, como sempre foi" do
@@ -37,14 +40,14 @@ class TemplateVolumeMonthsTest < ActiveSupport::TestCase
       BinImport::Template::VOLUME_FAMILIES.map { |family| "#{family} 202607" }
 
     error = assert_raises(ArgumentError) { BinImport::Template.validate_mapa_headers!(headers) }
-    assert_match(/Cabeçalhos divergentes/, error.message)
-    assert_match(/NET MDR/, error.message)
+    assert_match(/está sem a coluna "NET MDR"/, error.message)
+    assert_match(/removida ou renomeada/, error.message)
   end
 
   test "mapa sem nenhuma coluna de volume é recusado" do
     error = assert_raises(ArgumentError) do
       BinImport::Template.validate_mapa_headers!(BinImport::Template::MAPA_FIXED_HEADERS.dup)
     end
-    assert_match(/mesmo conjunto de competências/, error.message)
+    assert_match(/não tem nenhuma coluna de volume mensal/, error.message)
   end
 end

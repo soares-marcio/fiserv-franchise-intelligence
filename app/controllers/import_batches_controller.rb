@@ -64,12 +64,22 @@ class ImportBatchesController < ApplicationController
   private
 
   def upload_rejection(upload)
-    return "Envie um arquivo .xlsx." unless File.extname(upload.original_filename.to_s).casecmp(".xlsx").zero?
+    extensao = File.extname(upload.original_filename.to_s)
+    unless extensao.casecmp(".xlsx").zero?
+      return "O arquivo precisa ser .xlsx e este é #{extensao.presence || 'sem extensão'}. " \
+        "Se a planilha estiver em .xls ou .csv, abra no Excel e salve como .xlsx."
+    end
     if upload.size > Operations::ImportFile::MAX_UPLOAD_BYTES
-      return "Arquivo acima de #{Operations::ImportFile::MAX_UPLOAD_BYTES / 1.megabyte} MB."
+      limite = Operations::ImportFile::MAX_UPLOAD_BYTES / 1.megabyte
+      return "O arquivo tem #{ActiveSupport::NumberHelper.number_to_human_size(upload.size)} " \
+        "e o limite é #{limite} MB. " \
+        "A planilha BIN costuma ter menos de 1 MB: confira se não foi enviado outro arquivo."
     end
 
-    "O arquivo não é um .xlsx válido." unless xlsx_signature?(upload)
+    unless xlsx_signature?(upload)
+      "O arquivo tem extensão .xlsx mas o conteúdo não é de uma planilha. Isso acontece " \
+        "quando um .csv ou .xls é renomeado à mão: abra no Excel e salve como .xlsx."
+    end
   end
 
   def xlsx_signature?(upload)

@@ -20,6 +20,17 @@ class EstablishmentRevenuePage
     rows.each(&block)
   end
 
+  # Ticket médio da carteira: o mês anterior cheio dividido pelos CNPJs ativos do recorte.
+  # Mistura o mês fechado com o status de hoje por decisão do usuário — a leitura é "quanto
+  # rende cada cliente ativo" —, e por isso a tela escreve o divisor ao lado do valor. Sem
+  # CNPJ ativo não há média: devolve nil em vez de zero, que seria outra afirmação.
+  def average_ticket
+    ativos = status_counts["Active"].to_i
+    return if ativos.zero?
+
+    totals[:previous_full_revenue] / ativos
+  end
+
   def total_pages
     return 1 if total_count < 1 || per_page.to_i < 1
 

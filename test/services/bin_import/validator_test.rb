@@ -12,7 +12,8 @@ class BinImport::ValidatorTest < ActiveSupport::TestCase
     }
 
     error = assert_raises(ArgumentError) { BinImport::Validator.new(rows).validate! }
-    assert_equal "Arquivo deve conter exatamente um REPORT_ID", error.message
+    assert_match(/REPORT_ID/, error.message)
+    assert_match(/separe as carteiras em arquivos diferentes/, error.message)
   end
 
   private

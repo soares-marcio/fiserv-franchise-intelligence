@@ -1,0 +1,43 @@
+<%# Bloco de falha da importação. Existe para o usuário resolver sozinho quando o problema
+    está no arquivo — a mensagem diz o que corrigir — e, quando não está, reportar ao
+    administrador sem depender de memória: o texto de relato já vem pronto, com o que
+    identifica o lote. %>
+<section class="failure-report" role="alert" data-controller="copy-report">
+  <div class="failure-report__head">
+    <p class="section-label">A importação falhou</p>
+    <h2 class="table-title"><%= batch.source_filename %></h2>
+  </div>
+
+  <% batch.validation_errors.each do |message| %>
+    <p class="failure-report__message"><%= message %></p>
+  <% end %>
+
+  <dl class="failure-report__facts">
+    <div><dt>Lote</dt><dd>#<%= batch.id %></dd></div>
+    <div><dt>Enviado em</dt><dd><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></dd></div>
+    <div><dt>Identificação do arquivo</dt><dd class="font-mono"><%= batch.file_checksum.first(12) %></dd></div>
+    <% if batch.channel %>
+      <div><dt>Canal</dt><dd><%= batch.channel.name %></dd></div>
+    <% end %>
+  </dl>
+
+  <details class="failure-report__details">
+    <summary>Relatar ao administrador</summary>
+    <p class="failure-report__hint">
+      Copie o texto abaixo e envie para quem administra o portal. Ele identifica o arquivo e o
+      momento exato da falha.
+    </p>
+    <%# O textarea é a fonte da cópia e também o plano B: em HTTP a área de transferência do
+        navegador pode estar bloqueada, e aí o usuário seleciona o texto à mão. %>
+    <textarea class="failure-report__source" readonly rows="8"
+      data-copy-report-target="source"
+      aria-label="Texto do relato da falha"><%= import_failure_report(batch) %></textarea>
+    <div class="failure-report__actions">
+      <button type="button" class="btn btn-sm btn-primary"
+        data-action="copy-report#copy" data-copy-report-target="button">
+        Copiar relato
+      </button>
+      <span class="failure-report__feedback" data-copy-report-target="feedback" role="status"></span>
+    </div>
+  </details>
+</section>

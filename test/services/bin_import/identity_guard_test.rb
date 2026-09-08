@@ -22,7 +22,7 @@ class BinImport::IdentityGuardTest < ActiveSupport::TestCase
       BinImport::IdentityGuard.assert_existing!(@channel, sheets(row(@alfa.ec, "99.888.777/0001-66")))
     end
 
-    assert_equal "EC 30000001 mudou de CNPJ", error.message
+    assert_match(/EC 30000001 já está cadastrado com outro CNPJ/, error.message)
   end
 
   test "recusa EC que muda de canal entre importações" do
@@ -32,7 +32,7 @@ class BinImport::IdentityGuardTest < ActiveSupport::TestCase
       BinImport::IdentityGuard.assert_existing!(other, sheets(row(@alfa.ec, "11.222.333/0001-81")))
     end
 
-    assert_equal "EC 30000001 mudou de canal", error.message
+    assert_match(/EC 30000001 já pertence a outro canal/, error.message)
   end
 
   test "EC desconhecido passa: é cadastro novo, não divergência" do

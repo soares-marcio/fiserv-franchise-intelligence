@@ -13,7 +13,9 @@ module BinImport
 
       resolved = name.presence || FALLBACK_NAME
       if channel && channel.name != resolved
-        raise ArgumentError, "REPORT_ID #{report_id} associado a outro CANAL"
+        raise ArgumentError, "O REPORT_ID #{report_id} já pertence ao canal \"#{channel.name}\", " \
+          "e este arquivo traz \"#{resolved}\". Um REPORT_ID identifica uma carteira só: " \
+          "confira se o CANAL da planilha está correto."
       end
 
       channel || Channel.create!(external_id: report_id, name: resolved)

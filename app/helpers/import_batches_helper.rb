@@ -1,4 +1,19 @@
 module ImportBatchesHelper
+  # Texto que o usuário envia ao administrador. Traz o que identifica a falha sem depender de
+  # memória: arquivo, momento, lote, identificação do conteúdo e a mensagem inteira.
+  def import_failure_report(batch)
+    [
+      "Falha na importação — Auditoria BIN",
+      "Arquivo: #{batch.source_filename}",
+      "Enviado em: #{batch.created_at.strftime('%d/%m/%Y %H:%M')}",
+      "Lote ##{batch.id} · identificação do arquivo: #{batch.file_checksum.first(12)}",
+      ("Canal: #{batch.channel.name}" if batch.channel),
+      "Status: #{batch.status}",
+      "",
+      *batch.validation_errors
+    ].compact.join("\n")
+  end
+
   STATUS_PRESENTATION = {
     "validated" => { label: "Importado", tone: "success" },
     "failed" => { label: "Falhou", tone: "error" },

@@ -98,10 +98,16 @@ O arquivo `.xlsx` precisa trazer estas três abas, com os cabeçalhos declarados
 3. **Mapa de Clientes BIN** — cadastro e volumes mensais consolidados
 
 As abas são localizadas pelo nome: **abas extras são ignoradas** (o analista costuma anexar
-suas próprias planilhas ao arquivo) e a ordem entre elas não é verificada. Em `Faturamento` e
-`Ativacao` os cabeçalhos são comparados ao literal, inclusive na ordem; no `Mapa de Clientes
-BIN` só a parte fixa é literal, porque as competências das colunas de volume avançam a cada
-planilha e são validadas por forma (`VOLUME_HEADER_PATTERN`).
+suas próprias planilhas ao arquivo) e a ordem entre elas não é verificada.
+
+Nas colunas vale a mesma lógica, e a regra é uma só: **toda coluna esperada precisa existir,
+com o nome exato; o que sobra é ignorado.** A planilha da Fiserv ganha colunas com o tempo —
+em 03/09/2026 apareceu `ELEGIBILIDADE D0` — e o importador lê as células pelo nome do
+cabeçalho, então coluna a mais não atrapalha. Coluna que falta é erro, e **renomear continua
+sendo erro**, porque um renome aparece como falta e sobra ao mesmo tempo. A ordem das colunas
+não é verificada, pela mesma razão: a leitura é por nome. No `Mapa de Clientes BIN` só a parte
+fixa é literal — as competências das colunas de volume avançam a cada planilha e são validadas
+por forma (`VOLUME_HEADER_PATTERN`).
 
 Cada arquivo cobre **um único** `REPORT_ID` e `CANAL`. Arquivo que cumpre o template mas
 chega **sem CANAL** não é recusado: a carteira entra sob o canal fictício `SEM CANAL`

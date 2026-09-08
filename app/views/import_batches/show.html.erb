@@ -13,12 +13,14 @@
       <% end %>
     </p>
 
-    <% if @import_batch.validation_errors.any? %>
+    <% if @import_batch.status == "failed" && @import_batch.validation_errors.any? %>
+      <%= render "failure_report", batch: @import_batch %>
+    <% end %>
+
+    <% if @import_batch.validation_errors.any? && @import_batch.status == "validated" %>
       <div class="alert alert-error mt-4" role="alert">
         <div>
-          <p class="font-semibold">
-            <%= @import_batch.status == "validated" ? "Importado com ressalva" : "A importação falhou" %>
-          </p>
+          <p class="font-semibold">Importado com ressalva</p>
           <ul class="mt-1 list-disc pl-5 text-sm">
             <% @import_batch.validation_errors.each do |message| %>
               <li><%= message %></li>

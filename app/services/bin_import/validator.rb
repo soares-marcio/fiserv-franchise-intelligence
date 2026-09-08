@@ -28,10 +28,17 @@ module BinImport
     def validate_single_channel!
       report_ids = values(@map_rows, "REPORT_ID")
       channels = @rows.values.flat_map { |sheet_rows| values(sheet_rows, "CANAL") }.uniq
-      raise ArgumentError, "Arquivo deve conter exatamente um REPORT_ID" unless report_ids.one?
+      unless report_ids.one?
+        raise ArgumentError, "A coluna REPORT_ID do Mapa precisa ter um único valor no arquivo " \
+          "inteiro, e este traz #{report_ids.size == 0 ? 'nenhum' : "#{report_ids.size}: #{report_ids.to_sentence}"}. " \
+          "Cada arquivo cobre uma carteira só; separe as carteiras em arquivos diferentes."
+      end
       # A ausência de CANAL não recusa o arquivo: o import cria o canal fictício
       # ChannelResolver::FALLBACK_NAME e marca cada linha sem CANAL como anomalia.
-      raise ArgumentError, "Arquivo deve conter exatamente um CANAL" if channels.many?
+      if channels.many?
+        raise ArgumentError, "O arquivo traz mais de um CANAL: #{channels.to_sentence}. " \
+          "Cada arquivo cobre uma carteira só; separe os canais em arquivos diferentes."
+      end
     end
 
     def validate_required_values!
@@ -42,7 +49,9 @@ module BinImport
           missing.delete("CANAL") if canal_dispensavel?(sheet_name)
           next if missing.empty?
 
-          raise ArgumentError, "#{sheet_name} linha #{row['_row_number']}: campos obrigatórios vazios: #{missing.join(', ')}"
+          raise ArgumentError, "Na aba \"#{sheet_name}\", linha #{row['_row_number']} da planilha, " \
+            "#{missing.one? ? 'o campo obrigatório está vazio' : 'há campos obrigatórios vazios'}: " \
+            "#{missing.join(', ')}. Preencha #{missing.one? ? 'a célula' : 'as células'} e envie de novo."
         end
       end
     end
@@ -71,7 +80,10 @@ module BinImport
         end
       end
       changed = identities.find { |_ec, cnpjs| cnpjs.uniq.many? }
-      raise ArgumentError, "EC #{changed.first} associado a mais de um CNPJ" if changed
+      if changed
+        raise ArgumentError, "O EC #{changed.first} aparece com mais de um CNPJ dentro deste " \
+          "mesmo arquivo. Um EC pertence a um CNPJ só: confira as linhas desse EC nas três abas."
+      end
     end
 
     def validate_revenue_membership!
@@ -80,7 +92,12 @@ module BinImport
         ec = Normalizer.ec(row["EC"])
         ec unless map_ecs.include?(ec)
       end
-      raise ArgumentError, "ECs de Faturamento ausentes no Mapa: #{missing.join(', ')}" if missing.any?
+      if missing.any?
+        amostra = missing.first(10).join(", ")
+        raise ArgumentError, "#{missing.size} #{missing.one? ? 'EC da aba Faturamento não está' : 'ECs da aba Faturamento não estão'} " \
+          "na aba Mapa de Clientes BIN: #{amostra}#{'…' if missing.size > 10}. Todo EC que fatura " \
+          "precisa estar no Mapa — exporte as duas abas do mesmo momento."
+      end
     end
 
     def validate_daily_totals!
@@ -95,7 +112,10 @@ module BinImport
       sum = (1..31).sum { |day| Normalizer.decimal(row[format("DIA %02d%s", day, suffix)]) || 0 }
       return if sum == total
 
-      raise ArgumentError, "Faturamento linha #{row['_row_number']}: dias não reconciliam com #{total_header}"
+      raise ArgumentError, "Na aba Faturamento, linha #{row['_row_number']} da planilha (EC " \
+        "#{row['EC']}), a soma dos dias não bate com a coluna \"#{total_header}\": os dias somam " \
+        "#{format('%.2f', sum)} e a coluna traz #{format('%.2f', total)}. Confira se algum dia " \
+        "ficou vazio ou se o total foi editado à mão."
     end
 
     def derive_competencies!
@@ -105,7 +125,11 @@ module BinImport
       @current_period = matching_period(map_by_ec, "FATURAMENTO TOTAL DESTE MÊS")
       return if @current_period == @previous_period.next_month
 
-      raise ArgumentError, "Competências reconciliadas não são consecutivas"
+      raise ArgumentError, "As duas competências do arquivo não são meses seguidos: a coluna " \
+        "\"fat_total_m1\" bate com #{I18n.l(@previous_period, format: '%B de %Y')} e " \
+        "\"FATURAMENTO TOTAL DESTE MÊS\" com #{I18n.l(@current_period, format: '%B de %Y')}. " \
+        "A comparação exige mês anterior e mês atual: confira se as colunas de volume do Mapa " \
+        "e as de faturamento vieram da mesma exportação."
     end
 
     # As competências cobertas vêm do próprio arquivo: a planilha avança um mês por
@@ -113,7 +137,11 @@ module BinImport
     def covered_periods_from_headers!
       months = (@map_rows.first || {}).keys
         .filter_map { |header| header[/\AVOLUME DE FATURAMENTO TOTAL (\d{6})\z/, 1] }
-      raise ArgumentError, "Mapa de Clientes BIN sem colunas de volume mensal" if months.empty?
+      if months.empty?
+        raise ArgumentError, "A aba Mapa de Clientes BIN não tem nenhuma coluna " \
+          "\"VOLUME DE FATURAMENTO TOTAL AAAAMM\". São elas que dizem quais competências o " \
+          "arquivo cobre; sem elas não há o que comparar."
+      end
 
       months.sort.map { |month| Date.strptime(month, "%Y%m") }
     end
@@ -128,8 +156,17 @@ module BinImport
         [ period, score ]
       end
       best = scores.max_by { |_period, score| score }
-      raise ArgumentError, "Não foi possível reconciliar #{revenue_header} com os volumes mensais" if best.last.zero?
-      raise ArgumentError, "Reconciliação ambígua para #{revenue_header}" if scores.values.count(best.last) > 1
+      meses = @covered_periods.map { |period| I18n.l(period, format: "%b/%Y") }.to_sentence
+      if best.last.zero?
+        raise ArgumentError, "Não deu para descobrir de que mês é a coluna \"#{revenue_header}\": " \
+          "o valor dela não bateu com nenhuma coluna de volume do Mapa (#{meses}). As duas abas " \
+          "precisam vir da mesma exportação."
+      end
+      if scores.values.count(best.last) > 1
+        raise ArgumentError, "A coluna \"#{revenue_header}\" bateu igualmente com mais de uma " \
+          "competência do Mapa (#{meses}), então não dá para dizer de que mês ela é. Isso " \
+          "costuma acontecer quando dois meses trazem os mesmos valores."
+      end
 
       best.first
     end

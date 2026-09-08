@@ -61,7 +61,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     error = assert_raises(ArgumentError) do
       Operations::RegisterManually.call(valid_attrs.merge("cnpj" => "99999978000195", "report_id" => "1479"))
     end
-    assert_match(/mudou de CNPJ/, error.message)
+    assert_match(/já está cadastrado com outro CNPJ/, error.message)
   end
 
   test "recusa REPORT_ID associado a outro nome de canal" do
@@ -69,7 +69,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
 
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs) }
 
-    assert_equal "REPORT_ID 1478 associado a outro CANAL", error.message
+    assert_match(/REPORT_ID 1478 já pertence ao canal/, error.message)
   end
 
   test "recusa dias de faturamento que não fecham com o total declarado" do
@@ -83,7 +83,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
         )
       )
     end
-    assert_match(/dias não reconciliam/, error.message)
+    assert_match(/a soma dos dias não bate com a coluna/, error.message)
   end
 
   test "recusa competências de faturamento não consecutivas" do
@@ -113,7 +113,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
     end
 
     error = assert_raises(ArgumentError) { BinImport::Validator.new(rows).validate_identity! }
-    assert_match(/ECs de Faturamento ausentes no Mapa/, error.message)
+    assert_match(/da aba Faturamento não está na aba Mapa de Clientes BIN/, error.message)
   end
 
   private

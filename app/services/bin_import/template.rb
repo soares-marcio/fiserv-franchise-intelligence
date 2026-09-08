@@ -90,7 +90,9 @@ module BinImport
       missing = SHEETS - workbook.sheets
       if missing.any?
         raise ArgumentError,
-          "Abas ausentes: #{missing.join(', ')}; encontrado #{workbook.sheets.join(', ')}"
+          "O arquivo não tem #{missing.one? ? 'a aba' : 'as abas'} #{lista(missing)}. " \
+            "Abas encontradas: #{lista(workbook.sheets)}. O nome da aba precisa ser exatamente " \
+            "esse; abas a mais o arquivo pode ter."
       end
 
       EXPECTED_HEADERS.each do |sheet_name, expected|
@@ -99,23 +101,51 @@ module BinImport
         # As competências dos volumes do Mapa avançam toda semana: a parte fixa continua
         # comparada ao literal, e os meses são validados por forma, não por lista.
         next validate_mapa_headers!(actual) if sheet_name == "Mapa de Clientes BIN"
-        next if actual == expected
 
-        missing = expected - actual
-        unexpected = actual - expected
-        raise ArgumentError,
-          "Cabeçalhos divergentes em #{sheet_name}; ausentes: #{missing.join(', ')}; inesperados: #{unexpected.join(', ')}"
+        check_headers!(sheet_name, expected:, actual:)
       end
+    end
+
+    # Coluna a mais não recusa o arquivo: a planilha da Fiserv ganha colunas com o tempo, e o
+    # importador lê as células pelo nome do cabeçalho — o que sobra é ignorado. Coluna que
+    # falta continua sendo erro, e renomear uma coluna aparece como falta, então a proteção
+    # contra renome segue de pé.
+    def self.check_headers!(sheet_name, expected:, actual:)
+      missing = expected - actual
+      return if missing.empty?
+
+      extras = actual - expected
+      raise ArgumentError, header_error_message(sheet_name, missing, extras)
+    end
+
+    # A mensagem é lida por quem tem o arquivo aberto e precisa consertá-lo sozinho: diz a
+    # aba, os nomes que faltam, o que apareceu no lugar e o que fazer com isso.
+    # Plural escrito à mão: pluralize e to_sentence flexionam em inglês, e a mensagem é lida
+    # em português por quem está com a planilha aberta.
+    def self.header_error_message(sheet_name, missing, extras)
+      uma = missing.one?
+      rotulo = uma ? "a coluna" : "as colunas"
+      pista = if extras.any?
+        "No lugar apareceu #{lista(extras)}, então é provável que #{uma ? 'ela tenha' : 'elas tenham'} " \
+          "sido #{uma ? 'renomeada' : 'renomeadas'}. O nome precisa ser idêntico ao esperado, " \
+          "com acentos e maiúsculas."
+      else
+        "#{uma ? 'Ela pode ter sido removida ou renomeada' : 'Elas podem ter sido removidas ou renomeadas'}. " \
+          "Coluna a mais a planilha pode ter; coluna a menos, não."
+      end
+
+      "A aba \"#{sheet_name}\" está sem #{rotulo} #{lista(missing)}. " \
+        "#{pista} Corrija o cabeçalho na planilha e envie o arquivo de novo."
+    end
+
+    def self.lista(headers)
+      headers.map { |header| "\"#{header}\"" }
+        .to_sentence(two_words_connector: " e ", last_word_connector: " e ")
     end
 
     def self.validate_mapa_headers!(actual)
       fixed = actual.grep_v(VOLUME_HEADER_PATTERN)
-      unless fixed == MAPA_FIXED_HEADERS
-        missing = MAPA_FIXED_HEADERS - fixed
-        unexpected = fixed - MAPA_FIXED_HEADERS
-        raise ArgumentError,
-          "Cabeçalhos divergentes em Mapa de Clientes BIN; ausentes: #{missing.join(', ')}; inesperados: #{unexpected.join(', ')}"
-      end
+      check_headers!("Mapa de Clientes BIN", expected: MAPA_FIXED_HEADERS, actual: fixed)
 
       months_by_family = actual.filter_map { |header| VOLUME_HEADER_PATTERN.match(header) }
         .group_by { |match| match[1] }
@@ -123,9 +153,20 @@ module BinImport
       return if months_by_family.keys.sort == VOLUME_FAMILIES.sort &&
         months_by_family.values.uniq.size == 1
 
+      if months_by_family.empty?
+        raise ArgumentError,
+          "A aba Mapa de Clientes BIN não tem nenhuma coluna de volume mensal — são as " \
+          "\"VOLUME DE FATURAMENTO TOTAL AAAAMM\" e as três famílias irmãs. São elas que " \
+          "dizem quais competências o arquivo cobre."
+      end
+
+      familias = months_by_family.map { |family, months| "#{family}: #{months.join(', ')}" }
+        .to_sentence(two_words_connector: " e ", last_word_connector: " e ")
       raise ArgumentError,
-        "Colunas de volume mensal inconsistentes em Mapa de Clientes BIN: as quatro " \
-        "famílias devem trazer o mesmo conjunto de competências"
+        "As colunas de volume mensal do Mapa não fecham entre si. As quatro famílias " \
+        "(total, débito, crédito e antecipação) precisam trazer as mesmas competências, e " \
+        "este arquivo traz #{familias}. Confira se algum mês ficou de fora de uma das " \
+        "famílias na exportação."
     end
 
     # Cabeçalho de origem para cada campo de nome, respeitando a inversão por aba.

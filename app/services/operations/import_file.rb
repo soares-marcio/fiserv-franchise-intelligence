@@ -40,9 +40,19 @@ module Operations
     end
 
     def self.handle_existing(batch, filename)
-      raise ArgumentError, "Arquivo já importado" if batch.status == "validated"
-      raise ArgumentError, "Arquivo já está sendo importado" if batch.status == "pending"
-      raise ArgumentError, "Lote existente precisa ser reprocessado" unless batch.discardable?
+      if batch.status == "validated"
+        raise ArgumentError, "Este arquivo já foi importado em " \
+          "#{batch.created_at.strftime('%d/%m/%Y %H:%M')} " \
+          "e o conteúdo é idêntico. Se a planilha foi atualizada, exporte de novo da origem."
+      end
+      if batch.status == "pending"
+        raise ArgumentError, "Este arquivo já está na fila de importação. Acompanhe o lote " \
+          "nesta tela; ele muda de status sozinho quando o worker terminar."
+      end
+      unless batch.discardable?
+        raise ArgumentError, "Já existe um lote deste arquivo com dados gravados. Reprocesse " \
+          "ou descarte o lote existente antes de enviar de novo."
+      end
 
       batch.update!(source_filename: filename, status: "pending", validation_errors: [])
       batch

@@ -117,7 +117,8 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     error = assert_raises(ArgumentError) do
       BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
     end
-    assert_equal "Arquivo já importado", error.message
+    assert_match(/já foi importado antes/, error.message)
+    assert_match(/exporte de novo da origem/, error.message)
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -144,8 +145,9 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     end
 
     error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
-    assert_equal "Abas ausentes: Faturamento, Ativacao, Mapa de Clientes BIN; encontrado Planilha1",
-      error.message
+    assert_match(/não tem as abas/, error.message)
+    assert_match(/"Faturamento"/, error.message)
+    assert_match(/Abas encontradas: "Planilha1"/, error.message)
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -189,7 +191,11 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     end
 
     error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
-    assert_match(/Cabeçalhos divergentes em Faturamento/, error.message)
+    # A mensagem diz a aba, a coluna que falta, a que apareceu no lugar e o que fazer.
+    assert_match(/aba "Faturamento"/, error.message)
+    assert_match(/"HIERARQUIA"/, error.message)
+    assert_match(/renomeada/, error.message)
+    assert_match(/envie o arquivo de novo/, error.message)
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -200,7 +206,7 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
     outras.first.cnpj = "99888777000166"
 
     error = assert_raises(ArgumentError) { import_synthetic_workbook(lojas: outras) }
-    assert_equal "EC 30000001 mudou de CNPJ", error.message
+    assert_match(/EC 30000001 já está cadastrado com outro CNPJ/, error.message)
   end
 
   test "um lote posterior estende a cobertura sem duplicar dias conhecidos" do
