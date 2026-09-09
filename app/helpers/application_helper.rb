@@ -175,17 +175,27 @@ module ApplicationHelper
       data: { tip: verb }, tabindex: 0)
   end
 
-  def variation_chip(previous, current, novo: nil)
+  # `icon: false` entrega só o valor. É para onde a coluna é estreita: o glifo, o intervalo
+  # dele e o espaço entre os dois custam 38,4px por chip — mais de um terço da célula na
+  # listagem por subcanal, onde o maior valor tem 100,9px. Nada se perde: a direção está no
+  # sinal, na cor e no aria-label, e o ícone é aria-hidden desde sempre.
+  def variation_chip(previous, current, novo: nil, icon: true)
     direction = variation_direction(previous, current)
-    return zero_base_chip(current, novo:) if direction == :unavailable
+    return zero_base_chip(current, novo:, icon:) if direction == :unavailable
 
     verb = VARIATION_VERBS.fetch(direction)
     value = signed_variation(previous, current)
     content_tag(:span, class: "variation-chip variation-chip--#{direction}",
       aria: { label: "#{verb.downcase} #{value}" }) do
-      safe_join([ variation_icon_tip(direction, verb),
-        content_tag(:span, value, class: "variation-chip__value") ])
+      variation_chip_body(direction, verb, value, icon)
     end
+  end
+
+  def variation_chip_body(direction, verb, value, icon)
+    valor = content_tag(:span, value, class: "variation-chip__value")
+    return valor unless icon
+
+    safe_join([ variation_icon_tip(direction, verb), valor ])
   end
 
   # Base zero não tem percentual possível (divisão por zero), mas o caso é descritível
@@ -194,26 +204,24 @@ module ApplicationHelper
   # estava zerado e vendeu (mora na aba de queda — é atenção, não crescimento); e
   # "Sem venda" quando segue zerado. `novo: nil` preserva a leitura otimista para
   # chamadores sem data, como a listagem por subcanal.
-  def zero_base_chip(current, novo: nil)
+  def zero_base_chip(current, novo: nil, icon: true)
     if current.to_d.positive?
       if novo == false
         content_tag(:span, class: "variation-chip variation-chip--flat",
           aria: { label: "voltou a vender: sem venda no mês anterior, ativação antiga" }) do
-          safe_join([ variation_icon_tip(:flat, "Sem venda no mês anterior; ativação antiga"),
-            content_tag(:span, "Voltou a vender", class: "variation-chip__value") ])
+          variation_chip_body(:flat, "Sem venda no mês anterior; ativação antiga",
+            "Voltou a vender", icon)
         end
       else
         content_tag(:span, class: "variation-chip variation-chip--up",
           aria: { label: "novo: primeira venda na base" }) do
-          safe_join([ variation_icon_tip(:up, "Primeira venda na base"),
-            content_tag(:span, "Novo", class: "variation-chip__value") ])
+          variation_chip_body(:up, "Primeira venda na base", "Novo", icon)
         end
       end
     else
       content_tag(:span, class: "variation-chip variation-chip--flat",
         aria: { label: "sem venda nos dois períodos" }) do
-        safe_join([ variation_icon_tip(:flat, "Zerado nos dois períodos"),
-          content_tag(:span, "Sem venda", class: "variation-chip__value") ])
+        variation_chip_body(:flat, "Zerado nos dois períodos", "Sem venda", icon)
       end
     end
   end

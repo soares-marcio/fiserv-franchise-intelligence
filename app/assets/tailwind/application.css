@@ -2632,10 +2632,22 @@
   width: calc(var(--size) + 2px);
 }
 
-/* A coluna de variação vale a maior célula dela — o chip "Voltou a vender", 139px —, e o
-   que dá para apertar é a moldura: 0,6rem de cada lado no lugar de 1rem, medidos 171px
-   antes e 158px depois. Só nesta tabela: a mesma classe serve a listagem de MICs em
-   /reports, que não tem esse aperto de colunas. */
+/* A coluna de variação vale a maior célula dela, e aqui ela vale o próprio valor: o ícone
+   não é renderizado nesta tela (`icon: false` na view) e a pílula sai daqui, restando o
+   texto. Medido: 158,5px viram 120,1 — que é o maior valor, "Voltou a vender" com 100,9px,
+   mais os 0,6rem de cada lado.
+
+   A cor da variação não se perde: fica no texto, e o fundo colorido continua aparecendo na
+   célula inteira no hover, que é onde ele já vivia.
+
+   Só nesta tabela: a mesma classe serve a listagem de MICs em /reports, que não tem esse
+   aperto de colunas e mantém o chip inteiro. */
 .establishment-revenue-table .variation-col {
   padding-inline: 0.6rem;
+}
+
+.establishment-revenue-table .variation-col .variation-chip {
+  min-height: 0;
+  padding: 0;
+  background: none;
 }
