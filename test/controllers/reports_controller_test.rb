@@ -86,7 +86,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".search-modal turbo-frame#global-search[target=_top]"
   end
 
-  test "clientes parados e semanal abrem com o banco recém-criado" do
+  test "Clover Capital e semanal abrem com o banco recém-criado" do
     [ *AuditViews::ALIGNED_VIEWS, "audit_weekly_revenue" ].each do |view|
       ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW #{view} WITH NO DATA")
     end
