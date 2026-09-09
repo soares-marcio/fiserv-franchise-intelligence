@@ -799,6 +799,17 @@
     white-space: nowrap;
   }
 
+  .period-stepper {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+
+  .btn.is-disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
   /* Calendário do ritmo: sete colunas de dia da semana, mais a faixa de dias à esquerda e o
      total da semana à direita. */
   .revenue-calendar td,

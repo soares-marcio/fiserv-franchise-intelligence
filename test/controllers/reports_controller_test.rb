@@ -80,6 +80,23 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "thead th[scope=col]", count: 9
   end
 
+  # As setas andam entre competências importadas e param nas pontas: sem isso o usuário
+  # chegaria a um mês sem arquivo, que a tela não sabe desenhar.
+  test "as setas navegam entre competências e desativam nas pontas" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    # Agosto é a mais recente da planilha sintética: não há próxima.
+    get weekly_reports_path
+    assert_select ".period-stepper a[aria-label=?][href*=?]", "Competência anterior", "period=2026-07-01"
+    assert_select ".period-stepper span.is-disabled", count: 1
+
+    # Julho é a mais antiga: a seta de voltar é que desativa, e a de avançar leva a agosto.
+    get weekly_reports_path(period: "2026-07-01")
+    assert_select ".period-stepper a[aria-label=?][href*=?]", "Próxima competência", "period=2026-08-01"
+    assert_select ".period-stepper span.is-disabled", count: 1
+  end
+
   # A regra que a tela existe para não quebrar: o arquivo cobre até o dia de corte, e do dia
   # seguinte em diante não é "não vendeu", é "não sabemos".
   test "dia além da cobertura aparece como sem dado, não como zero" do

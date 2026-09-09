@@ -34,6 +34,7 @@ class ReportsController < ApplicationController
       weeks: @scope.weekly_calendar(period: @period, covered_days: @covered_days))
     @totals = @scope.month_totals(period: @period, up_to_day: @covered_days)
     load_previous_month_anchor
+    load_calendar_neighbours
   end
 
   # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
@@ -46,6 +47,15 @@ class ReportsController < ApplicationController
       nil
     end
     disponiveis.include?(pedida) ? pedida : disponiveis.first
+  end
+
+  # As setas andam só entre competências importadas — não existe mês vazio para onde ir. A
+  # lista vem em ordem decrescente, então a anterior está adiante no array.
+  def load_calendar_neighbours
+    periodos = @scope.available_periods.map { |row| row["period"].to_date }
+    posicao = periodos.index(@period)
+    @newer_period = posicao.positive? ? periodos[posicao - 1] : nil
+    @older_period = periodos[posicao + 1]
   end
 
   def covered_days_for(period)

@@ -233,6 +233,19 @@ module ApplicationHelper
     channel.name == BinImport::ChannelResolver::FALLBACK_NAME ? "SEM MASTER" : channel.name
   end
 
+  # Seta do calendário: link quando existe competência para onde ir, botão apagado quando
+  # não existe. Some-lo faria o seletor pular de lugar ao chegar na ponta da série.
+  def calendar_step(period, icon_name, label)
+    if period.nil?
+      return content_tag(:span, icon(icon_name, css: "btn-icon"),
+        class: "btn btn-outline btn--field is-disabled", aria: { hidden: true })
+    end
+
+    link_to icon(icon_name, css: "btn-icon"),
+      weekly_reports_path(period: period.to_s, channel_id: params[:channel_id].presence),
+      class: "btn btn-outline btn--field", aria: { label: }
+  end
+
   # Intensidade da célula do calendário em cinco faixas, não num gradiente contínuo: cinco
   # tons se distinguem de relance, e o que se quer é ver o padrão da semana sem ler número.
   # Dia zerado fica sem preenchimento — ausência de venda não é um tom de laranja.
