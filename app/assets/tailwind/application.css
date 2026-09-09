@@ -1467,6 +1467,19 @@
     white-space: nowrap;
   }
 
+  /* Na listagem por subcanal a coluna fica do tamanho do que carrega: `width: 1px` em tabela
+     de layout automático é o pedido de min-content, enquanto com 1% o navegador ainda
+     repartia a sobra da tabela com ela e o chip ficava com folga dos dois lados. O padrão do
+     daisyUI é 1rem de cada lado; duas classes no seletor porque `.table :where(th,td)`
+     empata em especificidade com uma só.
+
+     A regra é só desta tabela: a mesma classe serve a listagem de MICs em /reports, que tem
+     cinco colunas e não tem o aperto que esta tem. */
+  .establishment-revenue-table .variation-col {
+    width: 1px;
+    padding-inline: 0.6rem;
+  }
+
   .variation-icon-tip {
     display: inline-flex;
     align-items: center;
@@ -1898,6 +1911,12 @@
     width: 1%;
     text-align: center;
     white-space: nowrap;
+  }
+
+  /* Dois pixels a mais que o quadrado do daisyUI (--size, 2rem no btn-sm). Duas classes
+     porque `.btn-square` empata em especificidade com uma só. */
+  .btn.conversation-trigger {
+    width: calc(var(--size) + 2px);
   }
 
   .day-modal__head {
