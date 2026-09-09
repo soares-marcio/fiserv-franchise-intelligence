@@ -121,5 +121,9 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "tbody a.establishment-link[href=?]", establishment_path(establishment)
+    # A listagem vive num turbo-frame e o cadastro não o tem: sem escapar para _top, o Turbo
+    # responde "Content missing" e a tela fica em branco.
+    assert_select "tbody a.establishment-link[data-turbo-frame=?]", "_top"
+    assert_select "tbody a.link.font-mono[data-turbo-frame=?]", "_top"
   end
 end
