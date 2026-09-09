@@ -54,21 +54,47 @@
   --cork-shadow: 0 0 40px 0 rgb(68 47 34 / 7%);
   /* Altura única de campos e dos botões que ficam ao lado deles. */
   --field-height: 2.8rem;
+  /* Tokens da casca: grid de 4px/8px, usados para manter ritmo entre viewports. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --space-9: 2.25rem;
+  --space-10: 2.5rem;
+  --space-11: 3rem;
+  --space-12: 4rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(68 47 34 / 8%);
+  --shadow-md: 0 12px 30px rgb(68 47 34 / 10%);
+  --shadow-lg: 0 22px 48px rgb(68 47 34 / 16%);
+  --border-subtle: 1px solid var(--color-base-300);
+  --transition-fast: 140ms ease;
+  --transition-standard: 180ms ease;
 }
 
 @layer base {
   html {
     min-width: 320px;
     background: var(--color-base-200);
+    overflow-x: hidden;
   }
 
   body {
     color: var(--color-base-content);
     font-family: var(--font-sans);
     font-feature-settings: "tnum" 1, "ss01" 1;
-    font-size: 0.875rem;
+    font-size: 1rem;
     letter-spacing: 0;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
 
   ::selection {
@@ -161,12 +187,6 @@
 
   .metric-grid--5 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  @media (max-width: 1400px) {
-    .metric-grid--5 {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
   }
 
   .metric-card {
@@ -515,16 +535,6 @@
 
   .datepicker__nav-spacer {
     flex: 1;
-  }
-
-  @media (max-width: 700px) {
-    .datepicker__months {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .datepicker__pane--next {
-      display: none;
-    }
   }
 
   .datepicker__nav {
@@ -926,12 +936,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 1200px) {
-    .ec-card-grid {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-
   .ec-card {
     display: grid;
     align-content: start;
@@ -1010,12 +1014,6 @@
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 1200px) {
-    .earnings-card-grid {
-      grid-template-columns: minmax(0, 1fr);
-    }
   }
 
   .earnings-card {
@@ -2145,289 +2143,108 @@
     white-space: nowrap;
   }
 
-  .page-hero,
-  .surface-card,
-  .filter-panel,
-  .table-frame,
-  .metric-card {
-    border: 1px solid var(--color-base-300);
-    border-radius: 1rem;
-    background: var(--color-base-100);
-    box-shadow: var(--cork-shadow);
+
+
+}
+
+/* Base mobile: todas as ações continuam disponíveis em uma coluna legível. */
+  .app-main {
+    padding: var(--space-6) var(--space-3) var(--space-12);
   }
 
-  .page-hero {
-    padding: 1.5rem;
-    overflow: hidden;
+  .topbar {
+    padding-top: env(safe-area-inset-top);
   }
 
-  .page-hero::after {
+  .metric-grid,
+  .metric-grid--3,
+  .metric-grid--5,
+  .ec-card-grid,
+  .earnings-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .datepicker__months {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .datepicker__pane--next {
     display: none;
   }
 
-  .eyebrow,
-  .section-label {
-    color: var(--color-primary);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0;
+  .table-scroll {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
   }
 
-  .page-title {
-    color: var(--cork-strong);
-    font-size: 1.85rem;
-    font-weight: 700;
-    letter-spacing: 0;
-    line-height: 1.2;
+  .earnings-card .table-scroll {
+    width: 100%;
   }
 
-  .page-description {
-    color: var(--cork-muted);
-    font-size: 0.9rem;
+  .earnings-card > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
-  .metric-grid {
-    gap: 1rem;
+  .earnings-card__table {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    table-layout: fixed;
   }
 
-  /* Três cards preenchem a linha em vez de deixar a quarta coluna vazia. */
-  .metric-grid--3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .earnings-card__table th,
+  .earnings-card__table td {
+    overflow-wrap: anywhere;
   }
 
-  .metric-card {
-    min-height: 8rem;
-    padding: 1.25rem;
-  }
-
-  .metric-card::before {
-    display: none;
-  }
-
-  .metric-label {
-    color: var(--cork-muted);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  /* 1,5rem e não 1,75: cinco cards dividem a largura, e medido em 1440px o card útil tem
-     233px. Em 1,75rem o valor de milhões pedia 259px e era cortado; em 1,5rem com os
-     centavos menores pede 209px, e ainda cabe uma competência de dezenas de milhões (226px).
-     Acima disso a linha quebra, que é o combinado desta casa: nunca esconder algarismo. */
-  .metric-value {
-    color: var(--cork-strong);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 0;
-  }
-
-  .metric-hint {
-    color: var(--cork-muted);
-  }
-
-  /* Intervalo não cabe numa linha e o .metric-value corta com reticências: entre esconder
-     o número e quebrar a linha, quebra. É o valor da apuração — não pode virar "R$ 6.54…". */
-  .metric-value--range {
-    font-size: 1.35rem;
-    line-height: 1.2;
-    overflow: visible;
+  .earnings-card__table .tabular-nums {
     white-space: normal;
   }
 
-  .filter-panel {
-    padding: 1.25rem;
-  }
-
-  .filter-search,
-  .tag-select,
-  .date-range,
-  .input,
-  .select,
-  .file-input {
-    border-color: var(--color-base-300);
-    border-radius: 0.5rem;
-    background: var(--color-base-100);
-    color: var(--color-base-content);
-  }
-
-  .table-frame {
-    overflow: clip;
-  }
-
-  /* No desktop a tabela cabe, então o wrapper não rola e o cabeçalho pode ficar fixo na
-     página; abaixo de 1100px volta a rolar na horizontal e o cabeçalho acompanha. */
-  .table-scroll {
-    overflow: visible;
-  }
-
-  /* A barra de título gruda abaixo da barra do site; o cabeçalho das colunas, abaixo dela. */
-  .table-frame .table-toolbar {
-    position: sticky;
-    z-index: 3;
-    top: var(--topbar-height, 4.75rem);
-    background: var(--color-base-100);
-  }
-
+  .table-frame .table-toolbar,
   .table-frame thead th {
+    position: static;
+  }
+
+  .daily-modal .table-scroll thead th {
     position: sticky;
-    z-index: 2;
-    top: calc(var(--topbar-height, 4.75rem) + var(--toolbar-height, 0px));
-  }
-
-  .table-toolbar {
-    padding: 1.1rem 1.25rem;
-    border-bottom-color: var(--color-base-300);
-  }
-
-  .table-title {
-    color: var(--cork-strong);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0;
-  }
-
-  .table :where(th) {
-    background: color-mix(in oklab, var(--color-base-200) 58%, white);
-    color: var(--cork-muted);
-    letter-spacing: 0;
-  }
-
-  .table :where(td) {
-    color: var(--color-base-content);
-  }
-
-  .table tbody tr:hover {
-    background: color-mix(in oklab, var(--color-base-200) 38%, white);
-  }
-
-  .btn {
-    min-height: 2.45rem;
-    gap: 0.4rem;
-    border-radius: 0.5rem;
-    font-weight: 600;
-    letter-spacing: 0;
-  }
-
-  .btn-icon {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-  }
-
-  .icon-inline {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-    vertical-align: -0.15em;
-  }
-
-  /* O reset do Tailwind deixa svg como block; aqui ele precisa correr com o texto. */
-  .breadcrumb-icon,
-  .icon-inline {
-    display: inline-block;
-  }
-
-  .breadcrumb-icon {
-    width: 0.9rem;
-    height: 0.9rem;
-    margin-right: 0.3rem;
-    vertical-align: -0.12em;
-  }
-
-  .metric-label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .metric-icon {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-    opacity: 0.75;
-  }
-
-  /* Botão que fica ao lado de um campo: mesma altura do .file-input. */
-  .btn--field {
-    height: var(--field-height);
-    min-height: var(--field-height);
-  }
-
-  .btn-primary {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: var(--color-primary-content);
-    box-shadow: none;
-  }
-
-  .btn-outline {
-    border-color: var(--color-base-300);
+    top: 0;
+    z-index: 3;
     background: var(--color-base-100);
-    color: var(--color-base-content);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
   }
 
-  .btn-neutral {
-    background: var(--cork-dark-500);
-    color: var(--color-neutral-content);
+  .establishment-revenue-table tbody tr:hover td:last-child {
+    background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
   }
 
-  .badge {
-    min-height: 1.55rem;
-    border-radius: 999px;
-    font-weight: 600;
+  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--up) {
+    background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
   }
 
-  .badge-success {
-    background: var(--cork-success-100);
-    color: var(--color-success);
+  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--down) {
+    background: color-mix(in oklab, var(--color-error) 16%, var(--color-base-100));
   }
 
-  .badge-error {
-    background: var(--cork-danger-100);
-    color: var(--color-error);
+  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--flat) {
+    background: var(--color-base-200);
   }
 
-  .badge-warning {
-    background: var(--cork-warning-100);
-    color: var(--color-warning);
+  .table-scroll-hint {
+    display: block;
   }
 
-  .badge-ghost {
-    background: var(--cork-dark-100);
-    color: var(--cork-muted);
-  }
-
-  fieldset {
-    border-radius: 0.75rem;
-    background: color-mix(in oklab, var(--color-base-200) 38%, white);
-  }
-}
-
-@media (max-width: 1200px) {
-  .filter-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .filter-actions {
-    grid-column: 1 / -1;
-  }
-}
-
-/* Abaixo de 1400px o menu desce inteiro para a segunda linha da barra. */
-@media (max-width: 1400px) {
-  .primary-nav {
-    order: 3;
-    flex-basis: 100%;
-  }
-}
-
-/* Telefones: a tabela rola na horizontal e o cabeçalho volta a acompanhar as linhas. */
-@media (max-width: 900px) {
-  /* O menu colapsa atrás do hambúrguer; aberto, vira lista vertical com acordeões. */
   .nav-toggle {
     display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .primary-nav {
@@ -2457,91 +2274,177 @@
   .nav-submenu {
     position: static;
     min-width: 0;
-    margin: 0.15rem 0 0.35rem;
-    padding: 0 0 0 1.4rem;
+    margin: var(--space-1) 0 var(--space-2);
+    padding: 0 0 0 var(--space-5);
     border: 0;
     background: transparent;
     box-shadow: none;
   }
 
-  .table-scroll {
-    overflow-x: auto;
+  .nav-link,
+  .search-content,
+  .header-status,
+  .btn-toggle,
+  .btn,
+  .datepicker__nav-btn,
+  .status-tag__remove {
+    min-width: 44px;
+    min-height: 44px;
   }
 
-  .table-frame .table-toolbar,
-  .table-frame thead th {
-    position: static;
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary {
+    touch-action: manipulation;
+  }
+
+  .filter-search,
+  .search-modal__input,
+  .input,
+  .select,
+  .file-input {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .daily-modal,
+  .search-modal__dialog {
+    overscroll-behavior: contain;
+  }
+
+@media (min-width: 480px) {
+  .app-main {
+    padding-inline: var(--space-4);
   }
 
   .metric-grid,
   .metric-grid--3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+@media (min-width: 768px) {
+  .metric-grid,
+  .metric-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ec-card-grid,
+  .earnings-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
   .filter-bar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  .datepicker__months {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datepicker__pane--next {
+    display: grid;
   }
 }
 
-@media (max-width: 560px) {
-  .brand-caption,
-  .search-shortcut {
+@media (min-width: 1024px) {
+  .app-main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .filter-bar {
+    grid-template-columns: minmax(12rem, 0.95fr) minmax(12rem, 0.95fr)
+      minmax(14rem, 1fr) minmax(13rem, 1fr) auto;
+  }
+
+  .filter-actions {
+    grid-column: auto;
+  }
+
+  .nav-toggle {
     display: none;
   }
 
-  .search-content {
-    padding-right: 0.75rem;
+  .primary-nav {
+    display: flex;
+    order: initial;
+    flex-basis: auto;
   }
 
-  .header-status {
-    padding-inline: 0.65rem;
-    font-size: 0.72rem;
+  .nav-dropdown {
+    position: relative;
   }
 
-  .app-main {
-    padding-top: 1rem;
+  .nav-dropdown summary {
+    width: auto;
   }
 
-  .metric-grid,
-  .metric-grid--3 {
-    grid-template-columns: 1fr;
+  .nav-submenu {
+    position: absolute;
+    min-width: 14.5rem;
+    margin: 0;
+    padding: var(--space-1);
+    border: 1px solid color-mix(in oklab, white 12%, transparent);
+    background: color-mix(in oklab, var(--color-neutral) 97%, white);
+    box-shadow: var(--shadow-lg);
   }
 
-  .page-hero {
-    border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
+  .table-scroll {
+    overflow-x: visible;
+    overscroll-behavior-x: auto;
   }
 
-  .table-toolbar,
-  .table-toolbar__meta,
-  .per-page {
-    align-items: flex-start;
+  .earnings-card .table-scroll {
+    overflow-x: auto;
   }
 
-  .table-toolbar {
-    flex-direction: column;
+  .earnings-card > * {
+    min-width: 0;
+    max-width: 100%;
   }
 
-  .table-toolbar__meta {
-    width: 100%;
-    justify-content: flex-start;
+  .earnings-card__table {
+    min-width: 0;
+    max-width: 100%;
+    table-layout: fixed;
   }
 
-  .per-page {
-    width: 100%;
-    flex-wrap: wrap;
+  .earnings-card__table .tabular-nums {
+    white-space: normal;
+  }
+
+  .table-frame .table-toolbar {
+    position: sticky;
+    z-index: 3;
+    top: var(--topbar-height, 4.75rem);
+    background: var(--color-base-100);
+  }
+
+  .table-frame thead th {
+    position: sticky;
+    z-index: 2;
+    top: calc(var(--topbar-height, 4.75rem) + var(--toolbar-height, 0px));
   }
 
   .table-scroll-hint {
-    display: block;
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid var(--color-base-300);
-    background: color-mix(in oklab, var(--color-primary) 6%, white);
-    color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
-    font-size: 0.75rem;
+    display: none;
   }
+}
 
-  .establishment-revenue-table :where(th:last-child, td:last-child) {
-    position: static;
+@media (min-width: 1280px) {
+  .metric-grid--5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -2549,11 +2452,12 @@
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }
-
 
 /* --------------------------------------------------------------------------------------
    Botões — fora de camada, de propósito.
@@ -2585,10 +2489,10 @@
 .btn.btn:hover,
 .btn.btn:focus-visible {
   --btn-bg: var(--color-base-100);
-  --btn-fg: #333;
+  --btn-fg: var(--cork-strong);
   border-color: var(--color-primary);
   background-color: var(--color-base-100);
-  color: #333;
+  color: var(--cork-strong);
 }
 
 /* Desabilitado precisa vencer as duas regras acima, e por isso vem depois delas: o daisyUI
@@ -2620,7 +2524,7 @@
 .join-item.btn.btn-outline {
   border-color: var(--color-primary);
   background-color: var(--color-base-100);
-  color: #333;
+  color: var(--cork-strong);
 }
 
 .join-item.btn-outline:hover,
