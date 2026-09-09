@@ -92,6 +92,21 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_nil linhas["30000002"]["best_conversation_raw"]
   end
 
+  # A busca alcança o texto da melhor conversa: é por ele que se procura quem tem a mesma
+  # pendência comercial, e o vocabulário do Mapa é fechado — 9 ações distintas na carteira.
+  #
+  # Sem acento também acha, e isso não é luxo: os 418 textos do lote mais recente têm acento,
+  # os 418. Quem digitasse "antecipacao" não encontraria nada.
+  test "busca pelo texto da melhor conversa, com ou sem acento" do
+    %w[antecipação antecipacao ANTECIPAÇÃO].each do |termo|
+      assert_equal [ "30000001" ], listing(query: termo).rows.map { |row| row["ec"] },
+        "buscar por #{termo.inspect} precisa achar quem tem a conversa"
+    end
+
+    # Termo que só existe na conversa de um não pode arrastar os outros junto.
+    assert_empty listing(query: "reciprocidade").rows
+  end
+
   # As três colunas de valor podem ordenar a listagem; o EC continua sendo o critério de
   # desempate, senão a paginação embaralha linhas de mesmo valor entre páginas.
   test "ordena pelas colunas de valor, nos dois sentidos" do
