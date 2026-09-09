@@ -2632,10 +2632,29 @@
   width: calc(var(--size) + 2px);
 }
 
-/* A coluna de variação vale a maior célula dela — o chip "Voltou a vender", 139px —, e o
-   que dá para apertar é a moldura: 0,6rem de cada lado no lugar de 1rem, medidos 171px
-   antes e 158px depois. Só nesta tabela: a mesma classe serve a listagem de MICs em
-   /reports, que não tem esse aperto de colunas. */
+/* Aperto da coluna de variação, sem tirar nada de dentro dela: o ícone, a pílula e os
+   rótulos por extenso continuam.
+
+   Quem ditava a largura era o chip mais longo, "Voltou a vender", com 139,3px numa linha só.
+   Deixá-lo quebrar tira a régua da mão dele; o resto é moldura — o vão da célula, o do chip
+   e o intervalo do ícone. Medido em sequência: 171,3px no começo, 158,5 com a célula em
+   0,6rem, 117,1 com a quebra, 110,7 com o chip mais justo e 102,7 com a célula em 0,35rem.
+
+   O preço é a altura: as células com esse rótulo passam de 27px para 43px. Vale porque são
+   poucas e porque a alternativa era encurtar o texto ou tirar o ícone.
+
+   Só nesta tabela: a mesma classe serve a listagem de MICs em /reports, que não tem esse
+   aperto de colunas e segue com o chip em linha única. */
 .establishment-revenue-table .variation-col {
-  padding-inline: 0.6rem;
+  padding-inline: 0.35rem;
+}
+
+.establishment-revenue-table .variation-col,
+.establishment-revenue-table .variation-col .variation-chip {
+  white-space: normal;
+}
+
+.establishment-revenue-table .variation-col .variation-chip {
+  gap: 0.2rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.2rem;
 }
