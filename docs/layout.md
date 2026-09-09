@@ -159,6 +159,31 @@ dias da mesma semana. E a âncora do mês anterior segue a regra de alinhamento 
 escolhido parcial compara com o anterior até o mesmo dia; competência anterior não importada
 declara a lacuna em vez de mostrar zero.
 
+### Anotação do cliente
+
+Coluna "Anotação" na listagem por MIC e no Clover Capital, com partial compartilhado
+(`shared/_company_note_cell`, `shared/_company_note_modal`) e **um diálogo por tabela**.
+
+A anotação é do **CNPJ**, não do EC: um cliente com três ECs mostra a mesma nota nas três
+linhas, e o cabeçalho do modal escreve isso ("vale para os 3 ECs deste cliente") para a
+repetição ler como intenção. A tabela se liga pelo CNPJ e não por FK — ver o porquê no
+`CLAUDE.md`.
+
+Diferente dos outros modais da casa, o conteúdo **chega por Turbo Frame** em vez de vir num
+`data-*` do botão: é HTML com anexos, e vinte linhas de tabela carregariam vinte cópias. O
+formulário escapa para `_top` no submit — dentro do frame, o Turbo procuraria o frame na
+resposta do redirect e engoliria o flash — e fecha o diálogo no submit, porque o layout usa
+`turbo_refreshes_with method: :morph`.
+
+O botão **nunca vem `disabled`**, ao contrário do da melhor conversa: lá "não tem" é fato da
+planilha; aqui é o convite para escrever. Sem nota ele é `btn-outline` e diz "Anotar"; com
+nota, laranja cheio e "Ver".
+
+Editor é o Trix (Action Text), vendorizado em `vendor/javascript/trix.js` — o CSP tem
+`script_src 'self'` e não aceitaria CDN. Anexo sai em tamanho original, com a largura contida
+pelo CSS: o processador de variantes está desligado no projeto, e pedir variante devolveria o
+arquivo cheio em silêncio.
+
 ### Modal de lançamentos diários
 
 Clicar na linha do estabelecimento, na tela de subcanal, abre `.daily-modal` por Turbo Frame
