@@ -1467,18 +1467,6 @@
     white-space: nowrap;
   }
 
-  /* Na listagem por subcanal a coluna fica do tamanho do que carrega: `width: 1px` em tabela
-     de layout automático é o pedido de min-content, enquanto com 1% o navegador ainda
-     repartia a sobra da tabela com ela e o chip ficava com folga dos dois lados. O padrão do
-     daisyUI é 1rem de cada lado; duas classes no seletor porque `.table :where(th,td)`
-     empata em especificidade com uma só.
-
-     A regra é só desta tabela: a mesma classe serve a listagem de MICs em /reports, que tem
-     cinco colunas e não tem o aperto que esta tem. */
-  .establishment-revenue-table .variation-col {
-    width: 1px;
-    padding-inline: 0.6rem;
-  }
 
   .variation-icon-tip {
     display: inline-flex;
@@ -1913,11 +1901,6 @@
     white-space: nowrap;
   }
 
-  /* Dois pixels a mais que o quadrado do daisyUI (--size, 2rem no btn-sm). Duas classes
-     porque `.btn-square` empata em especificidade com uma só. */
-  .btn.conversation-trigger {
-    width: calc(var(--size) + 2px);
-  }
 
   .day-modal__head {
     display: flex;
@@ -2634,4 +2617,25 @@
 .join-item.btn.btn-outline:focus-visible {
   background-color: var(--color-primary);
   color: var(--color-primary-content);
+}
+
+/* --------------------------------------------------------------------------------------
+   Medidas que o daisyUI também declara, e que por isso não podem ficar em @layer: a ordem
+   de camadas aqui coloca a do daisyUI depois da do projeto, e camada vence especificidade.
+   Foi assim que a regra do botão acima acabou fora de camada, e é a mesma razão aqui —
+   dentro de @layer components estas duas não valiam nada (medido: botão continuava em 32px
+   e a coluna com o padding de 1rem do daisyUI).
+   -------------------------------------------------------------------------------------- */
+
+/* Dois pixels além do quadrado do daisyUI (--size, 2rem no btn-sm). */
+.btn.conversation-trigger {
+  width: calc(var(--size) + 2px);
+}
+
+/* A coluna de variação vale a maior célula dela — o chip "Voltou a vender", 139px —, e o
+   que dá para apertar é a moldura: 0,6rem de cada lado no lugar de 1rem, medidos 171px
+   antes e 158px depois. Só nesta tabela: a mesma classe serve a listagem de MICs em
+   /reports, que não tem esse aperto de colunas. */
+.establishment-revenue-table .variation-col {
+  padding-inline: 0.6rem;
 }
