@@ -148,9 +148,12 @@ module ApplicationHelper
 
   # Ícone Phosphor (regular) inline, de vendor/icons/phosphor/regular. Decorativo por
   # padrão: o texto ao lado é quem dá o significado.
-  def icon(name, css: "icon-inline")
+  # O peso existe porque a seta do stepper precisa de traço grosso para se ver sobre o
+  # laranja; os demais ícones continuam em regular, que é o padrão da casca.
+  def icon(name, css: "icon-inline", weight: "regular")
     @inline_icons ||= {}
-    svg = @inline_icons[name] ||= Rails.root.join("vendor/icons/phosphor/regular/#{name}.svg").read
+    svg = @inline_icons["#{weight}/#{name}"] ||=
+      Rails.root.join("vendor/icons/phosphor/#{weight}/#{name}.svg").read
     svg.sub("<svg ", %(<svg class="#{css}" aria-hidden="true" focusable="false" )).html_safe
   end
 
@@ -237,11 +240,11 @@ module ApplicationHelper
   # não existe. Some-lo faria o seletor pular de lugar ao chegar na ponta da série.
   def calendar_step(period, icon_name, label)
     if period.nil?
-      return content_tag(:span, icon(icon_name, css: "btn-icon"),
+      return content_tag(:span, icon(icon_name, css: "stepper-icon", weight: "bold"),
         class: "btn btn--field is-disabled", aria: { hidden: true })
     end
 
-    link_to icon(icon_name, css: "btn-icon"),
+    link_to icon(icon_name, css: "stepper-icon", weight: "bold"),
       weekly_reports_path(period: period.to_s, channel_id: params[:channel_id].presence),
       class: "btn btn--field", aria: { label: }
   end
@@ -250,11 +253,11 @@ module ApplicationHelper
   # aberto; na ponta da cobertura vira botão apagado, como as setas da competência.
   def day_step(day, icon_name, label)
     if day.nil?
-      return content_tag(:span, icon(icon_name, css: "btn-icon"),
+      return content_tag(:span, icon(icon_name, css: "stepper-icon", weight: "bold"),
         class: "btn btn--field is-disabled", aria: { hidden: true })
     end
 
-    link_to icon(icon_name, css: "btn-icon"),
+    link_to icon(icon_name, css: "stepper-icon", weight: "bold"),
       weekly_day_report_path(day:, period: params[:period].presence, channel_id: params[:channel_id].presence),
       class: "btn btn--field", aria: { label: },
       data: { turbo_frame: "day_companies" }

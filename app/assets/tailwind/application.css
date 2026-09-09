@@ -799,6 +799,15 @@
     white-space: nowrap;
   }
 
+  /* A seta é o conteúdo inteiro do botão: no tamanho do ícone de rótulo (1rem) ela sumia
+     dentro dos 2,65rem de altura. O peso bold vem do próprio Phosphor — traço mais grosso,
+     não escala de um desenho fino. */
+  .stepper-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+    flex: none;
+  }
+
   .period-stepper {
     display: flex;
     gap: 0.35rem;
