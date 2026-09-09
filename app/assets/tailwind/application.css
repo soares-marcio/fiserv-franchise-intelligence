@@ -813,23 +813,27 @@
   }
 
   .calendar-box {
-    min-width: 5.5rem;
+    min-width: 6.75rem;
     height: 100%;
-    padding: 0.45rem 0.55rem;
+    padding: 0.5rem 0.6rem;
     border-radius: 0.6rem;
     background: var(--color-base-200);
   }
 
+  /* O número do dia é o cabeçalho da caixa: centralizado e nomeado, para não ser confundido
+     com mais um valor. */
   .calendar-box__day {
     display: block;
+    margin-bottom: 0.15rem;
     color: var(--cork-muted);
-    font-size: 0.7rem;
+    font-size: 0.78rem;
     font-weight: 700;
+    text-align: center;
   }
 
   .calendar-box__value {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.95rem;
     font-weight: 600;
     white-space: nowrap;
   }
@@ -837,8 +841,19 @@
   .calendar-box__meta {
     display: block;
     color: var(--cork-muted);
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     white-space: nowrap;
+  }
+
+  /* O tooltip do daisyUI é inline-block; sem isto a contagem perderia a linha própria. */
+  .calendar-box__meta.tooltip {
+    display: block;
+    text-align: inherit;
+  }
+
+  .revenue-calendar th[scope="row"],
+  .revenue-calendar thead th {
+    font-size: 0.82rem;
   }
 
   .calendar-box[data-heat="1"] { background: var(--cork-heat-1); }
@@ -861,6 +876,7 @@
 
   .calendar-week__value {
     display: block;
+    font-size: 1rem;
     font-weight: 700;
   }
 

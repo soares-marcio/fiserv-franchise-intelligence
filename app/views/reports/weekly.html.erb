@@ -107,16 +107,17 @@
                     <%# "Sem dado" não é "sem venda": o arquivo ainda não cobre este dia. %>
                     <td class="calendar-cell">
                       <div class="calendar-box is-uncovered" title="Sem dado: o arquivo não cobre este dia">
-                        <span class="calendar-box__day"><%= cell.day %></span>
+                        <span class="calendar-box__day">Dia <%= cell.day %></span>
                         <span class="calendar-box__value">—</span>
                       </div>
                     </td>
                   <% else %>
                     <td class="calendar-cell">
                       <div class="calendar-box" data-heat="<%= calendar_heat(cell.revenue, @calendar.max_revenue) %>">
-                        <span class="calendar-box__day"><%= cell.day %></span>
+                        <span class="calendar-box__day">Dia <%= cell.day %></span>
                         <span class="calendar-box__value tabular-nums"><%= brl(cell.revenue) %></span>
-                        <span class="calendar-box__meta tabular-nums"><%= cell.establishments %> ECs</span>
+                        <span class="tooltip tooltip-bottom calendar-box__meta tabular-nums" tabindex="0"
+                          data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
                       </div>
                     </td>
                   <% end %>
@@ -125,7 +126,8 @@
                   <% if week.revenue %>
                     <span class="calendar-week__value"><%= brl(week.revenue) %></span>
                     <%# Distintos na semana, nunca a soma dos dias: o mesmo EC vende em vários. %>
-                    <span class="calendar-box__meta"><%= week.establishments %> ECs distintos</span>
+                    <span class="tooltip tooltip-bottom calendar-box__meta" tabindex="0"
+                      data-tip="ECs diferentes que venderam na semana; quem vendeu em vários dias conta uma vez"><%= week.establishments %> ECs distintos</span>
                   <% else %>
                     <span class="calendar-box__value">—</span>
                   <% end %>
