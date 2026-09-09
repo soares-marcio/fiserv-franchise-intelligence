@@ -24,6 +24,10 @@ Rails.application.routes.draw do
     end
   end
   resources :establishments, only: %i[index show]
+  # Substitui a rota de upload direto do Active Storage, que o Trix usa para os anexos da
+  # anotação. Declarada aqui, tem precedência sobre a do engine — que ficaria aberta a
+  # qualquer tipo e tamanho.
+  post "/rails/active_storage/direct_uploads", to: "note_attachments#create"
   resource :metabase, only: :show, controller: "metabase"
   get "search", to: "search#index", as: :search
 end

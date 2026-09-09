@@ -13,3 +13,9 @@ production:
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
+  # Anexo que o usuário arrastou para a anotação e não salvou fica no disco sem dono. A
+  # margem de uma hora existe para não apagar o anexo de quem ainda está escrevendo: entre o
+  # upload e o salvamento, o blob é legitimamente órfão.
+  purge_unattached_note_blobs:
+    command: "ActiveStorage::Blob.unattached.where(created_at: ..1.hour.ago).find_each(&:purge_later)"
+    schedule: every day at 4am
