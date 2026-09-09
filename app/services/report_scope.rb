@@ -160,13 +160,16 @@ class ReportScope
   end
 
   # Quem vendeu num dia, por CNPJ: o cliente é a empresa, e um CNPJ pode ter vários ECs — daí
-  # o GROUP BY na empresa e a contagem de ECs ao lado. O CNAE vem do snapshot mais recente do
-  # Mapa; empresa sem snapshot devolve nulo, e a tela escreve travessão em vez de inventar.
+  # o GROUP BY na empresa e a contagem de ECs ao lado. O CNAE e o MIC vêm do snapshot mais
+  # recente do Mapa; empresa sem snapshot devolve nulo, e a tela escreve travessão em vez de
+  # inventar. Os dois saem em string_agg DISTINCT porque um CNPJ pode ter ECs em MICs
+  # diferentes — é anomalia conhecida, detectada no import, e a tela mostra as duas.
   def day_companies(period:, day:)
     binds = { period:, day:, channel_id: @channel_id }
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT c.cnpj,
         MAX(mapa.legal_name) AS legal_name,
+        string_agg(DISTINCT sub_channel.name, ' | ') AS sub_channels,
         string_agg(DISTINCT mapa.cnae_code || ' · ' || mapa.cnae_description, ' | ') AS cnaes,
         COUNT(DISTINCT revenue.establishment_id) AS establishments,
         SUM(revenue.amount) AS revenue
@@ -174,9 +177,10 @@ class ReportScope
       JOIN establishments e ON e.id = revenue.establishment_id
       JOIN companies c ON c.id = e.company_id
       LEFT JOIN LATERAL (
-        SELECT legal_name, cnae_code, cnae_description
+        SELECT legal_name, cnae_code, cnae_description, sub_channel_id
         FROM map_snapshots ms WHERE ms.establishment_id = e.id ORDER BY ms.id DESC LIMIT 1
       ) mapa ON TRUE
+      LEFT JOIN sub_channels sub_channel ON sub_channel.id = mapa.sub_channel_id
       WHERE revenue.period = :period AND revenue.day = :day::int AND revenue.amount <> 0
         AND (:channel_id IS NULL OR revenue.channel_id = :channel_id)
       GROUP BY c.cnpj

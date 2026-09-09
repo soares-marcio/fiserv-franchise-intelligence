@@ -96,7 +96,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     linha = css_select("tbody tr").first
     assert_match(/11222333000181/, linha.text)
     assert_match(/160,00/, linha.text, "150 do EC 30000001 mais 10 do 90000001")
-    assert_equal "2", linha.css("td")[1].text.strip, "e a contagem diz dois ECs"
+    assert_equal "2", linha.css("td")[2].text.strip, "e a contagem diz dois ECs"
+    assert_match(/MIC ALFA/, linha.text, "com o MIC do cliente")
   end
 
   # A soma do modal tem de fechar com a célula do calendário — foi a conferência que o

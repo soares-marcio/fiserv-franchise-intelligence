@@ -30,6 +30,7 @@
         <thead>
           <tr>
             <th scope="col">CNPJ</th>
+            <th scope="col">MIC</th>
             <th scope="col">CNAE</th>
             <th scope="col" class="text-right">ECs</th>
             <th scope="col" class="text-right">Valor no dia</th>
@@ -42,6 +43,7 @@
                 <span class="font-mono"><%= row["cnpj"] %></span>
                 <span class="day-modal__name"><%= present_or_dash(row["legal_name"]) %></span>
               </th>
+              <td><%= present_or_dash(row["sub_channels"]) %></td>
               <td class="day-modal__cnae"><%= present_or_dash(row["cnaes"]) %></td>
               <td class="text-right tabular-nums"><%= row["establishments"] %></td>
               <td class="text-right tabular-nums font-semibold"><%= brl(row["revenue"]) %></td>
