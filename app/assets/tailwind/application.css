@@ -1199,6 +1199,20 @@
     background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
   }
 
+  /* O nome do cliente na listagem é o link da linha: precisa parecer link sem virar azul de
+     navegador, como o do subcanal. */
+  .establishment-link {
+    color: var(--cork-strong);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+    text-decoration-color: color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
+
+  .establishment-link:hover,
+  .establishment-link:focus-visible {
+    color: var(--color-primary);
+  }
+
   .table tbody tr.is-clickable .subchannel-link {
     color: var(--color-primary);
     text-decoration: underline;

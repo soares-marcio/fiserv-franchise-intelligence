@@ -79,7 +79,12 @@
         <% snapshot = lead.current_map_snapshot %>
         <tr class="align-top">
           <td>
-            <p class="font-medium"><%= present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name) %></p>
+            <%# O nome do cliente é o link da linha, e leva ao mesmo lugar que a busca global:
+                o cadastro do EC de referência. Os ECs abaixo continuam levando cada um ao seu. %>
+            <p class="font-medium">
+              <%= link_to present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),
+                lead, class: "establishment-link" %>
+            </p>
             <% if snapshot&.legal_name.present? && snapshot.legal_name != snapshot.trade_name %>
               <p class="max-w-xs text-xs opacity-60"><%= snapshot.legal_name %></p>
             <% end %>

@@ -110,4 +110,16 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     )
     establishment
   end
+
+  # A linha precisa levar ao cadastro, como a busca global leva: sem isso o único caminho
+  # eram os chips de EC, que passavam despercebidos no rodapé da célula.
+  test "o nome do cliente na listagem leva ao cadastro do EC de referência" do
+    import_synthetic_workbook
+    establishment = Establishment.find_by!(ec: "30000001")
+
+    get establishments_path
+
+    assert_response :success
+    assert_select "tbody a.establishment-link[href=?]", establishment_path(establishment)
+  end
 end
