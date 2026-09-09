@@ -12,9 +12,32 @@ pt-BR:
         delimiter: "."
         separator: ","
         format: "%n%"
+  # Sem isto, to_sentence liga a última palavra com "and" — o erro apareceu na mensagem de
+  # erro do import e de novo na lista de campos divergentes da ficha.
+  support:
+    array:
+      words_connector: ", "
+      two_words_connector: " e "
+      last_word_connector: " e "
   date:
     formats:
       default: "%d/%m/%Y"
+    day_names:
+      - domingo
+      - segunda-feira
+      - terça-feira
+      - quarta-feira
+      - quinta-feira
+      - sexta-feira
+      - sábado
+    abbr_day_names:
+      - dom
+      - seg
+      - ter
+      - qua
+      - qui
+      - sex
+      - sáb
     abbr_month_names:
       - ~
       - jan

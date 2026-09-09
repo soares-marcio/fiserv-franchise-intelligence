@@ -18,6 +18,12 @@ module FiservFranchiseIntelligence
     config.active_job.queue_adapter = :solid_queue
     config.active_record.schema_format = :sql
     config.time_zone = "America/Sao_Paulo"
+    # O único anexo do sistema é a planilha .xlsx do lote, e nenhuma tela pede variante ou
+    # prévia. Sem esta linha o padrão :vips tenta carregar o image_processing, removido do
+    # Gemfile, e o boot avisa duas vezes. O preço é futuro: se um dia entrar imagem, pedir
+    # variante devolverá o arquivo original em silêncio, em vez de falhar — aí a decisão é
+    # reverter isto e trazer o gem junto.
+    config.active_storage.variant_processor = :disabled
     config.i18n.default_locale = :"pt-BR"
     # Monolíngue por decisão: o pt-BR.yml existe para o Rails formatar data, moeda e
     # percentual em português, não para traduzir a interface — que é escrita em português.

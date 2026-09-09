@@ -79,13 +79,25 @@
         <% snapshot = lead.current_map_snapshot %>
         <tr class="align-top">
           <td>
-            <p class="font-medium"><%= present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name) %></p>
+            <%# O nome do cliente é o link da linha, e leva ao mesmo lugar que a busca global:
+                o cadastro do EC de referência. Os ECs abaixo continuam levando cada um ao seu. %>
+            <%# turbo_frame: "_top" porque a listagem vive dentro do frame "establishments",
+                e o cadastro não tem esse frame: sem isso o Turbo responde "Content missing"
+                e a tela fica vazia. É o mesmo motivo do target="_top" da busca global. %>
+            <p class="font-medium">
+              <%= link_to present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),
+                establishment_path(company), class: "establishment-link",
+                data: { turbo_frame: "_top" } %>
+            </p>
             <% if snapshot&.legal_name.present? && snapshot.legal_name != snapshot.trade_name %>
               <p class="max-w-xs text-xs opacity-60"><%= snapshot.legal_name %></p>
             <% end %>
             <p class="mt-1 text-xs">
               <% establishments.each_with_index do |establishment, index| %>
-                <%= " · " if index.positive? %><%= link_to "EC #{establishment.ec}", establishment, class: "link link-hover font-mono" %>
+                <%= " · " if index.positive? %><%# A ficha é do cliente: o chip do EC leva ao bloco daquele EC dentro dela. %>
+                <%= link_to "EC #{establishment.ec}",
+                  establishment_path(company, anchor: "ec-#{establishment.ec}"),
+                  class: "link link-hover font-mono", data: { turbo_frame: "_top" } %>
               <% end %>
             </p>
           </td>
@@ -136,11 +148,11 @@
       </div>
     <% elsif @total_pages > 1 %>
       <nav class="pagination-bar" aria-label="Paginação">
-        <%= link_to "Anterior", establishments_path(listing_params(page: [ @page - 1, 1 ].max)),
+        <%= link_to icon_label("caret-left", "Anterior"), establishments_path(listing_params(page: [ @page - 1, 1 ].max)),
           class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page <= 1}",
           aria: { disabled: @page <= 1 } %>
         <span class="pagination-bar__status">Página <%= @page %> de <%= @total_pages %></span>
-        <%= link_to "Próxima", establishments_path(listing_params(page: [ @page + 1, @total_pages ].min)),
+        <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]), establishments_path(listing_params(page: [ @page + 1, @total_pages ].min)),
           class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page >= @total_pages}",
           aria: { disabled: @page >= @total_pages } %>
       </nav>

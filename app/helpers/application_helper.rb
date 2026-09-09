@@ -89,7 +89,7 @@ module ApplicationHelper
       [ breadcrumb_current("Estabelecimentos") ]
     when "show"
       [ breadcrumb_link("Estabelecimentos", establishments_path),
-        breadcrumb_current("EC #{@establishment&.ec || params[:id]}") ]
+        breadcrumb_current(client_crumb_label) ]
     else
       [ breadcrumb_current("Estabelecimentos") ]
     end
@@ -148,9 +148,12 @@ module ApplicationHelper
 
   # Ícone Phosphor (regular) inline, de vendor/icons/phosphor/regular. Decorativo por
   # padrão: o texto ao lado é quem dá o significado.
-  def icon(name, css: "icon-inline")
+  # O peso existe porque a seta do stepper precisa de traço grosso para se ver sobre o
+  # laranja; os demais ícones continuam em regular, que é o padrão da casca.
+  def icon(name, css: "icon-inline", weight: "regular")
     @inline_icons ||= {}
-    svg = @inline_icons[name] ||= Rails.root.join("vendor/icons/phosphor/regular/#{name}.svg").read
+    svg = @inline_icons["#{weight}/#{name}"] ||=
+      Rails.root.join("vendor/icons/phosphor/#{weight}/#{name}.svg").read
     svg.sub("<svg ", %(<svg class="#{css}" aria-hidden="true" focusable="false" )).html_safe
   end
 
@@ -231,6 +234,52 @@ module ApplicationHelper
     return if channel.nil?
 
     channel.name == BinImport::ChannelResolver::FALLBACK_NAME ? "SEM MASTER" : channel.name
+  end
+
+  # Seta do calendário: link quando existe competência para onde ir, botão apagado quando
+  # não existe. Some-lo faria o seletor pular de lugar ao chegar na ponta da série.
+  def calendar_step(period, icon_name, label)
+    if period.nil?
+      return content_tag(:span, icon(icon_name, css: "stepper-icon", weight: "bold"),
+        class: "btn btn--field is-disabled", aria: { hidden: true })
+    end
+
+    link_to icon(icon_name, css: "stepper-icon", weight: "bold"),
+      weekly_reports_path(period: period.to_s, channel_id: params[:channel_id].presence),
+      class: "btn btn--field", aria: { label: }
+  end
+
+  # Caret que troca o dia dentro do modal. Mira o próprio frame, então o diálogo continua
+  # aberto; na ponta da cobertura vira botão apagado, como as setas da competência.
+  def day_step(day, icon_name, label)
+    if day.nil?
+      return content_tag(:span, icon(icon_name, css: "stepper-icon", weight: "bold"),
+        class: "btn btn--field is-disabled", aria: { hidden: true })
+    end
+
+    link_to icon(icon_name, css: "stepper-icon", weight: "bold"),
+      weekly_day_report_path(day:, period: params[:period].presence, channel_id: params[:channel_id].presence),
+      class: "btn btn--field", aria: { label: },
+      data: { turbo_frame: "day_companies" }
+  end
+
+  # Intensidade da célula do calendário em cinco faixas, não num gradiente contínuo: cinco
+  # tons se distinguem de relance, e o que se quer é ver o padrão da semana sem ler número.
+  # Dia zerado fica sem preenchimento — ausência de venda não é um tom de laranja.
+  def calendar_heat(revenue, max_revenue)
+    revenue = revenue.to_d
+    max_revenue = max_revenue.to_d
+    return 0 if revenue <= 0 || max_revenue <= 0
+
+    [ (revenue / max_revenue * 5).ceil, 5 ].min
+  end
+
+  # A ficha é do cliente: a trilha nomeia o cliente, com o CNPJ como recurso quando o cadastro
+  # do Mapa não trouxe nome.
+  def client_crumb_label
+    snapshot = @snapshot
+    nome = snapshot&.trade_name.presence || snapshot&.legal_name.presence
+    nome || (@company ? formatted_cnpj(@company.cnpj) : params[:id])
   end
 
   def period_option_label(date)

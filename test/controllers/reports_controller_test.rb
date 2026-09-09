@@ -62,6 +62,149 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # O calendário do ritmo. Agosto de 2026 começa num sábado, então a primeira linha da grade
+  # tem só o dia 1 — e é isso que a tabela antiga apresentava como "semana fraca".
+  test "o calendário abre na competência mais recente, com uma linha por semana" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path
+
+    assert_response :success
+    assert_select "h1", text: "Faturamento diário"
+    assert_select "table.revenue-calendar tbody tr", count: 6
+    assert_select "tbody th[scope=row]", text: "dia 1"
+    assert_select "tbody th[scope=row]", text: "2–8"
+    assert_select "tbody th[scope=row]", text: "30–31"
+    # Sete dias da semana mais a faixa de dias e o total da semana.
+    assert_select "thead th[scope=col]", count: 9
+  end
+
+  # O cliente do modal é o CNPJ, não o EC: os ECs 30000001 e 90000001 dividem o mesmo CNPJ na
+  # planilha sintética, e no dia 1 de agosto os dois vendem. Uma linha, não duas.
+  test "o modal do dia agrupa por CNPJ e soma os ECs da empresa" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_response :success
+    assert_select "body", false, "o modal chega sem layout"
+    assert_select "turbo-frame#day_companies"
+    # No dia 1 de agosto só o CNPJ compartilhado vende, pelos seus dois ECs: uma linha.
+    assert_select "tbody tr", count: 1
+    linha = css_select("tbody tr").first
+    assert_match(/11222333000181/, linha.text)
+    assert_match(/160,00/, linha.text, "150 do EC 30000001 mais 10 do 90000001")
+    assert_equal "2", linha.css("td")[2].text.strip, "e a contagem diz dois ECs"
+    assert_match(/MIC ALFA/, linha.text, "com o MIC do cliente")
+  end
+
+  # A soma do modal tem de fechar com a célula do calendário — foi a conferência que o
+  # usuário fez nas semanas, e vale aqui também.
+  test "a soma do modal fecha com o valor do dia no calendário" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path(period: "2026-08-01")
+    celula = css_select("a.calendar-box").find { |link| link.text.include?("Dia 1") }
+    do_calendario = celula.text[/R\$[^\n]*/].gsub(/[^\d,]/, "")
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+    do_modal = css_select("tbody td.text-right.font-semibold").map { |td| td.text.strip }
+
+    assert_equal "160,00", do_calendario
+    assert_equal [ "R$\u00A0160,00" ], do_modal
+  end
+
+  test "dia fora da cobertura não abre o modal" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 40, period: "2026-08-01")
+    assert_response :not_found
+  end
+
+  # O cabeçalho nomeia o dia da semana, e o locale precisa ter day_names: sem isso a tela
+  # escreveria "translation missing" no título do modal.
+  test "o cabeçalho do modal diz o dia e o dia da semana" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_select "h2.table-title", text: /Dia 1 · sábado/
+    assert_no_match(/translation missing/i, response.body)
+    # No dia 1 não há dia anterior: a seta vira botão apagado.
+    assert_select ".period-stepper span.is-disabled", count: 1
+    # O dia vai no caminho da rota, não em query string.
+    assert_select ".period-stepper a[aria-label=?][href*=?]", "Próximo dia", "/day/2"
+  end
+
+  # As setas andam entre competências importadas e param nas pontas: sem isso o usuário
+  # chegaria a um mês sem arquivo, que a tela não sabe desenhar.
+  test "as setas navegam entre competências e desativam nas pontas" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    # Agosto é a mais recente da planilha sintética: não há próxima.
+    get weekly_reports_path
+    assert_select ".period-stepper a[aria-label=?][href*=?]", "Competência anterior", "period=2026-07-01"
+    assert_select ".period-stepper span.is-disabled", count: 1
+
+    # Julho é a mais antiga: a seta de voltar é que desativa, e a de avançar leva a agosto.
+    get weekly_reports_path(period: "2026-07-01")
+    assert_select ".period-stepper a[aria-label=?][href*=?]", "Próxima competência", "period=2026-08-01"
+    assert_select ".period-stepper span.is-disabled", count: 1
+  end
+
+  # A regra que a tela existe para não quebrar: o arquivo cobre até o dia de corte, e do dia
+  # seguinte em diante não é "não vendeu", é "não sabemos".
+  test "dia além da cobertura aparece como sem dado, não como zero" do
+    import_synthetic_workbook(lojas: [ BinWorkbook.default_lojas.first ])
+    refresh_audit_views
+    ultimo = PeriodCoverage.order(:period).last
+
+    get weekly_reports_path(period: ultimo.period.to_s)
+
+    assert_response :success
+    assert_select "td.calendar-cell .calendar-box.is-uncovered", minimum: 1
+    assert_select ".calendar-box.is-uncovered", text: /—/
+  end
+
+  # ECs da semana são distintos: os dois ECs vendem nos dias 3 e 4, que caem na mesma linha
+  # da grade. Somar os dias diria 4; a resposta é 2.
+  test "o total da semana conta ECs distintos, não a soma dos dias" do
+    lojas = [
+      BinWorkbook::Loja.new(ec: "30000001", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
+        legal_name: "ALFA LTDA", trade_name: "ALFA", contract_status: "Active",
+        dias_m1: { 1 => 10 }, dias_atual: { 3 => 100, 4 => 200 }),
+      BinWorkbook::Loja.new(ec: "30000002", cnpj: "44555666000172", sub_channel_name: "MIC BETA",
+        legal_name: "BETA LTDA", trade_name: "BETA", contract_status: "Active",
+        dias_m1: { 1 => 10 }, dias_atual: { 3 => 50, 4 => 70 })
+    ]
+    import_synthetic_workbook(lojas:)
+    refresh_audit_views
+
+    get weekly_reports_path(period: "2026-08-01")
+
+    assert_response :success
+    semana = css_select("tbody tr")[1].css("td.calendar-week").text
+    assert_match(/420,00/, semana, "a semana soma os quatro lançamentos")
+    assert_match(/\b2 ECs/, semana, "e conta dois ECs distintos, não quatro")
+  end
+
+  # Julho é escolhível e junho não foi importado: a âncora declara a lacuna em vez de zerar.
+  test "sem competência anterior importada, a âncora diz que não há comparação" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path(period: "2026-07-01")
+
+    assert_response :success
+    assert_select ".metric-hint", text: /Competência não importada/
+  end
+
   test "ganho recorrente abre vazio, e com dados mostra a série mensal" do
     get recurring_reports_path
     assert_response :success

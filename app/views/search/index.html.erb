@@ -30,7 +30,10 @@
         <h3>Estabelecimentos</h3>
         <% @search.establishments.each do |establishment| %>
           <% snapshot = establishment.current_map_snapshot %>
-          <%= link_to establishment, class: "search-result" do %>
+          <%# Dois ECs do mesmo CNPJ viram dois resultados que caem na mesma ficha: a âncora
+              é o que os mantém distintos. %>
+          <%= link_to establishment_path(establishment.company, anchor: "ec-#{establishment.ec}"),
+            class: "search-result" do %>
             <span class="search-result__ec"><%= establishment.ec %></span>
             <span class="search-result__body">
               <span class="search-result__title">

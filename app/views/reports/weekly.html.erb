@@ -1,53 +1,182 @@
-<% content_for :title, "Faturamento semanal" %>
+<% content_for :title, "Ritmo da carteira" %>
 
 <div class="grid gap-5">
   <section class="page-hero">
     <p class="eyebrow">Ritmo da carteira</p>
-    <h1 class="page-title">Faturamento semanal</h1>
+    <h1 class="page-title">Faturamento diário</h1>
     <p class="page-description">
-      Semanas de 7 dias a partir do dia 1 da competência. A semana em andamento
-      pode ser parcial até o dia de corte<%= @cutoff_day ? " (#{@cutoff_day})" : "" %>.
+      Cada dia sob o seu dia da semana, como no calendário. É o que deixa o padrão aparecer:
+      na carteira, <strong>sábado fatura bem mais que domingo</strong>, e faixas de sete dias
+      contadas a partir do dia 1 embaralhavam isso. A cor do dia acompanha o valor, tomando
+      como referência o maior dia do próprio mês.
     </p>
   </section>
-  <section class="table-frame" data-controller="sticky-table">
-    <div class="table-toolbar">
-      <div>
-        <p class="section-label">Evolução</p>
-        <h2 class="table-title">Movimento por semana</h2>
+
+  <% if @period %>
+    <section class="filter-panel">
+      <%# Sem botão: escolher a competência já é a ação, e o seletor submete sozinho. As setas
+          ao lado são links comuns, então a tela continua navegável sem JavaScript. %>
+      <%= form_with url: weekly_reports_path, method: :get,
+        class: "flex flex-wrap items-end gap-3", data: { controller: "live-form" } do %>
+        <%= hidden_field_tag :channel_id, @selected_channel&.uuid %>
+        <div class="grid gap-1.5">
+          <span class="section-label" id="competencia_label">Competência</span>
+          <%# As setas trocam a competência direto; o seletor continua para o salto longo.
+              Só as competências importadas: mês sem arquivo não é oferecido nem alcançado. %>
+          <div class="period-stepper">
+            <%= calendar_step(@older_period, "caret-left", "Competência anterior") %>
+            <%= select_tag :period,
+              options_for_select(@scope.available_periods.map { |row|
+                [ period_option_label(row["period"]), row["period"].to_s ] }, @period.to_s),
+              class: "select select-bordered w-auto min-w-52 max-w-full",
+              aria: { labelledby: "competencia_label" },
+              data: { action: "change->live-form#submit" } %>
+            <%= calendar_step(@newer_period, "caret-right", "Próxima competência") %>
+          </div>
+        </div>
+      <% end %>
+    </section>
+
+    <section class="metric-grid metric-grid--3">
+      <article class="metric-card" data-tone="teal">
+        <p class="metric-label"><%= period_option_label(@period).capitalize %></p>
+        <p class="metric-value"><%= brl(@totals["revenue"]) %></p>
+        <p class="metric-hint">
+          <%= pluralize(@totals["establishments"], "EC com movimento", "ECs com movimento") %> ·
+          <%= @aligned ? "até o dia #{@covered_days}, o corte do arquivo" : "mês cheio" %>
+        </p>
+      </article>
+
+      <article class="metric-card" data-tone="gold">
+        <p class="metric-label"><%= period_option_label(@previous_period).capitalize %></p>
+        <% if @previous_totals %>
+          <p class="metric-value"><%= brl(@previous_totals["revenue"]) %></p>
+          <p class="metric-hint">
+            <%= pluralize(@previous_totals["establishments"], "EC com movimento", "ECs com movimento") %> ·
+            <%= @aligned ? "até o dia #{@covered_days}, mesma duração" : "mês cheio" %>
+          </p>
+        <% else %>
+          <%# Lacuna declarada, não zero: a competência anterior simplesmente não foi importada. %>
+          <p class="metric-value">—</p>
+          <p class="metric-hint">Competência não importada: não há com o que comparar.</p>
+        <% end %>
+      </article>
+
+      <article class="metric-card"
+        data-tone="<%= @previous_totals ? variation_metric_tone(@previous_totals["revenue"], @totals["revenue"]) : "" %>">
+        <p class="metric-label">Variação</p>
+        <p class="metric-value">
+          <%= @previous_totals ? variation_headline(@previous_totals["revenue"], @totals["revenue"]) : "—" %>
+        </p>
+        <p class="metric-hint">
+          <%= @previous_totals ? "Contra a competência anterior, na mesma duração" : "Sem competência anterior importada" %>
+        </p>
+      </article>
+    </section>
+
+    <section class="table-frame" data-controller="daily-modal">
+      <div class="table-toolbar">
+        <div>
+          <p class="section-label">Dia a dia</p>
+          <h2 class="table-title"><%= period_option_label(@period).capitalize %></h2>
+        </div>
+        <span class="badge badge-ghost">
+          <%= @aligned ? "parcial — até o dia #{@covered_days}" : "competência fechada" %>
+        </span>
       </div>
-      <% if @reports.any? %>
-        <%= render "shared/sort_status", sort: @order,
-          path: ->(ordem) { weekly_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
-      <% end %>
-    </div>
-    <div class="table-scroll" role="region" tabindex="0"
-      aria-label="Faturamento por semana, rolável na horizontal">
-      <table class="table">
-        <thead>
-          <tr>
-            <th scope="col">Competência</th>
-            <th scope="col">Semana</th>
-            <% caminho = ->(ordem) { weekly_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
-            <%= render "shared/sortable_header", sort: @order, column: "revenue",
-              label: "Faturamento", hint: nil, path: caminho %>
-            <%= render "shared/sortable_header", sort: @order, column: "establishments",
-              label: "ECs com movimento", hint: nil, path: caminho %>
-          </tr>
-        </thead>
-        <tbody>
-          <% @reports.each do |report| %>
+
+      <div class="table-scroll" role="region" tabindex="0"
+        aria-label="Faturamento de cada dia de <%= period_option_label(@period) %>">
+        <table class="table revenue-calendar">
+          <caption class="sr-only">
+            Faturamento e ECs com movimento de cada dia de <%= period_option_label(@period) %>,
+            com o total de cada semana
+          </caption>
+          <thead>
             <tr>
-              <td><%= Date.parse(report["period"].to_s).strftime("%m/%Y") %></td>
-              <td><%= report["week"] %></td>
-              <td class="text-right tabular-nums"><%= brl(report["revenue"]) %></td>
-              <td class="text-right"><%= report["establishments"] %></td>
+              <th scope="col">Dias</th>
+              <% %w[Dom Seg Ter Qua Qui Sex Sáb].each do |dia| %>
+                <th scope="col" class="text-right"><%= dia %></th>
+              <% end %>
+              <th scope="col" class="text-right">Semana</th>
             </tr>
+          </thead>
+          <tbody>
+            <% @calendar.weeks.each do |week| %>
+              <tr>
+                <th scope="row" class="font-normal"><%= week.label %></th>
+                <% week.cells.each_with_index do |cell, indice| %>
+                  <%# A caixa é um bloco dentro da célula, e não a célula: o respiro entre os
+                      dias vem do padding do <td>, senão dias vizinhos de tom parecido se
+                      fundem num borrão só. %>
+                  <% if cell.outside? %>
+                    <td class="calendar-cell is-outside"></td>
+                  <% elsif cell.uncovered? %>
+                    <%# "Sem dado" não é "sem venda": o arquivo ainda não cobre este dia. %>
+                    <td class="calendar-cell">
+                      <div class="calendar-box is-uncovered" title="Sem dado: o arquivo não cobre este dia">
+                        <span class="calendar-box__day">Dia <%= cell.day %></span>
+                        <span class="calendar-box__value">—</span>
+                      </div>
+                    </td>
+                  <% else %>
+                    <td class="calendar-cell">
+                      <%# Link de verdade, não div com JavaScript: abre no teclado e no leitor
+                          de tela sem eu escrever nada. O tooltip lá dentro perde o tabindex,
+                          senão haveria foco aninhado dentro do link. %>
+                      <%= link_to weekly_day_report_path(day: cell.day, period: @period.to_s,
+                            channel_id: @selected_channel&.uuid),
+                          class: "calendar-box", data: { heat: calendar_heat(cell.revenue, @calendar.max_revenue),
+                            turbo_frame: "day_companies", action: "daily-modal#open" },
+                          title: "Ver quem vendeu no dia #{cell.day}" do %>
+                        <span class="calendar-box__day">Dia <%= cell.day %></span>
+                        <span class="calendar-box__value tabular-nums"><%= brl(cell.revenue) %></span>
+                        <%# O .table-frame recorta com overflow: clip, e nenhum z-index escapa
+                            disso: o tooltip abre para dentro da tabela. %>
+                        <span class="tooltip <%= indice < 4 ? "tooltip-right" : "tooltip-left" %> calendar-box__meta tabular-nums"
+                          data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
+                      <% end %>
+                    </td>
+                  <% end %>
+                <% end %>
+                <td class="calendar-week tabular-nums">
+                  <% if week.revenue %>
+                    <span class="calendar-week__value"><%= brl(week.revenue) %></span>
+                    <%# Distintos na semana, nunca a soma dos dias: o mesmo EC vende em vários. %>
+                    <span class="tooltip tooltip-left calendar-box__meta" tabindex="0"
+                      data-tip="ECs diferentes que venderam na semana; quem vendeu em vários dias conta uma vez"><%= week.establishments %> ECs distintos</span>
+                  <% else %>
+                    <span class="calendar-box__value">—</span>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <%# Clientes do dia clicado. O frame nasce vazio e o Turbo o preenche; os carets do
+          cabeçalho trocam o dia sem fechar o diálogo. %>
+      <dialog class="daily-modal daily-modal--wide" data-daily-modal-target="dialog"
+        aria-label="Clientes que venderam no dia"
+        data-action="click->daily-modal#closeOnBackdrop close->daily-modal#close">
+        <div class="daily-modal__body">
+          <button type="button" class="btn-toggle daily-modal__close"
+            data-action="daily-modal#close" aria-label="Fechar a lista do dia">
+            <%= icon("x", css: "icon") %>
+          </button>
+          <%= turbo_frame_tag "day_companies" do %>
+            <p class="empty-state">Carregando…</p>
           <% end %>
-        </tbody>
-      </table>
-      <% if @reports.empty? %>
-        <div class="empty-state">Nenhuma série semanal ainda.</div>
-      <% end %>
-    </div>
-  </section>
+        </div>
+      </dialog>
+    </section>
+  <% else %>
+    <section class="table-frame">
+      <div class="empty-state">
+        Nenhuma competência importada ainda — o calendário depende do faturamento diário da
+        planilha (colunas DIA 01 a DIA 31).
+      </div>
+    </section>
+  <% end %>
 </div>

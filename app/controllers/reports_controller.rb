@@ -25,11 +25,57 @@ class ReportsController < ApplicationController
   end
 
   def weekly
-    @order = ListingSort.new(
-      columns: { "revenue" => "Faturamento", "establishments" => "ECs com movimento" },
-      default: "revenue", column: params[:sort], direction: params[:direction]
+    @period = calendar_period
+    return if @period.nil?
+
+    @covered_days = covered_days_for(@period)
+    @calendar = RevenueCalendar.new(period: @period, covered_days: @covered_days,
+      days: @scope.daily_calendar(period: @period, covered_days: @covered_days),
+      weeks: @scope.weekly_calendar(period: @period, covered_days: @covered_days))
+    @totals = @scope.month_totals(period: @period, up_to_day: @covered_days)
+    load_previous_month_anchor
+    load_calendar_neighbours
+  end
+
+  # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
+  # é oferecido nem aceito. Sem escolha, abre na mais recente.
+  def calendar_period
+    disponiveis = @scope.available_periods.map { |row| row["period"].to_date }
+    pedida = begin
+      params[:period].presence&.to_date&.beginning_of_month
+    rescue Date::Error, ArgumentError, TypeError
+      nil
+    end
+    disponiveis.include?(pedida) ? pedida : disponiveis.first
+  end
+
+  # As setas andam só entre competências importadas — não existe mês vazio para onde ir. A
+  # lista vem em ordem decrescente, então a anterior está adiante no array.
+  def load_calendar_neighbours
+    periodos = @scope.available_periods.map { |row| row["period"].to_date }
+    posicao = periodos.index(@period)
+    @newer_period = posicao.positive? ? periodos[posicao - 1] : nil
+    @older_period = periodos[posicao + 1]
+  end
+
+  def covered_days_for(period)
+    coverage = @scope.available_periods.find { |row| row["period"].to_date == period }
+    [ coverage["max_known_day"].to_i, Time.days_in_month(period.month, period.year) ].min
+  end
+
+  # Âncora do mês anterior, com a regra de alinhamento da casa: mês escolhido fechado compara
+  # com o anterior inteiro; mês escolhido parcial compara com o anterior **até o mesmo dia**.
+  # Sem isso, setembro com dois dias apareceria como queda de 93%.
+  def load_previous_month_anchor
+    @previous_period = @period.prev_month
+    disponiveis = @scope.available_periods.map { |row| row["period"].to_date }
+    return unless disponiveis.include?(@previous_period)
+
+    @aligned = @covered_days < Time.days_in_month(@period.month, @period.year)
+    @previous_totals = @scope.month_totals(
+      period: @previous_period,
+      up_to_day: @aligned ? @covered_days : covered_days_for(@previous_period)
     )
-    @reports = @order.sort_rows(@scope.weekly_revenue)
   end
 
   # Série mensal do ganho recorrente: todas as competências disponíveis, sem seletor —
@@ -96,6 +142,26 @@ class ReportsController < ApplicationController
       format.csv { send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
       format.xlsx { send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
     end
+  end
+
+  # Conteúdo do modal do calendário: os clientes que venderam num dia. Chega por Turbo Frame,
+  # sem layout, e os carets do cabeçalho trocam o dia dentro do próprio frame.
+  def weekly_day
+    @period = calendar_period
+    return head :not_found if @period.nil?
+
+    @covered_days = covered_days_for(@period)
+    @day = params[:day].to_i
+    # URL editada à mão não derruba a tela nem vaza para o mês seguinte: fora da cobertura,
+    # não há dia a mostrar.
+    return head :not_found unless @day.between?(1, @covered_days)
+
+    @date = @period + (@day - 1)
+    @rows = @scope.day_companies(period: @period, day: @day)
+    @previous_day = @day > 1 ? @day - 1 : nil
+    @next_day = @day < @covered_days ? @day + 1 : nil
+
+    render partial: "reports/day_companies", layout: false
   end
 
   # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma

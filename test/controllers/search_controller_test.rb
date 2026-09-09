@@ -29,7 +29,10 @@ class SearchControllerTest < ActionDispatch::IntegrationTest
     { "30000002" => "EC", "44555666" => "CNPJ", "beta cafe" => "nome",
       "44.555.666/0001-72" => "CNPJ formatado" }.each do |query, kind|
       get search_path(q: query)
-      assert_select "a.search-result[href=?]", establishment_path(beta), { text: /BETA CAFE/ }, "por #{kind}"
+      # O resultado leva à ficha do estabelecimento, ancorada no EC encontrado: dois ECs do
+      # mesmo CNPJ viram dois resultados que caem na mesma ficha.
+      assert_select "a.search-result[href=?]",
+        establishment_path(beta.company, anchor: "ec-#{beta.ec}"), { text: /BETA CAFE/ }, "por #{kind}"
     end
   end
 

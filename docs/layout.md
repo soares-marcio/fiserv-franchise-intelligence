@@ -114,7 +114,6 @@ visível; quem já traz o array inteiro na memória ordena em Ruby (`sort_rows`)
 | --- | --- | --- |
 | Faturamento (`/reports`) | mês anterior cheio, base comparável, mês atual, variação | mês anterior cheio |
 | Estabelecimentos do subcanal | mês anterior cheio, base comparável, mês atual | mês anterior cheio (no banco, com desempate) |
-| Semanal | faturamento, ECs com movimento | faturamento |
 | Recorrente | ganho na janela, último mês fechado, MIC | ganho na janela |
 | Ganhos 3M | prêmio de entrada, ECs no M0, M0, M1, M2 | prêmio de entrada |
 
@@ -129,6 +128,36 @@ Três partials, conforme onde o link mora:
 | `shared/_sortable_header` | cabeçalho de tabela; o link ocupa a célula inteira, dica incluída |
 | `shared/_sort_links` | barra acima da grade, nas telas de card, onde não há cabeçalho para clicar |
 | `shared/_sort_status` | a frase "Ordenado por…" e o link de volta à ordem padrão |
+
+### Calendário do ritmo
+
+A tela `/reports/weekly` mostra a competência escolhida como calendário: uma linha por semana
+começando no **domingo**, cada dia sob o seu dia da semana, com faturamento e ECs na célula e
+o total da semana ao fim da linha.
+
+A troca não foi estética. A tabela anterior agrupava em faixas de sete dias a partir do dia 1,
+e isso embaralha os dias da semana: medido em agosto de 2026, **sábado fatura 78% mais que
+domingo** (R$ 318.584 contra R$ 179.024 de média diária). Uma faixa com dois sábados vale
+~320 mil a mais que outra com um só — 20% de uma semana —, e a tela apresentava essa diferença
+de calendário como diferença de desempenho. No calendário o mix de dias é o que se lê.
+
+Três estados de célula, e é neles que mora a honestidade da tela (`RevenueCalendar`):
+
+| Estado | Quando | Como aparece |
+| --- | --- | --- |
+| fora | dia de outra competência, nas bordas da grade | célula vazia |
+| sem dado | dia além do corte do arquivo | travessão, apagado |
+| coberto | dia que o arquivo cobre | valor, zero inclusive |
+
+Sem essa distinção o mês corrente — coberto só até o dia de corte — mostraria dezenas de
+células afirmando R$ 0,00. A intensidade da cor sai de `ApplicationHelper#calendar_heat`, em
+cinco faixas do laranja da marca (tokens `--cork-heat-1..5`), normalizadas pelo maior dia do
+próprio mês; dia zerado não recebe cor, porque ausência de venda não é um tom.
+
+O total da semana conta **ECs distintos**, nunca a soma dos dias: o mesmo EC vende em vários
+dias da mesma semana. E a âncora do mês anterior segue a regra de alinhamento da casa — mês
+escolhido parcial compara com o anterior até o mesmo dia; competência anterior não importada
+declara a lacuna em vez de mostrar zero.
 
 ### Modal de lançamentos diários
 
@@ -185,6 +214,52 @@ primária do tema propaga para a casca inteira:
 | `--cork-dark-100` | Fundo da `.badge-ghost` |
 | `--cork-muted` / `--cork-strong` | Texto secundário / texto de destaque |
 | `--cork-shadow` | Sombra única dos cards |
+
+### Botões
+
+Todo botão é **laranja com texto branco**; no hover, **laranja claro com texto `#333`**. Não
+há variante de cor: `btn-outline`, `btn-ghost` e `btn-neutral` continuam existindo no HTML,
+mas quem decide a cor é o sistema.
+
+```css
+.btn.btn {
+  --btn-color: var(--color-primary);
+  --btn-bg: var(--color-primary);
+  --btn-fg: var(--color-primary-content);
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.btn.btn:hover,
+.btn.btn:focus-visible {
+  background-color: var(--cork-primary-200);
+  color: #333;
+}
+```
+
+**A regra vive fora de qualquer `@layer`**, no fim do arquivo, e isso não é preferência de
+organização. O daisyUI declara `.btn { color: var(--btn-fg) }` e o próprio `--btn-fg` **sem
+camada**, e estilo sem camada vence estilo em camada **independentemente da especificidade**.
+Dentro de `@layer components` a regra pintava o fundo — porque o daisyUI lê a nossa
+`--btn-color` — e perdia a cor do texto: o sintoma foi a seta preta sobre o laranja, que
+sobreviveu a duas tentativas de resolver por especificidade. Quando algo de botão não pegar,
+confira a camada antes da especificidade.
+
+O ícone dentro do botão **não tem regra própria**: os SVGs do Phosphor são
+`fill: currentColor`, então a seta é branca no repouso e `#333` no hover porque acompanha a
+cor do botão. Se algum dia um ícone aparecer escuro sobre o laranja, o problema é a `color`
+do botão, não o SVG.
+
+Vale para **todos** os botões, com o mesmo comportamento — inclusive as setas do calendário,
+as do modal do dia e as da paginação, que passaram a ter seta junto do texto.
+
+A única exceção é o **grupo de escolha** (`join-item`, hoje os itens por página): a opção
+selecionada fica no laranja cheio e as demais assumem o formato do hover — branco com `#333`
+e borda laranja —, invertendo para laranja ao passar o mouse. Sem isso o grupo inteiro vira
+um bloco laranja e não dá para ver o que está escolhido.
+
+`btn--field` alinha a altura do botão à dos campos numa barra de filtros, e `btn-sm` é
+tamanho, não cor.
 
 O menu é a exceção: como fica sobre a barra escura, o item ativo usa `--color-primary`
 direto e o hover é `color-mix(in oklab, white 8%, transparent)` — token claro sobre fundo

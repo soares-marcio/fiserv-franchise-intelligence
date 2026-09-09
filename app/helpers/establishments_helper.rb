@@ -1,5 +1,22 @@
 module EstablishmentsHelper
   CONTRACT_STATUSES = %w[Active Suspended].freeze
+
+  # Rótulos dos campos do cadastro que podem divergir entre os ECs do mesmo CNPJ.
+  CLIENT_FIELD_LABELS = {
+    street_address: "endereço", city: "cidade", state: "UF", cep: "CEP",
+    cnae_code: "CNAE", presumed_segment: "segmento presumido", legal_name: "razão social"
+  }.freeze
+
+  def client_field_label(field) = CLIENT_FIELD_LABELS.fetch(field, field.to_s)
+
+  # Status do cliente pela regra da casa: a suspensão é do cliente, não do produto. Basta um
+  # EC ativo para o cliente estar ativo; suspenso só quando todos os ECs estão suspensos.
+  def client_contract_status(establishments)
+    statuses = establishments.filter_map { |e| e.current_map_snapshot&.contract_status }
+    return if statuses.empty?
+
+    statuses.include?("Active") ? "Active" : statuses.first
+  end
   CONTRACT_STATUS_PRESENTATION = {
     "Active" => { label: "Ativo", tone: "success" },
     "Suspended" => { label: "Suspenso", tone: "warning" }
