@@ -2577,19 +2577,20 @@
   color: #333;
 }
 
-/* Desabilitado precisa vencer as duas regras acima, e por isso vem depois delas: sem isto o
-   botão sem ação fica no mesmo laranja cheio do que age, e a única diferença passa a ser o
-   clique que não acontece. Cinza e cursor de seta dizem antes do clique. */
+/* Desabilitado precisa vencer as duas regras acima, e por isso vem depois delas: o daisyUI
+   também apaga o fundo do botão desabilitado, mas em @layer, e a regra do laranja é sem
+   camada — vence. Sem isto o botão sem ação fica no mesmo laranja cheio do que age, e a
+   única diferença passa a ser o clique que não acontece.
+
+   Cursor e hover não entram: o daisyUI declara pointer-events: none no desabilitado, então
+   o ponteiro não chega ao elemento e nenhuma regra de :hover dispara. */
 .btn:disabled,
-.btn.btn:disabled,
-.btn.btn:disabled:hover {
+.btn.btn:disabled {
   --btn-bg: var(--color-base-200);
   --btn-fg: var(--color-base-content);
   border-color: transparent;
   background-color: var(--color-base-200);
   color: color-mix(in oklab, var(--color-base-content) 35%, transparent);
-  cursor: default;
-  transform: none;
 }
 
 .btn svg,
