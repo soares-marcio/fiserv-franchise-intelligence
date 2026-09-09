@@ -246,6 +246,20 @@ module ApplicationHelper
       class: "btn btn--field", aria: { label: }
   end
 
+  # Caret que troca o dia dentro do modal. Mira o próprio frame, então o diálogo continua
+  # aberto; na ponta da cobertura vira botão apagado, como as setas da competência.
+  def day_step(day, icon_name, label)
+    if day.nil?
+      return content_tag(:span, icon(icon_name, css: "btn-icon"),
+        class: "btn btn--field is-disabled", aria: { hidden: true })
+    end
+
+    link_to icon(icon_name, css: "btn-icon"),
+      weekly_day_report_path(day:, period: params[:period].presence, channel_id: params[:channel_id].presence),
+      class: "btn btn--field", aria: { label: },
+      data: { turbo_frame: "day_companies" }
+  end
+
   # Intensidade da célula do calendário em cinco faixas, não num gradiente contínuo: cinco
   # tons se distinguem de relance, e o que se quer é ver o padrão da semana sem ler número.
   # Dia zerado fica sem preenchimento — ausência de venda não é um tom de laranja.

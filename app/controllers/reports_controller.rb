@@ -144,6 +144,26 @@ class ReportsController < ApplicationController
     end
   end
 
+  # Conteúdo do modal do calendário: os clientes que venderam num dia. Chega por Turbo Frame,
+  # sem layout, e os carets do cabeçalho trocam o dia dentro do próprio frame.
+  def weekly_day
+    @period = calendar_period
+    return head :not_found if @period.nil?
+
+    @covered_days = covered_days_for(@period)
+    @day = params[:day].to_i
+    # URL editada à mão não derruba a tela nem vaza para o mês seguinte: fora da cobertura,
+    # não há dia a mostrar.
+    return head :not_found unless @day.between?(1, @covered_days)
+
+    @date = @period + (@day - 1)
+    @rows = @scope.day_companies(period: @period, day: @day)
+    @previous_day = @day > 1 ? @day - 1 : nil
+    @next_day = @day < @covered_days ? @day + 1 : nil
+
+    render partial: "reports/day_companies", layout: false
+  end
+
   # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma
   # janela e faixa de dias da tela que o abriu.
   def sub_channel_daily

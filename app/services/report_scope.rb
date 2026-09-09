@@ -159,6 +159,32 @@ class ReportScope
     SQL
   end
 
+  # Quem vendeu num dia, por CNPJ: o cliente é a empresa, e um CNPJ pode ter vários ECs — daí
+  # o GROUP BY na empresa e a contagem de ECs ao lado. O CNAE vem do snapshot mais recente do
+  # Mapa; empresa sem snapshot devolve nulo, e a tela escreve travessão em vez de inventar.
+  def day_companies(period:, day:)
+    binds = { period:, day:, channel_id: @channel_id }
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
+      SELECT c.cnpj,
+        MAX(mapa.legal_name) AS legal_name,
+        string_agg(DISTINCT mapa.cnae_code || ' · ' || mapa.cnae_description, ' | ') AS cnaes,
+        COUNT(DISTINCT revenue.establishment_id) AS establishments,
+        SUM(revenue.amount) AS revenue
+      FROM daily_revenues_consolidated revenue
+      JOIN establishments e ON e.id = revenue.establishment_id
+      JOIN companies c ON c.id = e.company_id
+      LEFT JOIN LATERAL (
+        SELECT legal_name, cnae_code, cnae_description
+        FROM map_snapshots ms WHERE ms.establishment_id = e.id ORDER BY ms.id DESC LIMIT 1
+      ) mapa ON TRUE
+      WHERE revenue.period = :period AND revenue.day = :day::int AND revenue.amount <> 0
+        AND (:channel_id IS NULL OR revenue.channel_id = :channel_id)
+      GROUP BY c.cnpj
+      ORDER BY SUM(revenue.amount) DESC, c.cnpj
+    SQL
+    ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
   # Total da competência até um dia. O mesmo método serve ao mês escolhido e à âncora do mês
   # anterior — é o corte que muda, não a conta.
   def month_totals(period:, up_to_day:)

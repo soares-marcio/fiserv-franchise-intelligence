@@ -1,0 +1,57 @@
+<%# Conteúdo do modal do calendário. O frame é o mesmo em toda troca de dia, então os carets
+    do cabeçalho recarregam só isto — o diálogo continua aberto. %>
+<%= turbo_frame_tag "day_companies" do %>
+  <div class="daily-modal__head day-modal__head">
+    <div>
+      <p class="section-label">Clientes que venderam</p>
+      <h2 class="table-title">
+        Dia <%= @day %> · <%= l(@date, format: "%A") %>
+      </h2>
+      <p class="page-description">
+        <%= l(@date, format: "%d/%m/%Y") %> ·
+        <%= pluralize(@rows.size, "CNPJ", "CNPJs") %> ·
+        <%= brl(@rows.sum { |row| row["revenue"].to_d }) %>
+      </p>
+    </div>
+    <%# Andar de dia sem fechar o modal: os links miram o próprio frame. %>
+    <nav class="period-stepper" aria-label="Trocar o dia">
+      <%= day_step(@previous_day, "caret-left", "Dia anterior") %>
+      <%= day_step(@next_day, "caret-right", "Próximo dia") %>
+    </nav>
+  </div>
+
+  <% if @rows.any? %>
+    <div class="table-scroll" role="region" tabindex="0"
+      aria-label="Clientes que venderam no dia <%= @day %>">
+      <table class="table">
+        <caption class="sr-only">
+          CNPJs que venderam em <%= l(@date, format: "%d/%m/%Y") %>, do maior valor para o menor
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">CNPJ</th>
+            <th scope="col">CNAE</th>
+            <th scope="col" class="text-right">ECs</th>
+            <th scope="col" class="text-right">Valor no dia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @rows.each do |row| %>
+            <tr>
+              <th scope="row" class="font-normal">
+                <span class="font-mono"><%= row["cnpj"] %></span>
+                <span class="day-modal__name"><%= present_or_dash(row["legal_name"]) %></span>
+              </th>
+              <td class="day-modal__cnae"><%= present_or_dash(row["cnaes"]) %></td>
+              <td class="text-right tabular-nums"><%= row["establishments"] %></td>
+              <td class="text-right tabular-nums font-semibold"><%= brl(row["revenue"]) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <%# Os carets alcançam dias sem venda: a lista vazia precisa dizer isso, não sumir. %>
+    <p class="empty-state">Nenhum CNPJ vendeu neste dia.</p>
+  <% end %>
+<% end %>

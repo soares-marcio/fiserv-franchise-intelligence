@@ -74,7 +74,7 @@
       </article>
     </section>
 
-    <section class="table-frame">
+    <section class="table-frame" data-controller="daily-modal">
       <div class="table-toolbar">
         <div>
           <p class="section-label">Dia a dia</p>
@@ -121,15 +121,21 @@
                     </td>
                   <% else %>
                     <td class="calendar-cell">
-                      <div class="calendar-box" data-heat="<%= calendar_heat(cell.revenue, @calendar.max_revenue) %>">
+                      <%# Link de verdade, não div com JavaScript: abre no teclado e no leitor
+                          de tela sem eu escrever nada. O tooltip lá dentro perde o tabindex,
+                          senão haveria foco aninhado dentro do link. %>
+                      <%= link_to weekly_day_report_path(day: cell.day, period: @period.to_s,
+                            channel_id: @selected_channel&.uuid),
+                          class: "calendar-box", data: { heat: calendar_heat(cell.revenue, @calendar.max_revenue),
+                            turbo_frame: "day_companies", action: "daily-modal#open" },
+                          title: "Ver quem vendeu no dia #{cell.day}" do %>
                         <span class="calendar-box__day">Dia <%= cell.day %></span>
                         <span class="calendar-box__value tabular-nums"><%= brl(cell.revenue) %></span>
                         <%# O .table-frame recorta com overflow: clip, e nenhum z-index escapa
-                            disso: o tooltip precisa abrir para dentro da tabela. Nas colunas da
-                            esquerda ele vai para a direita, e vice-versa. %>
+                            disso: o tooltip abre para dentro da tabela. %>
                         <span class="tooltip <%= indice < 4 ? "tooltip-right" : "tooltip-left" %> calendar-box__meta tabular-nums"
-                          tabindex="0" data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
-                      </div>
+                          data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
+                      <% end %>
                     </td>
                   <% end %>
                 <% end %>
@@ -148,6 +154,22 @@
           </tbody>
         </table>
       </div>
+
+      <%# Clientes do dia clicado. O frame nasce vazio e o Turbo o preenche; os carets do
+          cabeçalho trocam o dia sem fechar o diálogo. %>
+      <dialog class="daily-modal daily-modal--wide" data-daily-modal-target="dialog"
+        aria-label="Clientes que venderam no dia"
+        data-action="click->daily-modal#closeOnBackdrop close->daily-modal#close">
+        <div class="daily-modal__body">
+          <button type="button" class="btn-toggle daily-modal__close"
+            data-action="daily-modal#close" aria-label="Fechar a lista do dia">
+            <%= icon("x", css: "icon") %>
+          </button>
+          <%= turbo_frame_tag "day_companies" do %>
+            <p class="empty-state">Carregando…</p>
+          <% end %>
+        </div>
+      </dialog>
     </section>
   <% else %>
     <section class="table-frame">

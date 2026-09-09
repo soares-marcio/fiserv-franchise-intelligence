@@ -22,6 +22,21 @@ class RevenueCalendarScreenTest < ApplicationSystemTestCase
     assert_selector "tbody th[scope=row]", text: "1–4"
   end
 
+  # O modal do dia é <dialog> nativo aberto por Stimulus, com o conteúdo vindo por Turbo
+  # Frame. O que só o navegador prova: o clique abre, e o caret troca o dia **sem fechar**.
+  test "clicar num dia abre o modal, e o caret anda de dia sem fechá-lo" do
+    visit weekly_reports_path(period: "2026-08-01")
+
+    find("a.calendar-box", text: "Dia 1").click
+
+    assert_selector "dialog[open] h2.table-title", text: "Dia 1 · sábado"
+    assert_selector "dialog[open] tbody tr", text: "11222333000181"
+
+    find("dialog[open] a[aria-label='Próximo dia']").click
+
+    assert_selector "dialog[open] h2.table-title", text: "Dia 2 · domingo"
+  end
+
   # As setas são links comuns, e é isso que mantém a tela navegável sem JavaScript.
   test "a seta anda uma competência sem passar pelo seletor" do
     visit weekly_reports_path

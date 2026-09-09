@@ -80,6 +80,66 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "thead th[scope=col]", count: 9
   end
 
+  # O cliente do modal é o CNPJ, não o EC: os ECs 30000001 e 90000001 dividem o mesmo CNPJ na
+  # planilha sintética, e no dia 1 de agosto os dois vendem. Uma linha, não duas.
+  test "o modal do dia agrupa por CNPJ e soma os ECs da empresa" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_response :success
+    assert_select "body", false, "o modal chega sem layout"
+    assert_select "turbo-frame#day_companies"
+    # No dia 1 de agosto só o CNPJ compartilhado vende, pelos seus dois ECs: uma linha.
+    assert_select "tbody tr", count: 1
+    linha = css_select("tbody tr").first
+    assert_match(/11222333000181/, linha.text)
+    assert_match(/160,00/, linha.text, "150 do EC 30000001 mais 10 do 90000001")
+    assert_equal "2", linha.css("td")[1].text.strip, "e a contagem diz dois ECs"
+  end
+
+  # A soma do modal tem de fechar com a célula do calendário — foi a conferência que o
+  # usuário fez nas semanas, e vale aqui também.
+  test "a soma do modal fecha com o valor do dia no calendário" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path(period: "2026-08-01")
+    celula = css_select("a.calendar-box").find { |link| link.text.include?("Dia 1") }
+    do_calendario = celula.text[/R\$[^\n]*/].gsub(/[^\d,]/, "")
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+    do_modal = css_select("tbody td.text-right.font-semibold").map { |td| td.text.strip }
+
+    assert_equal "160,00", do_calendario
+    assert_equal [ "R$\u00A0160,00" ], do_modal
+  end
+
+  test "dia fora da cobertura não abre o modal" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 40, period: "2026-08-01")
+    assert_response :not_found
+  end
+
+  # O cabeçalho nomeia o dia da semana, e o locale precisa ter day_names: sem isso a tela
+  # escreveria "translation missing" no título do modal.
+  test "o cabeçalho do modal diz o dia e o dia da semana" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_select "h2.table-title", text: /Dia 1 · sábado/
+    assert_no_match(/translation missing/i, response.body)
+    # No dia 1 não há dia anterior: a seta vira botão apagado.
+    assert_select ".period-stepper span.is-disabled", count: 1
+    # O dia vai no caminho da rota, não em query string.
+    assert_select ".period-stepper a[aria-label=?][href*=?]", "Próximo dia", "/day/2"
+  end
+
   # As setas andam entre competências importadas e param nas pontas: sem isso o usuário
   # chegaria a um mês sem arquivo, que a tela não sabe desenhar.
   test "as setas navegam entre competências e desativam nas pontas" do
