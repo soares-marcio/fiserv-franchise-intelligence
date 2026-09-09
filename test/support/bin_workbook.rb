@@ -17,6 +17,7 @@ module BinWorkbook
     :ec, :cnpj, :sub_channel_name, :legal_name, :trade_name, :contract_status,
     :dias_m1, :dias_atual, :melhor_conversa, :proposta,
     :accredited_on, :net_mdr, :app_access_at, :auto_boarding, :debitos, :creditos,
+    :preapproved_volume, :preapproved_term, :preapproved_rate,
     keyword_init: true
   ) do
     def total_m1 = dias_m1.values.sum
@@ -105,7 +106,13 @@ module BinWorkbook
       "DATA DE CREDENCIAMENTO" => loja.accredited_on || "01/02/2026",
       "DATA DE ATIVAÇÃO" => "05/02/2026",
       "NET MDR" => loja.net_mdr, "ULTIMO ACESSO NO APP" => loja.app_access_at,
-      "STATUS ANTECIP AUTO NO BOARDING" => loja.auto_boarding
+      "STATUS ANTECIP AUTO NO BOARDING" => loja.auto_boarding,
+      # A oferta pré-aprovada do Clover Capital. PARCELA_PRE_APROVADA fica de fora de
+      # propósito: no arquivo real ela é a única das quatro que nunca traz valor, e a
+      # planilha sintética existe para reproduzir o arquivo, não para melhorá-lo.
+      "VOLUME_PRE_APROVADO" => loja.preapproved_volume,
+      "PRAZO_PRE_APROVADO" => loja.preapproved_term,
+      "TAXA_PRE_APROVADA" => loja.preapproved_rate
     }.merge(volume_columns(loja, volume_months))
   end
 

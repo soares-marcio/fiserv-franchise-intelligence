@@ -55,14 +55,14 @@
       </article>
       <article class="metric-card" data-tone="gold">
         <p class="metric-label">Digitalização (determinada)</p>
-        <p class="metric-value"><%= brl(digitalization) %></p>
+        <p class="metric-value"><%= brl_metric(digitalization) %></p>
         <p class="metric-hint">R$ 30,00 por EC com app, uma vez em M0</p>
       </article>
       <article class="metric-card" data-tone="green">
         <p class="metric-label">Adicional por faturamento</p>
         <p class="metric-value <%= "metric-value--range" if addon_without != addon_with %>">
           <% if addon_without == addon_with %>
-            <%= brl(addon_without) %>
+            <%= brl_metric(addon_without) %>
           <% else %>
             <%= brl(addon_without) %> – <%= brl(addon_with) %>
           <% end %>

@@ -22,7 +22,8 @@ em períodos de mesma duração.
 | **Repasse recorrente** | Alíquota (débito e crédito, escolhidas pela faixa de **Net MDR da carteira**) × volume da modalidade. Vitalício, desde a primeira transação. |
 | **Acelerador / redutor** | Mutuamente exclusivos, mês contra mês ("MxM"): crescimento ≥ 20% remunera um % do faturamento **incremental**; queda aplica um % de redução sobre a **remuneração**. Entre 0% e 19,99% de crescimento não há ajuste. |
 | **Página 3M** | Janela de 3 meses de calendário à escolha do usuário, com débito/crédito por competência (`monthly_volumes`) e o modelo de remuneração aplicado por sub-canal e por EC. |
-| **Cliente parado** | Empresa (CNPJ) cuja última venda está a `AuditViews::STALLED_THRESHOLD` dias ou mais do dia de corte — hoje 7. Quem nunca vendeu no mês conta o corte inteiro. |
+| **Cliente parado** | Empresa (CNPJ) cuja última venda está a `AuditViews::STALLED_THRESHOLD` dias ou mais do dia de corte — hoje 7. Quem nunca vendeu no mês conta o corte inteiro. Vive só em `audit_stalled_companies`: a tela que o mostrava deu lugar ao Clover Capital. |
+| **Oferta pré-aprovada** | Proposta de capital ao cliente, do Clover Capital: volume, prazo e taxa vindos da aba Mapa de Clientes BIN (`VOLUME_PRE_APROVADO`, `PRAZO_PRE_APROVADO`, `TAXA_PRE_APROVADA`). É do CNPJ, não do EC — todos os ECs de um cliente trazem a mesma. `PARCELA_PRE_APROVADA` existe no arquivo e nunca trouxe valor. |
 
 Quando o recorte cobre mais de um canal, usa-se o **menor** dia de corte disponível: comparar
 períodos de durações diferentes entre canais distorceria a variação.
@@ -313,9 +314,14 @@ antes de o piloto virar operação.
 `ReportScope` executa — a regra vive em um lugar só. Depois de mexer nelas, crie uma migração
 que chame `AuditViews.recreate!`.
 
-São cinco, todas com leitor: `audit_revenue_by_sub_channel` alimenta `audit_revenue_by_company`,
-que alimenta `audit_stalled_companies`; esta e `audit_weekly_revenue` são lidas pelo
-`ReportScope`, e `audit_accreditation_earnings` pela página 3M. `AuditViews::SOURCE_TABLES`
+São cinco. `audit_revenue_by_sub_channel` alimenta `audit_revenue_by_company`, que alimenta
+`audit_stalled_companies`, e `audit_accreditation_earnings` é lida pela página 3M.
+
+**Duas estão sem leitor de tela:** `audit_weekly_revenue` perdeu o dela quando a tela semanal
+virou calendário, e `audit_stalled_companies` quando a página de clientes parados deu lugar ao
+Clover Capital. `ReportScope#stalled_companies` continua existindo e é exercitado pelos testes,
+mas nenhuma tela o chama. Removê-las exige migração, e não se verificou se o Metabase as lê —
+por isso ficam. `AuditViews::SOURCE_TABLES`
 lista as tabelas que elas leem e é o que o `ANALYZE` do refresh cobre — o teste
 `test/services/audit_views_test.rb` falha se uma view passar a ler tabela fora da lista.
 

@@ -37,14 +37,14 @@
       <article class="metric-card" data-tone="teal">
         <p class="metric-label">Repasse de <%= last_closed ? l(last_closed, format: "%B") : "—" %> (último mês fechado)</p>
         <p class="metric-value">
-          <%= brl(@reports.sum { |r| r[:months].find { |m| m[:period] == last_closed }&.fetch(:recurring).to_f }) %>
+          <%= brl_metric(@reports.sum { |r| r[:months].find { |m| m[:period] == last_closed }&.fetch(:recurring).to_f }) %>
         </p>
         <p class="metric-hint">Débito + crédito × alíquota da faixa do mês</p>
       </article>
       <article class="metric-card" data-tone="gold">
         <p class="metric-label">Ajuste de <%= last_closed ? l(last_closed, format: "%B") : "—" %></p>
         <% adjustment = @reports.sum { |r| month = r[:months].find { |m| m[:period] == last_closed }; month ? month[:accelerator] - month[:reducer] : 0.0 } %>
-        <p class="metric-value"><%= adjustment.zero? ? "—" : brl(adjustment) %></p>
+        <p class="metric-value"><%= adjustment.zero? ? "—" : brl_metric(adjustment) %></p>
         <p class="metric-hint">Acelerador ou redutor, mês contra mês</p>
       </article>
       <%# O total da janela morava num rodapé abaixo dos cards; na primeira dobra ele é lido
@@ -52,7 +52,7 @@
       <article class="metric-card" data-tone="green">
         <p class="metric-label">Ganho na janela</p>
         <p class="metric-value">
-          <%= brl(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
+          <%= brl_metric(@reports.sum { |r| r[:recurring_total] + r[:adjustment_total] }) %>
         </p>
         <p class="metric-hint">
           Soma dos <%= @reports.size %> MICs · repasse

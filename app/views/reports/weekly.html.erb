@@ -40,7 +40,7 @@
     <section class="metric-grid metric-grid--3">
       <article class="metric-card" data-tone="teal">
         <p class="metric-label"><%= period_option_label(@period).capitalize %></p>
-        <p class="metric-value"><%= brl(@totals["revenue"]) %></p>
+        <p class="metric-value"><%= brl_metric(@totals["revenue"]) %></p>
         <p class="metric-hint">
           <%= pluralize(@totals["establishments"], "EC com movimento", "ECs com movimento") %> ·
           <%= @aligned ? "até o dia #{@covered_days}, o corte do arquivo" : "mês cheio" %>
@@ -50,7 +50,7 @@
       <article class="metric-card" data-tone="gold">
         <p class="metric-label"><%= period_option_label(@previous_period).capitalize %></p>
         <% if @previous_totals %>
-          <p class="metric-value"><%= brl(@previous_totals["revenue"]) %></p>
+          <p class="metric-value"><%= brl_metric(@previous_totals["revenue"]) %></p>
           <p class="metric-hint">
             <%= pluralize(@previous_totals["establishments"], "EC com movimento", "ECs com movimento") %> ·
             <%= @aligned ? "até o dia #{@covered_days}, mesma duração" : "mês cheio" %>

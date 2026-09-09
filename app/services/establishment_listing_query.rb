@@ -287,6 +287,10 @@ class EstablishmentListingQuery
     "AND (#{columns.map { |column| "#{column} BETWEEN :from_date AND :to_date" }.join(' OR ')})"
   end
 
+  # O termo alcança o texto da melhor conversa, e só ele passa por unaccent: os 418 textos
+  # do lote mais recente têm acento, os 418, e sem isso quem digitasse "antecipacao" não
+  # acharia nada. EC, CNPJ e nomes seguem com ILIKE puro — mudá-los mudaria o resultado de
+  # uma busca que já existe.
   def search_clause
     return "" if binds[:query].blank?
 
@@ -296,6 +300,7 @@ class EstablishmentListingQuery
         OR snapshot.legal_name ILIKE :query
         OR snapshot.trade_name ILIKE :query
         OR company.cnpj ILIKE :query
+        OR unaccent(mapa.best_conversation_raw) ILIKE unaccent(:query)
         OR (
           :query_digits IS NOT NULL
           AND (company.cnpj ILIKE :query_digits OR establishment.ec ILIKE :query_digits)
