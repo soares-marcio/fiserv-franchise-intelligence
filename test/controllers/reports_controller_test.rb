@@ -373,6 +373,25 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   # Frame, sem layout, com a mesma janela e faixa de dias da tela que o abriu.
   # As três colunas de valor ordenam a listagem pelo clique no rótulo; o link leva os
   # filtros junto e o sentido alterna a cada clique.
+  # No Mapa, 143 dos 561 ECs do lote mais recente não têm melhor conversa. O botão dessas
+  # linhas precisa nascer desabilitado: laranja em todas dizia que havia o que ler em todas.
+  test "o botão da melhor conversa fica desabilitado em quem não tem texto" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
+
+    assert_response :success
+    # A ALFA LANCHES tem conversa na planilha sintética; a ALFA EXPRESS, não.
+    assert_select "button.conversation-trigger", count: 2
+    assert_select "button.conversation-trigger[disabled]", count: 1
+    assert_select "button.conversation-trigger[data-conversation-modal-text-param=?]",
+      "Ligar > Enviar proposta"
+    # Sem texto não há o que passar ao modal: o botão desabilitado não carrega param nenhum.
+    assert_select "button.conversation-trigger[disabled][data-conversation-modal-text-param]",
+      count: 0
+  end
+
   test "as colunas de valor ordenam a listagem e anunciam o sentido" do
     import_synthetic_workbook
     refresh_audit_views
@@ -504,8 +523,19 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dt", text: "Cred."
     assert_select "dt", text: "Ativ."
     assert_select "dt", text: "Susp."
+    assert_select "dt", text: "Uso do app"
     assert_select "dd", text: "15/03/2024"
     assert_select "dd", text: "02/04/2024"
+    # Último acesso ao app: a coluna é timestamp, e a data mostrada é a do dia gravado.
+    assert_select "dd", text: "20/08/2026"
+    # A melhor conversa não cabe na linha: vai atrás de um botão que carrega o texto e o
+    # nome do EC, e o modal monta a sequência a partir dele.
+    assert_select "th", text: "Melhor conversa"
+    assert_select "button.conversation-trigger:not([disabled])" do |botao|
+      assert_equal "Ofereça a antecipação > Revise o MDR",
+        botao.first["data-conversation-modal-text-param"]
+      assert_equal "LOJA UM", botao.first["data-conversation-modal-name-param"]
+    end
     # Sob o EC: NET MDR truncado (0,299 nunca vira 0,30) e os equipamentos do Mapa.
     assert_select ".ec-meta p", text: "NET MDR 0,29%"
     assert_select ".ec-meta p", text: "Link pgto · 2 POS"
@@ -843,6 +873,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       import_batch: batch, channel:, sub_channel:, establishment:,
       legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
       accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2),
+      last_app_access_at: Time.zone.local(2026, 8, 20, 14, 30),
+      best_conversation_raw: "Ofereça a antecipação > Revise o MDR",
       has_payment_link: true, smart_pos_count: 2, other_pos_count: 0, net_mdr: 0.299
     )
     now = Time.current

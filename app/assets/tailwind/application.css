@@ -1358,20 +1358,23 @@
 
   .lifecycle-dates {
     display: grid;
-    min-width: 9.5rem;
+    min-width: 11rem;
     gap: 0.18rem;
     font-size: 0.75rem;
   }
 
+  /* Largura fixa, não max-content: cada linha é uma grade própria, e max-content deixaria
+     cada uma com a sua coluna. Cabe o maior rótulo, "Uso do app". */
   .lifecycle-dates > div {
     display: grid;
-    grid-template-columns: 2.8rem auto;
+    grid-template-columns: 4.6rem auto;
     gap: 0.35rem;
   }
 
   .lifecycle-dates dt {
     color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
     font-weight: 750;
+    white-space: nowrap;
   }
 
   .lifecycle-dates dd {
@@ -1463,6 +1466,7 @@
     width: 1%;
     white-space: nowrap;
   }
+
 
   .variation-icon-tip {
     display: inline-flex;
@@ -1871,6 +1875,32 @@
   .daily-modal--wide {
     width: min(72rem, 95vw);
   }
+
+  /* A melhor conversa tem 76 caracteres em média e 221 no maior caso da carteira: nos 54rem
+     do modal de lançamentos a linha ficaria longa demais para ler. */
+  .daily-modal--narrow {
+    width: min(34rem, 92vw);
+  }
+
+  .conversation-steps {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    padding-left: 1.35rem;
+    list-style: decimal;
+  }
+
+  .conversation-steps li {
+    padding-left: 0.25rem;
+    line-height: 1.5;
+  }
+
+  .conversation-col {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+  }
+
 
   .day-modal__head {
     display: flex;
@@ -2549,6 +2579,22 @@
   color: #333;
 }
 
+/* Desabilitado precisa vencer as duas regras acima, e por isso vem depois delas: o daisyUI
+   também apaga o fundo do botão desabilitado, mas em @layer, e a regra do laranja é sem
+   camada — vence. Sem isto o botão sem ação fica no mesmo laranja cheio do que age, e a
+   única diferença passa a ser o clique que não acontece.
+
+   Cursor e hover não entram: o daisyUI declara pointer-events: none no desabilitado, então
+   o ponteiro não chega ao elemento e nenhuma regra de :hover dispara. */
+.btn:disabled,
+.btn.btn:disabled {
+  --btn-bg: var(--color-base-200);
+  --btn-fg: var(--color-base-content);
+  border-color: transparent;
+  background-color: var(--color-base-200);
+  color: color-mix(in oklab, var(--color-base-content) 35%, transparent);
+}
+
 .btn svg,
 .btn.btn svg {
   fill: currentcolor;
@@ -2571,4 +2617,44 @@
 .join-item.btn.btn-outline:focus-visible {
   background-color: var(--color-primary);
   color: var(--color-primary-content);
+}
+
+/* --------------------------------------------------------------------------------------
+   Medidas que o daisyUI também declara, e que por isso não podem ficar em @layer: a ordem
+   de camadas aqui coloca a do daisyUI depois da do projeto, e camada vence especificidade.
+   Foi assim que a regra do botão acima acabou fora de camada, e é a mesma razão aqui —
+   dentro de @layer components estas duas não valiam nada (medido: botão continuava em 32px
+   e a coluna com o padding de 1rem do daisyUI).
+   -------------------------------------------------------------------------------------- */
+
+/* Dois pixels além do quadrado do daisyUI (--size, 2rem no btn-sm). */
+.btn.conversation-trigger {
+  width: calc(var(--size) + 2px);
+}
+
+/* Aperto da coluna de variação, sem tirar nada de dentro dela: o ícone, a pílula e os
+   rótulos por extenso continuam.
+
+   Quem ditava a largura era o chip mais longo, "Voltou a vender", com 139,3px numa linha só.
+   Deixá-lo quebrar tira a régua da mão dele; o resto é moldura — o vão da célula, o do chip
+   e o intervalo do ícone. Medido em sequência: 171,3px no começo, 158,5 com a célula em
+   0,6rem, 117,1 com a quebra, 110,7 com o chip mais justo e 102,7 com a célula em 0,35rem.
+
+   O preço é a altura: as células com esse rótulo passam de 27px para 43px. Vale porque são
+   poucas e porque a alternativa era encurtar o texto ou tirar o ícone.
+
+   Só nesta tabela: a mesma classe serve a listagem de MICs em /reports, que não tem esse
+   aperto de colunas e segue com o chip em linha única. */
+.establishment-revenue-table .variation-col {
+  padding-inline: 0.35rem;
+}
+
+.establishment-revenue-table .variation-col,
+.establishment-revenue-table .variation-col .variation-chip {
+  white-space: normal;
+}
+
+.establishment-revenue-table .variation-col .variation-chip {
+  gap: 0.2rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.2rem;
 }

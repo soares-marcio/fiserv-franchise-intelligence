@@ -245,6 +245,18 @@ Dentro de `@layer components` a regra pintava o fundo — porque o daisyUI lê a
 sobreviveu a duas tentativas de resolver por especificidade. Quando algo de botão não pegar,
 confira a camada antes da especificidade.
 
+**E não é só de botão.** A regra vale para **qualquer propriedade que o daisyUI também
+declare**: `.btn-square { width }`, `.table :where(th,td) { padding-inline }`, e o que mais
+vier. Em `@layer components` elas perdem, e perdem em silêncio — a regra aparece no CSS
+servido, o `grep` a encontra, e mesmo assim o navegador aplica a do daisyUI. Foi o que
+aconteceu com a largura do botão da melhor conversa e o padding da coluna de variação: as
+duas ficaram sem efeito até saírem da camada (medido: botão parado em 32px onde a regra
+pedia 34; coluna com os 16px do daisyUI onde a regra pedia 9,6).
+
+Conferir isso exige medir no navegador, porque ler o CSS não revela o problema. O caminho
+usado foi baixar a página e as folhas servidas, inliná-las num arquivo local e abri-lo com
+o Chrome da imagem de testes — que assim não esbarra no `config.hosts` da produção.
+
 O ícone dentro do botão **não tem regra própria**: os SVGs do Phosphor são
 `fill: currentColor`, então a seta é branca no repouso e `#333` no hover porque acompanha a
 cor do botão. Se algum dia um ícone aparecer escuro sobre o laranja, o problema é a `color`

@@ -214,7 +214,7 @@
     <% end %>
   </nav>
 
-  <section class="table-frame" data-controller="sticky-table daily-modal">
+  <section class="table-frame" data-controller="sticky-table daily-modal conversation-modal">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por estabelecimento</p>
@@ -275,6 +275,7 @@
                 path: caminho_da_ordem,
                 hint: (column == "previous_full_revenue" ? "competência fechada" : (day_range_label(@from_day, @to_day) if @window)) %>
             <% end %>
+            <th scope="col" class="conversation-col">Melhor conversa</th>
             <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>
@@ -327,11 +328,42 @@
                     <dt>Susp.</dt>
                     <dd><%= format_date(report["suspended_on"]) %></dd>
                   </div>
+                  <%# Último acesso ao app: a view audit_accreditation_earnings condiciona o
+                      prêmio de entrada a ter havido acesso, então a data pertence ao ciclo.
+
+                      A planilha traz horário de Brasília (UTC-3) e a coluna o guarda
+                      literalmente, sem conversão — medido na distribuição por hora dos 1.944
+                      registros: vale de madrugada (6 registros à 0h, nenhum às 2h) e pico às
+                      16h, que é uso humano em horário local, não em UTC. Por isso a leitura
+                      correta é a crua: aqui o valor vem do SQL e volta como Time rotulado
+                      UTC, e `to_date` devolve o dia da planilha. Pelo model o Rails subtrai
+                      3h de um horário que já é local e o dia retrocede em 14 dos 1.944. %>
+                  <div>
+                    <dt>Uso do app</dt>
+                    <dd><%= format_date(report["last_app_access_at"]) %></dd>
+                  </div>
                 </dl>
               </td>
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
+              <%# A melhor conversa é texto livre e comprido demais para a linha: fica atrás
+                  de um botão que abre o modal com o texto já carregado. Sem texto no Mapa o
+                  botão vem desabilitado — a coluna precisa distinguir "não tem" de "tem e
+                  ainda não abri". %>
+              <td class="conversation-col">
+                <% conversa = report["best_conversation_raw"].to_s.strip %>
+                <% nome = report["trade_name"].presence || report["legal_name"] %>
+                <%= button_tag type: "button", disabled: conversa.blank?,
+                      class: "btn btn-sm btn-square conversation-trigger",
+                      title: conversa.present? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
+                      aria: { label: conversa.present? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
+                      data: (conversa.present? ? { action: "conversation-modal#open",
+                        conversation_modal_text_param: conversa,
+                        conversation_modal_name_param: nome } : {}) do %>
+                  <%= icon("list-bullets", css: "btn-icon") %>
+                <% end %>
+              </td>
               <td class="text-right variation-col">
                 <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
                     anterior; antigo que saiu do zero vira "Voltou a vender". %>
@@ -381,6 +413,24 @@
         <%= turbo_frame_tag "daily_revenues" do %>
           <p class="empty-state">Carregando lançamentos…</p>
         <% end %>
+      </div>
+    </dialog>
+
+    <%# Melhor conversa do EC clicado. Um diálogo só para a tabela inteira: o conteúdo vem do
+        botão, então cem linhas não precisam de cem diálogos. %>
+    <dialog class="daily-modal daily-modal--narrow" data-conversation-modal-target="dialog"
+      aria-label="Melhor conversa do estabelecimento"
+      data-action="click->conversation-modal#closeOnBackdrop close->conversation-modal#close">
+      <div class="daily-modal__body">
+        <button type="button" class="btn-toggle daily-modal__close"
+          data-action="conversation-modal#close" aria-label="Fechar a melhor conversa">
+          <%= icon("x", css: "icon") %>
+        </button>
+        <div class="daily-modal__head">
+          <p class="section-label">Melhor conversa</p>
+          <h3 class="table-title" data-conversation-modal-target="name"></h3>
+        </div>
+        <ol class="conversation-steps" data-conversation-modal-target="steps"></ol>
       </div>
     </dialog>
   </section>
