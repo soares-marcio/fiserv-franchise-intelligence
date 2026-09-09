@@ -1,26 +1,29 @@
 <%# Célula da anotação, nas duas telas que a editam. O botão carrega só o endereço do
     formulário — o conteúdo vem por Turbo Frame quando o modal abre.
 
-    O rótulo é sempre "Anotar"; quem avisa que já há conteúdo é o ponto no canto. Sem ele, a
-    única diferença entre cliente anotado e cliente em branco seria a data embaixo, que se
-    perde numa tabela de vinte linhas.
+    O `data-note-company` é o endereço da célula para o turbo_stream: salvar troca **todas** as
+    células daquele cliente de uma vez, e um CNPJ com três ECs tem três linhas na listagem do
+    MIC. Por isso a atualização é por seletor, não por id único.
 
-    Nunca vem `disabled`, ao contrário do botão da melhor conversa: lá "não tem" é fato da
-    planilha; aqui é o convite para escrever. %>
+    O rótulo é sempre "Anotar"; quem avisa que já há conteúdo é o ponto. Nunca vem `disabled`,
+    ao contrário do botão da melhor conversa: lá "não tem" é fato da planilha; aqui é o
+    convite para escrever. %>
 <% tem_nota = note_id.present? %>
-<%= button_tag type: "button",
-      class: "btn btn-sm note-trigger #{tem_nota ? 'note-trigger--filled' : 'btn-outline'}",
-      title: tem_nota ? "Ver ou editar a anotação" : "Anotar sobre este cliente",
-      aria: { label: "#{tem_nota ? 'Ver a anotação de' : 'Anotar sobre'} #{name}" },
-      data: {
-        action: "note-modal#open",
-        note_modal_url_param: edit_company_note_path(company_uuid, note_params)
-      } do %>
-  Anotar
-  <% if tem_nota %>
-    <span class="note-trigger__dot" aria-hidden="true"></span>
+<div class="note-cell" data-note-company="<%= company_uuid %>">
+  <%= button_tag type: "button",
+        class: "btn btn-sm note-trigger #{'btn-outline' unless tem_nota}",
+        title: tem_nota ? "Ver ou editar a anotação" : "Anotar sobre este cliente",
+        aria: { label: "#{tem_nota ? 'Ver a anotação de' : 'Anotar sobre'} #{name}" },
+        data: {
+          action: "note-modal#open",
+          note_modal_url_param: edit_company_note_path(company_uuid, note_params)
+        } do %>
+    Anotar
+    <% if tem_nota %>
+      <span class="note-trigger__dot" aria-hidden="true"></span>
+    <% end %>
   <% end %>
-<% end %>
-<% if tem_nota && note_updated_at.present? %>
-  <p class="note-cell__date"><%= l(note_updated_at.to_date) %></p>
-<% end %>
+  <% if tem_nota && note_updated_at.present? %>
+    <p class="note-cell__date"><%= l(note_updated_at.to_date) %></p>
+  <% end %>
+</div>

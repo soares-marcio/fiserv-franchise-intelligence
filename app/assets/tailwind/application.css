@@ -1925,13 +1925,14 @@
 
   .note-trigger__dot {
     position: absolute;
-    top: -0.28rem;
-    right: -0.28rem;
-    width: 0.68rem;
-    height: 0.68rem;
+    top: -0.4rem;
+    right: -0.4rem;
+    width: 1.05rem;
+    height: 1.05rem;
     border: 2px solid var(--color-base-100);
     border-radius: 999px;
     background: var(--color-success);
+    box-shadow: 0 1px 3px rgb(31 45 61 / 25%);
   }
 
   /* No hover o botão fica branco, e um ponto verde sobre branco some. A borda acompanha o
@@ -2778,4 +2779,12 @@ trix-editor img,
   max-width: 100%;
   height: auto;
   border-radius: 0.5rem;
+}
+
+/* O aviso saindo sozinho, do auto-dismiss. Fora de @layer junto com as demais regras que
+   disputam com CSS de fora — aqui a razão é outra: `.alert` é do daisyUI. */
+.app-alert.is-leaving {
+  opacity: 0;
+  transition: opacity 250ms ease, transform 250ms ease;
+  transform: translateY(-0.35rem);
 }

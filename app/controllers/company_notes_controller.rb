@@ -30,12 +30,50 @@ class CompanyNotesController < ApplicationController
   def update
     company = Company.find_param!(params[:id])
     note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body])
-    redirect_to origin_path, notice: note ? "Anotação salva." : "Anotação removida."
+    responder(company, note, notice: note ? "Anotação salva." : "Anotação removida.")
   rescue ArgumentError => error
-    redirect_to origin_path, alert: error.message
+    responder(company, CompanyNote.find_by(cnpj: company&.cnpj), alert: error.message)
   end
 
   private
+
+  # Salvar não recarrega a tela: troca as células daquele cliente e o aviso, e pronto. O
+  # `replace_all` por seletor, e não por id, é o que resolve o caso do CNPJ com vários ECs —
+  # na listagem do MIC a mesma anotação ocupa uma célula por EC, e todas precisam mudar juntas.
+  #
+  # O caminho HTML fica de pé para quem chegar sem JavaScript, e é ele que os testes de
+  # redirect exercitam.
+  def responder(company, note, **flash_message)
+    respond_to do |format|
+      format.turbo_stream do
+        flash.now[flash_message.keys.first] = flash_message.values.first
+        render turbo_stream: [
+          turbo_stream.replace_all(
+            "[data-note-company='#{company.uuid}']",
+            partial: "shared/company_note_cell", locals: celula(company, note)
+          ),
+          turbo_stream.update("flash", partial: "layouts/flash",
+            locals: { notice: flash.now[:notice], alert: flash.now[:alert] })
+        ]
+      end
+      format.html { redirect_to origin_path, **flash_message }
+    end
+  end
+
+  def celula(company, note)
+    {
+      company_uuid: company.uuid,
+      name: company.establishments.first&.current_map_snapshot&.trade_name.to_s,
+      note_id: note&.id, note_updated_at: note&.updated_at,
+      note_params: params[:origin] == "sub_channel" ? origin_params : {}
+    }
+  end
+
+  # O botão trocado precisa continuar levando o recorte da tela junto, senão a próxima
+  # abertura perde o filtro que a primeira tinha.
+  def origin_params
+    listing_params.merge(origin: "sub_channel", sub_channel_id: params[:sub_channel_id])
+  end
 
   # A rota da anotação usa a uuid, não o CNPJ. O filter_parameter_logging já esconde :cnpj dos
   # logs, mas ele filtra parâmetros e não o caminho da URL — um /companies/<cnpj>/note

@@ -73,6 +73,35 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # Salvar deixou de recarregar a tela. O que prova isso é o alvo do stream ser um seletor, e
+  # não um id: na listagem do MIC o mesmo cliente ocupa uma célula por EC, e todas mudam
+  # juntas — com id único, só a primeira mudaria.
+  test "salvar responde por turbo_stream, trocando as células do cliente e o aviso" do
+    patch company_note_path(@company), params: { body: "<div>Ligar.</div>" },
+      as: :turbo_stream
+
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    # As aspas simples do seletor saem escapadas no atributo; o que importa é o alvo ser um
+    # seletor de todas as células daquele cliente, e não o id de uma só.
+    assert_match(/targets="\[data-note-company=&#39;#{@company.uuid}&#39;\]"/, response.body)
+    assert_match(/action="replace"/, response.body)
+    # O aviso vem no mesmo lote, em vez de esperar a próxima navegação.
+    assert_match(/target="flash"/, response.body)
+    assert_match(/Anotação salva\./, response.body)
+    # E a célula trocada já traz o ponto que avisa que há anotação.
+    assert_match(/note-trigger__dot/, response.body)
+  end
+
+  test "erro de validação também volta por turbo_stream, sem derrubar a tela" do
+    patch company_note_path(@company), as: :turbo_stream,
+      params: { body: "<div>#{'a' * (Operations::SaveCompanyNote::MAX_LENGTH + 1)}</div>" }
+
+    assert_response :success
+    assert_match(/target="flash"/, response.body)
+    assert_match(/limite/, response.body)
+  end
+
   test "uuid desconhecida não encontra cliente" do
     patch company_note_path(SecureRandom.uuid), params: { body: "<div>x</div>" }
 

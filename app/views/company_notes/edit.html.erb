@@ -25,8 +25,10 @@
     </p>
   </div>
 
+  <%# Sem `turbo_frame: "_top"`: a resposta é turbo_stream, processada globalmente, e trocar a
+      página inteira desfaria justamente o ganho de salvar sem recarregar. %>
   <%= form_with url: company_note_path(@company), method: :patch,
-    data: { turbo_frame: "_top", action: "submit->note-modal#close" },
+    data: { action: "submit->note-modal#close" },
     class: "note-form" do %>
     <% sub_channel_id = params[:sub_channel_id].presence %>
     <% if params[:origin] == "sub_channel" && sub_channel_id %>

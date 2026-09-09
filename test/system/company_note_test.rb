@@ -20,13 +20,40 @@ class CompanyNoteTest < ApplicationSystemTestCase
     find("dialog[open] trix-editor").click.send_keys("Dono viaja, retomar dia 10.")
     click_button "Salvar anotação"
 
-    # O diálogo fecha no submit — sem isso, o morph do retorno o deixaria dessincronizado.
     assert_no_selector "dialog[open]"
     assert_text "Anotação salva."
+    # O ponto aparece sem a página recarregar: é o turbo_stream trocando a célula.
+    assert_selector "td.note-col .note-trigger__dot"
     # E a busca que estava aplicada continua aplicada.
     assert_current_path(/q=ALFA\+LANCHES/, url: true)
     assert_equal "Dono viaja, retomar dia 10.",
       CompanyNote.find_by(cnpj: "11222333000181").body.to_plain_text
+  end
+
+  # O aviso some sozinho. Antes, quem fechava o flash era a navegação seguinte — e agora não
+  # há navegação nenhuma depois de salvar.
+  test "o aviso de sucesso desaparece sozinho" do
+    visit sub_channel_report_path(@sub_channel)
+    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    find("dialog[open] trix-editor").click.send_keys("Nota rápida.")
+    click_button "Salvar anotação"
+
+    assert_text "Anotação salva."
+    assert_no_text "Anotação salva.", wait: 10
+  end
+
+  # O CNPJ com dois ECs tem duas linhas na listagem, e as duas mostram a mesma anotação. Com
+  # alvo por id, só a primeira mudaria depois de salvar; com seletor, as duas mudam.
+  test "salvar atualiza todas as linhas do mesmo cliente de uma vez" do
+    visit sub_channel_report_path(@sub_channel)
+
+    assert_no_selector ".note-trigger__dot"
+    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    find("dialog[open] trix-editor").click.send_keys("Vale para os dois ECs.")
+    click_button "Salvar anotação"
+
+    assert_text "Anotação salva."
+    assert_selector "td.note-col .note-trigger__dot", count: 2
   end
 
   # Reabrir precisa trazer o que foi salvo, não o formulário como ele estava: é por isso que o
