@@ -1,0 +1,18 @@
+<%# Um diálogo por tabela, não por linha — a mesma regra dos outros modais da casa.
+
+    Fica fora de qualquer turbo_frame que envolva a página: dentro de um, o Turbo procuraria
+    o frame na resposta do redirect, não acharia, e o flash sumiria. O frame de dentro é o
+    alvo do carregamento sob demanda, e o formulário escapa para _top no submit. %>
+<dialog class="daily-modal daily-modal--narrow" data-note-modal-target="dialog"
+  aria-label="Anotação do cliente"
+  data-action="click->note-modal#closeOnBackdrop close->note-modal#close">
+  <div class="daily-modal__body">
+    <button type="button" class="btn-toggle daily-modal__close"
+      data-action="note-modal#close" aria-label="Fechar a anotação">
+      <%= icon("x", css: "icon") %>
+    </button>
+    <%= turbo_frame_tag "company_note", data: { note_modal_target: "frame" } do %>
+      <p class="empty-state">Carregando anotação…</p>
+    <% end %>
+  </div>
+</dialog>

@@ -26,6 +26,7 @@ class ReportsController < ApplicationController
     @reports = offers.call
     @diverging_cnpjs = offers.diverging_cnpjs
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
+    @note_excerpts = note_excerpts(@reports)
   end
 
   def weekly
@@ -292,6 +293,17 @@ class ReportsController < ApplicationController
     Date.parse(value.to_s)
   rescue Date::Error, ArgumentError, TypeError
     nil
+  end
+
+  # O corpo da anotação é rich text e não entra no SQL da listagem: viria como HTML com
+  # anexos dentro de uma consulta com GROUP BY. O trecho da tela sai daqui, numa query só,
+  # pelo índice que o Action Text já mantém.
+  def note_excerpts(rows)
+    ids = rows.filter_map { |row| row["note_id"] }.uniq
+    return {} if ids.empty?
+
+    ActionText::RichText.where(record_type: "CompanyNote", name: "body", record_id: ids)
+      .to_h { |rich| [ rich.record_id, rich.to_plain_text.squish ] }
   end
 
   def sub_channel_listing_params(overrides = {})

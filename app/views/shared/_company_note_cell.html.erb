@@ -1,0 +1,19 @@
+<%# Célula da anotação, nas duas telas que a editam. O botão carrega só o endereço do
+    formulário — o conteúdo vem por Turbo Frame quando o modal abre.
+
+    Nunca vem `disabled`, ao contrário do botão da melhor conversa: lá "não tem" é fato da
+    planilha; aqui é o convite para escrever. %>
+<% tem_nota = note_id.present? %>
+<%= button_tag type: "button",
+      class: "btn btn-sm note-trigger #{'btn-outline' unless tem_nota}",
+      title: tem_nota ? "Ver ou editar a anotação" : "Anotar sobre este cliente",
+      aria: { label: "#{tem_nota ? 'Anotação de' : 'Anotar sobre'} #{name}" },
+      data: {
+        action: "note-modal#open",
+        note_modal_url_param: edit_company_note_path(company_uuid, note_params)
+      } do %>
+  <%= tem_nota ? "Ver" : "Anotar" %>
+<% end %>
+<% if tem_nota && note_updated_at.present? %>
+  <p class="note-cell__date"><%= l(note_updated_at.to_date) %></p>
+<% end %>

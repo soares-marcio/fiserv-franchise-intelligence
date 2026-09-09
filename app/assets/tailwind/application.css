@@ -1909,6 +1909,63 @@
     white-space: nowrap;
   }
 
+  .note-col {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .note-cell__date {
+    margin-top: 0.2rem;
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    font-size: 0.68rem;
+  }
+
+  /* Só no Clover Capital, onde a linha é o próprio cliente e sobra largura. Na listagem do
+     MIC a coluna leva apenas o botão. */
+  .note-cell__excerpt {
+    max-width: 18rem;
+    margin-top: 0.3rem;
+    overflow: hidden;
+    color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+    font-size: 0.72rem;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* O editor do Trix e o que a anotação renderiza. A imagem sai em tamanho original — o
+     processador de variantes está desligado no projeto —, então a largura é contida aqui. */
+  .note-form {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .note-form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  trix-editor {
+    min-height: 10rem;
+    max-height: 26rem;
+    overflow-y: auto;
+    border: 1px solid var(--color-base-300);
+    border-radius: 0.6rem;
+    background: var(--color-base-100);
+  }
+
+  trix-editor img,
+  .trix-content img,
+  .note-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+  }
+
 
   .day-modal__head {
     display: flex;
