@@ -105,7 +105,7 @@
             <% @calendar.weeks.each do |week| %>
               <tr>
                 <th scope="row" class="font-normal"><%= week.label %></th>
-                <% week.cells.each do |cell| %>
+                <% week.cells.each_with_index do |cell, indice| %>
                   <%# A caixa é um bloco dentro da célula, e não a célula: o respiro entre os
                       dias vem do padding do <td>, senão dias vizinhos de tom parecido se
                       fundem num borrão só. %>
@@ -124,8 +124,11 @@
                       <div class="calendar-box" data-heat="<%= calendar_heat(cell.revenue, @calendar.max_revenue) %>">
                         <span class="calendar-box__day">Dia <%= cell.day %></span>
                         <span class="calendar-box__value tabular-nums"><%= brl(cell.revenue) %></span>
-                        <span class="tooltip tooltip-bottom calendar-box__meta tabular-nums" tabindex="0"
-                          data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
+                        <%# O .table-frame recorta com overflow: clip, e nenhum z-index escapa
+                            disso: o tooltip precisa abrir para dentro da tabela. Nas colunas da
+                            esquerda ele vai para a direita, e vice-versa. %>
+                        <span class="tooltip <%= indice < 4 ? "tooltip-right" : "tooltip-left" %> calendar-box__meta tabular-nums"
+                          tabindex="0" data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
                       </div>
                     </td>
                   <% end %>
@@ -134,7 +137,7 @@
                   <% if week.revenue %>
                     <span class="calendar-week__value"><%= brl(week.revenue) %></span>
                     <%# Distintos na semana, nunca a soma dos dias: o mesmo EC vende em vários. %>
-                    <span class="tooltip tooltip-bottom calendar-box__meta" tabindex="0"
+                    <span class="tooltip tooltip-left calendar-box__meta" tabindex="0"
                       data-tip="ECs diferentes que venderam na semana; quem vendeu em vários dias conta uma vez"><%= week.establishments %> ECs distintos</span>
                   <% else %>
                     <span class="calendar-box__value">—</span>
