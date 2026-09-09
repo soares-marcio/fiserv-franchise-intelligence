@@ -910,6 +910,94 @@
     font-weight: 700;
   }
 
+  /* Cards de EC: dois por linha, como os de ganho. Com quatro ECs em blocos de página
+     inteira, a ficha virava rolagem em que tudo se parecia. */
+  .ec-card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 1200px) {
+    .ec-card-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .ec-card {
+    display: grid;
+    align-content: start;
+    min-width: 0;
+    gap: 0.6rem;
+    padding: 1.15rem 1.25rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 1rem 1rem 1rem 0.35rem;
+    background: var(--color-base-100);
+    box-shadow: var(--cork-shadow);
+  }
+
+  .ec-card__head {
+    display: flex;
+    gap: 1rem;
+    align-items: start;
+    justify-content: space-between;
+  }
+
+  /* O equipamento é o que distingue um EC do outro: é ele que ocupa o lugar do título. */
+  .ec-card__equipment {
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .ec-card__mic {
+    color: var(--cork-muted);
+    font-size: 0.8rem;
+  }
+
+  .ec-card__terminals {
+    justify-self: start;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: var(--color-base-200);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .ec-card__facts {
+    display: grid;
+    gap: 0.5rem 1.25rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .ec-card__facts dt {
+    color: var(--cork-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .ec-card__facts dd {
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .ec-card__activity,
+  .ec-card__talk {
+    color: var(--cork-muted);
+    font-size: 0.78rem;
+  }
+
+  .ec-card__talk .section-label {
+    display: block;
+  }
+
+  .table-toolbar--bare {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
   .earnings-card-grid {
     display: grid;
     gap: 1rem;

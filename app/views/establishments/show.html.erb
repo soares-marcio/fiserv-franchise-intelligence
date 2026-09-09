@@ -70,56 +70,23 @@
     </div>
   </section>
 
-  <%# Um bloco por EC: o EC é o produto contratado — POS, Smart POS, link de pagamento —, e
-      é aqui que moram as particularidades dele. Medido na carteira: 173 dos 187 CNPJs com
-      mais de um EC têm equipamento diferente entre eles. O segmento performado também é do
-      EC: ele vale "Inativo" quando aquele EC não performou, e diverge em 172 dos 187. %>
-  <% @establishments.each do |establishment| %>
-    <% snapshot = establishment.current_map_snapshot %>
-    <section class="table-frame" id="ec-<%= establishment.ec %>">
-      <div class="table-toolbar">
-        <div>
-          <p class="section-label">EC <%= establishment.ec %></p>
-          <h2 class="table-title">
-            <%= present_or_dash(snapshot&.sub_channel&.name) %>
-          </h2>
-        </div>
-        <%= contract_status_badge(snapshot&.contract_status) %>
-        <span class="table-toolbar__breakdown">
-          <%= snapshot ? equipment_summary(snapshot).presence || "Sem terminal no Mapa" : "Sem cadastro no Mapa" %>
-        </span>
+  <%# Um card por EC: o EC é o produto contratado — POS, Smart POS, link de pagamento —, e é
+      aqui que moram as particularidades dele. Medido na carteira: 173 dos 187 CNPJs com mais
+      de um EC têm equipamento diferente entre eles. O segmento performado também é do EC:
+      vale "Inativo" quando aquele EC não performou, e diverge em 172 dos 187. %>
+  <section class="grid gap-4">
+    <div class="table-toolbar table-toolbar--bare">
+      <div>
+        <p class="section-label">Produtos contratados</p>
+        <h2 class="table-title">
+          <%= pluralize(@establishments.size, "EC neste estabelecimento", "ECs neste estabelecimento") %>
+        </h2>
       </div>
-      <div class="grid gap-5 p-5 lg:grid-cols-2">
-        <%= render "detail_group", title: "Produtos e terminais", rows: [
-          [ "NET MDR", net_mdr_label(snapshot&.net_mdr, snapshot&.net_mdr_status) ],
-          [ "Soluções financeiras", snapshot&.financial_solutions ],
-          [ "Link de pagamento", boolean_label(snapshot&.has_payment_link) ],
-          [ "Total de terminais", snapshot&.total_terminals_count ],
-          [ "Smart POS", snapshot&.smart_pos_count ],
-          [ "Demais POS", snapshot&.other_pos_count ],
-          [ "TEF", snapshot&.tef_count ],
-          [ "TAP on phone", snapshot&.tap_on_phone_count ],
-          [ "MPS", snapshot&.mps_count ],
-          [ "PIN", snapshot&.pin_count ],
-          [ "Outros terminais", snapshot&.other_terminals_count ]
-        ] %>
-
-        <%= render "detail_group", title: "Situação e ciclo", rows: [
-          [ "Status do contrato", snapshot&.contract_status ],
-          [ "Segmento performado", snapshot&.performed_segment ],
-          [ "Status de reciprocidade", snapshot&.reciprocity_status ],
-          [ "Ativo no mês atual", boolean_label(snapshot&.active_current_month) ],
-          [ "Ativo no último mês", boolean_label(snapshot&.active_previous_month) ],
-          [ "Ativo nos últimos 30 dias", boolean_label(snapshot&.active_last_30_days) ],
-          [ "Última transação", format_date(snapshot&.last_transaction_on) ],
-          [ "Credenciamento", format_date(snapshot&.accredited_on) ],
-          [ "Instalação", format_date(snapshot&.installed_on) ],
-          [ "Ativação", format_date(snapshot&.activated_on) ],
-          [ "Suspensão", format_date(snapshot&.suspended_on) ],
-          [ "Agenda semanal", snapshot&.weekly_schedule ],
-          [ "Melhor conversa", snapshot&.best_conversation_raw ]
-        ] %>
-      </div>
-    </section>
-  <% end %>
+    </div>
+    <div class="ec-card-grid">
+      <% @establishments.each do |establishment| %>
+        <%= render "ec_card", establishment:, snapshot: establishment.current_map_snapshot %>
+      <% end %>
+    </div>
+  </section>
 </div>

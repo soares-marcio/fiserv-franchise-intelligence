@@ -18,8 +18,8 @@ class EstablishmentsListingTest < ApplicationSystemTestCase
     assert_no_text "Content missing"
     assert_current_path(%r{/establishments/[0-9a-f-]{36}})
     # A ficha é do CNPJ: os dois ECs do cliente aparecem como blocos.
-    assert_selector "section#ec-30000001"
-    assert_selector "section#ec-90000001"
+    assert_selector "#ec-30000001"
+    assert_selector "#ec-90000001"
   end
 
   # O chip do EC cai na mesma ficha, na âncora daquele EC: o h1 não muda, então afirmar o
@@ -31,6 +31,6 @@ class EstablishmentsListingTest < ApplicationSystemTestCase
 
     assert_no_text "Content missing"
     assert_current_path(/#ec-90000001/, url: true)
-    assert_selector "section#ec-90000001 .section-label", text: "EC 90000001"
+    assert_selector "#ec-90000001 .section-label", text: "EC 90000001"
   end
 end

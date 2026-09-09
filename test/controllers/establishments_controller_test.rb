@@ -73,11 +73,10 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "dt", text: "NET MDR"
     assert_select "dd", text: "0,29%"
-    assert_select ".table-toolbar__breakdown", text: "Link pgto · 3 POS · 3 MPS · 4 PIN · +5 outros"
-    assert_select "dt", text: "Demais POS"
-    assert_select "dt", text: "MPS"
-    assert_select "dt", text: "PIN"
-    assert_select "dt", text: "Outros terminais"
+    assert_select ".ec-card__equipment", text: "Link pgto · 3 POS · 3 MPS · 4 PIN · +5 outros"
+    # O grão por tipo vive na dica do chip de terminais: o card mostra o resumo, e quem
+    # precisa do detalhe passa o mouse.
+    assert_select ".ec-card__terminals[data-tip=?]", "2 Smart POS · 1 Demais POS · 3 MPS · 4 PIN · 5 Outros"
   end
 
   test "EC com MDR inativo mostra Inativo, não o número" do
@@ -152,10 +151,10 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "span.badge", text: "2 ECs contratados"
-    assert_select "section#ec-30000001 .section-label", text: "EC 30000001"
-    assert_select "section#ec-90000001 .section-label", text: "EC 90000001"
+    assert_select "article.ec-card", count: 2
+    assert_select "#ec-30000001 .section-label", text: "EC 30000001"
+    assert_select "#ec-90000001 .section-label", text: "EC 90000001"
     # O equipamento é do EC, e o cadastro é do cliente: um CNPJ só na ficha inteira.
-    assert_select "dt", text: "Total de terminais", count: 2
     assert_select "dt", text: "CNPJ", count: 1
   end
 
@@ -166,7 +165,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     get establishment_path(company)
 
     assert_select "span.badge", text: "1 EC contratado"
-    assert_select "section[id^=ec-]", count: 1
+    assert_select "article.ec-card", count: 1
   end
 
   # Link salvo aponta para o uuid do EC: em vez de 404, leva à ficha do cliente ancorada no
