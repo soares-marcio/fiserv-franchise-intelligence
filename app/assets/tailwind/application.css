@@ -1875,6 +1875,31 @@
     width: min(72rem, 95vw);
   }
 
+  /* A melhor conversa tem 76 caracteres em média e 221 no maior caso da carteira: nos 54rem
+     do modal de lançamentos a linha ficaria longa demais para ler. */
+  .daily-modal--narrow {
+    width: min(34rem, 92vw);
+  }
+
+  .conversation-steps {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0;
+    padding-left: 1.35rem;
+    list-style: decimal;
+  }
+
+  .conversation-steps li {
+    padding-left: 0.25rem;
+    line-height: 1.5;
+  }
+
+  .conversation-col {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+  }
+
   .day-modal__head {
     display: flex;
     flex-wrap: wrap;
@@ -2550,6 +2575,21 @@
   border-color: var(--color-primary);
   background-color: var(--color-base-100);
   color: #333;
+}
+
+/* Desabilitado precisa vencer as duas regras acima, e por isso vem depois delas: sem isto o
+   botão sem ação fica no mesmo laranja cheio do que age, e a única diferença passa a ser o
+   clique que não acontece. Cinza e cursor de seta dizem antes do clique. */
+.btn:disabled,
+.btn.btn:disabled,
+.btn.btn:disabled:hover {
+  --btn-bg: var(--color-base-200);
+  --btn-fg: var(--color-base-content);
+  border-color: transparent;
+  background-color: var(--color-base-200);
+  color: color-mix(in oklab, var(--color-base-content) 35%, transparent);
+  cursor: default;
+  transform: none;
 }
 
 .btn svg,

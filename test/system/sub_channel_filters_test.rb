@@ -155,6 +155,37 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert colado, "o cabeçalho da tabela precisa ficar no topo do scroll do modal"
   end
 
+  # O modal da melhor conversa monta a sequência no navegador, a partir do texto que o botão
+  # carrega. Sem teste de sistema nada disso é exercitado: o servidor entrega o botão certo
+  # mesmo que o JavaScript nunca rode.
+  test "o botão da melhor conversa abre o modal com a sequência de ações" do
+    visit sub_channel_report_path(@sub_channel)
+
+    assert_no_selector "dialog[open]"
+    find("tr.daily-row", text: "30000001").find("button.conversation-trigger").click
+
+    # O modal se identifica pelo mesmo nome da célula do estabelecimento: o fantasia.
+    assert_selector "dialog[open] h3.table-title", text: "ALFA LANCHES"
+    # "Ligar > Enviar proposta" vira dois passos: o separador é o da planilha.
+    assert_selector "dialog[open] .conversation-steps li", count: 2
+    assert_selector "dialog[open] .conversation-steps li", text: "Ligar"
+    assert_selector "dialog[open] .conversation-steps li", text: "Enviar proposta"
+
+    # A linha inteira abre os lançamentos diários; o clique no botão não pode disparar os dois.
+    assert_selector "dialog[open]", count: 1
+    assert_no_selector "dialog[open] turbo-frame#daily_revenues"
+  end
+
+  # Quem não tem texto no Mapa não tem o que abrir, e o botão precisa dizer isso antes do
+  # clique — desabilitado de verdade, não só sem ação.
+  test "sem melhor conversa no Mapa o botão vem desabilitado" do
+    visit sub_channel_report_path(@sub_channel)
+
+    botao = find("tr.daily-row", text: "90000001").find("button.conversation-trigger")
+
+    assert botao.disabled?, "o botão da linha sem conversa precisa vir desabilitado"
+  end
+
   # No hover, a célula de variação assume a cor da própria variação — verde para alta,
   # vermelho para queda. A cor vem do chip que está dentro, então o teste passa o mouse e
   # compara o fundo das duas linhas.

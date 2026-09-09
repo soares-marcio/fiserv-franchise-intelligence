@@ -230,7 +230,7 @@ class EstablishmentListingQuery
         establishment.uuid AS establishment_uuid,
         establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
-        mapa.suspended_on, mapa.last_app_access_at,
+        mapa.suspended_on, mapa.last_app_access_at, mapa.best_conversation_raw,
         mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
         mapa.tap_on_phone_count, mapa.mps_count, mapa.pin_count, mapa.tef_count,
         mapa.other_terminals_count, mapa.net_mdr, mapa.net_mdr_status,
@@ -247,7 +247,7 @@ class EstablishmentListingQuery
       JOIN companies company ON company.id = establishment.company_id
       LEFT JOIN LATERAL (
         SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on,
-          mapa.last_app_access_at,
+          mapa.last_app_access_at, mapa.best_conversation_raw,
           mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
           mapa.tap_on_phone_count, mapa.mps_count, mapa.pin_count, mapa.tef_count,
           mapa.other_terminals_count, mapa.net_mdr, mapa.net_mdr_status
@@ -268,7 +268,7 @@ class EstablishmentListingQuery
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, establishment.id, establishment.ec,
         company.cnpj, snapshot.legal_name, snapshot.trade_name, snapshot.contract_status,
         mapa.accredited_on, mapa.activated_on, mapa.suspended_on, mapa.last_app_access_at,
-        mapa.has_payment_link,
+        mapa.best_conversation_raw, mapa.has_payment_link,
         mapa.smart_pos_count, mapa.other_pos_count, mapa.tap_on_phone_count, mapa.mps_count,
         mapa.pin_count, mapa.tef_count, mapa.other_terminals_count,
         mapa.net_mdr, mapa.net_mdr_status,
