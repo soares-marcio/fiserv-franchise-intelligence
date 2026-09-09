@@ -2,47 +2,93 @@
 
 <div class="grid gap-5">
   <section class="page-hero">
-    <p class="eyebrow">Sinal de atenção</p>
+    <p class="eyebrow">Oferta de capital</p>
     <h1 class="page-title">Clover Capital</h1>
     <p class="page-description">
-      CNPJs sem venda há pelo menos 7 dias no mês atual,
-      considerando o corte no dia <%= @cutoff_day || "informado" %>.
+      Ofertas pré-aprovadas da aba Mapa de Clientes BIN: volume, prazo, taxa e parcela.
+      A oferta é do CNPJ, não do equipamento — cada linha é um cliente, ainda que ele
+      tenha vários ECs.
     </p>
   </section>
+
   <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
       <div>
-        <p class="section-label">Acompanhamento</p>
-        <h2 class="table-title">Carteiras sem movimento recente</h2>
+        <p class="section-label">Pré-aprovado</p>
+        <h2 class="table-title">Clientes com oferta</h2>
       </div>
-      <span class="badge badge-ghost"><%= @reports.size %> clientes</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="badge badge-ghost">
+          <%= pluralize(@reports.size, "cliente", "clientes") %>
+        </span>
+        <%# A parcela existe na planilha e nunca veio preenchida. A coluna fica, com a
+            lacuna à vista: calcular a partir de volume, prazo e taxa daria um número que
+            a Fiserv não apurou. %>
+        <span class="badge badge-ghost tooltip tooltip-left" tabindex="0"
+          data-tip="A coluna PARCELA_PRE_APROVADA vem vazia no arquivo desde o primeiro lote">
+          parcela sem valor na origem
+        </span>
+        <% if @diverging_cnpjs.any? %>
+          <span class="badge badge-ghost tooltip tooltip-left" tabindex="0"
+            data-tip="Os ECs deste cliente trazem ofertas diferentes; a linha mostra a maior">
+            <%= pluralize(@diverging_cnpjs.size, "oferta divergente", "ofertas divergentes") %> entre ECs
+          </span>
+        <% end %>
+        <%# Razão social divergente: no arquivo há EC que traz o nome fantasia na coluna da
+            razão. A linha fica com o nome que a maioria dos ECs declara, e o aviso diz que
+            houve escolha. %>
+        <% if @diverging_name_cnpjs.any? %>
+          <span class="badge badge-ghost tooltip tooltip-left" tabindex="0"
+            data-tip="Os ECs deste cliente declaram razões sociais diferentes; a linha mostra a que a maioria traz">
+            <%= pluralize(@diverging_name_cnpjs.size, "razão social divergente", "razões sociais divergentes") %>
+          </span>
+        <% end %>
+      </div>
     </div>
+
     <div class="table-scroll" role="region" tabindex="0"
-      aria-label="Clientes sem venda, rolável na horizontal">
+      aria-label="Ofertas pré-aprovadas, rolável na horizontal">
       <table class="table">
         <thead>
           <tr>
             <th scope="col">CNPJ</th>
-            <th scope="col">MIC</th>
-            <th scope="col" class="text-right">Dias sem venda</th>
-            <th scope="col" class="text-right">Mês anterior</th>
-            <th scope="col" class="text-right">Mês atual</th>
+            <th scope="col">Razão social</th>
+            <th scope="col" class="text-right">Volume pré-aprovado</th>
+            <th scope="col" class="text-right">Prazo pré-aprovado</th>
+            <th scope="col" class="text-right">Taxa pré-aprovada</th>
+            <th scope="col" class="text-right">Parcela pré-aprovada</th>
           </tr>
         </thead>
         <tbody>
           <% @reports.each do |report| %>
             <tr>
-              <td class="font-mono"><%= report["cnpj"] %></td>
-              <td><%= report["sub_channel_name"] %></td>
-              <td class="text-right"><%= report["days_without_sales"] %></td>
-              <td class="text-right tabular-nums"><%= brl(report["previous_revenue"]) %></td>
-              <td class="text-right tabular-nums"><%= brl(report["current_revenue"]) %></td>
+              <td class="font-mono text-xs whitespace-nowrap">
+                <%= formatted_cnpj(report["cnpj"]) %>
+              </td>
+              <td>
+                <p class="font-semibold"><%= present_or_dash(report["legal_name"]) %></p>
+                <% if report["establishments"].to_i > 1 %>
+                  <p class="text-xs opacity-60">
+                    <%= pluralize(report["establishments"], "EC", "ECs") %> neste CNPJ
+                  </p>
+                <% end %>
+              </td>
+              <td class="text-right tabular-nums"><%= brl(report["preapproved_volume"]) %></td>
+              <td class="text-right tabular-nums">
+                <%= report["preapproved_term"].present? ? pluralize(report["preapproved_term"], "mês", "meses") : "—" %>
+              </td>
+              <td class="text-right tabular-nums">
+                <%= report["preapproved_rate"].present? ? number_to_percentage(report["preapproved_rate"], precision: 2) : "—" %>
+              </td>
+              <td class="text-right tabular-nums">
+                <%= report["preapproved_installment"].present? ? brl(report["preapproved_installment"]) : "—" %>
+              </td>
             </tr>
           <% end %>
         </tbody>
       </table>
       <% if @reports.empty? %>
-        <div class="empty-state">Nenhum cliente está parado no recorte atual.</div>
+        <div class="empty-state">Nenhum cliente com oferta pré-aprovada no arquivo importado.</div>
       <% end %>
     </div>
   </section>

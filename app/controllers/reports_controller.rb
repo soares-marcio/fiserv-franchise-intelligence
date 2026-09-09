@@ -20,8 +20,12 @@ class ReportsController < ApplicationController
     end
   end
 
+  # Clover Capital: as ofertas pré-aprovadas da carteira, uma por CNPJ.
   def stalled
-    @reports = @scope.stalled_companies
+    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id)
+    @reports = offers.call
+    @diverging_cnpjs = offers.diverging_cnpjs
+    @diverging_name_cnpjs = offers.diverging_name_cnpjs
   end
 
   def weekly

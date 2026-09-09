@@ -14,6 +14,42 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clover Capital"
   end
 
+  # Clover Capital lista as ofertas pré-aprovadas do Mapa, uma linha por CNPJ — a oferta é
+  # do cliente, não do equipamento.
+  test "Clover Capital lista a oferta pré-aprovada de cada CNPJ" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+
+    get stalled_reports_path
+
+    assert_response :success
+    assert_select "h1", text: "Clover Capital"
+    %w[CNPJ Razão\ social Volume\ pré-aprovado Prazo\ pré-aprovado
+       Taxa\ pré-aprovada Parcela\ pré-aprovada].each do |rotulo|
+      assert_select "th", text: rotulo
+    end
+
+    # Dois ECs do mesmo CNPJ são uma linha; quem não tem oferta não entra.
+    assert_select "tbody tr", count: 1
+    linha = css_select("tbody tr").first
+    assert_match(/11\.222\.333\/0001-81/, linha.text)
+    assert_match(/R\$ 350\.000,00/, linha.text)
+    assert_match(/24 meses/, linha.text)
+    assert_match(/3,28%/, linha.text)
+    assert_match(/2 ECs neste CNPJ/, linha.text)
+    # A parcela vem vazia do arquivo, e a tela mostra a lacuna em vez de calcular.
+    assert_select "tbody tr td:last-child", text: "—"
+    assert_select "[data-tip*=?]", "PARCELA_PRE_APROVADA"
+  end
+
+  test "sem oferta no arquivo, Clover Capital diz que não há" do
+    import_synthetic_workbook
+
+    get stalled_reports_path
+
+    assert_response :success
+    assert_select ".empty-state", text: /Nenhum cliente com oferta pré-aprovada/
+  end
+
   test "cabeçalho mostra há quanto tempo a carteira recebeu arquivo" do
     get reports_path
     assert_select "a.header-status[data-tone=rose][href=?]", import_batches_path,
@@ -851,6 +887,30 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
           created_at: now, updated_at: now } ],
       unique_by: "index_daily_revenues_consolidated_primary"
     )
+  end
+
+  # Dois ECs do mesmo CNPJ com a mesma oferta, e um terceiro cliente sem oferta: é o
+  # formato do arquivo real, onde 15 CNPJs com oferta somam 30 ECs.
+  def lojas_com_oferta
+    [
+      BinWorkbook::Loja.new(
+        ec: "30000001", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
+        legal_name: "ALFA COMERCIO LTDA", trade_name: "ALFA LANCHES",
+        contract_status: "Active", dias_m1: { 1 => 100 }, dias_atual: { 1 => 150 },
+        preapproved_volume: 350_000, preapproved_term: 24, preapproved_rate: 3.28
+      ),
+      BinWorkbook::Loja.new(
+        ec: "30000002", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
+        legal_name: "ALFA COMERCIO LTDA", trade_name: "ALFA EXPRESS",
+        contract_status: "Active", dias_m1: { 1 => 50 }, dias_atual: { 1 => 20 },
+        preapproved_volume: 350_000, preapproved_term: 24, preapproved_rate: 3.28
+      ),
+      BinWorkbook::Loja.new(
+        ec: "30000003", cnpj: "22333444000105", sub_channel_name: "MIC ALFA",
+        legal_name: "BETA SERVICOS LTDA", trade_name: "BETA CAFE",
+        contract_status: "Active", dias_m1: { 1 => 400 }, dias_atual: { 1 => 300 }
+      )
+    ]
   end
 
   def seed_subchannel_revenue(template)
