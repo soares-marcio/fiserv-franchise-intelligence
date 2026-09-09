@@ -208,14 +208,22 @@
     text-transform: uppercase;
   }
 
+  /* Sem reticências, pela mesma razão que já valia para .metric-value--range: é o valor da
+     apuração, e "R$ 2.475.790,…" não é um número menor, é um número que ninguém sabe. Se um
+     dia não couber, quebra a linha — ver o comentário de lá. */
   .metric-value {
     margin-top: 0.35rem;
-    overflow: hidden;
     font-size: 1.55rem;
     font-weight: 780;
     letter-spacing: 0;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  /* Os centavos em corpo menor, do brl_metric. A fração é a parte que se lê por último, e é
+     ela que decide se um valor de sete dígitos cabe no card. */
+  .metric-value__cents {
+    font-size: 0.7em;
+    font-weight: 700;
   }
 
   .metric-hint {
@@ -2204,9 +2212,13 @@
     text-transform: none;
   }
 
+  /* 1,5rem e não 1,75: cinco cards dividem a largura, e medido em 1440px o card útil tem
+     233px. Em 1,75rem o valor de milhões pedia 259px e era cortado; em 1,5rem com os
+     centavos menores pede 209px, e ainda cabe uma competência de dezenas de milhões (226px).
+     Acima disso a linha quebra, que é o combinado desta casa: nunca esconder algarismo. */
   .metric-value {
     color: var(--cork-strong);
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: 0;
   }

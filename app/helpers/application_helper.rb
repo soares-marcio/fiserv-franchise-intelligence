@@ -391,4 +391,17 @@ module ApplicationHelper
     number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".",
       format: "%u\u00A0%n")
   end
+
+  # Mesmo valor, com os centavos em corpo menor. \u00C9 para o card de m\u00E9trica, onde cinco valores
+  # dividem a largura da tela e o dos milh\u00F5es n\u00E3o cabia: a compet\u00EAncia fechada de um MIC
+  # aparecia como "R$ 2.475.790,\u2026". Nenhum algarismo some nem encolhe \u2014 s\u00F3 a fra\u00E7\u00E3o, que \u00E9 a
+  # parte que se l\u00EA por \u00FAltimo. Medido: devolve 15px dos 26 que faltavam.
+  # Ver a regra de .metric-value, que tamb\u00E9m deixou de cortar com retic\u00EAncias.
+  def brl_metric(amount)
+    formatado = brl(amount)
+    inteiro, virgula, centavos = formatado.rpartition(",")
+    return formatado if virgula.blank?
+
+    safe_join([ inteiro, content_tag(:span, "#{virgula}#{centavos}", class: "metric-value__cents") ])
+  end
 end

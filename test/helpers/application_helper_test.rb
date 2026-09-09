@@ -20,6 +20,26 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "variation-chip__verb"
   end
 
+  # O card de métrica cortava o valor de milhões com reticências, porque cinco deles dividem
+  # a largura da tela. Os centavos em corpo menor devolvem o espaço que faltava — sem que
+  # nenhum algarismo suma, que é o ponto: é valor de apuração.
+  test "valor do card separa os centavos, sem perder um dígito" do
+    html = brl_metric(2_475_790.64)
+
+    assert_includes html, %(<span class="metric-value__cents">,64</span>)
+    # O texto visível continua idêntico ao do brl: a separação é só de corpo.
+    assert_equal brl(2_475_790.64), Nokogiri::HTML.fragment(html).text
+  end
+
+  # A garantia que importa em toda faixa: o que se lê na tela é o que o brl formata. Um
+  # helper de apresentação que altere o número é o pior defeito possível aqui.
+  test "o valor lido do card é o mesmo do brl, em qualquer grandeza" do
+    [ 0, 1000, 176_366.12, 2_475_790.64, 24_757_906.48, 247_579_064.8 ].each do |valor|
+      assert_equal brl(valor), Nokogiri::HTML.fragment(brl_metric(valor)).text,
+        "o card mudaria o valor de #{valor}"
+    end
+  end
+
   # Base zero não vira mais um "—" mudo: o texto descreve o caso, e os dois casos
   # opostos (nasceu vendendo × segue zerado) deixam de dividir o mesmo símbolo.
   test "chip sem base comparável descreve: Novo quando vendeu" do
