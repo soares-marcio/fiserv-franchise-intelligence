@@ -20,30 +20,6 @@ class ApplicationHelperTest < ActionView::TestCase
     refute_includes html, "variation-chip__verb"
   end
 
-  # `icon: false` é para coluna estreita: na listagem por subcanal o glifo e o espaço dele
-  # custam 38,4px numa coluna cuja maior célula tem 100,9px de texto. O que não pode sumir
-  # junto é a direção — ela vive no sinal, na cor da classe e no aria-label, não no ícone,
-  # que é aria-hidden.
-  test "chip sem ícone entrega só o valor, e nenhuma leitura da direção se perde" do
-    html = variation_chip(80, 100, icon: false)
-
-    refute_includes html, "<svg"
-    refute_includes html, "variation-icon-tip"
-    assert_includes html, "variation-chip--up"
-    assert_includes html, 'aria-label="subiu +25,0%"'
-    assert_includes html, "+25,0%"
-  end
-
-  # Base zero passa pelo outro caminho do helper; sem o mesmo cuidado, o ícone continuaria
-  # ali justamente nas células mais largas da coluna.
-  test "chip sem ícone vale também para quem não tem base comparável" do
-    html = variation_chip(0, 40, novo: false, icon: false)
-
-    refute_includes html, "<svg"
-    assert_includes html, ">Voltou a vender<"
-    assert_includes html, "variation-chip--flat"
-  end
-
   # Base zero não vira mais um "—" mudo: o texto descreve o caso, e os dois casos
   # opostos (nasceu vendendo × segue zerado) deixam de dividir o mesmo símbolo.
   test "chip sem base comparável descreve: Novo quando vendeu" do

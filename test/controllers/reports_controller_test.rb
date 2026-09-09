@@ -561,10 +561,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # A coluna de lançamentos diários e o modal saíram: sem serventia para o usuário.
     assert_select "dialog.modal", false
     assert_select "button", text: "Lançamentos", count: 0
-    # Nesta coluna o chip é só o valor: o ícone custava 38,4px por célula numa coluna cuja
-    # maior célula tem 100,9px de texto. A direção continua no sinal, na cor e no aria-label.
-    assert_select ".variation-chip--up .variation-icon-tip", count: 0
-    assert_select ".variation-chip--up[aria-label^='subiu'] .variation-chip__value"
+    assert_select ".variation-chip--up [data-tip=?]", "Subiu"
     assert_select "table tbody td span.block", false
     # Abas de variação com contagens, e a completa ativa por padrão.
     assert_select "nav.variation-tabs a", count: 3

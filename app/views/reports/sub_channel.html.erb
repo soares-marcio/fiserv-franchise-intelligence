@@ -371,7 +371,7 @@
                 <% novo = if previous.zero? && current.positive?
                      reference_date.present? && reference_date.to_date >= report["previous_period"].to_date
                    end %>
-                <%= variation_chip(previous, current, novo:, icon: false) %>
+                <%= variation_chip(previous, current, novo:) %>
               </td>
             </tr>
           <% end %>
