@@ -24,6 +24,10 @@ Rails.application.routes.draw do
     end
   end
   resources :establishments, only: %i[index show]
+  # Anotação do cliente, editada de duas telas. O :id é a uuid da empresa, não o CNPJ: o
+  # filtro de log esconde :cnpj dos parâmetros, mas não do caminho da URL.
+  patch "companies/:id/note", to: "company_notes#update", as: :company_note
+  get "companies/:id/note/edit", to: "company_notes#edit", as: :edit_company_note
   # Substitui a rota de upload direto do Active Storage, que o Trix usa para os anexos da
   # anotação. Declarada aqui, tem precedência sobre a do engine — que ficaria aberta a
   # qualquer tipo e tamanho.

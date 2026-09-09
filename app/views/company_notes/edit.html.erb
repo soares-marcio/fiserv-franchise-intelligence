@@ -1,0 +1,52 @@
+<%# Formulário da anotação, dentro do modal. Chega por Turbo Frame porque o corpo é HTML com
+    anexos — grande demais para viajar num data-* repetido em vinte linhas de tabela.
+
+    O form escapa para _top de propósito: dentro do frame, o Turbo tentaria encaixar a página
+    de resposta aqui, não acharia o frame nela e engoliria o flash. %>
+<%= turbo_frame_tag "company_note" do %>
+  <div class="daily-modal__head">
+    <p class="section-label">Anotação do cliente</p>
+    <h3 class="table-title">
+      <%= present_or_dash(@snapshot&.trade_name.presence || @snapshot&.legal_name) %>
+    </h3>
+    <p class="text-xs opacity-60">
+      <%= formatted_cnpj(@company.cnpj) %>
+      <%# A anotação é do CNPJ: quem tem vários ECs vê a mesma nota em todas as linhas dele,
+          e a tela diz isso em vez de deixar parecer repetição por engano. %>
+      <% ecs = @company.establishments.count %>
+      <% if ecs > 1 %>
+        · vale para os <%= ecs %> ECs deste cliente
+      <% end %>
+      <% if @note.persisted? %>
+        <%# O locale só declara formato de data; a hora entra à parte para não depender de
+            um time.formats.short que não existe e viraria "translation missing" na tela. %>
+        · editada em <%= l(@note.updated_at.to_date) %> às <%= @note.updated_at.strftime("%H:%M") %>
+      <% end %>
+    </p>
+  </div>
+
+  <%= form_with url: company_note_path(@company), method: :patch,
+    data: { turbo_frame: "_top", action: "submit->note-modal#close" },
+    class: "note-form" do %>
+    <% sub_channel_id = params[:sub_channel_id].presence %>
+    <% if params[:origin] == "sub_channel" && sub_channel_id %>
+      <%= hidden_field_tag :origin, "sub_channel" %>
+      <%= hidden_field_tag :sub_channel_id, sub_channel_id %>
+      <%# O recorte da listagem volta junto para a tela reabrir onde estava. %>
+      <% CompanyNotesController::LISTING_PARAM_KEYS.each do |chave| %>
+        <% Array(params[chave]).compact_blank.each do |valor| %>
+          <%= hidden_field_tag "#{chave}#{'[]' if params[chave].is_a?(Array)}", valor %>
+        <% end %>
+      <% end %>
+    <% end %>
+
+    <%= rich_text_area_tag :body, @note.body, class: "note-editor" %>
+
+    <div class="note-form__actions">
+      <p class="text-xs opacity-60">
+        Esvaziar e salvar apaga a anotação. Anexo: imagem ou PDF, até 10 MB.
+      </p>
+      <%= submit_tag "Salvar anotação", class: "btn btn-sm" %>
+    </div>
+  <% end %>
+<% end %>
