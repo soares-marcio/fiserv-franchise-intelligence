@@ -1310,12 +1310,21 @@
     color: var(--color-primary-content);
   }
 
+  /* No hover o botão inverte: fundo branco, texto e ícone em #333. A borda laranja entra
+     porque, sem ela, um botão branco sobre a página branca perderia a forma. */
   .btn.btn:hover,
   .btn.btn:focus-visible {
-    --btn-bg: var(--cork-primary-200);
+    --btn-bg: var(--color-base-100);
     --btn-fg: #333;
-    background-color: var(--cork-primary-200);
+    border-color: var(--color-primary);
+    background-color: var(--color-base-100);
     color: #333;
+  }
+
+  /* O ícone segue a cor do botão em qualquer estado: os SVGs do Phosphor são fill:
+     currentColor, então basta não deixar nada pintá-los por fora. */
+  .btn.btn svg {
+    fill: currentcolor;
   }
 
   .btn-primary {

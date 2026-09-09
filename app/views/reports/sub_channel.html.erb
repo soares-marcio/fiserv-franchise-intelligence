@@ -357,12 +357,12 @@
       </div>
     <% elsif @total_pages > 1 %>
       <nav class="pagination-bar" aria-label="Paginação">
-        <%= link_to "Anterior",
+        <%= link_to icon_label("caret-left", "Anterior"),
           sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: [ @page - 1, 1 ].max)),
           class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page <= 1}",
           aria: { disabled: @page <= 1 } %>
         <span class="pagination-bar__status">Página <%= @page %> de <%= @total_pages %></span>
-        <%= link_to "Próxima",
+        <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]),
           sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: [ @page + 1, @total_pages ].min)),
           class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page >= @total_pages}",
           aria: { disabled: @page >= @total_pages } %>

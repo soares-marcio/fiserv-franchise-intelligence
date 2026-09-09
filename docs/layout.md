@@ -242,6 +242,14 @@ do próprio `.btn`, com a mesma especificidade e mais adiante no arquivo compila
 `.btn` só, o fundo ficava laranja — `--btn-bg` lê `--btn-color`, que é nosso — e o texto
 continuava escuro. O sintoma foi a seta do calendário ilegível sobre o laranja.
 
+O ícone dentro do botão **não tem regra própria**: os SVGs do Phosphor são
+`fill: currentColor`, então a seta é branca no repouso e `#333` no hover porque acompanha a
+cor do botão. Se algum dia um ícone aparecer escuro sobre o laranja, o problema é a `color`
+do botão, não o SVG.
+
+Vale para **todos** os botões, com o mesmo comportamento — inclusive as setas do calendário,
+as do modal do dia e as da paginação, que passaram a ter seta junto do texto.
+
 `btn--field` alinha a altura do botão à dos campos numa barra de filtros, e `btn-sm` é
 tamanho, não cor.
 
