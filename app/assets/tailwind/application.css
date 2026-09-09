@@ -1275,6 +1275,14 @@
     transform: translateY(-1px);
   }
 
+  /* Botão sem variante é laranja — é o padrão do sistema, e o daisyUI o pintava de base-200.
+     O :where() zera a especificidade das exclusões, então as variantes nomeadas continuam
+     mandando na cor delas e nenhum botão existente muda. */
+  .btn:where(:not(.btn-primary, .btn-neutral, .btn-ghost, .btn-outline, .btn-link)) {
+    --btn-color: var(--color-primary);
+    --btn-fg: var(--color-primary-content);
+  }
+
   .btn-primary {
     box-shadow: 0 9px 20px color-mix(in oklab, var(--color-primary) 24%, transparent);
   }

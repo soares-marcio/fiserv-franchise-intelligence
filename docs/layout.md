@@ -215,6 +215,24 @@ primária do tema propaga para a casca inteira:
 | `--cork-muted` / `--cork-strong` | Texto secundário / texto de destaque |
 | `--cork-shadow` | Sombra única dos cards |
 
+### Botões
+
+O botão **sem variante é laranja** — o primário da marca é o padrão do sistema, não uma
+escolha a repetir em cada tela. A regra vive numa linha do CSS:
+
+```css
+.btn:where(:not(.btn-primary, .btn-neutral, .btn-ghost, .btn-outline, .btn-link)) {
+  --btn-color: var(--color-primary);
+  --btn-fg: var(--color-primary-content);
+}
+```
+
+O `:where()` zera a especificidade das exclusões, então as variantes nomeadas continuam
+mandando na cor delas e nenhum botão existente mudou de aparência. As variantes são exceções
+com motivo: `btn-outline` para ação secundária ao lado de uma primária, `btn-ghost` para ação
+de baixo peso (limpar, voltar), `btn-neutral` para a escura. `btn--field` alinha a altura do
+botão à dos campos numa barra de filtros, e `btn-sm` é tamanho, não cor.
+
 O menu é a exceção: como fica sobre a barra escura, o item ativo usa `--color-primary`
 direto e o hover é `color-mix(in oklab, white 8%, transparent)` — token claro sobre fundo
 escuro não teria contraste.

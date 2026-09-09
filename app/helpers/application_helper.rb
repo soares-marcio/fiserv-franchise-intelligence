@@ -238,12 +238,12 @@ module ApplicationHelper
   def calendar_step(period, icon_name, label)
     if period.nil?
       return content_tag(:span, icon(icon_name, css: "btn-icon"),
-        class: "btn btn-outline btn--field is-disabled", aria: { hidden: true })
+        class: "btn btn--field is-disabled", aria: { hidden: true })
     end
 
     link_to icon(icon_name, css: "btn-icon"),
       weekly_reports_path(period: period.to_s, channel_id: params[:channel_id].presence),
-      class: "btn btn-outline btn--field", aria: { label: }
+      class: "btn btn--field", aria: { label: }
   end
 
   # Intensidade da célula do calendário em cinco faixas, não num gradiente contínuo: cinco
