@@ -17,14 +17,20 @@ class EstablishmentsListingTest < ApplicationSystemTestCase
     assert_selector "h1", text: "ALFA LANCHES"
     assert_no_text "Content missing"
     assert_current_path(%r{/establishments/[0-9a-f-]{36}})
+    # A ficha é do CNPJ: os dois ECs do cliente aparecem como blocos.
+    assert_selector "section#ec-30000001"
+    assert_selector "section#ec-90000001"
   end
 
-  test "clicar no chip do EC abre a ficha daquele EC" do
+  # O chip do EC cai na mesma ficha, na âncora daquele EC: o h1 não muda, então afirmar o
+  # nome do EC passaria por engano. O que prova é o bloco existir no destino.
+  test "clicar no chip do EC abre a ficha ancorada naquele EC" do
     visit establishments_path
 
     find("a.link.font-mono", text: "EC 90000001").click
 
-    assert_selector "h1", text: "ALFA EXPRESS"
     assert_no_text "Content missing"
+    assert_current_path(/#ec-90000001/, url: true)
+    assert_selector "section#ec-90000001 .section-label", text: "EC 90000001"
   end
 end

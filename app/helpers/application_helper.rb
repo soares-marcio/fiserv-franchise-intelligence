@@ -89,7 +89,7 @@ module ApplicationHelper
       [ breadcrumb_current("Estabelecimentos") ]
     when "show"
       [ breadcrumb_link("Estabelecimentos", establishments_path),
-        breadcrumb_current("EC #{@establishment&.ec || params[:id]}") ]
+        breadcrumb_current(client_crumb_label) ]
     else
       [ breadcrumb_current("Estabelecimentos") ]
     end
@@ -272,6 +272,14 @@ module ApplicationHelper
     return 0 if revenue <= 0 || max_revenue <= 0
 
     [ (revenue / max_revenue * 5).ceil, 5 ].min
+  end
+
+  # A ficha é do cliente: a trilha nomeia o cliente, com o CNPJ como recurso quando o cadastro
+  # do Mapa não trouxe nome.
+  def client_crumb_label
+    snapshot = @snapshot
+    nome = snapshot&.trade_name.presence || snapshot&.legal_name.presence
+    nome || (@company ? formatted_cnpj(@company.cnpj) : params[:id])
   end
 
   def period_option_label(date)

@@ -86,14 +86,17 @@
                 e a tela fica vazia. É o mesmo motivo do target="_top" da busca global. %>
             <p class="font-medium">
               <%= link_to present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),
-                lead, class: "establishment-link", data: { turbo_frame: "_top" } %>
+                establishment_path(company), class: "establishment-link",
+                data: { turbo_frame: "_top" } %>
             </p>
             <% if snapshot&.legal_name.present? && snapshot.legal_name != snapshot.trade_name %>
               <p class="max-w-xs text-xs opacity-60"><%= snapshot.legal_name %></p>
             <% end %>
             <p class="mt-1 text-xs">
               <% establishments.each_with_index do |establishment, index| %>
-                <%= " · " if index.positive? %><%= link_to "EC #{establishment.ec}", establishment,
+                <%= " · " if index.positive? %><%# A ficha é do cliente: o chip do EC leva ao bloco daquele EC dentro dela. %>
+                <%= link_to "EC #{establishment.ec}",
+                  establishment_path(company, anchor: "ec-#{establishment.ec}"),
                   class: "link link-hover font-mono", data: { turbo_frame: "_top" } %>
               <% end %>
             </p>

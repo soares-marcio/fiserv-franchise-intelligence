@@ -68,13 +68,12 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
       has_payment_link: true
     )
 
-    get establishment_path(establishment)
+    get establishment_path(establishment.company)
 
     assert_response :success
     assert_select "dt", text: "NET MDR"
     assert_select "dd", text: "0,29%"
-    assert_select "dt", text: "Resumo"
-    assert_select "dd", text: "Link pgto · 3 POS · 3 MPS · 4 PIN · +5 outros"
+    assert_select ".table-toolbar__breakdown", text: "Link pgto · 3 POS · 3 MPS · 4 PIN · +5 outros"
     assert_select "dt", text: "Demais POS"
     assert_select "dt", text: "MPS"
     assert_select "dt", text: "PIN"
@@ -84,9 +83,22 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   test "EC com MDR inativo mostra Inativo, não o número" do
     establishment = seed_establishment(net_mdr: 0.299, net_mdr_status: "Inativo")
 
-    get establishment_path(establishment)
+    get establishment_path(establishment.company)
 
     assert_select "dd", text: "Inativo"
+  end
+
+  # Endereço diverge entre ECs em 13 dos 187 clientes com mais de um EC: a ficha mostra o do
+  # EC de menor número e avisa, em vez de escolher em silêncio.
+  test "campo do cadastro que difere entre os ECs é declarado" do
+    import_synthetic_workbook
+    company = Establishment.find_by!(ec: "30000001").company
+    outro = Establishment.find_by!(ec: "90000001")
+    outro.current_map_snapshot.update!(street_address: "RUA DIFERENTE, 99")
+
+    get establishment_path(company)
+
+    assert_select ".badge", text: /difere entre ECs: endereço/
   end
 
   private
@@ -113,44 +125,58 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
 
   # A linha precisa levar ao cadastro, como a busca global leva: sem isso o único caminho
   # eram os chips de EC, que passavam despercebidos no rodapé da célula.
-  test "o nome do cliente na listagem leva ao cadastro do EC de referência" do
+  test "o nome do cliente na listagem leva à ficha do estabelecimento" do
     import_synthetic_workbook
     establishment = Establishment.find_by!(ec: "30000001")
 
     get establishments_path
 
     assert_response :success
-    assert_select "tbody a.establishment-link[href=?]", establishment_path(establishment)
-    # A listagem vive num turbo-frame e o cadastro não o tem: sem escapar para _top, o Turbo
+    assert_select "tbody a.establishment-link[href=?]", establishment_path(establishment.company)
+    # O chip do EC leva ao bloco daquele EC dentro da ficha do cliente.
+    assert_select "tbody a.link.font-mono[href=?]",
+      establishment_path(establishment.company, anchor: "ec-30000001")
+    # A listagem vive num turbo-frame e a ficha não o tem: sem escapar para _top, o Turbo
     # responde "Content missing" e a tela fica em branco.
     assert_select "tbody a.establishment-link[data-turbo-frame=?]", "_top"
     assert_select "tbody a.link.font-mono[data-turbo-frame=?]", "_top"
   end
 
-  # O cliente é o CNPJ e o EC é o grão técnico: quem abre um EC precisa ver os irmãos. Os
-  # ECs 30000001 e 90000001 dividem o CNPJ na planilha sintética.
-  test "a ficha lista todos os ECs do mesmo CNPJ, com link para os outros" do
+  # A ficha é do estabelecimento e cada EC é um produto contratado nele: os ECs 30000001 e
+  # 90000001 dividem o CNPJ na planilha sintética e viram dois blocos, cada um com o seu.
+  test "a ficha traz um bloco por EC do estabelecimento" do
     import_synthetic_workbook
-    establishment = Establishment.find_by!(ec: "30000001")
-    irmao = Establishment.find_by!(ec: "90000001")
+    company = Establishment.find_by!(ec: "30000001").company
+
+    get establishment_path(company)
+
+    assert_response :success
+    assert_select "span.badge", text: "2 ECs contratados"
+    assert_select "section#ec-30000001 .section-label", text: "EC 30000001"
+    assert_select "section#ec-90000001 .section-label", text: "EC 90000001"
+    # O equipamento é do EC, e o cadastro é do cliente: um CNPJ só na ficha inteira.
+    assert_select "dt", text: "Total de terminais", count: 2
+    assert_select "dt", text: "CNPJ", count: 1
+  end
+
+  test "cliente de um EC só traz um bloco, sem inventar irmãos" do
+    import_synthetic_workbook
+    company = Establishment.find_by!(ec: "30000002").company
+
+    get establishment_path(company)
+
+    assert_select "span.badge", text: "1 EC contratado"
+    assert_select "section[id^=ec-]", count: 1
+  end
+
+  # Link salvo aponta para o uuid do EC: em vez de 404, leva à ficha do cliente ancorada no
+  # bloco daquele EC.
+  test "uuid antigo de EC redireciona para a ficha do estabelecimento" do
+    import_synthetic_workbook
+    establishment = Establishment.find_by!(ec: "90000001")
 
     get establishment_path(establishment)
 
-    assert_response :success
-    assert_select "h2.table-title", text: "2 ECs deste cliente"
-    assert_select "tbody th[scope=row]", text: /30000001/
-    assert_select "tbody a.establishment-link[href=?]", establishment_path(irmao)
-    # O EC aberto não vira link para si mesmo, e se anuncia.
-    assert_select "tbody th[scope=row]", text: /nesta tela/
-  end
-
-  test "cliente de um EC só mostra a própria ficha na lista, sem inventar irmãos" do
-    import_synthetic_workbook
-    sozinho = Establishment.find_by!(ec: "30000002")
-
-    get establishment_path(sozinho)
-
-    assert_select "h2.table-title", text: "1 EC deste cliente"
-    assert_select "tbody tr", count: 1
+    assert_redirected_to establishment_path(establishment.company, anchor: "ec-90000001")
   end
 end
