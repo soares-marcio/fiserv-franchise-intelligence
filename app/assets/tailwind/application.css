@@ -2451,3 +2451,22 @@
 .btn.btn svg {
   fill: currentcolor;
 }
+
+/* Grupo de escolha — hoje, os itens por página. O selecionado fica no laranja cheio e os
+   demais assumem o formato do hover: sem isso o grupo inteiro vira um bloco laranja e a
+   escolha desaparece, que foi o que aconteceu quando a regra do botão passou a valer para
+   todos. No hover eles invertem para o laranja, prevendo o estado que o clique traz. */
+.join-item.btn-outline,
+.join-item.btn.btn-outline {
+  border-color: var(--color-primary);
+  background-color: var(--color-base-100);
+  color: #333;
+}
+
+.join-item.btn-outline:hover,
+.join-item.btn-outline:focus-visible,
+.join-item.btn.btn-outline:hover,
+.join-item.btn.btn-outline:focus-visible {
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}

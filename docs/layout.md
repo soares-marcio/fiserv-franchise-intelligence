@@ -253,6 +253,11 @@ do botão, não o SVG.
 Vale para **todos** os botões, com o mesmo comportamento — inclusive as setas do calendário,
 as do modal do dia e as da paginação, que passaram a ter seta junto do texto.
 
+A única exceção é o **grupo de escolha** (`join-item`, hoje os itens por página): a opção
+selecionada fica no laranja cheio e as demais assumem o formato do hover — branco com `#333`
+e borda laranja —, invertendo para laranja ao passar o mouse. Sem isso o grupo inteiro vira
+um bloco laranja e não dá para ver o que está escolhido.
+
 `btn--field` alinha a altura do botão à dos campos numa barra de filtros, e `btn-sm` é
 tamanho, não cor.
 
