@@ -70,6 +70,40 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: action_text_rich_texts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.action_text_rich_texts (
+    id bigint NOT NULL,
+    name character varying NOT NULL,
+    body text,
+    record_type character varying NOT NULL,
+    record_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: action_text_rich_texts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.action_text_rich_texts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: action_text_rich_texts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.action_text_rich_texts_id_seq OWNED BY public.action_text_rich_texts.id;
+
+
+--
 -- Name: activation_proposals; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1308,6 +1342,38 @@ ALTER SEQUENCE public.companies_id_seq OWNED BY public.companies.id;
 
 
 --
+-- Name: company_notes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.company_notes (
+    id bigint NOT NULL,
+    cnpj character varying(14) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT company_notes_cnpj_format CHECK (((cnpj)::text ~ '^[0-9]{14}$'::text))
+);
+
+
+--
+-- Name: company_notes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.company_notes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: company_notes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.company_notes_id_seq OWNED BY public.company_notes.id;
+
+
+--
 -- Name: conversation_actions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2333,6 +2399,13 @@ ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_de
 
 
 --
+-- Name: action_text_rich_texts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_text_rich_texts ALTER COLUMN id SET DEFAULT nextval('public.action_text_rich_texts_id_seq'::regclass);
+
+
+--
 -- Name: activation_proposals id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2372,6 +2445,13 @@ ALTER TABLE ONLY public.channels ALTER COLUMN id SET DEFAULT nextval('public.cha
 --
 
 ALTER TABLE ONLY public.companies ALTER COLUMN id SET DEFAULT nextval('public.companies_id_seq'::regclass);
+
+
+--
+-- Name: company_notes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_notes ALTER COLUMN id SET DEFAULT nextval('public.company_notes_id_seq'::regclass);
 
 
 --
@@ -2578,6 +2658,14 @@ ALTER TABLE ONLY public.sub_channels ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: action_text_rich_texts action_text_rich_texts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_text_rich_texts
+    ADD CONSTRAINT action_text_rich_texts_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: activation_proposals activation_proposals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2631,6 +2719,14 @@ ALTER TABLE ONLY public.channels
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT companies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: company_notes company_notes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_notes
+    ADD CONSTRAINT company_notes_pkey PRIMARY KEY (id);
 
 
 --
@@ -3027,6 +3123,13 @@ CREATE UNIQUE INDEX idx_on_import_batch_id_proposal_number_cee2420935 ON public.
 
 
 --
+-- Name: index_action_text_rich_texts_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_action_text_rich_texts_uniqueness ON public.action_text_rich_texts USING btree (record_type, record_id, name);
+
+
+--
 -- Name: index_activation_proposals_on_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3171,6 +3274,13 @@ CREATE INDEX index_companies_on_cnpj_trgm ON public.companies USING gin (cnpj pu
 --
 
 CREATE UNIQUE INDEX index_companies_on_uuid ON public.companies USING btree (uuid);
+
+
+--
+-- Name: index_company_notes_on_cnpj; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_company_notes_on_cnpj ON public.company_notes USING btree (cnpj);
 
 
 --
@@ -4483,6 +4593,8 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260909220000'),
+('20260909215851'),
 ('20260907170000'),
 ('20260907000000'),
 ('20260901090000'),
