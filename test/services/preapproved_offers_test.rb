@@ -53,6 +53,18 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
       "e a divergência aparece, em vez de a tela escolher em silêncio"
   end
 
+  # Mesmo cuidado do listing: o LEFT JOIN da anotação entra numa consulta com GROUP BY, e
+  # aqui a garantia que importa é continuar uma linha por CNPJ.
+  test "a anotação chega sem quebrar a linha por CNPJ" do
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+
+    linhas = PreapprovedOffers.new.call
+
+    assert_equal 1, linhas.size
+    assert_predicate linhas.first["company_uuid"], :present?
+    assert_predicate linhas.first["note_id"], :present?
+  end
+
   # A coluna PARCELA_PRE_APROVADA existe no arquivo da Fiserv e nunca trouxe valor: zero em
   # 2.220 snapshots. A consulta a expõe assim mesmo — quem lê a tela precisa ver a lacuna,
   # não um número inventado a partir de volume, prazo e taxa.

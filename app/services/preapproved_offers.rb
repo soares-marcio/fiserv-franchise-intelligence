@@ -52,7 +52,8 @@ class PreapprovedOffers
           AND EXISTS (SELECT 1 FROM map_snapshots m WHERE m.import_batch_id = ib.id)
         GROUP BY ib.channel_id
       )
-      SELECT company.cnpj,
+      SELECT company.cnpj, company.uuid AS company_uuid,
+        note.id AS note_id, note.updated_at AS note_updated_at,
         mode() WITHIN GROUP (ORDER BY snapshot.legal_name) AS legal_name,
         MAX(snapshot.preapproved_volume) AS preapproved_volume,
         MAX(snapshot.preapproved_term) AS preapproved_term,
@@ -65,9 +66,14 @@ class PreapprovedOffers
       JOIN latest_map_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
+      -- Ver o comentário igual em EstablishmentListingQuery: a anotação se liga pelo CNPJ.
+      LEFT JOIN company_notes note ON note.cnpj = company.cnpj
       WHERE snapshot.preapproved_volume IS NOT NULL
         AND ($1::bigint IS NULL OR snapshot.channel_id = $1)
-      GROUP BY company.cnpj
+      -- Agrupar também pelas colunas da companhia e da anotação não quebra a linha por CNPJ:
+      -- cnpj tem índice único nas duas tabelas, então cada grupo já vinha de uma linha só.
+      -- O que muda é poder selecionar as colunas delas.
+      GROUP BY company.cnpj, company.uuid, note.id, note.updated_at
       ORDER BY MAX(snapshot.preapproved_volume) DESC, company.cnpj
     SQL
   end

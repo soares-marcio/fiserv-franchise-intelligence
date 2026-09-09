@@ -107,6 +107,26 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_empty listing(query: "reciprocidade").rows
   end
 
+  # A anotação entra pelo CNPJ, num LEFT JOIN — e um JOIN novo numa consulta com GROUP BY é
+  # exatamente onde uma linha se duplica sem ninguém perceber. O teste fixa as duas metades:
+  # a anotação chega, e a contagem e os totais continuam os mesmos.
+  test "a anotação do cliente chega na linha, sem duplicar nem alterar totais" do
+    antes = listing
+
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Dono viaja.</div>")
+    depois = listing
+
+    assert_equal antes.rows.size, depois.rows.size
+    assert_equal antes.total_count, depois.total_count
+    assert_equal antes.totals, depois.totals
+
+    linha = depois.rows.find { |row| row["ec"] == "30000001" }
+    assert_predicate linha["company_uuid"], :present?, "a linha precisa endereçar o cliente"
+    assert_predicate linha["note_id"], :present?
+    assert_nil depois.rows.find { |row| row["ec"] == "30000002" }["note_id"],
+      "cliente sem anotação não herda a do vizinho"
+  end
+
   # As três colunas de valor podem ordenar a listagem; o EC continua sendo o critério de
   # desempate, senão a paginação embaralha linhas de mesmo valor entre páginas.
   test "ordena pelas colunas de valor, nos dois sentidos" do
