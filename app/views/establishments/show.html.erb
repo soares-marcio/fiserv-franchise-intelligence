@@ -19,11 +19,57 @@
       </div>
     </div>
 
-    <% if @establishment.primary_establishment %>
-      <div class="alert relative z-10 mt-4">
-        Principal: <%= link_to @establishment.primary_establishment.ec, @establishment.primary_establishment, class: "link" %>
+  </section>
+
+  <%# Todos os ECs do CNPJ, porque o cliente é a empresa e o EC é o grão técnico: quem chega
+      pela listagem cai num deles e precisa ver que existem outros.
+      Não há selo de duplicata: `primary_establishment_id` está vazio nos 564 ECs da carteira,
+      e nenhum caminho do import o preenche — a duplicata é registrada como anomalia em
+      `data_anomalies`, sem ligar um EC ao outro. O alerta "Principal: ..." que vivia no topo
+      desta tela nunca teve o que mostrar, pelo mesmo motivo. %>
+  <section class="table-frame">
+    <div class="table-toolbar">
+      <div>
+        <p class="section-label">Mesmo CNPJ</p>
+        <h2 class="table-title">
+          <%= pluralize(@company_establishments.size, "EC deste cliente", "ECs deste cliente") %>
+        </h2>
       </div>
-    <% end %>
+    </div>
+    <div class="table-scroll" role="region" tabindex="0"
+      aria-label="Estabelecimentos do CNPJ <%= formatted_cnpj(@establishment.company.cnpj) %>">
+      <table class="table">
+        <caption class="sr-only">
+          ECs do CNPJ <%= formatted_cnpj(@establishment.company.cnpj) %>, com MIC e situação
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">EC</th>
+            <th scope="col">MIC</th>
+            <th scope="col">Estabelecimento</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @company_establishments.each do |sibling| %>
+            <% sibling_snapshot = sibling.current_map_snapshot %>
+            <tr>
+              <th scope="row" class="font-mono font-normal">
+                <% if sibling == @establishment %>
+                  <%= sibling.ec %>
+                  <span class="badge badge-ghost">nesta tela</span>
+                <% else %>
+                  <%= link_to sibling.ec, sibling, class: "establishment-link" %>
+                <% end %>
+              </th>
+              <td><%= present_or_dash(sibling_snapshot&.sub_channel&.name) %></td>
+              <td><%= present_or_dash(sibling_snapshot&.trade_name.presence || sibling_snapshot&.legal_name) %></td>
+              <td><%= contract_status_badge(sibling_snapshot&.contract_status) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <section class="table-frame">

@@ -27,6 +27,10 @@ class EstablishmentsController < ApplicationController
   def show
     @establishment = Establishment.find_param!(params[:id])
     @snapshot = @establishment.current_map_snapshot
+    # Os irmãos do mesmo CNPJ: 187 clientes da carteira têm mais de um EC, e quem chega pela
+    # listagem cai no de referência sem saber que existem outros.
+    @company_establishments = @establishment.company.establishments
+      .includes(current_map_snapshot: :sub_channel).order(:ec)
   end
 
   private

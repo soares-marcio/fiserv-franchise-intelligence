@@ -126,4 +126,31 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody a.establishment-link[data-turbo-frame=?]", "_top"
     assert_select "tbody a.link.font-mono[data-turbo-frame=?]", "_top"
   end
+
+  # O cliente é o CNPJ e o EC é o grão técnico: quem abre um EC precisa ver os irmãos. Os
+  # ECs 30000001 e 90000001 dividem o CNPJ na planilha sintética.
+  test "a ficha lista todos os ECs do mesmo CNPJ, com link para os outros" do
+    import_synthetic_workbook
+    establishment = Establishment.find_by!(ec: "30000001")
+    irmao = Establishment.find_by!(ec: "90000001")
+
+    get establishment_path(establishment)
+
+    assert_response :success
+    assert_select "h2.table-title", text: "2 ECs deste cliente"
+    assert_select "tbody th[scope=row]", text: /30000001/
+    assert_select "tbody a.establishment-link[href=?]", establishment_path(irmao)
+    # O EC aberto não vira link para si mesmo, e se anuncia.
+    assert_select "tbody th[scope=row]", text: /nesta tela/
+  end
+
+  test "cliente de um EC só mostra a própria ficha na lista, sem inventar irmãos" do
+    import_synthetic_workbook
+    sozinho = Establishment.find_by!(ec: "30000002")
+
+    get establishment_path(sozinho)
+
+    assert_select "h2.table-title", text: "1 EC deste cliente"
+    assert_select "tbody tr", count: 1
+  end
 end
