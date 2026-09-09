@@ -55,11 +55,15 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "th", text: "Anotação"
-    # Duas linhas, um botão de "Ver" em cada, os dois apontando para o mesmo cliente.
-    gatilhos = css_select("td.note-col button.note-trigger")
-      .select { |botao| botao.text.strip == "Ver" }
-    assert_equal 2, gatilhos.size
-    destinos = gatilhos.map { |botao| botao["data-note-modal-url-param"] }.uniq
+    # O rótulo do botão não muda; quem avisa que há anotação é o ponto. As duas linhas do
+    # CNPJ o exibem, e as demais não.
+    todos = css_select("td.note-col button.note-trigger")
+    com_ponto = todos.select { |botao| botao.css(".note-trigger__dot").any? }
+    assert_equal 2, todos.size, "o MIC ALFA tem dois ECs, os dois do mesmo CNPJ"
+    assert_equal 2, com_ponto.size, "e os dois avisam que há anotação"
+    assert_equal [ "Anotar" ], todos.map { |botao| botao.text.strip }.uniq,
+      "o rótulo não muda: quem avisa é o ponto"
+    destinos = todos.map { |botao| botao["data-note-modal-url-param"] }.uniq
     assert_equal 1, destinos.size, "as duas linhas abrem a anotação do mesmo cliente"
     assert_includes destinos.first, empresa.uuid
     # O recorte da listagem viaja junto, para a volta reabrir onde estava.

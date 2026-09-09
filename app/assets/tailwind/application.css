@@ -1915,6 +1915,32 @@
     white-space: nowrap;
   }
 
+  /* O ponto que avisa que já existe anotação salva. Fica no canto do botão, encostado na
+     borda, e some quando não há nota — é o único sinal da tabela, porque o rótulo do botão
+     não muda. */
+  .note-trigger {
+    position: relative;
+    overflow: visible;
+  }
+
+  .note-trigger__dot {
+    position: absolute;
+    top: -0.28rem;
+    right: -0.28rem;
+    width: 0.68rem;
+    height: 0.68rem;
+    border: 2px solid var(--color-base-100);
+    border-radius: 999px;
+    background: var(--color-success);
+  }
+
+  /* No hover o botão fica branco, e um ponto verde sobre branco some. A borda acompanha o
+     fundo para o ponto continuar recortado do botão em qualquer estado. */
+  .note-trigger:hover .note-trigger__dot,
+  .note-trigger:focus-visible .note-trigger__dot {
+    border-color: var(--color-base-100);
+  }
+
   .note-cell__date {
     margin-top: 0.2rem;
     color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
@@ -1936,6 +1962,12 @@
 
   /* O editor do Trix e o que a anotação renderiza. A imagem sai em tamanho original — o
      processador de variantes está desligado no projeto —, então a largura é contida aqui. */
+  /* Mais largo que os 34rem do modal de texto: aqui se escreve, não se lê. Com 48rem o aviso
+     e o botão dividem uma linha sem disputa, e o editor ganha linha de leitura confortável. */
+  .note-modal {
+    width: min(48rem, 94vw);
+  }
+
   .note-form {
     display: grid;
     gap: 0.75rem;
@@ -1949,22 +1981,18 @@
     justify-content: space-between;
   }
 
-  trix-editor {
-    min-height: 10rem;
-    max-height: 26rem;
-    overflow-y: auto;
-    border: 1px solid var(--color-base-300);
-    border-radius: 0.6rem;
-    background: var(--color-base-100);
+  /* A Montserrat não é vendorizada: vem do sistema de quem abre, e cai em Helvetica ou no
+     que houver. A largura desta linha muda com isso, então o aviso encolhe e quebra, e o
+     botão nunca é espremido nem empurrado para fora do diálogo. */
+  .note-form__actions p {
+    flex: 1 1 12rem;
+    min-width: 0;
   }
 
-  trix-editor img,
-  .trix-content img,
-  .note-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.5rem;
+  .note-form__actions .btn {
+    flex: none;
   }
+
 
 
   .day-modal__head {
@@ -2726,4 +2754,28 @@
 .establishment-revenue-table .variation-col .variation-chip {
   gap: 0.2rem;
   padding: 0.15rem 0.35rem 0.15rem 0.2rem;
+}
+
+/* --------------------------------------------------------------------------------------
+   O editor da anotação. Fora de @layer pelo mesmo motivo que a regra do botão: o CSS que o
+   Action Text instala (app/assets/stylesheets/actiontext.css) declara `trix-editor` **sem
+   camada**, com `min-height: 5em`, e camada perde para o que não tem camada — não importa a
+   especificidade. Dentro de @layer components, a altura pedida aqui virava 70px medidos.
+   -------------------------------------------------------------------------------------- */
+trix-editor {
+  min-height: 16rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.6rem;
+  background: var(--color-base-100);
+}
+
+/* Anexo sai em tamanho original — o processador de variantes está desligado no projeto —,
+   então a largura é contida aqui, no editor e na anotação já salva. */
+trix-editor img,
+.trix-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
 }

@@ -3,7 +3,7 @@
     Fica fora de qualquer turbo_frame que envolva a página: dentro de um, o Turbo procuraria
     o frame na resposta do redirect, não acharia, e o flash sumiria. O frame de dentro é o
     alvo do carregamento sob demanda, e o formulário escapa para _top no submit. %>
-<dialog class="daily-modal daily-modal--narrow" data-note-modal-target="dialog"
+<dialog class="daily-modal note-modal" data-note-modal-target="dialog"
   aria-label="Anotação do cliente"
   data-action="click->note-modal#closeOnBackdrop close->note-modal#close">
   <div class="daily-modal__body">
