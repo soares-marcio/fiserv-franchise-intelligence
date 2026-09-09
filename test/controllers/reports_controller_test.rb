@@ -11,7 +11,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # "Dashboard" e "Operação" são agrupamentos da navbar, não páginas — não entram na
     # trilha nem como texto.
     assert_select "nav.breadcrumb-wrap li", text: /Dashboard/, count: 0
-    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Mapa cliente"
+    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clover Capital"
   end
 
   test "cabeçalho mostra há quanto tempo a carteira recebeu arquivo" do

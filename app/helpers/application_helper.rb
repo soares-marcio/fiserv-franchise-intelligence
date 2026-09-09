@@ -65,7 +65,7 @@ module ApplicationHelper
     when "index"
       [ breadcrumb_current("Faturamento") ]
     when "stalled"
-      [ breadcrumb_current("Mapa cliente") ]
+      [ breadcrumb_current("Clover Capital") ]
     when "weekly"
       [ breadcrumb_current("Semanal") ]
     when "sub_channel"
