@@ -14,8 +14,10 @@
 
   <% if @period %>
     <section class="filter-panel">
+      <%# Sem botão: escolher a competência já é a ação, e o seletor submete sozinho. As setas
+          ao lado são links comuns, então a tela continua navegável sem JavaScript. %>
       <%= form_with url: weekly_reports_path, method: :get,
-        class: "flex flex-wrap items-end gap-3" do %>
+        class: "flex flex-wrap items-end gap-3", data: { controller: "live-form" } do %>
         <%= hidden_field_tag :channel_id, @selected_channel&.uuid %>
         <div class="grid gap-1.5">
           <span class="section-label" id="competencia_label">Competência</span>
@@ -27,11 +29,11 @@
               options_for_select(@scope.available_periods.map { |row|
                 [ period_option_label(row["period"]), row["period"].to_s ] }, @period.to_s),
               class: "select select-bordered w-auto min-w-52 max-w-full",
-              aria: { labelledby: "competencia_label" } %>
+              aria: { labelledby: "competencia_label" },
+              data: { action: "change->live-form#submit" } %>
             <%= calendar_step(@newer_period, "caret-right", "Próxima competência") %>
           </div>
         </div>
-        <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
       <% end %>
     </section>
 
