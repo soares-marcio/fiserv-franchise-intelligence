@@ -327,6 +327,15 @@
                     <dt>Susp.</dt>
                     <dd><%= format_date(report["suspended_on"]) %></dd>
                   </div>
+                  <%# Último acesso ao app: a view audit_accreditation_earnings condiciona o
+                      prêmio de entrada a ter havido acesso, então a data pertence ao ciclo.
+                      A coluna é timestamp, e aqui o valor vem do SQL bruto — volta em UTC, e
+                      `to_date` devolve o dia gravado, igual ao da planilha. Pelo model ele
+                      volta em -03:00 e o dia retrocede em 14 dos 1.944 registros com data. %>
+                  <div>
+                    <dt>Uso do app</dt>
+                    <dd><%= format_date(report["last_app_access_at"]) %></dd>
+                  </div>
                 </dl>
               </td>
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>

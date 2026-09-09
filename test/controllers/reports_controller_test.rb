@@ -504,8 +504,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dt", text: "Cred."
     assert_select "dt", text: "Ativ."
     assert_select "dt", text: "Susp."
+    assert_select "dt", text: "Uso do app"
     assert_select "dd", text: "15/03/2024"
     assert_select "dd", text: "02/04/2024"
+    # Último acesso ao app: a coluna é timestamp, e a data mostrada é a do dia gravado.
+    assert_select "dd", text: "20/08/2026"
     # Sob o EC: NET MDR truncado (0,299 nunca vira 0,30) e os equipamentos do Mapa.
     assert_select ".ec-meta p", text: "NET MDR 0,29%"
     assert_select ".ec-meta p", text: "Link pgto · 2 POS"
@@ -843,6 +846,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       import_batch: batch, channel:, sub_channel:, establishment:,
       legal_name: "LOJA UM LTDA", trade_name: "LOJA UM", contract_status: "Active",
       accredited_on: Date.new(2024, 3, 15), activated_on: Date.new(2024, 4, 2),
+      last_app_access_at: Time.zone.local(2026, 8, 20, 14, 30),
       has_payment_link: true, smart_pos_count: 2, other_pos_count: 0, net_mdr: 0.299
     )
     now = Time.current

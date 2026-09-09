@@ -67,6 +67,20 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_equal 1, counts["Suspended"], "só a ALFA SUSPENSA tem todos os ECs suspensos"
   end
 
+  # A data do último acesso ao app entra nas datas do ciclo. Não é enfeite: a view
+  # audit_accreditation_earnings condiciona o prêmio de entrada a ter havido acesso ao app,
+  # então a tela precisa deixar ver quem acessou e quando.
+  #
+  # A asserção é contra a data literal da planilha de propósito. Pelo SQL bruto o valor volta
+  # como Time em UTC, e `to_date` devolve o dia gravado; pelo model ele volta em -03:00 e o
+  # dia pode retroceder. Ver o comentário na view do subcanal.
+  test "traz a data de uso do app de cada EC" do
+    linhas = listing.rows.index_by { |row| row["ec"] }
+
+    assert_equal Date.new(2026, 8, 20), linhas["30000001"]["last_app_access_at"].to_date
+    assert_nil linhas["30000002"]["last_app_access_at"], "EC sem acesso no Mapa não inventa data"
+  end
+
   # As três colunas de valor podem ordenar a listagem; o EC continua sendo o critério de
   # desempate, senão a paginação embaralha linhas de mesmo valor entre páginas.
   test "ordena pelas colunas de valor, nos dois sentidos" do
@@ -227,7 +241,8 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   def lojas
     @lojas ||= [
       loja("30000001", "11222333000181", "ALFA LANCHES", dias_m1: { 1 => 100, 2 => 200, 25 => 700 },
-        dias_atual: { 1 => 150, 2 => 50, 10 => 300 }, proposta: true),
+        dias_atual: { 1 => 150, 2 => 50, 10 => 300 }, proposta: true,
+        app_access_at: "2026-08-20 14:30"),
       loja("30000002", "22333444000105", "ALFA EXPRESS", dias_m1: { 1 => 50 }, dias_atual: { 1 => 10, 2 => 20 }),
       loja("30000003", "33444555000130", "ALFA SUSPENSA", contract_status: "Suspended",
         dias_m1: { 1 => 400 }, dias_atual: {}),
@@ -239,10 +254,10 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   end
 
   def loja(ec, cnpj, trade_name, sub_channel_name: ALFA, contract_status: "Active", proposta: false,
-    dias_m1:, dias_atual:)
+    app_access_at: nil, dias_m1:, dias_atual:)
     BinWorkbook::Loja.new(
       ec:, cnpj:, sub_channel_name:, legal_name: "#{trade_name} LTDA", trade_name:,
-      contract_status:, dias_m1:, dias_atual:, proposta:
+      contract_status:, dias_m1:, dias_atual:, proposta:, app_access_at:
     )
   end
 end
