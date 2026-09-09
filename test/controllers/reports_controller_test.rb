@@ -90,8 +90,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get weekly_reports_path(period: ultimo.period.to_s)
 
     assert_response :success
-    assert_select "td.calendar-cell.is-uncovered", minimum: 1
-    assert_select "td.calendar-cell.is-uncovered", text: /—/
+    assert_select "td.calendar-cell .calendar-box.is-uncovered", minimum: 1
+    assert_select ".calendar-box.is-uncovered", text: /—/
   end
 
   # ECs da semana são distintos: os dois ECs vendem nos dias 3 e 4, que caem na mesma linha
