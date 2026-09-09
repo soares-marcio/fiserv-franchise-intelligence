@@ -1294,12 +1294,28 @@
     transform: translateY(-1px);
   }
 
-  /* Botão sem variante é laranja — é o padrão do sistema, e o daisyUI o pintava de base-200.
-     O :where() zera a especificidade das exclusões, então as variantes nomeadas continuam
-     mandando na cor delas e nenhum botão existente muda. */
-  .btn:where(:not(.btn-primary, .btn-neutral, .btn-ghost, .btn-outline, .btn-link)) {
+  /* Sistema de design: botão é laranja com texto branco; no hover, laranja claro com texto
+     escuro. Vale para todos — as variantes do daisyUI deixam de decidir cor.
+     A classe repetida não é enfeite: o daisyUI declara `--btn-fg: var(--color-base-content)`
+     dentro do próprio .btn, com a mesma especificidade e mais adiante no arquivo. Com um
+     .btn só, o fundo virava laranja (porque --btn-bg lê --btn-color) e o texto continuava
+     escuro. */
+  .btn.btn {
     --btn-color: var(--color-primary);
+    --btn-bg: var(--color-primary);
     --btn-fg: var(--color-primary-content);
+    --btn-border: transparent;
+    border-color: transparent;
+    background-color: var(--color-primary);
+    color: var(--color-primary-content);
+  }
+
+  .btn.btn:hover,
+  .btn.btn:focus-visible {
+    --btn-bg: var(--cork-primary-200);
+    --btn-fg: #333;
+    background-color: var(--cork-primary-200);
+    color: #333;
   }
 
   .btn-primary {

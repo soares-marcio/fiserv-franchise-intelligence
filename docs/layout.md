@@ -217,21 +217,33 @@ primária do tema propaga para a casca inteira:
 
 ### Botões
 
-O botão **sem variante é laranja** — o primário da marca é o padrão do sistema, não uma
-escolha a repetir em cada tela. A regra vive numa linha do CSS:
+Todo botão é **laranja com texto branco**; no hover, **laranja claro com texto `#333`**. Não
+há variante de cor: `btn-outline`, `btn-ghost` e `btn-neutral` continuam existindo no HTML,
+mas quem decide a cor é o sistema.
 
 ```css
-.btn:where(:not(.btn-primary, .btn-neutral, .btn-ghost, .btn-outline, .btn-link)) {
+.btn.btn {
   --btn-color: var(--color-primary);
+  --btn-bg: var(--color-primary);
   --btn-fg: var(--color-primary-content);
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.btn.btn:hover,
+.btn.btn:focus-visible {
+  background-color: var(--cork-primary-200);
+  color: #333;
 }
 ```
 
-O `:where()` zera a especificidade das exclusões, então as variantes nomeadas continuam
-mandando na cor delas e nenhum botão existente mudou de aparência. As variantes são exceções
-com motivo: `btn-outline` para ação secundária ao lado de uma primária, `btn-ghost` para ação
-de baixo peso (limpar, voltar), `btn-neutral` para a escura. `btn--field` alinha a altura do
-botão à dos campos numa barra de filtros, e `btn-sm` é tamanho, não cor.
+A classe repetida tem motivo: o daisyUI declara `--btn-fg: var(--color-base-content)` dentro
+do próprio `.btn`, com a mesma especificidade e mais adiante no arquivo compilado. Com um
+`.btn` só, o fundo ficava laranja — `--btn-bg` lê `--btn-color`, que é nosso — e o texto
+continuava escuro. O sintoma foi a seta do calendário ilegível sobre o laranja.
+
+`btn--field` alinha a altura do botão à dos campos numa barra de filtros, e `btn-sm` é
+tamanho, não cor.
 
 O menu é a exceção: como fica sobre a barra escura, o item ativo usa `--color-primary`
 direto e o hover é `color-mix(in oklab, white 8%, transparent)` — token claro sobre fundo

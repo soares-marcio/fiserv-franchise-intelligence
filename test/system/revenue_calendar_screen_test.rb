@@ -27,7 +27,7 @@ class RevenueCalendarScreenTest < ApplicationSystemTestCase
   test "clicar num dia abre o modal, e o caret anda de dia sem fechá-lo" do
     visit weekly_reports_path(period: "2026-08-01")
 
-    find("a.calendar-box", text: "Dia 1").click
+    find("a.calendar-box[href*='/day/1?']").click
 
     assert_selector "dialog[open] h2.table-title", text: "Dia 1 · sábado"
     assert_selector "dialog[open] tbody tr", text: "11222333000181"
