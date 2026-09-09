@@ -1294,39 +1294,6 @@
     transform: translateY(-1px);
   }
 
-  /* Sistema de design: botão é laranja com texto branco; no hover, laranja claro com texto
-     escuro. Vale para todos — as variantes do daisyUI deixam de decidir cor.
-     A classe repetida não é enfeite: o daisyUI declara `--btn-fg: var(--color-base-content)`
-     dentro do próprio .btn, com a mesma especificidade e mais adiante no arquivo. Com um
-     .btn só, o fundo virava laranja (porque --btn-bg lê --btn-color) e o texto continuava
-     escuro. */
-  .btn.btn {
-    --btn-color: var(--color-primary);
-    --btn-bg: var(--color-primary);
-    --btn-fg: var(--color-primary-content);
-    --btn-border: transparent;
-    border-color: transparent;
-    background-color: var(--color-primary);
-    color: var(--color-primary-content);
-  }
-
-  /* No hover o botão inverte: fundo branco, texto e ícone em #333. A borda laranja entra
-     porque, sem ela, um botão branco sobre a página branca perderia a forma. */
-  .btn.btn:hover,
-  .btn.btn:focus-visible {
-    --btn-bg: var(--color-base-100);
-    --btn-fg: #333;
-    border-color: var(--color-primary);
-    background-color: var(--color-base-100);
-    color: #333;
-  }
-
-  /* O ícone segue a cor do botão em qualquer estado: os SVGs do Phosphor são fill:
-     currentColor, então basta não deixar nada pintá-los por fora. */
-  .btn.btn svg {
-    fill: currentcolor;
-  }
-
   .btn-primary {
     box-shadow: 0 9px 20px color-mix(in oklab, var(--color-primary) 24%, transparent);
   }
@@ -2441,4 +2408,46 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* --------------------------------------------------------------------------------------
+   Botões — fora de camada, de propósito.
+
+   O daisyUI declara `.btn { color: var(--btn-fg) }` e `--btn-fg: var(--color-base-content)`
+   SEM camada. Estilo sem camada vence estilo em camada, qualquer que seja a especificidade:
+   dentro de `@layer components` esta regra pintava o fundo (porque o daisyUI lê a nossa
+   `--btn-color`) e perdia a cor do texto, deixando a seta preta sobre o laranja.
+
+   Regra do sistema, válida para todo e qualquer botão:
+     repouso — fundo laranja da marca, texto e ícone brancos;
+     hover e foco — fundo branco, texto e ícone #333, borda laranja para não perder a forma.
+
+   O ícone não tem regra de cor própria: os SVGs do Phosphor são fill: currentColor.
+   -------------------------------------------------------------------------------------- */
+.btn,
+.btn.btn {
+  --btn-color: var(--color-primary);
+  --btn-bg: var(--color-primary);
+  --btn-fg: var(--color-primary-content);
+  --btn-border: transparent;
+  border-color: transparent;
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
+.btn:hover,
+.btn:focus-visible,
+.btn.btn:hover,
+.btn.btn:focus-visible {
+  --btn-bg: var(--color-base-100);
+  --btn-fg: #333;
+  border-color: var(--color-primary);
+  background-color: var(--color-base-100);
+  color: #333;
+}
+
+.btn svg,
+.btn.btn svg {
+  fill: currentcolor;
 }

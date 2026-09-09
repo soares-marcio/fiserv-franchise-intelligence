@@ -237,10 +237,13 @@ mas quem decide a cor é o sistema.
 }
 ```
 
-A classe repetida tem motivo: o daisyUI declara `--btn-fg: var(--color-base-content)` dentro
-do próprio `.btn`, com a mesma especificidade e mais adiante no arquivo compilado. Com um
-`.btn` só, o fundo ficava laranja — `--btn-bg` lê `--btn-color`, que é nosso — e o texto
-continuava escuro. O sintoma foi a seta do calendário ilegível sobre o laranja.
+**A regra vive fora de qualquer `@layer`**, no fim do arquivo, e isso não é preferência de
+organização. O daisyUI declara `.btn { color: var(--btn-fg) }` e o próprio `--btn-fg` **sem
+camada**, e estilo sem camada vence estilo em camada **independentemente da especificidade**.
+Dentro de `@layer components` a regra pintava o fundo — porque o daisyUI lê a nossa
+`--btn-color` — e perdia a cor do texto: o sintoma foi a seta preta sobre o laranja, que
+sobreviveu a duas tentativas de resolver por especificidade. Quando algo de botão não pegar,
+confira a camada antes da especificidade.
 
 O ícone dentro do botão **não tem regra própria**: os SVGs do Phosphor são
 `fill: currentColor`, então a seta é branca no repouso e `#333` no hover porque acompanha a
