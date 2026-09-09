@@ -71,9 +71,9 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   # audit_accreditation_earnings condiciona o prêmio de entrada a ter havido acesso ao app,
   # então a tela precisa deixar ver quem acessou e quando.
   #
-  # A asserção é contra a data literal da planilha de propósito. Pelo SQL bruto o valor volta
-  # como Time em UTC, e `to_date` devolve o dia gravado; pelo model ele volta em -03:00 e o
-  # dia pode retroceder. Ver o comentário na view do subcanal.
+  # A asserção é contra a data literal da planilha de propósito: a planilha traz horário de
+  # Brasília e a coluna o guarda sem converter, então só a leitura crua devolve o dia certo.
+  # Ver o comentário na view do subcanal.
   test "traz a data de uso do app de cada EC" do
     linhas = listing.rows.index_by { |row| row["ec"] }
 

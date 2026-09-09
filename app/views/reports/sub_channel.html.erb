@@ -329,9 +329,14 @@
                   </div>
                   <%# Último acesso ao app: a view audit_accreditation_earnings condiciona o
                       prêmio de entrada a ter havido acesso, então a data pertence ao ciclo.
-                      A coluna é timestamp, e aqui o valor vem do SQL bruto — volta em UTC, e
-                      `to_date` devolve o dia gravado, igual ao da planilha. Pelo model ele
-                      volta em -03:00 e o dia retrocede em 14 dos 1.944 registros com data. %>
+
+                      A planilha traz horário de Brasília (UTC-3) e a coluna o guarda
+                      literalmente, sem conversão — medido na distribuição por hora dos 1.944
+                      registros: vale de madrugada (6 registros à 0h, nenhum às 2h) e pico às
+                      16h, que é uso humano em horário local, não em UTC. Por isso a leitura
+                      correta é a crua: aqui o valor vem do SQL e volta como Time rotulado
+                      UTC, e `to_date` devolve o dia da planilha. Pelo model o Rails subtrai
+                      3h de um horário que já é local e o dia retrocede em 14 dos 1.944. %>
                   <div>
                     <dt>Uso do app</dt>
                     <dd><%= format_date(report["last_app_access_at"]) %></dd>
