@@ -1257,7 +1257,7 @@
     color: var(--color-primary-content);
   }
 
-  .variation-tabs-wrap .table-frame {
+  .variation-tabs-wrap + .table-frame {
     border-top-left-radius: 0;
   }
 
@@ -2547,7 +2547,7 @@
   }
 
   .table-scroll {
-    overflow-x: auto;
+    overflow: visible;
     overscroll-behavior-x: auto;
   }
 
@@ -2574,11 +2574,32 @@
     white-space: normal;
   }
 
-  /* A tabela só rola na horizontal. Sem um scrollport vertical próprio, sticky prende o
-     thead ao contêiner errado e o faz sobrepor linhas; o cabeçalho fica no fluxo da tabela. */
-  .table-frame .table-toolbar,
-  .table-frame thead th {
-    position: static;
+  /* A pilha fixa se ancora na página, não no scrollport horizontal. Assim o leitor conserva
+     abas, contexto e nomes das colunas enquanto percorre uma listagem longa. */
+  .table-frame[data-controller~="sticky-table"] {
+    overflow: visible;
+  }
+
+  .variation-tabs-wrap {
+    position: sticky;
+    z-index: 5;
+    top: var(--topbar-height, 4.75rem);
+  }
+
+  .table-frame[data-controller~="sticky-table"] .table-toolbar {
+    position: sticky;
+    z-index: 4;
+    top: calc(var(--topbar-height, 4.75rem) + var(--variation-tabs-height, 0px));
+    background: var(--color-base-100);
+    box-shadow: 0 8px 12px rgb(68 47 34 / 8%);
+  }
+
+  .table-frame[data-controller~="sticky-table"] thead th {
+    position: sticky;
+    z-index: 3;
+    top: calc(var(--topbar-height, 4.75rem) + var(--variation-tabs-height, 0px) + var(--toolbar-height, 0px));
+    background: var(--color-base-100);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
   }
 
   .table-scroll-hint {
