@@ -106,6 +106,25 @@
     outline: 3px solid color-mix(in oklab, var(--color-primary) 45%, white);
     outline-offset: 3px;
   }
+
+  .skip-link {
+    position: fixed;
+    z-index: 50;
+    top: var(--space-3);
+    left: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+    font-weight: 700;
+    text-decoration: none;
+    transform: translateY(-150%);
+    transition: transform var(--transition-fast);
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
 }
 
 @layer components {
@@ -2149,11 +2168,59 @@
 
 /* Base mobile: todas as ações continuam disponíveis em uma coluna legível. */
   .app-main {
+    min-width: 0;
     padding: var(--space-6) var(--space-3) var(--space-12);
   }
 
   .topbar {
     padding-top: env(safe-area-inset-top);
+  }
+
+  .topbar-inner {
+    width: 100%;
+    min-width: 0;
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .brand-lockup,
+  .topbar-tools {
+    min-width: 0;
+  }
+
+  .brand-caption,
+  .search-shortcut {
+    display: none;
+  }
+
+  .brand-name {
+    font-size: 0.875rem;
+  }
+
+  .topbar-tools {
+    gap: var(--space-2);
+  }
+
+  .header-status {
+    padding-inline: var(--space-2);
+    font-size: 0.75rem;
+  }
+
+  .page-hero {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .page-title {
+    font-size: clamp(1.625rem, 8vw, 2rem);
+  }
+
+  .page-description {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .filter-panel {
+    padding: var(--space-4);
   }
 
   .metric-grid,
@@ -2168,6 +2235,15 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .filter-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-actions .btn {
+    width: 100%;
+  }
+
   .datepicker__months {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2177,10 +2253,56 @@
   }
 
   .table-scroll {
+    width: 100%;
     max-width: 100%;
     min-width: 0;
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-scroll > .table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .table-frame,
+  .variation-tabs-wrap {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .table-toolbar {
+    padding: var(--space-4);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .table-toolbar__meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .variation-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .variation-tabs a {
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    flex: 1 0 max-content;
+  }
+
+  .pagination-bar {
+    padding: var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .pagination-bar__status {
+    min-width: 0;
   }
 
   .earnings-card .table-scroll {
@@ -2257,6 +2379,8 @@
     flex-basis: 100%;
     flex-direction: column;
     align-items: stretch;
+    padding-top: var(--space-2);
+    border-top: var(--border-subtle);
   }
 
   .nav-dropdown {
@@ -2327,6 +2451,29 @@
 }
 
 @media (min-width: 768px) {
+  .topbar-inner {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .brand-caption {
+    display: block;
+  }
+
+  .brand-name {
+    font-size: 0.95rem;
+  }
+
+  .table-toolbar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .table-toolbar__meta {
+    width: auto;
+    justify-content: flex-end;
+  }
+
   .metric-grid,
   .metric-grid--3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2401,8 +2548,12 @@
   }
 
   .table-scroll {
-    overflow-x: visible;
+    overflow-x: auto;
     overscroll-behavior-x: auto;
+  }
+
+  .table-scroll > .table {
+    width: 100%;
   }
 
   .earnings-card .table-scroll {
