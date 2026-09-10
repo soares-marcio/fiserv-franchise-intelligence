@@ -1348,23 +1348,6 @@
     content: "";
   }
 
-  .establishment-revenue-table :where(th:last-child, td:last-child) {
-    position: sticky;
-    z-index: 2;
-    right: 0;
-    background: var(--color-base-100);
-  }
-
-  .establishment-revenue-table th:last-child {
-    z-index: 3;
-    background: color-mix(in oklab, var(--color-base-200) 74%, white);
-  }
-
-  /* A célula fixa tem fundo próprio e precisa acompanhar o hover da linha. */
-  .establishment-revenue-table tbody tr:hover td:last-child {
-    background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
-  }
-
   /* No hover, a célula de variação assume a cor da própria variação. O tom vem do chip que
      está dentro, com :has(), e não de um cálculo na view: quem decide a cor é a regra do
      chip — base zero vira "Novo" (alta) ou "Voltou a vender" (neutro) por outro critério,
@@ -2558,10 +2541,6 @@
     box-shadow: inset 0 -1px 0 var(--color-base-300);
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child {
-    background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
-  }
-
   .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--up) {
     background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
   }
@@ -2914,14 +2893,8 @@
   padding: 0.15rem 0.35rem 0.15rem 0.2rem;
 }
 
-/* O último td é fixo e cria uma camada para cada linha. Quando o menu abre, a sua camada
-   precisa vencer a da próxima linha; sem isso o botão seguinte parecia entrar no popover.
-   Estas regras ficam fora da camada porque o daisyUI também declara as medidas do botão sem
+/* Estas regras ficam fora da camada porque o daisyUI também declara as medidas do botão sem
    camada. */
-.establishment-revenue-table td.actions-col:has(.actions-menu[open]) {
-  z-index: 4;
-}
-
 .actions-menu[open] {
   z-index: 11;
 }
