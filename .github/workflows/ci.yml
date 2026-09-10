@@ -1,15 +1,31 @@
 name: CI
 
-# Mudança só de documentação não roda a CI: nenhum teste lê .md, então os cinco jobs levariam
-# cinco minutos para provar o que já se sabe. A main não tem branch protection, e é isso que
-# torna o paths-ignore seguro aqui — com check obrigatório, um job que nunca reporta deixaria
-# o PR parado em "waiting for status".
+# Arquivo sem teste que o cubra não roda a CI. A lista é nominal, e não um "*.yml", porque a
+# maioria dos YAML deste projeto **tem** cobertura e ignorá-los apagaria a rede de proteção:
+#
+#   config/locales/pt-BR.yml   quatro asserções de "translation missing" pegam chave removida
+#   config/database.yml        todo teste depende dele
+#   config/storage.yml         os testes de anexo e de import gravam blob
+#   config/queue|cable|cache   as tabelas Solid entram no guarda do structure.sql
+#   .rubocop.yml               o job lint É o rubocop: mudar a config muda o resultado
+#   config/bundler-audit.yml   idem para o scan_ruby
+#   .github/workflows/ci.yml   mudar a CI tem de rodar a CI, senão o erro só aparece depois
+#
+# Sobram os que nenhum job exercita: documentação, o config do Dependabot e o do Kamal, que
+# este projeto nem usa — não há deploy de produção.
+#
+# A main não tem branch protection, e é isso que torna o paths-ignore seguro: com check
+# obrigatório, um job que não roda deixa o PR parado em "waiting for status" em vez de liberado.
 on:
   pull_request:
-    paths-ignore: [ "**.md" ]
+    paths-ignore: &sem_teste
+      - "**.md"
+      - "LICENSE"
+      - ".github/dependabot.yml"
+      - "config/deploy.yml"
   push:
     branches: [ main ]
-    paths-ignore: [ "**.md" ]
+    paths-ignore: *sem_teste
 
 jobs:
   scan_ruby:
