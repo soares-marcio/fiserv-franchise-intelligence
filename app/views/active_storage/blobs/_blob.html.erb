@@ -1,0 +1,21 @@
+<%# Anexo de uma anotação. O partial padrão do Action Text pede uma variante redimensionada,
+    e este projeto desligou o processador (config/application.rb: variant_processor
+    :disabled, image_processing fora do Gemfile) — pedir variante devolveria o arquivo
+    original em silêncio. Aqui o original é exibido de propósito, com a largura contida pelo
+    CSS: é honesto sobre o que está sendo servido, e não reabre a dependência de libvips.
+    O que não é imagem vira link, com nome e tamanho à vista. %>
+<figure class="attachment attachment--<%= blob.content_type.to_s.start_with?("image/") ? "preview" : "file" %> attachment--<%= blob.filename.extension %>">
+  <% if blob.content_type.to_s.start_with?("image/") %>
+    <%= image_tag url_for(blob), alt: blob.filename.to_s, loading: "lazy" %>
+  <% end %>
+
+  <figcaption class="attachment__caption">
+    <% if caption = blob.try(:caption) %>
+      <%= caption %>
+    <% else %>
+      <%= link_to blob.filename.to_s, url_for(blob), class: "attachment__name",
+        target: "_blank", rel: "noopener" %>
+      <span class="attachment__size"><%= number_to_human_size blob.byte_size %></span>
+    <% end %>
+  </figcaption>
+</figure>

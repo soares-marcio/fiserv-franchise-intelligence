@@ -1,0 +1,11 @@
+<%# Avisos da tela. Ficam num container com id fixo para o turbo_stream poder trocá-los sem
+    recarregar a página, e somem sozinhos: quem salvou uma anotação não precisa fechar um
+    aviso à mão, e o erro fica bem mais tempo que o sucesso porque ainda há o que fazer. %>
+<% if notice.present? %>
+  <div class="alert alert-success app-alert mb-4" role="status"
+    data-controller="auto-dismiss" data-auto-dismiss-after-value="4000"><%= notice %></div>
+<% end %>
+<% if alert.present? %>
+  <div class="alert alert-error app-alert mb-4" role="alert"
+    data-controller="auto-dismiss" data-auto-dismiss-after-value="12000"><%= alert %></div>
+<% end %>

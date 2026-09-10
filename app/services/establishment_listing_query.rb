@@ -228,7 +228,9 @@ class EstablishmentListingQuery
       WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.uuid AS establishment_uuid,
-        establishment.ec, company.cnpj, snapshot.legal_name, snapshot.trade_name,
+        establishment.ec, company.cnpj, company.uuid AS company_uuid,
+        note.id AS note_id, note.updated_at AS note_updated_at,
+        snapshot.legal_name, snapshot.trade_name,
         snapshot.contract_status, mapa.accredited_on, mapa.activated_on,
         mapa.suspended_on, mapa.last_app_access_at, mapa.best_conversation_raw,
         mapa.has_payment_link, mapa.smart_pos_count, mapa.other_pos_count,
@@ -245,6 +247,10 @@ class EstablishmentListingQuery
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
+      -- A anotação do cliente se liga pelo CNPJ, não por FK: id e uuid de companies são
+      -- regenerados a cada recriação do banco. Aqui só vêm a existência e a data; o corpo é
+      -- rich text e é carregado à parte.
+      LEFT JOIN company_notes note ON note.cnpj = company.cnpj
       LEFT JOIN LATERAL (
         SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on,
           mapa.last_app_access_at, mapa.best_conversation_raw,
@@ -266,7 +272,8 @@ class EstablishmentListingQuery
         #{lifecycle_clause}
         #{search_clause}
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, establishment.id, establishment.ec,
-        company.cnpj, snapshot.legal_name, snapshot.trade_name, snapshot.contract_status,
+        company.cnpj, company.uuid, note.id, note.updated_at,
+        snapshot.legal_name, snapshot.trade_name, snapshot.contract_status,
         mapa.accredited_on, mapa.activated_on, mapa.suspended_on, mapa.last_app_access_at,
         mapa.best_conversation_raw, mapa.has_payment_link,
         mapa.smart_pos_count, mapa.other_pos_count, mapa.tap_on_phone_count, mapa.mps_count,
