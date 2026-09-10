@@ -1,9 +1,15 @@
 name: CI
 
+# Mudança só de documentação não roda a CI: nenhum teste lê .md, então os cinco jobs levariam
+# cinco minutos para provar o que já se sabe. A main não tem branch protection, e é isso que
+# torna o paths-ignore seguro aqui — com check obrigatório, um job que nunca reporta deixaria
+# o PR parado em "waiting for status".
 on:
   pull_request:
+    paths-ignore: [ "**.md" ]
   push:
     branches: [ main ]
+    paths-ignore: [ "**.md" ]
 
 jobs:
   scan_ruby:
