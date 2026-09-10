@@ -55,6 +55,8 @@ class PreapprovedOffers
       SELECT company.cnpj, company.uuid AS company_uuid,
         note.id AS note_id, note.updated_at AS note_updated_at,
         mode() WITHIN GROUP (ORDER BY snapshot.legal_name) AS legal_name,
+        -- Mesma razão do day_companies: um CNPJ pode ter ECs em MICs diferentes.
+        string_agg(DISTINCT sub_channel.name, ' | ') AS sub_channels,
         MAX(snapshot.preapproved_volume) AS preapproved_volume,
         MAX(snapshot.preapproved_term) AS preapproved_term,
         MAX(snapshot.preapproved_rate) AS preapproved_rate,
@@ -66,6 +68,7 @@ class PreapprovedOffers
       JOIN latest_map_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
+      JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       -- Ver o comentário igual em EstablishmentListingQuery: a anotação se liga pelo CNPJ.
       LEFT JOIN company_notes note ON note.cnpj = company.cnpj
       WHERE snapshot.preapproved_volume IS NOT NULL

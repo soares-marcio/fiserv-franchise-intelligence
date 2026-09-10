@@ -21,13 +21,6 @@
         <span class="badge badge-ghost">
           <%= pluralize(@reports.size, "cliente", "clientes") %>
         </span>
-        <%# A parcela existe na planilha e nunca veio preenchida. A coluna fica, com a
-            lacuna à vista: calcular a partir de volume, prazo e taxa daria um número que
-            a Fiserv não apurou. %>
-        <span class="badge badge-ghost tooltip tooltip-left" tabindex="0"
-          data-tip="A coluna PARCELA_PRE_APROVADA vem vazia no arquivo desde o primeiro lote">
-          parcela sem valor na origem
-        </span>
         <% if @diverging_cnpjs.any? %>
           <span class="badge badge-ghost tooltip tooltip-left" tabindex="0"
             data-tip="Os ECs deste cliente trazem ofertas diferentes; a linha mostra a maior">
@@ -51,22 +44,20 @@
       <table class="table">
         <thead>
           <tr>
-            <th scope="col">CNPJ</th>
-            <th scope="col">Razão social</th>
+            <th scope="col">MIC</th>
+            <th scope="col">Estabelecimento</th>
             <th scope="col" class="text-right">Volume pré-aprovado</th>
             <th scope="col" class="text-right">Prazo pré-aprovado</th>
             <th scope="col" class="text-right">Taxa pré-aprovada</th>
-            <th scope="col" class="text-right">Parcela pré-aprovada</th>
             <th scope="col" class="note-col">Anotação</th>
           </tr>
         </thead>
         <tbody>
           <% @reports.each do |report| %>
             <tr>
-              <td class="font-mono text-xs whitespace-nowrap">
-                <%= formatted_cnpj(report["cnpj"]) %>
-              </td>
+              <td><%= present_or_dash(report["sub_channels"]) %></td>
               <td>
+                <p class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></p>
                 <p class="font-semibold"><%= present_or_dash(report["legal_name"]) %></p>
                 <% if report["establishments"].to_i > 1 %>
                   <p class="text-xs opacity-60">
@@ -80,9 +71,6 @@
               </td>
               <td class="text-right tabular-nums">
                 <%= report["preapproved_rate"].present? ? number_to_percentage(report["preapproved_rate"], precision: 2) : "—" %>
-              </td>
-              <td class="text-right tabular-nums">
-                <%= report["preapproved_installment"].present? ? brl(report["preapproved_installment"]) : "—" %>
               </td>
               <%# Aqui a linha já é o cliente e sobram colunas, então cabe um trecho do texto
                   servindo de leitura direta — diferente da listagem do MIC, apertada. %>

@@ -22,23 +22,25 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", text: "Clover Capital"
-    %w[CNPJ Razão\ social Volume\ pré-aprovado Prazo\ pré-aprovado
-       Taxa\ pré-aprovada Parcela\ pré-aprovada].each do |rotulo|
+    %w[MIC Estabelecimento Volume\ pré-aprovado Prazo\ pré-aprovado
+       Taxa\ pré-aprovada].each do |rotulo|
       assert_select "th", text: rotulo
     end
+    # O CNPJ não tem coluna: fica acima da razão social, na célula dela.
+    assert_select "th", text: "CNPJ", count: 0
 
     # Dois ECs do mesmo CNPJ são uma linha; quem não tem oferta não entra.
     assert_select "tbody tr", count: 1
     linha = css_select("tbody tr").first
-    assert_match(/11\.222\.333\/0001-81/, linha.text)
+    assert_select "tbody tr td:first-child", text: "MIC ALFA"
+    assert_match(/11\.222\.333\/0001-81\s+ALFA COMERCIO LTDA/, linha.text)
     assert_match(/R\$ 350\.000,00/, linha.text)
     assert_match(/24 meses/, linha.text)
     assert_match(/3,28%/, linha.text)
     assert_match(/2 ECs neste CNPJ/, linha.text)
-    # A parcela vem vazia do arquivo, e a tela mostra a lacuna em vez de calcular. É a sexta
-    # coluna, não a última: a anotação entrou depois dela.
-    assert_select "tbody tr td:nth-child(6)", text: "—"
-    assert_select "[data-tip*=?]", "PARCELA_PRE_APROVADA"
+    # A parcela vem vazia do arquivo e saiu da tela: nem coluna, nem aviso.
+    assert_select "th", text: "Parcela pré-aprovada", count: 0
+    assert_select "[data-tip*=?]", "PARCELA_PRE_APROVADA", count: 0
   end
 
   # A anotação é do CNPJ, e a listagem do MIC é por EC: os ECs 30000001 e 90000001 dividem o
