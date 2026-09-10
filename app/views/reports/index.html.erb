@@ -18,11 +18,11 @@
           <p class="page-description">Importe um arquivo validado para começar a acompanhar a carteira.</p>
         <% end %>
       </div>
-      <div class="relative z-10 flex flex-wrap gap-2">
+      <div class="export-actions relative z-10 flex flex-wrap gap-2">
         <%= link_to icon_label("download-simple", "Exportar CSV"), reports_path(format: :csv, channel_id: @selected_channel&.uuid),
-          class: "btn btn-outline" %>
+          class: "btn btn-outline export-action" %>
         <%= link_to icon_label("download-simple", "Exportar XLSX"), reports_path(format: :xlsx, channel_id: @selected_channel&.uuid),
-          class: "btn btn-neutral" %>
+          class: "btn btn-neutral export-action" %>
       </div>
     </div>
 

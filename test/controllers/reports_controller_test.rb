@@ -8,8 +8,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get stalled_reports_path
 
     assert_select "nav.breadcrumb-wrap a[href=?]", root_path, text: "Início"
-    # "Dashboard" e "Operação" são agrupamentos da navbar, não páginas — não entram na
-    # trilha nem como texto.
+    # Rótulos genéricos de navegação não são páginas e não entram na trilha.
     assert_select "nav.breadcrumb-wrap li", text: /Dashboard/, count: 0
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Clover Capital"
   end
@@ -60,15 +59,14 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.header-status[data-tone=green]", text: /Arquivo hoje/
   end
 
-  test "o menu do header agrupa as páginas em submenus, com badge da idade do arquivo" do
+  test "o menu do header expõe páginas diretas, com badge da idade do arquivo" do
     get reports_path
 
-    # Dois grupos colapsáveis; o da página atual fica marcado no título.
-    assert_select "nav.primary-nav details.nav-dropdown", count: 2
-    assert_select "details.nav-dropdown summary.nav-link.is-active", text: /Dashboard/
-    assert_select "details.nav-dropdown summary.nav-link", text: /Operação/
-    assert_select ".nav-submenu a", text: /Faturamento/
-    assert_select ".nav-submenu a", text: /Importar arquivo/
+    assert_select "nav.primary-nav details", count: 0
+    assert_select "nav.primary-nav a.nav-link", count: 8
+    assert_select "nav.primary-nav a.nav-link.is-active", text: /Faturamento/
+    assert_select "nav.primary-nav a", text: /Clover Capital/
+    assert_select "nav.primary-nav a", text: /Importar arquivo/
     assert_select "button.nav-toggle[aria-controls='primary_nav']"
     # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma.
     assert_select ".nav-badge[data-tone='rose']", text: /Nunca/
