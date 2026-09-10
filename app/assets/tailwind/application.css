@@ -247,6 +247,16 @@
     text-transform: uppercase;
   }
 
+  /* Nos cards de estado o dado é protagonista; o ícone só identifica a categoria. */
+  .metric-icon {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.35rem;
+    vertical-align: -0.15em;
+    color: var(--metric-color, currentcolor);
+  }
+
   /* Sem reticências, pela mesma razão que já valia para .metric-value--range: é o valor da
      apuração, e "R$ 2.475.790,…" não é um número menor, é um número que ninguém sabe. Se um
      dia não couber, quebra a linha — ver o comentário de lá. */
@@ -2564,17 +2574,11 @@
     white-space: normal;
   }
 
-  .table-frame .table-toolbar {
-    position: sticky;
-    z-index: 3;
-    top: var(--topbar-height, 4.75rem);
-    background: var(--color-base-100);
-  }
-
+  /* A tabela só rola na horizontal. Sem um scrollport vertical próprio, sticky prende o
+     thead ao contêiner errado e o faz sobrepor linhas; o cabeçalho fica no fluxo da tabela. */
+  .table-frame .table-toolbar,
   .table-frame thead th {
-    position: sticky;
-    z-index: 2;
-    top: calc(var(--topbar-height, 4.75rem) + var(--toolbar-height, 0px));
+    position: static;
   }
 
   .table-scroll-hint {
