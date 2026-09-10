@@ -10,8 +10,8 @@
         <h1 class="page-title"><%= channel_name(@sub_channel.channel) %></h1>
         <% if @window %>
           <p class="page-description">
-            Estabelecimentos deste MIC. O mês anterior aparece completo. A variação
-            compara períodos equivalentes
+            Um cliente por linha, somando o faturamento de todos os ECs do CNPJ. O mês
+            anterior aparece completo. A variação compara períodos equivalentes
             <strong><%= day_range_label(@from_day, @to_day) %></strong>
             da competência <%= period_option_label(@period) %>.
             Os lançamentos diários abrem no detalhe de cada estabelecimento.
@@ -63,7 +63,7 @@
           <% if @selected_variation %>
             <p class="metric-hint">
               Somando só a aba <%= @selected_variation == "alta" ? "Em crescimento" : "Em queda" %>
-              (<%= @total_count %> ECs)
+              (<%= pluralize(@total_count, "estabelecimento", "estabelecimentos") %>)
               <% if (overall = @listing.overall_totals) %>
                 · MIC inteiro:
                 <strong><%= signed_variation(overall[:previous_revenue], overall[:current_revenue]) %></strong>
@@ -183,13 +183,11 @@
   <% end %>
 
   <%# Abas por variação alinhada: Baixa concentra quem piorou ou zerou o mês atual;
-      estável e EC novo faturando ficam em Alta. Trocar de aba zera a página. %>
+      estável e cliente novo faturando ficam em Alta. Trocar de aba zera a página. %>
   <% counts = @listing.variation_counts %>
   <%# Cada aba carrega o próprio critério: o rótulo com a contagem e, embaixo, a regra
-      do filtro em palavras — quem procura "para onde foi aquele EC?" lê na barra.
-      A contagem é de estabelecimentos, identificados pelo CNPJ, não de linhas: a tabela
-      abaixo continua listando um EC por linha, então um estabelecimento com dois ECs conta
-      um aqui e ocupa duas ali. %>
+      do filtro em palavras — quem procura "para onde foi aquele cliente?" lê na barra.
+      Desde que a linha é o cliente, a contagem da aba e a da tabela são a mesma coisa. %>
   <div class="variation-tabs-wrap">
   <%# Links de navegação, não um tablist: cada aba troca a página inteira, e a atual se
       anuncia com aria-current. %>
@@ -198,7 +196,7 @@
       class: ("is-active" if @selected_variation.nil?),
       aria: { current: ("page" if @selected_variation.nil?) } do %>
       <span class="tab-title">Todos · <%= counts[:todas] %></span>
-      <span class="tab-hint">estabelecimentos distintos, por CNPJ</span>
+      <span class="tab-hint">estabelecimentos, um por CNPJ</span>
     <% end %>
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: "alta", page: nil)),
       class: ("is-active" if @selected_variation == "alta"),
@@ -225,9 +223,9 @@
       </div>
       <% if @total_count.to_i.positive? %>
         <div class="table-toolbar__meta">
-          <%# O badge conta ECs (uma linha por EC); os status contam CNPJs, porque a
-              suspensão é do cliente. São números de coisas diferentes, de propósito. %>
-          <span class="badge badge-ghost"><%= pluralize(@total_count, "EC", "ECs") %></span>
+          <%# Badge e status contam a mesma coisa: estabelecimentos, um por CNPJ. Eram
+              números diferentes enquanto a tabela listava um EC por linha. %>
+          <span class="badge badge-ghost"><%= pluralize(@total_count, "estabelecimento", "estabelecimentos") %></span>
           <% status_counts = @listing.status_counts %>
           <% if status_counts.values.sum.positive? %>
             <span class="table-toolbar__breakdown">
@@ -266,7 +264,9 @@
       <table class="table establishment-revenue-table">
         <thead>
           <tr>
-            <th scope="col">EC</th>
+            <%# A coluna deixou de ser do EC: a linha é o cliente e o EC não aparece mais
+                na listagem (pedido do usuário, 10/09/2026). O que sobrou dela é o Net MDR. %>
+            <th scope="col">Net MDR</th>
             <th scope="col">Estabelecimento</th>
             <th scope="col">Datas do ciclo</th>
             <%# As três colunas de valor ordenam a listagem: o cabeçalho é compartilhado
@@ -286,31 +286,29 @@
             <% previous = report["previous_revenue"].to_d %>
             <% previous_full = report["previous_full_revenue"].to_d %>
             <% current = report["current_revenue"].to_d %>
-            <%# A linha inteira abre os lançamentos diários; o link do EC continua sendo o
-                caminho por teclado e para leitor de tela. %>
+            <%# A linha inteira abre os lançamentos diários; o nome do cliente é o link, e
+                continua sendo o caminho por teclado e para leitor de tela. Era o número do
+                EC — que saiu da tela quando a linha passou a ser o cliente. %>
             <tr class="daily-row" data-action="click->daily-modal#openFromRow">
-              <td class="font-mono">
-                <%= link_to report["ec"], sub_channel_daily_report_path(
-                      @sub_channel, report["establishment_uuid"],
-                      period: @period, from_day: @from_day, to_day: @to_day
-                    ),
-                    class: "daily-trigger",
-                    title: "Ver lançamentos diários",
-                    data: { turbo_frame: "daily_revenues", action: "daily-modal#open" } %>
-                <% mdr = net_mdr_label(report["net_mdr"], report["net_mdr_status"]) %>
-                <% equipment = equipment_summary(report) %>
-                <% if mdr || equipment %>
-                  <div class="ec-meta">
-                    <% if mdr %><p>NET MDR <%= mdr %></p><% end %>
-                    <% if equipment %><p><%= equipment %></p><% end %>
-                  </div>
-                <% end %>
+              <%# Só alíquota positiva: "Inativo", zero e negativo não afirmam alíquota
+                  nenhuma, e 259 dos 470 ECs da carteira caem num dos três. %>
+              <td class="font-mono tabular-nums">
+                <%= client_net_mdr_label(report["net_mdr_min"], report["net_mdr_max"]) || "—" %>
               </td>
-              <%# O CNPJ mora na célula do estabelecimento, acima do nome: é o mesmo cliente
-                  em todas as linhas dele, e a coluna própria só custava largura. %>
+              <%# O CNPJ mora na célula do estabelecimento, acima do nome: ele é a identidade
+                  da linha, e uma coluna própria só custava largura. %>
               <td>
                 <p class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></p>
-                <p class="font-semibold"><%= report["trade_name"].presence || report["legal_name"] %></p>
+                <p class="font-semibold">
+                  <%= link_to report["trade_name"].presence || report["legal_name"],
+                        sub_channel_daily_report_path(
+                          @sub_channel, report["company_uuid"],
+                          period: @period, from_day: @from_day, to_day: @to_day
+                        ),
+                        class: "daily-trigger",
+                        title: "Ver lançamentos diários",
+                        data: { turbo_frame: "daily_revenues", action: "daily-modal#open" } %>
+                </p>
                 <% if report["legal_name"].present? && report["legal_name"] != report["trade_name"] %>
                   <p class="text-xs opacity-60"><%= report["legal_name"] %></p>
                 <% end %>
@@ -364,7 +362,7 @@
                   inteira. A conversa indisponível continua explícita, sem parecer uma ação
                   que falhou ao abrir. %>
               <td class="actions-col">
-                <% conversa = report["best_conversation_raw"].to_s.strip %>
+                <% conversas = client_conversations(report["best_conversations"]) %>
                 <% nome = report["trade_name"].presence || report["legal_name"] %>
                 <details class="actions-menu">
                   <summary class="btn btn-sm btn-square actions-menu__trigger"
@@ -372,12 +370,15 @@
                     <%= icon("caret-down", css: "btn-icon") %>
                   </summary>
                   <div class="actions-menu__list">
-                    <%= button_tag type: "button", disabled: conversa.blank?,
+                    <%# Vão todas as conversas dos ECs do cliente, rotuladas pelo EC dentro
+                        do modal: 116 dos 302 clientes têm mais de um texto diferente, e
+                        escolher um esconderia a pendência do outro ponto de venda. %>
+                    <%= button_tag type: "button", disabled: conversas.empty?,
                           class: "btn btn-sm actions-menu__item conversation-trigger",
-                          title: conversa.present? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
-                          aria: { label: conversa.present? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
-                          data: (conversa.present? ? { action: "conversation-modal#open",
-                            conversation_modal_text_param: conversa,
+                          title: conversas.any? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
+                          aria: { label: conversas.any? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
+                          data: (conversas.any? ? { action: "conversation-modal#open",
+                            conversation_modal_items_param: conversas.to_json,
                             conversation_modal_name_param: nome } : {}) do %>
                       <%= icon_label("list-bullets", "Melhor conversa", css: "btn-icon") %>
                     <% end %>
@@ -419,7 +420,8 @@
       </nav>
     <% end %>
 
-    <%# Lançamentos diários do EC clicado. O frame nasce vazio e o Turbo o preenche. %>
+    <%# Lançamentos diários do cliente clicado, somando os ECs dele. O frame nasce vazio e
+        o Turbo o preenche. %>
     <dialog class="daily-modal" data-daily-modal-target="dialog"
       aria-label="Lançamentos diários do estabelecimento"
       data-action="click->daily-modal#closeOnBackdrop close->daily-modal#close">
@@ -434,8 +436,8 @@
       </div>
     </dialog>
 
-    <%# Melhor conversa do EC clicado. Um diálogo só para a tabela inteira: o conteúdo vem do
-        botão, então cem linhas não precisam de cem diálogos. %>
+    <%# Melhor conversa do cliente clicado, uma por EC. Um diálogo só para a tabela inteira:
+        o conteúdo vem do botão, então cem linhas não precisam de cem diálogos. %>
     <dialog class="daily-modal daily-modal--narrow" data-conversation-modal-target="dialog"
       aria-label="Melhor conversa do estabelecimento"
       data-action="click->conversation-modal#closeOnBackdrop close->conversation-modal#close">
@@ -448,7 +450,7 @@
           <p class="section-label">Melhor conversa</p>
           <h3 class="table-title" data-conversation-modal-target="name"></h3>
         </div>
-        <ol class="conversation-steps" data-conversation-modal-target="steps"></ol>
+        <div class="conversation-groups" data-conversation-modal-target="groups"></div>
       </div>
     </dialog>
 

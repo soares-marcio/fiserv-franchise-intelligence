@@ -99,6 +99,47 @@ O card é o próprio scrollport da tabela que ele contém (`min-width: 0` no ite
 da grade e vazava por cima do card vizinho — `test/system/layout_and_import_test.rb` compara
 `scrollWidth` e `clientWidth` de cada card e falha se voltar a acontecer.
 
+### Listagem do MIC: uma linha por cliente
+
+Em `/reports/sub_channels/:id` a linha é o **cliente (CNPJ)**, e não o ponto de venda: o
+faturamento de todos os ECs dele entra somado numa linha só (pedido do usuário, 10/09/2026).
+Na carteira real isso leva 470 linhas a 302, e nenhum CNPJ aparece em dois MICs — medido —,
+então agrupar dentro do subcanal é o mesmo que agrupar por CNPJ.
+
+O que a linha mostra, e de onde o valor vem quando os ECs divergem:
+
+| Coluna | Regra | Por quê |
+| --- | --- | --- |
+| **Net MDR** | só alíquota **positiva**; faixa (`0,42% a 2,52%`) quando os ECs divergem | dos 470 ECs, 253 chegam `Inativo`, 4 negativos e 2 zerados: nenhum afirma alíquota. 5 CNPJs têm dois positivos diferentes, num deles de 0,62% a 2,53% — escolher um esconderia 4× a diferença |
+| Estabelecimento | CNPJ acima do nome; nome pelo valor mais frequente (`mode()`) | 3 CNPJs têm razão social divergente entre os ECs e 2, nome fantasia. `MAX` pegaria o maior alfabeticamente, não o mais provável |
+| Status | **Ativo** se ao menos um EC estiver ativo | a suspensão é do cliente; 8 dos 9 CNPJs de status misto são troca de EC |
+| Datas do ciclo | Cred. e Ativ. = a mais antiga; Susp. e Uso do app = a mais recente | o cliente entrou na primeira; um EC novo não rejuvenesce o credenciamento |
+| Melhor conversa | **todas**, uma por EC, rotuladas pelo EC no modal | 116 dos 302 clientes têm mais de um texto diferente |
+
+A coluna do número do EC **deixou de existir** na tela — o inventário de equipamentos saiu
+com ela, porque é de cada ponto de venda. Os dois continuam na ficha do cliente
+(`/establishments/:id`), onde a unidade é o EC.
+
+**O filtro escolhe o cliente; a soma é sempre dos ECs todos.** Isso não é detalhe de
+implementação: todo filtro desta tela nasceu por EC, e se um deles voltar para o `WHERE`
+antes do `GROUP BY`, o cliente com três ECs em que só um casa aparece com a soma de **um** —
+faturamento errado e calado, numa tela de auditoria. Em `EstablishmentListingQuery` os
+filtros vivem no `HAVING`, e `test/services/establishment_listing_query_test.rb` trava a
+invariante: buscar o número de um EC devolve o cliente com os dois ECs somados.
+
+Status e data comparam o **valor agregado** — o mesmo que a linha mostra —, para que quem
+filtra "suspensos" nunca receba uma linha escrita "Ativo". A busca é a exceção e mede EC por
+EC: quem digita o número de um EC está procurando o cliente dono dele, e esse número não está
+mais na tela para ser comparado como agregado.
+
+Duas armadilhas que esta mudança pagou:
+
+- **`pluralize(2, "estabelecimento")` devolve `"2 estabelecimento"`.** O pt-BR não declara
+  inflexões, então sem o plural explícito nada é pluralizado. Todo `pluralize` de texto em
+  português precisa dos dois argumentos.
+- **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
+  `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
+
 ### Ordenação das listagens
 
 A regra vive em `ListingSort`, num lugar só. A coluna e o sentido vêm da URL e são validados
@@ -186,10 +227,16 @@ arquivo cheio em silêncio.
 
 ### Modal de lançamentos diários
 
-Clicar na linha do estabelecimento, na tela de subcanal, abre `.daily-modal` por Turbo Frame
+Clicar na linha do cliente, na tela de subcanal, abre `.daily-modal` por Turbo Frame
 (`reports/_daily_revenues.html.erb`). Ele mostra **três competências** lado a lado —
 penúltimo mês, último e atual —, um dia por linha, com o cabeçalho da tabela colado no topo
 ao rolar (o scrollport é a própria tabela, não a página).
+
+O modal é do **cliente**, e soma os mesmos ECs que a linha soma: a rota é
+`reports/sub_channels/:id/daily/:company_id`, com a uuid da empresa — nunca o CNPJ, que o
+filtro de log esconde dos parâmetros mas não do caminho da URL. Quando a soma tem mais de um
+EC, o cabeçalho escreve quantos; sem isso, quem confere o dia a dia contra a planilha não
+sabe se está vendo um ponto de venda ou a soma de três.
 
 Três regras que o modal segue de propósito:
 

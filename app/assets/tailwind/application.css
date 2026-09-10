@@ -1365,16 +1365,6 @@
   }
 
   /* Linhas de apoio sob o número do EC: NET MDR e equipamentos do Mapa. */
-  .ec-meta {
-    display: grid;
-    margin-top: 0.3rem;
-    gap: 0.12rem;
-    color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    white-space: nowrap;
-  }
-
   .lifecycle-dates {
     display: grid;
     min-width: 11rem;
@@ -1884,6 +1874,18 @@
   .conversation-steps li {
     padding-left: 0.25rem;
     line-height: 1.5;
+  }
+
+  /* A conversa é de cada EC, e um cliente com vários ECs tem uma por ponto de venda. Cada
+     bloco leva o número do EC acima da lista; com uma conversa só, o rótulo não é escrito e
+     a aparência é a de sempre. */
+  .conversation-groups {
+    display: grid;
+    gap: 1.15rem;
+  }
+
+  .conversation-groups__ec {
+    margin: 0 0 0.35rem;
   }
 
   .actions-col,

@@ -1,7 +1,8 @@
 require "test_helper"
 
 # Caracterização da listagem por subcanal: fixa o contrato (linhas, totais, abas, filtros e
-# paginação) antes de qualquer otimização da consulta.
+# paginação). A linha é o cliente, identificado pelo CNPJ, e soma o faturamento de todos os
+# ECs dele — as asserções de soma existem para que um filtro nunca volte a recortar a soma.
 class EstablishmentListingQueryTest < ActiveSupport::TestCase
   ALFA = "MIC ALFA".freeze
   REVENUE_COLUMNS = %w[previous_full_revenue previous_revenue current_revenue].freeze
@@ -16,31 +17,66 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   end
 
   # A tela abre pelo mês anterior cheio, do maior para o menor: 1.000, 400, 50 e dois
-  # zerados desempatados por EC. Ordem por EC não respondia a nenhuma pergunta.
-  test "lista os ECs do subcanal na ordem padrão, com contagens por aba" do
+  # zerados desempatados por CNPJ. Ordem por EC não respondia a nenhuma pergunta.
+  test "lista um cliente por linha na ordem padrão, com contagens por aba" do
     page = listing
 
-    assert_equal %w[30000001 30000003 30000002 30000004 30000005], page.rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA LANCHES", "ALFA SUSPENSA", "ALFA EXPRESS", "ALFA RETORNO", "ALFA NOVA" ],
+      nomes(page)
     assert_equal 5, page.total_count
     assert_equal({ todas: 5, alta: 2, baixa: 3 }, page.variation_counts)
     assert_equal [ 1, EstablishmentListingQuery::DEFAULT_PER_PAGE ], [ page.page, page.per_page ]
     assert_nil page.overall_totals
   end
 
-  # Decisão do usuário (07/09/2026): a aba conta estabelecimentos, identificados pelo CNPJ;
-  # a listagem continua mostrando um EC por linha. Dois ECs do mesmo CNPJ são um
-  # estabelecimento na contagem e duas linhas na tabela.
-  test "abas contam estabelecimentos distintos por CNPJ; a listagem lista um EC por linha" do
-    irmao = loja("30000006", "11222333000181", "ALFA LANCHES II",
-      dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 })
-    import_synthetic_workbook(lojas: lojas + [ irmao ], filename: "BIN_TESTE_20260812.xlsx")
+  # O pedido do usuário (10/09/2026): dois ECs do mesmo CNPJ são um cliente e uma linha, com
+  # o faturamento somado. Os valores esperados saem das lojas declaradas, não de números
+  # fixados aqui — é a soma que precisa estar certa, não um total memorizado.
+  test "ECs do mesmo CNPJ viram uma linha só, somando o faturamento" do
+    page = com_irmao
 
-    page = listing
+    linha = cliente(page, "11222333000181")
+    principal, irmao = lojas.first, loja_irma
 
-    assert_equal 6, page.rows.size, "cada EC é uma linha"
-    assert_equal 6, page.total_count, "a paginação conta linhas, não empresas"
-    assert_equal 5, page.variation_counts[:todas],
-      "os dois ECs do mesmo CNPJ contam um estabelecimento"
+    assert_equal 5, page.rows.size, "o EC irmão não abre linha nova"
+    assert_equal 5, page.total_count, "a paginação conta clientes"
+    assert_equal 2, linha["ec_count"].to_i
+    assert_equal principal.total_m1 + irmao.total_m1, linha["previous_full_revenue"].to_d
+    assert_equal principal.total_atual + irmao.total_atual, linha["current_revenue"].to_d
+    assert_equal 300 + irmao.total_m1, linha["previous_revenue"].to_d,
+      "o mês anterior comparável soma os dois ECs dentro da faixa de dias"
+  end
+
+  # A asserção que impede o erro mais caro desta mudança. Todo filtro da tela nasceu por EC;
+  # se um deles voltar para o WHERE antes do GROUP BY, o cliente com dois ECs em que só um
+  # casa aparece com a soma de um EC — faturamento errado e calado. Buscar pelo número de um
+  # EC tem que devolver o cliente inteiro.
+  test "filtrar por um EC não recorta a soma do cliente" do
+    inteiro = cliente(com_irmao, "11222333000181")
+
+    [ "30000001", "30000006" ].each do |ec|
+      recorte = listing(query: ec)
+
+      assert_equal 1, recorte.rows.size, "buscar #{ec} devolve um cliente"
+      assert_equal 2, recorte.rows.first["ec_count"].to_i
+      REVENUE_COLUMNS.each do |column|
+        assert_equal inteiro[column].to_d, recorte.rows.first[column].to_d,
+          "#{column} ao buscar pelo EC #{ec} tem que somar os dois ECs"
+      end
+    end
+  end
+
+  # Somar por EC e somar por cliente dão o mesmo dinheiro: o agrupamento muda a contagem de
+  # linhas, nunca o total. É o que garante que os cards da primeira dobra não se mexeram.
+  test "agrupar por CNPJ não altera nenhum total em dinheiro" do
+    page = com_irmao
+    todas = lojas.select { |loja| loja.sub_channel_name == ALFA } + [ loja_irma ]
+
+    assert_equal todas.sum(&:total_m1), page.totals[:previous_full_revenue]
+    assert_equal todas.sum(&:total_atual), page.totals[:current_revenue]
+    REVENUE_COLUMNS.each do |column|
+      assert_equal page.rows.sum { |row| row[column].to_d }, page.totals.fetch(column.to_sym)
+    end
   end
 
   # A barra conta CNPJs, não ECs: a suspensão é do cliente. As contagens seguem a aba e os
@@ -56,15 +92,18 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   # Decisão do usuário (07/09/2026): o CNPJ é ativo se ao menos um EC estiver ativo, e só
   # entra em suspensos quando todos os ECs dele estão suspensos. Na carteira real, oito dos
   # nove CNPJs com status misto são troca de EC — o antigo suspenso, o novo aberto no lugar.
-  test "CNPJ com um EC ativo e outro suspenso conta como ativo" do
-    misto = lojas + [ loja("30000006", "11222333000181", "ALFA LANCHES II",
-      contract_status: "Suspended", dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 }) ]
-    import_synthetic_workbook(lojas: misto, filename: "BIN_TESTE_20260812.xlsx")
-
-    counts = listing.status_counts
+  #
+  # Agora a regra aparece na própria linha, e não só na contagem: o filtro de status compara
+  # o valor agregado, então quem filtra "suspensos" nunca recebe uma linha escrita "Ativo".
+  test "CNPJ com um EC ativo e outro suspenso é um cliente ativo, na linha e no filtro" do
+    page = com_irmao(contract_status: "Suspended")
+    counts = page.status_counts
 
     assert_equal 4, counts["Active"], "o CNPJ com um EC ativo continua ativo"
     assert_equal 1, counts["Suspended"], "só a ALFA SUSPENSA tem todos os ECs suspensos"
+    assert_equal "Active", cliente(page, "11222333000181")["contract_status"]
+    assert_equal [ "ALFA SUSPENSA" ], nomes(listing(statuses: [ "Suspended" ])),
+      "o cliente de status misto não entra no filtro de suspensos"
   end
 
   # A data do último acesso ao app entra nas datas do ciclo. Não é enfeite: a view
@@ -74,22 +113,90 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   # A asserção é contra a data literal da planilha de propósito: a planilha traz horário de
   # Brasília e a coluna o guarda sem converter, então só a leitura crua devolve o dia certo.
   # Ver o comentário na view do subcanal.
-  test "traz a data de uso do app de cada EC" do
-    linhas = listing.rows.index_by { |row| row["ec"] }
+  test "traz a data de uso do app do cliente" do
+    linhas = por_nome(listing)
 
-    assert_equal Date.new(2026, 8, 20), linhas["30000001"]["last_app_access_at"].to_date
-    assert_nil linhas["30000002"]["last_app_access_at"], "EC sem acesso no Mapa não inventa data"
+    assert_equal Date.new(2026, 8, 20), linhas["ALFA LANCHES"]["last_app_access_at"].to_date
+    assert_nil linhas["ALFA EXPRESS"]["last_app_access_at"], "cliente sem acesso não inventa data"
   end
 
-  # A melhor conversa é texto livre do Mapa e abre num modal a partir da listagem. Quem não
-  # tem texto precisa chegar como nulo, e não como string vazia: é o nulo que desabilita o
-  # botão da linha.
-  test "traz a melhor conversa de cada EC" do
-    linhas = listing.rows.index_by { |row| row["ec"] }
+  # Com dois ECs, o cliente entrou na data mais antiga e usou o app na mais recente: um EC
+  # novo não rejuvenesce o credenciamento de quem já era cliente.
+  test "datas do ciclo do cliente: entrou na mais antiga, usou o app na mais recente" do
+    linha = cliente(com_irmao(app_access_at: "2026-08-25 09:00"), "11222333000181")
 
-    assert_equal "Ofereça a antecipação > Revise o MDR",
-      linhas["30000001"]["best_conversation_raw"]
-    assert_nil linhas["30000002"]["best_conversation_raw"]
+    assert_equal Date.new(2026, 8, 25), linha["last_app_access_at"].to_date
+    assert_equal Date.new(2026, 2, 1), linha["accredited_on"].to_date
+  end
+
+  # Pedido do usuário (10/09/2026): na coluna do EC fica só o Net MDR, e só quando é
+  # porcentagem positiva. Dos 470 ECs da carteira real, 253 chegam "Inativo", 4 negativos e
+  # 2 zerados — nenhum desses afirma alíquota nenhuma, e mostrá-los sugeria faixa de
+  # remuneração que o valor não tem.
+  test "o Net MDR chega só quando é porcentagem positiva" do
+    linhas = por_nome(listing)
+
+    assert_equal "0.4211".to_d, linhas["ALFA LANCHES"]["net_mdr_min"]
+    assert_equal "0.4211".to_d, linhas["ALFA LANCHES"]["net_mdr_max"]
+    assert_nil linhas["ALFA EXPRESS"]["net_mdr_min"], "\"Inativo\" não é porcentagem"
+    assert_nil linhas["ALFA SUSPENSA"]["net_mdr_min"], "zero não é porcentagem positiva"
+    assert_nil linhas["ALFA RETORNO"]["net_mdr_min"], "negativo não é porcentagem positiva"
+    assert_nil linhas["ALFA NOVA"]["net_mdr_min"], "EC fora do Mapa não inventa alíquota"
+  end
+
+  # Cinco CNPJs da carteira real têm dois Net MDR positivos diferentes entre os ECs, e num
+  # deles a diferença vai de 0,62% a 2,53%. Escolher um esconderia quatro vezes a diferença:
+  # chegam os dois extremos, e a tela mostra a faixa.
+  test "cliente com dois Net MDR positivos diferentes traz os dois extremos" do
+    linha = cliente(com_irmao(net_mdr: 0.9125), "11222333000181")
+
+    assert_equal "0.4211".to_d, linha["net_mdr_min"]
+    assert_equal "0.9125".to_d, linha["net_mdr_max"]
+  end
+
+  # O nome do cliente é o mais frequente entre os ECs, não o primeiro nem o maior: na carteira
+  # real 3 CNPJs têm razão social divergente entre os ECs e 2 têm nome fantasia. MAX pegaria o
+  # maior alfabeticamente — foi assim que a Clover Capital trocou razão social por nome
+  # fantasia antes de passar a usar mode().
+  test "o nome do cliente é o mais frequente entre os ECs" do
+    extras = [
+      loja("30000006", "11222333000181", "ALFA LANCHES", dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 }),
+      loja("30000007", "11222333000181", "ALFA OUTRO NOME", dias_m1: { 1 => 5 }, dias_atual: { 1 => 5 })
+    ]
+    import_synthetic_workbook(lojas: lojas + extras, filename: "BIN_TESTE_20260812.xlsx")
+
+    linha = cliente(listing, "11222333000181")
+
+    assert_equal 3, linha["ec_count"].to_i
+    assert_equal "ALFA LANCHES", linha["trade_name"]
+    assert_equal "ALFA LANCHES LTDA", linha["legal_name"]
+  end
+
+  # A melhor conversa é texto livre do Mapa e é de cada EC — 116 dos 302 clientes da carteira
+  # têm mais de um texto diferente. Vão todos, rotulados pelo EC; escolher um a esmo
+  # esconderia a pendência do outro ponto de venda. Quem não tem texto chega nulo, e é o
+  # nulo que desabilita o botão da linha.
+  test "traz a melhor conversa de cada EC do cliente, rotulada pelo EC" do
+    page = com_irmao(melhor_conversa: "Verificar se tem outras máquinas")
+
+    conversas = JSON.parse(cliente(page, "11222333000181")["best_conversations"])
+
+    assert_equal %w[30000001 30000006], conversas.map { |item| item["ec"] }
+    assert_equal "Ofereça a antecipação > Revise o MDR", conversas.first["text"]
+    assert_equal "Verificar se tem outras máquinas", conversas.last["text"]
+    assert_nil por_nome(page)["ALFA EXPRESS"]["best_conversations"]
+  end
+
+  # Conversa só com espaço em branco não é conversa: a coluna chega crua da planilha — o
+  # importador guarda row["MELHOR CONVERSA"] sem normalizar —, e a tela antiga fazia strip
+  # antes de decidir. Sem o BTRIM na consulta, o botão habilitaria para abrir um modal vazio.
+  test "conversa só com espaço em branco não chega como conversa" do
+    page = com_irmao(melhor_conversa: "   ")
+
+    conversas = JSON.parse(cliente(page, "11222333000181")["best_conversations"])
+
+    assert_equal %w[30000001], conversas.map { |item| item["ec"] },
+      "o EC com texto só de espaço não entra na lista"
   end
 
   # A busca alcança o texto da melhor conversa: é por ele que se procura quem tem a mesma
@@ -99,7 +206,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   # os 418. Quem digitasse "antecipacao" não encontraria nada.
   test "busca pelo texto da melhor conversa, com ou sem acento" do
     %w[antecipação antecipacao ANTECIPAÇÃO].each do |termo|
-      assert_equal [ "30000001" ], listing(query: termo).rows.map { |row| row["ec"] },
+      assert_equal [ "ALFA LANCHES" ], nomes(listing(query: termo)),
         "buscar por #{termo.inspect} precisa achar quem tem a conversa"
     end
 
@@ -120,37 +227,37 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_equal antes.total_count, depois.total_count
     assert_equal antes.totals, depois.totals
 
-    linha = depois.rows.find { |row| row["ec"] == "30000001" }
+    linha = cliente(depois, "11222333000181")
     assert_predicate linha["company_uuid"], :present?, "a linha precisa endereçar o cliente"
     assert_predicate linha["note_id"], :present?
-    assert_nil depois.rows.find { |row| row["ec"] == "30000002" }["note_id"],
+    assert_nil por_nome(depois)["ALFA EXPRESS"]["note_id"],
       "cliente sem anotação não herda a do vizinho"
   end
 
-  # As três colunas de valor podem ordenar a listagem; o EC continua sendo o critério de
-  # desempate, senão a paginação embaralha linhas de mesmo valor entre páginas.
+  # As três colunas de valor podem ordenar a listagem; o CNPJ é o critério de desempate,
+  # senão a paginação embaralha linhas de mesmo valor entre páginas.
   test "ordena pelas colunas de valor, nos dois sentidos" do
-    por_atual = listing(sort: "current_revenue", direction: "desc").rows.map { |row| row["ec"] }
-    assert_equal %w[30000001 30000004 30000005 30000002 30000003], por_atual
+    por_atual = nomes(listing(sort: "current_revenue", direction: "desc"))
+    assert_equal [ "ALFA LANCHES", "ALFA RETORNO", "ALFA NOVA", "ALFA EXPRESS", "ALFA SUSPENSA" ],
+      por_atual
 
     # Os cinco valores são distintos, então crescente é a lista invertida.
-    assert_equal por_atual.reverse,
-      listing(sort: "current_revenue", direction: "asc").rows.map { |row| row["ec"] }
+    assert_equal por_atual.reverse, nomes(listing(sort: "current_revenue", direction: "asc"))
 
     # Mês anterior cheio: 1.000 (ALFA LANCHES), 400 (SUSPENSA), 50 (EXPRESS) e dois zerados,
-    # que caem no fim desempatados por EC.
-    por_anterior = listing(sort: "previous_full_revenue", direction: "desc").rows.map { |row| row["ec"] }
-    assert_equal %w[30000001 30000003 30000002 30000004 30000005], por_anterior
+    # que caem no fim desempatados por CNPJ.
+    assert_equal [ "ALFA LANCHES", "ALFA SUSPENSA", "ALFA EXPRESS", "ALFA RETORNO", "ALFA NOVA" ],
+      nomes(listing(sort: "previous_full_revenue", direction: "desc"))
   end
 
   test "coluna desconhecida ou sentido inválido caem na ordem padrão" do
-    padrao = listing.rows.map { |row| row["ec"] }
+    padrao = nomes(listing)
 
-    assert_equal padrao, listing(sort: "cnpj; DROP TABLE").rows.map { |row| row["ec"] }
-    assert_equal padrao, listing(sort: nil, direction: "desc").rows.map { |row| row["ec"] }
+    assert_equal padrao, nomes(listing(sort: "cnpj; DROP TABLE"))
+    assert_equal padrao, nomes(listing(sort: nil, direction: "desc"))
     # Sentido inválido com coluna válida vale como desc, que é o primeiro clique na tela.
-    assert_equal listing(sort: "current_revenue", direction: "desc").rows.map { |row| row["ec"] },
-      listing(sort: "current_revenue", direction: "seja lá o que for").rows.map { |row| row["ec"] }
+    assert_equal nomes(listing(sort: "current_revenue", direction: "desc")),
+      nomes(listing(sort: "current_revenue", direction: "seja lá o que for"))
   end
 
   # Ticket médio da carteira: mês anterior cheio dividido pelos CNPJs ativos do recorte
@@ -172,7 +279,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   end
 
   test "alinha os dois meses pela mesma faixa de dias e mantém o mês anterior cheio" do
-    row = listing.rows.find { |candidate| candidate["ec"] == "30000001" }
+    row = por_nome(listing)["ALFA LANCHES"]
     loja = lojas.first
 
     assert_equal loja.total_m1, row["previous_full_revenue"].to_d
@@ -193,9 +300,9 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   end
 
   test "aba alta traz quem cresceu ou é novo; aba baixa quem caiu, zerou ou voltou a vender" do
-    assert_equal %w[30000001 30000005], listing(variation: "alta").rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA LANCHES", "ALFA NOVA" ], nomes(listing(variation: "alta"))
     # Ordem padrão dentro da aba: 400 (SUSPENSA), 50 (EXPRESS) e o zerado (RETORNO).
-    assert_equal %w[30000003 30000002 30000004], listing(variation: "baixa").rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA SUSPENSA", "ALFA EXPRESS", "ALFA RETORNO" ], nomes(listing(variation: "baixa"))
   end
 
   test "contagens por aba ignoram a aba ativa e os totais gerais ancoram a variação" do
@@ -209,11 +316,11 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   test "pagina e normaliza página e tamanho fora das opções" do
     segunda = listing(page: 2, per_page: 2)
-    assert_equal %w[30000002 30000004], segunda.rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA EXPRESS", "ALFA RETORNO" ], nomes(segunda)
     assert_equal [ 2, 2, 3 ], [ segunda.page, segunda.per_page, segunda.total_pages ]
 
     alem = listing(page: 99, per_page: 2)
-    assert_equal [ 3, %w[30000005] ], [ alem.page, alem.rows.map { |row| row["ec"] } ]
+    assert_equal [ 3, [ "ALFA NOVA" ] ], [ alem.page, nomes(alem) ]
 
     assert_equal EstablishmentListingQuery::DEFAULT_PER_PAGE, listing(per_page: 0).per_page
     assert_equal EstablishmentListingQuery::PER_PAGE_OPTIONS.max, listing(per_page: 1000).per_page
@@ -222,16 +329,16 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   test "filtra por status do contrato" do
     page = listing(statuses: [ "Suspended", "" ])
 
-    assert_equal %w[30000003], page.rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA SUSPENSA" ], nomes(page)
     assert_equal({ todas: 1, alta: 0, baixa: 1 }, page.variation_counts)
   end
 
   test "filtra por intervalo de datas, aceita intervalo invertido e vale para os três tipos sem marcação" do
     ativadas = listing(date_kinds: [ "ativacao" ], from_date: "2026-08-01", to_date: "2026-08-31")
-    assert_equal %w[30000005], ativadas.rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA NOVA" ], nomes(ativadas)
 
     invertido = listing(date_kinds: [ "ativacao" ], from_date: "2026-08-31", to_date: "2026-08-01")
-    assert_equal %w[30000005], invertido.rows.map { |row| row["ec"] }
+    assert_equal [ "ALFA NOVA" ], nomes(invertido)
 
     # Sem tipo marcado o intervalo vale para credenciamento, ativação ou suspensão; todos
     # foram credenciados em fevereiro, então todos entram.
@@ -244,14 +351,13 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   test "busca por EC, CNPJ formatado e nome, sem distinguir maiúsculas" do
     { "30000003" => "EC", "33.444.555/0001-30" => "CNPJ formatado", "alfa suspensa" => "nome" }
       .each do |query, kind|
-      assert_equal %w[30000003], listing(query:).rows.map { |row| row["ec"] }, "por #{kind}"
+      assert_equal [ "ALFA SUSPENSA" ], nomes(listing(query:)), "por #{kind}"
     end
     assert_equal 0, listing(query: "zzz").total_count
   end
 
   test "janela mais curta recorta os dois meses" do
-    page = listing(window: window(to_day: 2))
-    row = page.rows.find { |candidate| candidate["ec"] == "30000001" }
+    row = por_nome(listing(window: window(to_day: 2)))["ALFA LANCHES"]
 
     assert_equal 300, row["previous_revenue"].to_d
     assert_equal 200, row["current_revenue"].to_d
@@ -274,6 +380,24 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     ).call
   end
 
+  def nomes(page) = page.rows.map { |row| row["trade_name"] }
+
+  def por_nome(page) = page.rows.index_by { |row| row["trade_name"] }
+
+  def cliente(page, cnpj) = page.rows.find { |row| row["cnpj"] == cnpj }
+
+  # Importa um segundo lote em que o CNPJ da ALFA LANCHES ganha um EC irmão. O conteúdo muda
+  # (o irmão fatura), então o SHA-256 difere do primeiro — dois imports no mesmo segundo com
+  # o mesmo conteúdo seriam recusados como arquivo repetido.
+  def com_irmao(**atributos)
+    @irma = loja("30000006", "11222333000181", "ALFA LANCHES II",
+      dias_m1: { 1 => 10 }, dias_atual: { 1 => 20 }, **atributos)
+    import_synthetic_workbook(lojas: lojas + [ @irma ], filename: "BIN_TESTE_20260812.xlsx")
+    listing
+  end
+
+  def loja_irma = @irma
+
   def window(to_day: cutoff)
     PeriodWindow.new(period: BinWorkbook::CURRENT_PERIOD, from_day: 1, to_day:, max_day: cutoff)
   end
@@ -284,16 +408,20 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   # Cinco ECs no MIC ALFA cobrindo cada classificação das abas, e um no MIC BETA que nunca
   # pode aparecer. Os valores esperados saem destes dados, não de números fixados nos testes.
+  # Os cinco Net MDR cobrem as quatro formas que a planilha real traz — positivo, "Inativo",
+  # zero e negativo — mais o EC sem valor nenhum.
   def lojas
     @lojas ||= [
       loja("30000001", "11222333000181", "ALFA LANCHES", dias_m1: { 1 => 100, 2 => 200, 25 => 700 },
         dias_atual: { 1 => 150, 2 => 50, 10 => 300 }, proposta: true,
-        app_access_at: "2026-08-20 14:30",
+        app_access_at: "2026-08-20 14:30", net_mdr: 0.4211,
         melhor_conversa: "Ofereça a antecipação > Revise o MDR"),
-      loja("30000002", "22333444000105", "ALFA EXPRESS", dias_m1: { 1 => 50 }, dias_atual: { 1 => 10, 2 => 20 }),
+      loja("30000002", "22333444000105", "ALFA EXPRESS", dias_m1: { 1 => 50 },
+        dias_atual: { 1 => 10, 2 => 20 }, net_mdr: "Inativo"),
       loja("30000003", "33444555000130", "ALFA SUSPENSA", contract_status: "Suspended",
-        dias_m1: { 1 => 400 }, dias_atual: {}),
-      loja("30000004", "44555666000172", "ALFA RETORNO", dias_m1: {}, dias_atual: { 5 => 80 }),
+        dias_m1: { 1 => 400 }, dias_atual: {}, net_mdr: 0),
+      loja("30000004", "44555666000172", "ALFA RETORNO", dias_m1: {}, dias_atual: { 5 => 80 },
+        net_mdr: -0.31),
       loja("30000005", "55666777000109", "ALFA NOVA", dias_m1: {}, dias_atual: { 3 => 60 }),
       loja("40000001", "66777888000156", "BETA CAFE", sub_channel_name: "MIC BETA",
         dias_m1: { 1 => 900 }, dias_atual: { 1 => 900 })
@@ -301,10 +429,10 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   end
 
   def loja(ec, cnpj, trade_name, sub_channel_name: ALFA, contract_status: "Active", proposta: false,
-    app_access_at: nil, melhor_conversa: nil, dias_m1:, dias_atual:)
+    app_access_at: nil, melhor_conversa: nil, net_mdr: nil, dias_m1:, dias_atual:)
     BinWorkbook::Loja.new(
       ec:, cnpj:, sub_channel_name:, legal_name: "#{trade_name} LTDA", trade_name:,
-      contract_status:, dias_m1:, dias_atual:, proposta:, app_access_at:, melhor_conversa:
+      contract_status:, dias_m1:, dias_atual:, proposta:, app_access_at:, melhor_conversa:, net_mdr:
     )
   end
 end

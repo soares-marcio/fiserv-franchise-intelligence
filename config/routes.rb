@@ -11,8 +11,10 @@ Rails.application.routes.draw do
     end
   end
   get "reports/sub_channels/:id", to: "reports#sub_channel", as: :sub_channel_report
-  # Lançamentos diários de um EC, carregados sob demanda no modal da tela de subcanal.
-  get "reports/sub_channels/:id/daily/:establishment_id", to: "reports#sub_channel_daily",
+  # Lançamentos diários de um cliente, somando os ECs dele, carregados sob demanda no modal
+  # da tela de subcanal. O :company_id é a uuid da empresa, não o CNPJ: o filtro de log
+  # esconde :cnpj dos parâmetros, mas não do caminho da URL.
+  get "reports/sub_channels/:id/daily/:company_id", to: "reports#sub_channel_daily",
     as: :sub_channel_daily_report
   # Clientes que venderam num dia do calendário, carregados sob demanda no modal do ritmo.
   get "reports/weekly/day/:day", to: "reports#weekly_day", as: :weekly_day_report

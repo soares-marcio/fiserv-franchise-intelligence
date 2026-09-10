@@ -1,7 +1,8 @@
 require "test_helper"
 
-# Lançamentos diários de um EC, como o modal da tela de subcanal os mostra: um dia por
-# linha, com o mês atual e o anterior lado a lado, dentro da faixa de dias escolhida.
+# Lançamentos diários de um cliente, como o modal da tela de subcanal os mostra: um dia por
+# linha, com o mês atual e o anterior lado a lado. Desde que a listagem agrupa por CNPJ, a
+# consulta soma os ECs do cliente — e é essa soma que o último teste fixa.
 class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
   ALFA = "MIC ALFA".freeze
 
@@ -46,18 +47,42 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
   end
 
   test "EC sem lançamento no recorte responde vazio, sem erro" do
-    outro = Establishment.create!(
-      ec: "99999999", channel_id: @establishment.channel_id, company_id: @establishment.company_id
-    )
+    assert_empty daily(from_day: 1, to_day: 31, establishments: [ sem_lancamento ])
+      .select { |row| row["current_amount"].to_d.positive? }
+  end
 
-    assert_empty daily(from_day: 1, to_day: 31, establishment: outro).select { |row| row["current_amount"].to_d.positive? }
+  test "sem EC nenhum, responde vazio em vez de somar a carteira inteira" do
+    assert_empty daily(from_day: 1, to_day: 31, establishments: [])
+  end
+
+  # O modal passou a somar o CNPJ: dois ECs do mesmo cliente entram no mesmo dia. Sem isso, o
+  # modal mostraria um ponto de venda enquanto a linha da listagem mostra a soma dos dois.
+  test "soma os ECs do cliente no mesmo dia" do
+    irmao = BinWorkbook::Loja.new(
+      ec: "90000001", cnpj: @loja.cnpj, sub_channel_name: ALFA,
+      legal_name: "ALFA LANCHES LTDA", trade_name: "ALFA EXPRESS", contract_status: "Active",
+      dias_m1: { 1 => 20 }, dias_atual: { 1 => 35 }
+    )
+    import_synthetic_workbook(lojas: [ @loja, irmao ], filename: "BIN_TESTE_20260812.xlsx")
+    ecs = Establishment.where(ec: [ @loja.ec, irmao.ec ]).to_a
+
+    rows = daily(from_day: 1, to_day: 31, establishments: ecs)
+
+    assert_equal 150 + 35, valor(rows, 1, "current_amount")
+    assert_equal 100 + 20, valor(rows, 1, "previous_amount")
   end
 
   private
 
-  def daily(from_day:, to_day:, establishment: @establishment)
+  def sem_lancamento
+    Establishment.create!(
+      ec: "99999999", channel_id: @establishment.channel_id, company_id: @establishment.company_id
+    )
+  end
+
+  def daily(from_day:, to_day:, establishments: [ @establishment ])
     window = @scope.establishment_window(from_day:, to_day:)
-    @scope.establishment_daily_revenues(establishment_id: establishment.id, window:)
+    @scope.establishment_daily_revenues(establishment_ids: establishments.map(&:id), window:)
   end
 
   def valor(rows, day, column)

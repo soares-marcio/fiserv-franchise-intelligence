@@ -349,6 +349,27 @@ module ApplicationHelper
     "#{number_with_precision(value.to_d.truncate(2), precision: 2, separator: ',')}%"
   end
 
+  # Net MDR do cliente na listagem por subcanal: entra só porcentagem positiva (pedido do
+  # usuário, 10/09/2026). Quando os ECs do mesmo CNPJ declaram alíquotas positivas
+  # diferentes — 5 CNPJs da carteira real, e num deles de 0,62% a 2,53% — a célula mostra a
+  # faixa. Escolher um dos valores esconderia quatro vezes a diferença.
+  def client_net_mdr_label(minimum, maximum)
+    return if minimum.blank?
+
+    menor = net_mdr_label(minimum)
+    maior = net_mdr_label(maximum)
+    menor == maior ? menor : "#{menor} a #{maior}"
+  end
+
+  # A melhor conversa é de cada EC, e 116 dos 302 clientes da carteira têm mais de um texto
+  # diferente. A consulta os traz todos num JSON rotulado pelo EC; o parse fica aqui para a
+  # tela não conhecer o formato da coluna.
+  def client_conversations(raw)
+    return [] if raw.blank?
+
+    JSON.parse(raw)
+  end
+
   # Famílias nomeadas de terminal do Mapa; Smart POS e Demais POS aparecem como um
   # único "POS" (decisão do usuário). "QTDE OUTROS TERMINAIS" é tratada à parte.
   EQUIPMENT_COUNTS = {

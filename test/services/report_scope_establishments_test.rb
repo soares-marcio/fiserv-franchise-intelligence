@@ -12,7 +12,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     rows = scope.revenue_by_establishment(sub_channel_id: sub_channel.id)
     parent = scope.revenue_by_sub_channel.find { |row| row["sub_channel_id"] == sub_channel.id }
 
-    assert_equal [ "11111111", "22222222" ], rows.map { |row| row["ec"] }
+    assert_equal [ "LOJA UM", "LOJA DOIS" ], rows.map { |row| row["trade_name"] }
     assert_equal "12345678000191", rows.first["cnpj"]
     assert_equal "LOJA UM", rows.first["trade_name"]
     assert_equal "LOJA UM LTDA", rows.first["legal_name"]
@@ -21,7 +21,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal Date.new(2024, 4, 2), rows.first["activated_on"]
     assert_nil rows.first["suspended_on"]
 
-    first = rows.find { |row| row["ec"] == "11111111" }
+    first = rows.find { |row| row["trade_name"] == "LOJA UM" }
     assert_equal 120, first["previous_full_revenue"].to_d
     assert_equal 80, first["previous_revenue"].to_d
     assert_equal 100, first["current_revenue"].to_d
@@ -31,7 +31,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     assert_equal parent["current_revenue"].to_d, rows.sum { |row| row["current_revenue"].to_d }
 
     other_rows = scope.revenue_by_establishment(sub_channel_id: other.id)
-    assert_equal [ "33333333" ], other_rows.map { |row| row["ec"] }
+    assert_equal [ "OUTRA" ], other_rows.map { |row| row["trade_name"] }
     assert_equal 50, other_rows.first["current_revenue"].to_d
   end
 
@@ -48,8 +48,8 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       sub_channel_id: sub_channel.id, statuses: [ "Active", "Suspended" ]
     )
 
-    assert_equal [ "11111111" ], active.map { |row| row["ec"] }
-    assert_equal [ "11111111", "22222222" ], both.map { |row| row["ec"] }
+    assert_equal [ "LOJA UM" ], active.map { |row| row["trade_name"] }
+    assert_equal [ "LOJA UM", "LOJA DOIS" ], both.map { |row| row["trade_name"] }
   end
 
   test "filtra estabelecimentos por datas de credenciamento, ativação e suspensão" do
@@ -77,10 +77,10 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       sub_channel_id: sub_channel.id, from_date: "2024-06-01", to_date: "2024-06-30"
     )
 
-    assert_equal [ "11111111" ], credentialed.map { |row| row["ec"] }
-    assert_equal [ "22222222" ], suspended.map { |row| row["ec"] }
-    assert_equal [ "11111111", "22222222" ], either.map { |row| row["ec"] }
-    assert_equal [ "22222222" ], all_date_kinds.map { |row| row["ec"] }
+    assert_equal [ "LOJA UM" ], credentialed.map { |row| row["trade_name"] }
+    assert_equal [ "LOJA DOIS" ], suspended.map { |row| row["trade_name"] }
+    assert_equal [ "LOJA UM", "LOJA DOIS" ], either.map { |row| row["trade_name"] }
+    assert_equal [ "LOJA DOIS" ], all_date_kinds.map { |row| row["trade_name"] }
   end
 
   test "usa as datas de ciclo de vida do mesmo lote do snapshot de faturamento" do
@@ -140,10 +140,10 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
 
     day_31 = scope.revenue_by_establishment(
       sub_channel_id: sub_channel.id, from_day: 31, to_day: 31
-    ).find { |row| row["ec"] == "11111111" }
+    ).find { |row| row["trade_name"] == "LOJA UM" }
     july = scope.revenue_by_establishment(
       sub_channel_id: sub_channel.id, period: Date.new(2026, 7, 1), from_day: 24, to_day: 24
-    ).find { |row| row["ec"] == "11111111" }
+    ).find { |row| row["trade_name"] == "LOJA UM" }
 
     assert_equal 40, day_31["previous_revenue"].to_d
     assert_equal 0, day_31["current_revenue"].to_d
@@ -161,9 +161,11 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     by_ec = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, query: "22222222")
     by_cnpj = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, query: "12.345.678/0001-91")
 
-    assert_equal [ "11111111" ], by_name.map { |row| row["ec"] }
-    assert_equal [ "22222222" ], by_ec.map { |row| row["ec"] }
-    assert_equal [ "11111111", "22222222" ], by_cnpj.map { |row| row["ec"] }
+    assert_equal [ "LOJA UM" ], by_name.map { |row| row["trade_name"] }
+    # Buscar pelo número de um EC devolve o cliente dono dele: o EC não está mais na linha,
+    # mas continua sendo como se procura.
+    assert_equal [ "LOJA DOIS" ], by_ec.map { |row| row["trade_name"] }
+    assert_equal [ "LOJA UM" ], by_cnpj.map { |row| row["trade_name"] }
   end
 
   test "pagina estabelecimentos sem encolher os totais da seleção" do
@@ -179,8 +181,8 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       sub_channel_id: sub_channel.id, page: 2, per_page: 1
     )
 
-    assert_equal [ "11111111" ], first_page.map { |row| row["ec"] }
-    assert_equal [ "22222222" ], second_page.map { |row| row["ec"] }
+    assert_equal [ "LOJA UM" ], first_page.map { |row| row["trade_name"] }
+    assert_equal [ "LOJA DOIS" ], second_page.map { |row| row["trade_name"] }
     assert_equal 2, first_page.total_count
     assert_equal 2, first_page.total_pages
     assert_equal 120 + 20, first_page.totals[:previous_full_revenue]
@@ -192,10 +194,14 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
 
   def seed_channel(template)
     channel = Channel.create!(external_id: "A", name: "CANAL A")
+    # Um cliente por EC: a listagem agrupa por CNPJ, e dois ECs no mesmo CNPJ dariam uma
+    # linha só — os recortes deste arquivo precisam de dois sujeitos. A soma de vários ECs
+    # num cliente é coberta em EstablishmentListingQueryTest, que existe para isso.
     company = Company.create!(cnpj: "12345678000191")
+    second_company = Company.create!(cnpj: "12345678000193")
     other_company = Company.create!(cnpj: "12345678000192")
     first = Establishment.create!(ec: "11111111", company:, channel:)
-    second = Establishment.create!(ec: "22222222", company:, channel:)
+    second = Establishment.create!(ec: "22222222", company: second_company, channel:)
     outsider = Establishment.create!(ec: "33333333", company: other_company, channel:)
     sub_a = channel.sub_channels.create!(name: "MIC A")
     sub_b = channel.sub_channels.create!(name: "MIC B")

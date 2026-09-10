@@ -171,15 +171,21 @@ class ReportsController < ApplicationController
 
   # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma
   # janela e faixa de dias da tela que o abriu.
+  # O modal soma os ECs do cliente, os mesmos que a linha da listagem soma. Cliente sem EC
+  # neste MIC não tem lançamento para mostrar: é 404, como era para um EC de outro canal.
   def sub_channel_daily
     @sub_channel = SubChannel.find_param!(params[:id])
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
-    @establishment = Establishment.where(channel_id: @sub_channel.channel_id)
-                                  .find_param!(params[:establishment_id])
+    @company = Company.find_param!(params[:company_id])
+    @client = @scope.client_in_sub_channel(company_id: @company.id, sub_channel_id: @sub_channel.id)
+    raise ActiveRecord::RecordNotFound if @client.establishment_ids.empty?
+
     @window = @scope.establishment_window(
       period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
     )
-    @rows = @scope.establishment_daily_revenues(establishment_id: @establishment.id, window: @window)
+    @rows = @scope.establishment_daily_revenues(
+      establishment_ids: @client.establishment_ids, window: @window
+    )
 
     render partial: "reports/daily_revenues", layout: false
   end
