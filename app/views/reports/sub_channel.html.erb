@@ -373,7 +373,7 @@
                   </summary>
                   <div class="actions-menu__list">
                     <%= button_tag type: "button", disabled: conversa.blank?,
-                          class: "btn btn-sm actions-menu__item",
+                          class: "btn btn-sm actions-menu__item conversation-trigger",
                           title: conversa.present? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
                           aria: { label: conversa.present? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
                           data: (conversa.present? ? { action: "conversation-modal#open",

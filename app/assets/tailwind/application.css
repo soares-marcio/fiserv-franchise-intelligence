@@ -1360,23 +1360,24 @@
     background: color-mix(in oklab, var(--color-base-200) 74%, white);
   }
 
-  /* No hover, a célula de variação assume a cor da própria variação. O tom vem do chip que
-     está dentro, com :has(), e não de um cálculo na view: quem decide a cor é a regra do
-     chip — base zero vira "Novo" (alta) ou "Voltou a vender" (neutro) por outro critério,
-     e repetir isso no ERB criaria duas verdades. */
+  /* A célula fixa tem fundo próprio e precisa acompanhar o hover da linha. */
   .establishment-revenue-table tbody tr:hover td:last-child {
     background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--up) {
+  /* No hover, a célula de variação assume a cor da própria variação. O tom vem do chip que
+     está dentro, com :has(), e não de um cálculo na view: quem decide a cor é a regra do
+     chip — base zero vira "Novo" (alta) ou "Voltou a vender" (neutro) por outro critério,
+     e repetir isso no ERB criaria duas verdades. */
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--up) {
     background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--down) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--down) {
     background: color-mix(in oklab, var(--color-error) 16%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--flat) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--flat) {
     background: var(--color-base-200);
   }
 
@@ -1902,7 +1903,8 @@
     line-height: 1.5;
   }
 
-  .actions-col {
+  .actions-col,
+  .note-col {
     width: 1%;
     text-align: center;
     white-space: nowrap;
@@ -1955,7 +1957,17 @@
     overflow: visible;
   }
 
-  .note-trigger__dot {
+  .actions-menu__trigger {
+    position: relative;
+    overflow: visible;
+  }
+
+  /* Com o menu fechado o botão da anotação não aparece, e o ponto iria junto. O gatilho
+     o replica via :has(): quando o turbo_stream troca a célula, o sinal acompanha sem
+     recarregar a tela. */
+  .note-trigger__dot,
+  .actions-menu:has(.note-trigger__dot) > .actions-menu__trigger::after {
+    content: "";
     position: absolute;
     top: -0.4rem;
     right: -0.4rem;
@@ -2551,15 +2563,15 @@
     background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--up) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--up) {
     background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--down) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--down) {
     background: color-mix(in oklab, var(--color-error) 16%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--flat) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--flat) {
     background: var(--color-base-200);
   }
 
@@ -2872,14 +2884,9 @@
    Medidas que o daisyUI também declara, e que por isso não podem ficar em @layer: a ordem
    de camadas aqui coloca a do daisyUI depois da do projeto, e camada vence especificidade.
    Foi assim que a regra do botão acima acabou fora de camada, e é a mesma razão aqui —
-   dentro de @layer components estas duas não valiam nada (medido: botão continuava em 32px
-   e a coluna com o padding de 1rem do daisyUI).
+   dentro de @layer components a regra não valia nada (medido: a coluna continuava com o
+   padding de 1rem do daisyUI).
    -------------------------------------------------------------------------------------- */
-
-/* Dois pixels além do quadrado do daisyUI (--size, 2rem no btn-sm). */
-.btn.conversation-trigger {
-  width: calc(var(--size) + 2px);
-}
 
 /* Aperto da coluna de variação, sem tirar nada de dentro dela: o ícone, a pílula e os
    rótulos por extenso continuam.

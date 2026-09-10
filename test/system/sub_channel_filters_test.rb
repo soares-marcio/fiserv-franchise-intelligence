@@ -162,7 +162,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     visit sub_channel_report_path(@sub_channel)
 
     assert_no_selector "dialog[open]"
-    find("tr.daily-row", text: "30000001").find("button.conversation-trigger").click
+    abrir_acoes("30000001").find("button.conversation-trigger").click
 
     # O modal se identifica pelo mesmo nome da célula do estabelecimento: o fantasia.
     assert_selector "dialog[open] h3.table-title", text: "ALFA LANCHES"
@@ -181,7 +181,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
   test "sem melhor conversa no Mapa o botão vem desabilitado" do
     visit sub_channel_report_path(@sub_channel)
 
-    botao = find("tr.daily-row", text: "90000001").find("button.conversation-trigger")
+    botao = abrir_acoes("90000001").find("button.conversation-trigger")
 
     assert botao.disabled?, "o botão da linha sem conversa precisa vir desabilitado"
   end
@@ -199,7 +199,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
         (() => {
           const linha = [...document.querySelectorAll("tr.daily-row")]
             .find((tr) => tr.textContent.includes("#{ec}"))
-          return getComputedStyle(linha.querySelector("td:last-child")).backgroundColor
+          return getComputedStyle(linha.querySelector("td.variation-col")).backgroundColor
         })()
       JS
     end
@@ -208,5 +208,14 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     queda = fundo.call("90000001")
 
     assert_not_equal alta, queda, "alta e queda precisam ter fundos diferentes no hover"
+  end
+
+  private
+
+  # As ações da linha ficam num menu fechado; devolve a linha com ele aberto.
+  def abrir_acoes(ec)
+    linha = find("tr.daily-row", text: ec)
+    linha.find("summary.actions-menu__trigger").click
+    linha
   end
 end
