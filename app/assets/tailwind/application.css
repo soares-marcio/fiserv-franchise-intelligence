@@ -2374,6 +2374,55 @@
     position: static;
   }
 
+  /* No celular, a tabela larga continua rolável na horizontal. O cabeçalho espelhado é
+     posicionado no viewport e acompanha o deslize, para preservar o contexto das colunas. */
+  .table-frame[data-controller~="sticky-table"] {
+    overflow: visible;
+  }
+
+  .variation-tabs-wrap {
+    position: sticky;
+    z-index: 5;
+    top: var(--topbar-height, 4.75rem);
+  }
+
+  .table-frame[data-controller~="sticky-table"] .table-toolbar {
+    position: sticky;
+    z-index: 4;
+    top: calc(var(--topbar-height, 4.75rem) + var(--variation-tabs-height, 0px));
+    background: var(--color-base-100);
+    box-shadow: 0 8px 12px rgb(68 47 34 / 8%);
+  }
+
+  .mobile-table-head {
+    display: none;
+    position: fixed;
+    z-index: 3;
+    top: var(--mobile-head-top);
+    left: var(--mobile-head-left);
+    width: var(--mobile-head-width);
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--color-base-100);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
+  }
+
+  .mobile-table-head.is-visible {
+    display: block;
+  }
+
+  .mobile-table-head__table {
+    width: var(--mobile-table-width);
+    min-width: var(--mobile-table-width);
+    margin: 0;
+    table-layout: fixed;
+  }
+
+  .mobile-table-head__table th {
+    position: static;
+    background: var(--color-base-100);
+  }
+
   .daily-modal .table-scroll thead th {
     position: sticky;
     top: 0;
@@ -2603,6 +2652,10 @@
   }
 
   .table-scroll-hint {
+    display: none;
+  }
+
+  .mobile-table-head {
     display: none;
   }
 }
