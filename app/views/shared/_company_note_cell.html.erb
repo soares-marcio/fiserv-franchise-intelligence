@@ -18,7 +18,7 @@
           action: "note-modal#open",
           note_modal_url_param: edit_company_note_path(company_uuid, note_params)
         } do %>
-    Anotar
+    <%= icon_label("note-pencil", "Anotar") %>
     <% if tem_nota %>
       <span class="note-trigger__dot" aria-hidden="true"></span>
     <% end %>
