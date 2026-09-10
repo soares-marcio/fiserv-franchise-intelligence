@@ -18,8 +18,9 @@
   </head>
   <body class="app-body min-h-screen" data-controller="app-layout"
     data-app-layout-search-url-value="<%= search_path %>">
+    <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
     <%= render "layouts/navbar" %>
-    <main class="app-main">
+    <main id="main-content" class="app-main">
       <%= render_breadcrumbs %>
 
       <div id="flash" aria-live="polite">

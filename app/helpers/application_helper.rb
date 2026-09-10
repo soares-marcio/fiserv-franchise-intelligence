@@ -139,7 +139,7 @@ module ApplicationHelper
       if item[:current]
         content_tag(:span, item[:label], aria: { current: "page" })
       elsif item[:path] == root_path
-        link_to icon_label("house", item[:label], css: "breadcrumb-icon"), item[:path]
+        link_to icon("house", css: "breadcrumb-icon"), item[:path], aria: { label: item[:label] }
       else
         link_to item[:label], item[:path]
       end

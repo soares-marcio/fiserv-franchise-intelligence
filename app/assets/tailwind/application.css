@@ -54,21 +54,47 @@
   --cork-shadow: 0 0 40px 0 rgb(68 47 34 / 7%);
   /* Altura única de campos e dos botões que ficam ao lado deles. */
   --field-height: 2.8rem;
+  /* Tokens da casca: grid de 4px/8px, usados para manter ritmo entre viewports. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-7: 1.75rem;
+  --space-8: 2rem;
+  --space-9: 2.25rem;
+  --space-10: 2.5rem;
+  --space-11: 3rem;
+  --space-12: 4rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 2px rgb(68 47 34 / 8%);
+  --shadow-md: 0 12px 30px rgb(68 47 34 / 10%);
+  --shadow-lg: 0 22px 48px rgb(68 47 34 / 16%);
+  --border-subtle: 1px solid var(--color-base-300);
+  --transition-fast: 140ms ease;
+  --transition-standard: 180ms ease;
 }
 
 @layer base {
   html {
     min-width: 320px;
     background: var(--color-base-200);
+    overflow-x: hidden;
   }
 
   body {
     color: var(--color-base-content);
     font-family: var(--font-sans);
     font-feature-settings: "tnum" 1, "ss01" 1;
-    font-size: 0.875rem;
+    font-size: 1rem;
     letter-spacing: 0;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
 
   ::selection {
@@ -79,6 +105,25 @@
   :focus-visible {
     outline: 3px solid color-mix(in oklab, var(--color-primary) 45%, white);
     outline-offset: 3px;
+  }
+
+  .skip-link {
+    position: fixed;
+    z-index: 50;
+    top: var(--space-3);
+    left: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+    font-weight: 700;
+    text-decoration: none;
+    transform: translateY(-150%);
+    transition: transform var(--transition-fast);
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
   }
 }
 
@@ -163,12 +208,6 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
-  @media (max-width: 1400px) {
-    .metric-grid--5 {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-
   .metric-card {
     position: relative;
     min-width: 0;
@@ -206,6 +245,16 @@
     font-weight: 750;
     letter-spacing: 0;
     text-transform: uppercase;
+  }
+
+  /* Nos cards de estado o dado é protagonista; o ícone só identifica a categoria. */
+  .metric-icon {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.35rem;
+    vertical-align: -0.15em;
+    color: var(--metric-color, currentcolor);
   }
 
   /* Sem reticências, pela mesma razão que já valia para .metric-value--range: é o valor da
@@ -515,16 +564,6 @@
 
   .datepicker__nav-spacer {
     flex: 1;
-  }
-
-  @media (max-width: 700px) {
-    .datepicker__months {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .datepicker__pane--next {
-      display: none;
-    }
   }
 
   .datepicker__nav {
@@ -926,12 +965,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 1200px) {
-    .ec-card-grid {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-
   .ec-card {
     display: grid;
     align-content: start;
@@ -1010,12 +1043,6 @@
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 1200px) {
-    .earnings-card-grid {
-      grid-template-columns: minmax(0, 1fr);
-    }
   }
 
   .earnings-card {
@@ -1230,7 +1257,7 @@
     color: var(--color-primary-content);
   }
 
-  .variation-tabs-wrap .table-frame {
+  .variation-tabs-wrap + .table-frame {
     border-top-left-radius: 0;
   }
 
@@ -1321,35 +1348,19 @@
     content: "";
   }
 
-  .establishment-revenue-table :where(th:last-child, td:last-child) {
-    position: sticky;
-    z-index: 2;
-    right: 0;
-    background: var(--color-base-100);
-  }
-
-  .establishment-revenue-table th:last-child {
-    z-index: 3;
-    background: color-mix(in oklab, var(--color-base-200) 74%, white);
-  }
-
   /* No hover, a célula de variação assume a cor da própria variação. O tom vem do chip que
      está dentro, com :has(), e não de um cálculo na view: quem decide a cor é a regra do
      chip — base zero vira "Novo" (alta) ou "Voltou a vender" (neutro) por outro critério,
      e repetir isso no ERB criaria duas verdades. */
-  .establishment-revenue-table tbody tr:hover td:last-child {
-    background: color-mix(in oklab, var(--color-primary) 5%, var(--color-base-100));
-  }
-
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--up) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--up) {
     background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--down) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--down) {
     background: color-mix(in oklab, var(--color-error) 16%, var(--color-base-100));
   }
 
-  .establishment-revenue-table tbody tr:hover td:last-child:has(.variation-chip--flat) {
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--flat) {
     background: var(--color-base-200);
   }
 
@@ -1602,7 +1613,7 @@
 
   .brand-name {
     display: block;
-    font-size: 0.95rem;
+    font-size: calc(0.95rem + 3px);
     font-weight: 750;
     letter-spacing: -0.02em;
   }
@@ -1631,53 +1642,7 @@
     display: none;
   }
 
-  /* Cada grupo é um submenu colapsável: <details> abre o painel, sem JS obrigatório. */
-  .nav-dropdown {
-    position: relative;
-  }
-
-  .nav-dropdown summary {
-    cursor: pointer;
-    list-style: none;
-  }
-
-  .nav-dropdown summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .nav-caret {
-    width: 0.8rem;
-    height: 0.8rem;
-    flex: none;
-    opacity: 0.6;
-    transition: transform 160ms ease;
-  }
-
-  .nav-dropdown[open] > summary .nav-caret {
-    transform: rotate(180deg);
-  }
-
-  .nav-submenu {
-    position: absolute;
-    z-index: 40;
-    top: calc(100% + 0.4rem);
-    left: 0;
-    display: grid;
-    min-width: 14.5rem;
-    padding: 0.4rem;
-    gap: 0.15rem;
-    border: 1px solid color-mix(in oklab, white 12%, transparent);
-    border-radius: 0.9rem 0.9rem 0.9rem 0.3rem;
-    background: color-mix(in oklab, var(--color-neutral) 97%, white);
-    box-shadow: 0 18px 40px rgb(31 22 15 / 35%);
-  }
-
-  .nav-submenu .nav-link {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  /* Badge do submenu: idade do último arquivo, no mesmo par de tons do status do header. */
+  /* Badge do menu: idade do último arquivo, no mesmo par de tons do status do header. */
   .nav-badge {
     margin-left: auto;
     padding: 0.1rem 0.5rem;
@@ -1838,6 +1803,24 @@
     flex: none;
   }
 
+  /* Ícones de ação precisam de uma caixa própria: SVGs inline preservam o viewBox, mas
+     não devem herdar a dimensão intrínseca do arquivo dentro de botões. */
+  .btn-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex: none;
+  }
+
+  .btn--field .btn-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .export-action,
+  .filter-actions .btn {
+    white-space: nowrap;
+  }
+
   /* Modal dos lançamentos diários: <dialog> nativo, então o fundo vem do ::backdrop. */
   .daily-modal {
     width: min(54rem, 94vw);
@@ -1903,16 +1886,50 @@
     line-height: 1.5;
   }
 
-  .conversation-col {
+  .actions-col,
+  .note-col {
     width: 1%;
     text-align: center;
     white-space: nowrap;
   }
 
-  .note-col {
-    width: 1%;
-    text-align: center;
-    white-space: nowrap;
+  .actions-menu {
+    position: relative;
+    display: inline-block;
+  }
+
+  .actions-menu__trigger {
+    list-style: none;
+  }
+
+  .actions-menu__trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .actions-menu__list {
+    display: grid;
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    min-width: 12.5rem;
+    gap: 0.3rem;
+    padding: 0.4rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 0.65rem;
+    background: var(--color-base-100);
+    box-shadow: 0 12px 28px rgb(68 47 34 / 18%);
+  }
+
+  .actions-menu__item,
+  .actions-menu .note-trigger {
+    width: 100%;
+    min-height: 2.5rem;
+    justify-content: flex-start;
+  }
+
+  .actions-menu .note-cell__date {
+    display: none;
   }
 
   /* O ponto que avisa que já existe anotação salva. Fica no canto do botão, encostado na
@@ -1923,7 +1940,17 @@
     overflow: visible;
   }
 
-  .note-trigger__dot {
+  .actions-menu__trigger {
+    position: relative;
+    overflow: visible;
+  }
+
+  /* Com o menu fechado o botão da anotação não aparece, e o ponto iria junto. O gatilho
+     o replica via :has(): quando o turbo_stream troca a célula, o sinal acompanha sem
+     recarregar a tela. */
+  .note-trigger__dot,
+  .actions-menu:has(.note-trigger__dot) > .actions-menu__trigger::after {
+    content: "";
     position: absolute;
     top: -0.4rem;
     right: -0.4rem;
@@ -2231,289 +2258,309 @@
     white-space: nowrap;
   }
 
-  .page-hero,
-  .surface-card,
-  .filter-panel,
-  .table-frame,
-  .metric-card {
-    border: 1px solid var(--color-base-300);
-    border-radius: 1rem;
-    background: var(--color-base-100);
-    box-shadow: var(--cork-shadow);
+
+
+}
+
+/* Base mobile: todas as ações continuam disponíveis em uma coluna legível. */
+  .app-main {
+    min-width: 0;
+    padding: var(--space-6) var(--space-3) var(--space-12);
+  }
+
+  .topbar {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .topbar-inner {
+    width: min(100%, 96rem);
+    min-width: 0;
+    margin-inline: auto;
+    padding: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .brand-lockup,
+  .topbar-tools {
+    min-width: 0;
+  }
+
+  .brand-caption,
+  .search-shortcut {
+    display: none;
+  }
+
+  .brand-name {
+    font-size: calc(0.875rem + 3px);
+  }
+
+  .topbar-tools {
+    gap: var(--space-2);
+  }
+
+  /* No telefone a hierarquia é fixa, não uma consequência de flex-wrap: marca e ações
+     rápidas dividem a primeira linha, o status ocupa a largura útil e o menu aparece
+     abaixo apenas quando solicitado. */
+  @media (max-width: 767px) {
+    .topbar-inner {
+      display: grid;
+      grid-template-areas:
+        "brand menu search"
+        "status status status"
+        "navigation navigation navigation";
+      grid-template-columns: minmax(0, 1fr) 2.75rem 2.75rem;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .brand-lockup {
+      grid-area: brand;
+      min-height: 2.75rem;
+    }
+
+    .topbar-tools {
+      display: contents;
+    }
+
+    .nav-toggle {
+      grid-area: menu;
+      width: 2.75rem;
+      height: 2.75rem;
+      padding: 0;
+    }
+
+    .search-content {
+      grid-area: search;
+      width: 2.75rem;
+      height: 2.75rem;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .header-status {
+      grid-area: status;
+      width: 100%;
+      min-height: 2.5rem;
+      justify-content: center;
+      padding-inline: var(--space-3);
+    }
+
+    .primary-nav {
+      grid-area: navigation;
+    }
+
+    .primary-nav.is-open {
+      margin-top: var(--space-1);
+      padding-top: var(--space-3);
+    }
+  }
+
+  .header-status {
+    padding-inline: var(--space-2);
+    font-size: 0.75rem;
   }
 
   .page-hero {
-    padding: 1.5rem;
-    overflow: hidden;
-  }
-
-  .page-hero::after {
-    display: none;
-  }
-
-  .eyebrow,
-  .section-label {
-    color: var(--color-primary);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0;
+    padding: var(--space-6) var(--space-4);
   }
 
   .page-title {
-    color: var(--cork-strong);
-    font-size: 1.85rem;
-    font-weight: 700;
-    letter-spacing: 0;
-    line-height: 1.2;
+    font-size: clamp(1.625rem, 8vw, 2rem);
   }
 
   .page-description {
-    color: var(--cork-muted);
-    font-size: 0.9rem;
-  }
-
-  .metric-grid {
-    gap: 1rem;
-  }
-
-  /* Três cards preenchem a linha em vez de deixar a quarta coluna vazia. */
-  .metric-grid--3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .metric-card {
-    min-height: 8rem;
-    padding: 1.25rem;
-  }
-
-  .metric-card::before {
-    display: none;
-  }
-
-  .metric-label {
-    color: var(--cork-muted);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  /* 1,5rem e não 1,75: cinco cards dividem a largura, e medido em 1440px o card útil tem
-     233px. Em 1,75rem o valor de milhões pedia 259px e era cortado; em 1,5rem com os
-     centavos menores pede 209px, e ainda cabe uma competência de dezenas de milhões (226px).
-     Acima disso a linha quebra, que é o combinado desta casa: nunca esconder algarismo. */
-  .metric-value {
-    color: var(--cork-strong);
-    font-size: 1.5rem;
-    font-weight: 700;
-    letter-spacing: 0;
-  }
-
-  .metric-hint {
-    color: var(--cork-muted);
-  }
-
-  /* Intervalo não cabe numa linha e o .metric-value corta com reticências: entre esconder
-     o número e quebrar a linha, quebra. É o valor da apuração — não pode virar "R$ 6.54…". */
-  .metric-value--range {
-    font-size: 1.35rem;
-    line-height: 1.2;
-    overflow: visible;
-    white-space: normal;
+    font-size: 1rem;
+    line-height: 1.5;
   }
 
   .filter-panel {
-    padding: 1.25rem;
+    padding: var(--space-4);
   }
 
-  .filter-search,
-  .tag-select,
-  .date-range,
-  .input,
-  .select,
-  .file-input {
-    border-color: var(--color-base-300);
-    border-radius: 0.5rem;
-    background: var(--color-base-100);
-    color: var(--color-base-content);
+  .metric-grid,
+  .metric-grid--3,
+  .metric-grid--5,
+  .ec-card-grid,
+  .earnings-card-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .table-frame {
-    overflow: clip;
-  }
-
-  /* No desktop a tabela cabe, então o wrapper não rola e o cabeçalho pode ficar fixo na
-     página; abaixo de 1100px volta a rolar na horizontal e o cabeçalho acompanha. */
-  .table-scroll {
-    overflow: visible;
-  }
-
-  /* A barra de título gruda abaixo da barra do site; o cabeçalho das colunas, abaixo dela. */
-  .table-frame .table-toolbar {
-    position: sticky;
-    z-index: 3;
-    top: var(--topbar-height, 4.75rem);
-    background: var(--color-base-100);
-  }
-
-  .table-frame thead th {
-    position: sticky;
-    z-index: 2;
-    top: calc(var(--topbar-height, 4.75rem) + var(--toolbar-height, 0px));
-  }
-
-  .table-toolbar {
-    padding: 1.1rem 1.25rem;
-    border-bottom-color: var(--color-base-300);
-  }
-
-  .table-title {
-    color: var(--cork-strong);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0;
-  }
-
-  .table :where(th) {
-    background: color-mix(in oklab, var(--color-base-200) 58%, white);
-    color: var(--cork-muted);
-    letter-spacing: 0;
-  }
-
-  .table :where(td) {
-    color: var(--color-base-content);
-  }
-
-  .table tbody tr:hover {
-    background: color-mix(in oklab, var(--color-base-200) 38%, white);
-  }
-
-  .btn {
-    min-height: 2.45rem;
-    gap: 0.4rem;
-    border-radius: 0.5rem;
-    font-weight: 600;
-    letter-spacing: 0;
-  }
-
-  .btn-icon {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-  }
-
-  .icon-inline {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-    vertical-align: -0.15em;
-  }
-
-  /* O reset do Tailwind deixa svg como block; aqui ele precisa correr com o texto. */
-  .breadcrumb-icon,
-  .icon-inline {
-    display: inline-block;
-  }
-
-  .breadcrumb-icon {
-    width: 0.9rem;
-    height: 0.9rem;
-    margin-right: 0.3rem;
-    vertical-align: -0.12em;
-  }
-
-  .metric-label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .metric-icon {
-    width: 1rem;
-    height: 1rem;
-    flex: none;
-    opacity: 0.75;
-  }
-
-  /* Botão que fica ao lado de um campo: mesma altura do .file-input. */
-  .btn--field {
-    height: var(--field-height);
-    min-height: var(--field-height);
-  }
-
-  .btn-primary {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: var(--color-primary-content);
-    box-shadow: none;
-  }
-
-  .btn-outline {
-    border-color: var(--color-base-300);
-    background: var(--color-base-100);
-    color: var(--color-base-content);
-  }
-
-  .btn-neutral {
-    background: var(--cork-dark-500);
-    color: var(--color-neutral-content);
-  }
-
-  .badge {
-    min-height: 1.55rem;
-    border-radius: 999px;
-    font-weight: 600;
-  }
-
-  .badge-success {
-    background: var(--cork-success-100);
-    color: var(--color-success);
-  }
-
-  .badge-error {
-    background: var(--cork-danger-100);
-    color: var(--color-error);
-  }
-
-  .badge-warning {
-    background: var(--cork-warning-100);
-    color: var(--color-warning);
-  }
-
-  .badge-ghost {
-    background: var(--cork-dark-100);
-    color: var(--cork-muted);
-  }
-
-  fieldset {
-    border-radius: 0.75rem;
-    background: color-mix(in oklab, var(--color-base-200) 38%, white);
-  }
-}
-
-@media (max-width: 1200px) {
   .filter-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .filter-actions {
-    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-/* Abaixo de 1400px o menu desce inteiro para a segunda linha da barra. */
-@media (max-width: 1400px) {
-  .primary-nav {
-    order: 3;
-    flex-basis: 100%;
+  .filter-actions .btn {
+    width: 100%;
   }
-}
 
-/* Telefones: a tabela rola na horizontal e o cabeçalho volta a acompanhar as linhas. */
-@media (max-width: 900px) {
-  /* O menu colapsa atrás do hambúrguer; aberto, vira lista vertical com acordeões. */
+  .datepicker__months {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .datepicker__pane--next {
+    display: none;
+  }
+
+  .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-scroll > .table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .table-frame,
+  .variation-tabs-wrap {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .table-toolbar {
+    padding: var(--space-4);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .table-toolbar__meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .variation-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .variation-tabs a {
+    min-height: 44px;
+    padding-inline: var(--space-4);
+    flex: 1 0 max-content;
+  }
+
+  .pagination-bar {
+    padding: var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .pagination-bar__status {
+    min-width: 0;
+  }
+
+  .earnings-card .table-scroll {
+    width: 100%;
+  }
+
+  .earnings-card > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Um valor nunca quebra no meio do número: a tabela cresce até o máximo do conteúdo e
+     rola dentro do card, que é o scrollport. Com layout automático o mês fica com a largura
+     do próprio texto, e a sobra vai para as colunas de valor. */
+  .earnings-card__table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .earnings-card__table .tabular-nums {
+    white-space: nowrap;
+  }
+
+  .table-frame .table-toolbar,
+  .table-frame thead th {
+    position: static;
+  }
+
+  /* No celular, a tabela larga continua rolável na horizontal. O cabeçalho espelhado é
+     posicionado no viewport e acompanha o deslize, para preservar o contexto das colunas. */
+  .table-frame[data-controller~="sticky-table"] {
+    overflow: visible;
+  }
+
+  .variation-tabs-wrap {
+    position: sticky;
+    z-index: 5;
+    top: var(--topbar-height, 4.75rem);
+  }
+
+  .table-frame[data-controller~="sticky-table"] .table-toolbar {
+    position: sticky;
+    z-index: 4;
+    top: calc(var(--topbar-height, 4.75rem) + var(--variation-tabs-height, 0px));
+    background: var(--color-base-100);
+    box-shadow: 0 8px 12px rgb(68 47 34 / 8%);
+  }
+
+  .mobile-table-head {
+    display: none;
+    position: fixed;
+    z-index: 3;
+    top: var(--mobile-head-top);
+    left: var(--mobile-head-left);
+    width: var(--mobile-head-width);
+    overflow: hidden;
+    background: var(--color-base-100);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
+  }
+
+  .mobile-table-head.is-visible {
+    display: block;
+  }
+
+  .mobile-table-head__table {
+    width: var(--mobile-table-width);
+    min-width: var(--mobile-table-width);
+    margin: 0;
+    table-layout: fixed;
+  }
+
+  .mobile-table-head__table th {
+    position: static;
+    background: var(--color-base-100);
+  }
+
+  .daily-modal .table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--color-base-100);
+    box-shadow: inset 0 -1px 0 var(--color-base-300);
+  }
+
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--up) {
+    background: color-mix(in oklab, var(--color-success) 16%, var(--color-base-100));
+  }
+
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--down) {
+    background: color-mix(in oklab, var(--color-error) 16%, var(--color-base-100));
+  }
+
+  .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--flat) {
+    background: var(--color-base-200);
+  }
+
+  .table-scroll-hint {
+    display: block;
+  }
+
   .nav-toggle {
     display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .primary-nav {
@@ -2526,108 +2573,201 @@
     flex-basis: 100%;
     flex-direction: column;
     align-items: stretch;
+    padding-top: var(--space-2);
+    border-top: var(--border-subtle);
   }
 
-  .nav-dropdown {
-    position: static;
+  .nav-link,
+  .search-content,
+  .header-status,
+  .btn-toggle,
+  .btn,
+  .datepicker__nav-btn,
+  .status-tag__remove {
+    min-width: 44px;
+    min-height: 44px;
   }
 
-  .nav-dropdown summary {
-    width: 100%;
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary {
+    touch-action: manipulation;
   }
 
-  .nav-caret {
-    margin-left: auto;
+  .filter-search,
+  .search-modal__input,
+  .input,
+  .select,
+  .file-input {
+    min-height: 44px;
+    font-size: 1rem;
   }
 
-  .nav-submenu {
-    position: static;
-    min-width: 0;
-    margin: 0.15rem 0 0.35rem;
-    padding: 0 0 0 1.4rem;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
+  .daily-modal,
+  .search-modal__dialog {
+    overscroll-behavior: contain;
   }
 
-  .table-scroll {
-    overflow-x: auto;
-  }
-
-  .table-frame .table-toolbar,
-  .table-frame thead th {
-    position: static;
+@media (min-width: 480px) {
+  .app-main {
+    padding-inline: var(--space-4);
   }
 
   .metric-grid,
   .metric-grid--3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .filter-bar {
-    grid-template-columns: 1fr;
-  }
 }
 
-@media (max-width: 560px) {
-  .brand-caption,
-  .search-shortcut {
-    display: none;
+@media (min-width: 768px) {
+  .topbar-inner {
+    padding: var(--space-4);
+    gap: var(--space-3);
   }
 
-  .search-content {
-    padding-right: 0.75rem;
+  .brand-caption {
+    display: block;
   }
 
-  .header-status {
-    padding-inline: 0.65rem;
-    font-size: 0.72rem;
+  .brand-name {
+    font-size: calc(0.95rem + 3px);
   }
 
-  .app-main {
-    padding-top: 1rem;
+  .table-toolbar {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .table-toolbar__meta {
+    width: auto;
+    justify-content: flex-end;
   }
 
   .metric-grid,
   .metric-grid--3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .page-hero {
-    border-radius: 1.1rem 1.1rem 1.1rem 0.35rem;
+  .ec-card-grid,
+  .earnings-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .table-toolbar,
-  .table-toolbar__meta,
-  .per-page {
-    align-items: flex-start;
+  /* O recorrente fica em coluna única em qualquer largura: ver o comentário na view. */
+  .earnings-card-grid--stacked {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .table-toolbar {
-    flex-direction: column;
+  .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .table-toolbar__meta {
-    width: 100%;
-    justify-content: flex-start;
+  .filter-actions {
+    grid-column: 1 / -1;
   }
 
-  .per-page {
-    width: 100%;
-    flex-wrap: wrap;
+  .datepicker__months {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .datepicker__pane--next {
+    display: grid;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    padding: var(--space-8) var(--space-4) var(--space-12);
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .filter-bar {
+    grid-template-columns: minmax(12rem, 0.95fr) minmax(12rem, 0.95fr)
+      minmax(14rem, 1fr) minmax(13rem, 1fr) auto;
+  }
+
+  .filter-actions {
+    grid-column: auto;
+  }
+
+  .nav-toggle {
+    display: none;
+  }
+
+  .primary-nav {
+    display: flex;
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .table-scroll > .table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  /* As dez colunas preservam a largura que torna cada dado legível. O scroll fica contido
+     no card; o cabeçalho espelhado acompanha tanto o scroll vertical quanto o horizontal. */
+  .establishment-revenue-table {
+    table-layout: auto;
+  }
+
+  .earnings-card .table-scroll {
+    overflow-x: auto;
+  }
+
+  .earnings-card > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* A pilha fixa se ancora na página, não no scrollport horizontal. Assim o leitor conserva
+     abas, contexto e nomes das colunas enquanto percorre uma listagem longa. */
+  .table-frame[data-controller~="sticky-table"] {
+    overflow: visible;
+  }
+
+  .variation-tabs-wrap {
+    position: sticky;
+    z-index: 5;
+    top: var(--topbar-height, 4.75rem);
+  }
+
+  .table-frame[data-controller~="sticky-table"] .table-toolbar {
+    position: sticky;
+    z-index: 4;
+    top: calc(var(--topbar-height, 4.75rem) + var(--variation-tabs-height, 0px));
+    background: var(--color-base-100);
+    box-shadow: 0 8px 12px rgb(68 47 34 / 8%);
+  }
+
+  .table-frame[data-controller~="sticky-table"] thead th {
+    position: static;
   }
 
   .table-scroll-hint {
-    display: block;
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid var(--color-base-300);
-    background: color-mix(in oklab, var(--color-primary) 6%, white);
-    color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
-    font-size: 0.75rem;
+    display: none;
   }
 
-  .establishment-revenue-table :where(th:last-child, td:last-child) {
-    position: static;
+  .mobile-table-head {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .metric-grid--5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -2635,11 +2775,12 @@
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
   }
 }
-
 
 /* --------------------------------------------------------------------------------------
    Botões — fora de camada, de propósito.
@@ -2671,10 +2812,10 @@
 .btn.btn:hover,
 .btn.btn:focus-visible {
   --btn-bg: var(--color-base-100);
-  --btn-fg: #333;
+  --btn-fg: var(--cork-strong);
   border-color: var(--color-primary);
   background-color: var(--color-base-100);
-  color: #333;
+  color: var(--cork-strong);
 }
 
 /* Desabilitado precisa vencer as duas regras acima, e por isso vem depois delas: o daisyUI
@@ -2706,7 +2847,7 @@
 .join-item.btn.btn-outline {
   border-color: var(--color-primary);
   background-color: var(--color-base-100);
-  color: #333;
+  color: var(--cork-strong);
 }
 
 .join-item.btn-outline:hover,
@@ -2721,14 +2862,9 @@
    Medidas que o daisyUI também declara, e que por isso não podem ficar em @layer: a ordem
    de camadas aqui coloca a do daisyUI depois da do projeto, e camada vence especificidade.
    Foi assim que a regra do botão acima acabou fora de camada, e é a mesma razão aqui —
-   dentro de @layer components estas duas não valiam nada (medido: botão continuava em 32px
-   e a coluna com o padding de 1rem do daisyUI).
+   dentro de @layer components a regra não valia nada (medido: a coluna continuava com o
+   padding de 1rem do daisyUI).
    -------------------------------------------------------------------------------------- */
-
-/* Dois pixels além do quadrado do daisyUI (--size, 2rem no btn-sm). */
-.btn.conversation-trigger {
-  width: calc(var(--size) + 2px);
-}
 
 /* Aperto da coluna de variação, sem tirar nada de dentro dela: o ícone, a pílula e os
    rótulos por extenso continuam.
@@ -2755,6 +2891,32 @@
 .establishment-revenue-table .variation-col .variation-chip {
   gap: 0.2rem;
   padding: 0.15rem 0.35rem 0.15rem 0.2rem;
+}
+
+/* Estas regras ficam fora da camada porque o daisyUI também declara as medidas do botão sem
+   camada. */
+.actions-menu[open] {
+  z-index: 11;
+}
+
+.actions-menu .note-cell {
+  display: block;
+  width: 100%;
+}
+
+.actions-menu .actions-menu__item,
+.actions-menu .note-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 2.5rem;
+  justify-content: flex-start;
+}
+
+/* A aba de crescimento é uma leitura focada em alta. Só nela, e só no hover, a linha com
+   chip positivo recebe o mesmo verde claro do chip; as abas completa e de queda continuam
+   neutras. */
+.table-frame[data-variation-filter="alta"] .establishment-revenue-table tbody tr:hover:has(.variation-chip--up) td {
+  background: color-mix(in oklab, var(--color-success) 12%, white);
 }
 
 /* --------------------------------------------------------------------------------------

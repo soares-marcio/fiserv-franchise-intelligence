@@ -15,6 +15,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     linha = linhas.first
     assert_equal "11222333000181", linha["cnpj"]
     assert_equal "ALFA COMERCIO LTDA", linha["legal_name"]
+    assert_equal "MIC ALFA", linha["sub_channels"], "três ECs no mesmo MIC: um nome só"
     assert_equal 350_000.to_d, linha["preapproved_volume"].to_d
     assert_equal 24, linha["preapproved_term"].to_i
     assert_equal 3.28.to_d, linha["preapproved_rate"].to_d

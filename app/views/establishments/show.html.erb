@@ -1,6 +1,6 @@
 <% content_for :title, client_crumb_label %>
 
-<div class="grid gap-5">
+<div class="grid grid-cols-1 gap-5">
   <section class="page-hero">
     <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
       <div>
@@ -29,7 +29,7 @@
       presumido vêm do EC de menor número — a mesma regra efetiva da listagem, para as duas
       telas mostrarem o mesmo cliente. Quando algum desses campos difere entre os ECs, a tela
       avisa em vez de escolher em silêncio. %>
-  <section class="table-frame">
+  <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Cadastro</p>

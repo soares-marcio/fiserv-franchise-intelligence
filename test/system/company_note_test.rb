@@ -13,7 +13,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   test "escreve a anotação pelo modal e ela volta na tela, sem perder o recorte" do
     visit sub_channel_report_path(@sub_channel, q: "ALFA LANCHES")
 
-    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    abrir_anotacao("30000001")
 
     # O formulário chega pelo frame, não pronto na página.
     assert_selector "dialog[open] trix-editor"
@@ -22,8 +22,9 @@ class CompanyNoteTest < ApplicationSystemTestCase
 
     assert_no_selector "dialog[open]"
     assert_text "Anotação salva."
-    # O ponto aparece sem a página recarregar: é o turbo_stream trocando a célula.
-    assert_selector "td.note-col .note-trigger__dot"
+    # O ponto aparece sem a página recarregar: é o turbo_stream trocando a célula, e o
+    # gatilho do menu a lê com :has() — é ele que fica à vista com o menu fechado.
+    assert_selector "td.actions-col .actions-menu:has(.note-trigger__dot)"
     # E a busca que estava aplicada continua aplicada.
     assert_current_path(/q=ALFA\+LANCHES/, url: true)
     assert_equal "Dono viaja, retomar dia 10.",
@@ -34,7 +35,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   # há navegação nenhuma depois de salvar.
   test "o aviso de sucesso desaparece sozinho" do
     visit sub_channel_report_path(@sub_channel)
-    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    abrir_anotacao("30000001")
     find("dialog[open] trix-editor").click.send_keys("Nota rápida.")
     click_button "Salvar anotação"
 
@@ -47,13 +48,13 @@ class CompanyNoteTest < ApplicationSystemTestCase
   test "salvar atualiza todas as linhas do mesmo cliente de uma vez" do
     visit sub_channel_report_path(@sub_channel)
 
-    assert_no_selector ".note-trigger__dot"
-    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    assert_no_selector ".note-trigger__dot", visible: :all
+    abrir_anotacao("30000001")
     find("dialog[open] trix-editor").click.send_keys("Vale para os dois ECs.")
     click_button "Salvar anotação"
 
     assert_text "Anotação salva."
-    assert_selector "td.note-col .note-trigger__dot", count: 2
+    assert_selector "td.actions-col .actions-menu:has(.note-trigger__dot)", count: 2
   end
 
   # Reabrir precisa trazer o que foi salvo, não o formulário como ele estava: é por isso que o
@@ -62,7 +63,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
     Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Escrito antes.</div>")
 
     visit sub_channel_report_path(@sub_channel)
-    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    abrir_anotacao("30000001")
 
     assert_selector "dialog[open] trix-editor", text: "Escrito antes."
   end
@@ -72,7 +73,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
     Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Para apagar.</div>")
 
     visit sub_channel_report_path(@sub_channel)
-    find("tr.daily-row", text: "30000001").find("button.note-trigger").click
+    abrir_anotacao("30000001")
     editor = find("dialog[open] trix-editor")
     editor.click
     editor.send_keys([ :control, "a" ], :backspace)
@@ -80,5 +81,14 @@ class CompanyNoteTest < ApplicationSystemTestCase
 
     assert_text "Anotação removida."
     assert_nil CompanyNote.find_by(cnpj: "11222333000181")
+  end
+
+  private
+
+  # O botão da anotação vive no menu de ações da linha, fechado até o clique no gatilho.
+  def abrir_anotacao(ec)
+    linha = find("tr.daily-row", text: ec)
+    linha.find("summary.actions-menu__trigger").click
+    linha.find("button.note-trigger").click
   end
 end
