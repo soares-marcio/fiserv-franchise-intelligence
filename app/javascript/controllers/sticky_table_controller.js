@@ -61,12 +61,6 @@ export default class extends Controller {
   syncMobileHeader() {
     if (!this.mobileHeader || !this.tableScroll || !this.thead) return
 
-    const isMobile = window.matchMedia("(max-width: 1023px)").matches
-    if (!isMobile) {
-      this.mobileHeader.classList.remove("is-visible")
-      return
-    }
-
     const scrollBounds = this.tableScroll.getBoundingClientRect()
     const headerBounds = this.thead.getBoundingClientRect()
     const topbarHeight = Number.parseFloat(

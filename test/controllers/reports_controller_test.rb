@@ -55,10 +55,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
 
     assert_response :success
-    assert_select "th", text: "Anotação"
+    assert_select "th", text: "Ações"
+    assert_select "th", text: "Anotação", count: 0
     # O rótulo do botão não muda; quem avisa que há anotação é o ponto. As duas linhas do
     # CNPJ o exibem, e as demais não.
-    todos = css_select("td.note-col button.note-trigger")
+    todos = css_select("td.actions-col button.note-trigger")
     com_ponto = todos.select { |botao| botao.css(".note-trigger__dot").any? }
     assert_equal 2, todos.size, "o MIC ALFA tem dois ECs, os dois do mesmo CNPJ"
     assert_equal 2, com_ponto.size, "e os dois avisam que há anotação"
@@ -448,12 +449,12 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     # A ALFA LANCHES tem conversa na planilha sintética; a ALFA EXPRESS, não.
-    assert_select "button.conversation-trigger", count: 2
-    assert_select "button.conversation-trigger[disabled]", count: 1
-    assert_select "button.conversation-trigger[data-conversation-modal-text-param=?]",
+    assert_select "button.actions-menu__item", count: 2
+    assert_select "button.actions-menu__item[disabled]", count: 1
+    assert_select "button.actions-menu__item[data-conversation-modal-text-param=?]",
       "Ligar > Enviar proposta"
     # Sem texto não há o que passar ao modal: o botão desabilitado não carrega param nenhum.
-    assert_select "button.conversation-trigger[disabled][data-conversation-modal-text-param]",
+    assert_select "button.actions-menu__item[disabled][data-conversation-modal-text-param]",
       count: 0
   end
 
@@ -582,8 +583,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", text: /Mês anterior cheio/
     assert_select "th", text: /Mês anterior comparável/
     assert_select "td", text: /11111111/
-    assert_select "td", text: "12.345.678/0001-91"
-    assert_select "td", text: /LOJA UM/
+    # O CNPJ divide a célula com o nome, acima dele: não há mais coluna própria.
+    assert_select "th", text: "CNPJ", count: 0
+    assert_select "td", text: /12\.345\.678\/0001-91\s+LOJA UM/
     assert_select "th", text: "Datas do ciclo"
     assert_select "dt", text: "Cred."
     assert_select "dt", text: "Ativ."
@@ -593,10 +595,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "dd", text: "02/04/2024"
     # Último acesso ao app: a coluna é timestamp, e a data mostrada é a do dia gravado.
     assert_select "dd", text: "20/08/2026"
-    # A melhor conversa não cabe na linha: vai atrás de um botão que carrega o texto e o
-    # nome do EC, e o modal monta a sequência a partir dele.
-    assert_select "th", text: "Melhor conversa"
-    assert_select "button.conversation-trigger:not([disabled])" do |botao|
+    # O menu de ações concentra a conversa e a anotação na última coluna. A conversa ainda
+    # carrega o texto e o nome do EC para o modal montar a sequência.
+    assert_select "thead th:last-child", text: "Ações"
+    assert_select "td.actions-col details.actions-menu", count: 1
+    assert_select "button.actions-menu__item:not([disabled])" do |botao|
       assert_equal "Ofereça a antecipação > Revise o MDR",
         botao.first["data-conversation-modal-text-param"]
       assert_equal "LOJA UM", botao.first["data-conversation-modal-name-param"]
@@ -680,6 +683,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
+    assert_select "section.table-frame[data-variation-filter='alta'] .variation-chip--up", count: 1
     assert_select "tbody td", text: /11111111/
     assert_select "tbody td", text: "22222222", count: 0
     assert_select "tbody td", text: "33333333", count: 0
@@ -687,6 +691,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em queda · 2/
+    assert_select "section.table-frame[data-variation-filter='baixa']"
     assert_select "tbody td", text: "22222222"
     assert_select "tbody td", text: "33333333"
     assert_select "tbody td", text: /11111111/, count: 0

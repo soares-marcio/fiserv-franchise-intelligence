@@ -216,7 +216,8 @@
 
   </div>
 
-  <section class="table-frame" data-controller="sticky-table daily-modal conversation-modal note-modal">
+  <section class="table-frame" data-controller="sticky-table daily-modal conversation-modal note-modal"
+    data-variation-filter="<%= @selected_variation %>">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por estabelecimento</p>
@@ -266,7 +267,6 @@
         <thead>
           <tr>
             <th scope="col">EC</th>
-            <th scope="col">CNPJ</th>
             <th scope="col">Estabelecimento</th>
             <th scope="col">Datas do ciclo</th>
             <%# As três colunas de valor ordenam a listagem: o cabeçalho é compartilhado
@@ -277,9 +277,8 @@
                 path: caminho_da_ordem,
                 hint: (column == "previous_full_revenue" ? "competência fechada" : (day_range_label(@from_day, @to_day) if @window)) %>
             <% end %>
-            <th scope="col" class="conversation-col">Melhor conversa</th>
-            <th scope="col" class="note-col">Anotação</th>
             <th scope="col" class="text-right variation-col">Variação</th>
+            <th scope="col" class="actions-col">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -307,8 +306,10 @@
                   </div>
                 <% end %>
               </td>
-              <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></td>
+              <%# O CNPJ mora na célula do estabelecimento, acima do nome: é o mesmo cliente
+                  em todas as linhas dele, e a coluna própria só custava largura. %>
               <td>
+                <p class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(report["cnpj"]) %></p>
                 <p class="font-semibold"><%= report["trade_name"].presence || report["legal_name"] %></p>
                 <% if report["legal_name"].present? && report["legal_name"] != report["trade_name"] %>
                   <p class="text-xs opacity-60"><%= report["legal_name"] %></p>
@@ -350,33 +351,6 @@
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>
               <td class="text-right tabular-nums"><%= brl(current) %></td>
-              <%# A melhor conversa é texto livre e comprido demais para a linha: fica atrás
-                  de um botão que abre o modal com o texto já carregado. Sem texto no Mapa o
-                  botão vem desabilitado — a coluna precisa distinguir "não tem" de "tem e
-                  ainda não abri". %>
-              <td class="conversation-col">
-                <% conversa = report["best_conversation_raw"].to_s.strip %>
-                <% nome = report["trade_name"].presence || report["legal_name"] %>
-                <%= button_tag type: "button", disabled: conversa.blank?,
-                      class: "btn btn-sm btn-square conversation-trigger",
-                      title: conversa.present? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
-                      aria: { label: conversa.present? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
-                      data: (conversa.present? ? { action: "conversation-modal#open",
-                        conversation_modal_text_param: conversa,
-                        conversation_modal_name_param: nome } : {}) do %>
-                  <%= icon("list-bullets", css: "btn-icon") %>
-                <% end %>
-              </td>
-              <%# A anotação é do CNPJ: cliente com vários ECs mostra a mesma nota em todas as
-                  linhas dele, e o modal diz isso para não parecer repetição por engano. %>
-              <td class="note-col">
-                <%= render "shared/company_note_cell",
-                  company_uuid: report["company_uuid"], name: nome,
-                  note_id: report["note_id"], note_updated_at: report["note_updated_at"],
-                  note_params: sub_channel_listing_params(
-                    origin: "sub_channel", sub_channel_id: @sub_channel.uuid
-                  ) %>
-              </td>
               <td class="text-right variation-col">
                 <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
                     anterior; antigo que saiu do zero vira "Voltou a vender". %>
@@ -385,6 +359,37 @@
                      reference_date.present? && reference_date.to_date >= report["previous_period"].to_date
                    end %>
                 <%= variation_chip(previous, current, novo:) %>
+              </td>
+              <%# As duas ações ocupam um único menu: preserva as funções e libera uma coluna
+                  inteira. A conversa indisponível continua explícita, sem parecer uma ação
+                  que falhou ao abrir. %>
+              <td class="actions-col">
+                <% conversa = report["best_conversation_raw"].to_s.strip %>
+                <% nome = report["trade_name"].presence || report["legal_name"] %>
+                <details class="actions-menu">
+                  <summary class="btn btn-sm btn-square actions-menu__trigger"
+                    aria-label="Ações para <%= nome %>">
+                    <%= icon("caret-down", css: "btn-icon") %>
+                  </summary>
+                  <div class="actions-menu__list">
+                    <%= button_tag type: "button", disabled: conversa.blank?,
+                          class: "btn btn-sm actions-menu__item",
+                          title: conversa.present? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
+                          aria: { label: conversa.present? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
+                          data: (conversa.present? ? { action: "conversation-modal#open",
+                            conversation_modal_text_param: conversa,
+                            conversation_modal_name_param: nome } : {}) do %>
+                      <%= icon_label("list-bullets", "Melhor conversa", css: "btn-icon") %>
+                    <% end %>
+                    <%# A anotação é do CNPJ: cliente com vários ECs abre a mesma nota. %>
+                    <%= render "shared/company_note_cell",
+                      company_uuid: report["company_uuid"], name: nome,
+                      note_id: report["note_id"], note_updated_at: report["note_updated_at"],
+                      note_params: sub_channel_listing_params(
+                        origin: "sub_channel", sub_channel_id: @sub_channel.uuid
+                      ) %>
+                  </div>
+                </details>
               </td>
             </tr>
           <% end %>

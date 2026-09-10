@@ -15,7 +15,7 @@ export default class extends Controller {
   // Clique em qualquer lugar da linha vale pelo link do EC. Cliques em links e botões da
   // própria linha seguem o caminho deles.
   openFromRow(event) {
-    if (event.target.closest("a, button")) return
+    if (event.target.closest("a, button, summary, details")) return
 
     event.currentTarget.querySelector(".daily-trigger")?.click()
   }
