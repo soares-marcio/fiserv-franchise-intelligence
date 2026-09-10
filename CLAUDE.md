@@ -75,9 +75,20 @@ t.date :accredited_on, comment: "Origem: coluna \"DATA DE CREDENCIAMENTO\" da ab
 
 ## Particularidades que já causaram bug
 
-O banco é **descartável** nesta fase: será apagado muitas vezes até o schema estabilizar
-(com a ressalva de custo em "Schema, `structure.sql` e produção"). Três comportamentos só
-aparecem em banco recém-criado, e os três já quebraram o sistema:
+O banco **deixou de ser inteiramente descartável em 09/09/2026**, quando entraram as
+anotações do cliente (`company_notes`). Até ali, tudo no banco vinha de planilha e uma
+reimportação reconstruía o que fosse perdido. A anotação não vem de arquivo nenhum: apagar o
+banco a apaga para sempre, e **nenhuma reimportação a traz de volta**. O que protege é o
+`bin/db-backup` (dump diário às 3h30 pelo launchd, mais o volume `storage` com os anexos) —
+antes de recriar o banco de development, ou se restaura, ou se perde.
+
+A anotação foi desenhada para o restore ser possível: ela se liga ao **CNPJ**, não a
+`companies.id`, justamente porque id e uuid são regenerados a cada recriação e o CNPJ vem da
+planilha. Dá para recriar o banco, reimportar as planilhas e restaurar só
+`company_notes` + `action_text_rich_texts` + `active_storage_*` que tudo religa sozinho.
+
+Fora isso, o schema continua mudando e três comportamentos só aparecem em banco recém-criado
+— os três já quebraram o sistema:
 
 1. **Views materializadas nascem `WITH NO DATA`.** `REFRESH ... CONCURRENTLY` exige view populada,
    e `SELECT` numa view não populada levanta erro. Use `AuditViews.populated?` antes das duas coisas.
@@ -209,6 +220,17 @@ própria.
 O portal ainda opera sem autenticação por decisão de escopo. Trate-o como ferramenta interna:
 não exponha Rails, PostgreSQL ou Metabase fora de uma máquina ou rede confiável. Antes de qualquer
 publicação externa, autenticação e autorização passam a ser requisito de entrega.
+
+**São duas portas de upload, não uma.** A planilha (`import_batches#create`) valida extensão,
+tamanho e assinatura ZIP; os anexos da anotação entram por
+`/rails/active_storage/direct_uploads`, cuja rota o app **substitui** — a do engine aceitaria
+qualquer tipo e tamanho. `NoteAttachmentsController` recusa antes de criar o blob: lista
+fechada de tipos (imagem e PDF), 10 MB, rate limit. Anexo abandonado é purgado diariamente
+(`config/recurring.yml`). Isso impede abuso acidental e arquivo grande, **não** impede quem
+alcança a rede de subir arquivo — essa parte entra na mesma conta da autenticação.
+
+A anotação também não registra autor, porque não há quem perguntar: fica só a hora da última
+edição, como `establishments.duplicate_confirmed_at`.
 
 **O Metabase nunca passou pelo setup inicial** (`/api/session/properties` responde
 `has-user-setup: false` com `setup-token` presente, verificado em 07/09/2026). Enquanto

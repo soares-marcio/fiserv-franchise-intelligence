@@ -36,9 +36,38 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/24 meses/, linha.text)
     assert_match(/3,28%/, linha.text)
     assert_match(/2 ECs neste CNPJ/, linha.text)
-    # A parcela vem vazia do arquivo, e a tela mostra a lacuna em vez de calcular.
-    assert_select "tbody tr td:last-child", text: "—"
+    # A parcela vem vazia do arquivo, e a tela mostra a lacuna em vez de calcular. É a sexta
+    # coluna, não a última: a anotação entrou depois dela.
+    assert_select "tbody tr td:nth-child(6)", text: "—"
     assert_select "[data-tip*=?]", "PARCELA_PRE_APROVADA"
+  end
+
+  # A anotação é do CNPJ, e a listagem do MIC é por EC: os ECs 30000001 e 90000001 dividem o
+  # mesmo CNPJ na planilha sintética, então as duas linhas apontam para a mesma anotação. É a
+  # decisão de domínio virando comportamento verificável.
+  test "os ECs do mesmo CNPJ dividem a anotação do cliente" do
+    import_synthetic_workbook
+    refresh_audit_views
+    empresa = Company.find_by!(cnpj: "11222333000181")
+    Operations::SaveCompanyNote.call(cnpj: empresa.cnpj, body: "<div>Dono viaja.</div>")
+
+    get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
+
+    assert_response :success
+    assert_select "th", text: "Anotação"
+    # O rótulo do botão não muda; quem avisa que há anotação é o ponto. As duas linhas do
+    # CNPJ o exibem, e as demais não.
+    todos = css_select("td.note-col button.note-trigger")
+    com_ponto = todos.select { |botao| botao.css(".note-trigger__dot").any? }
+    assert_equal 2, todos.size, "o MIC ALFA tem dois ECs, os dois do mesmo CNPJ"
+    assert_equal 2, com_ponto.size, "e os dois avisam que há anotação"
+    assert_equal [ "Anotar" ], todos.map { |botao| botao.text.strip }.uniq,
+      "o rótulo não muda: quem avisa é o ponto"
+    destinos = todos.map { |botao| botao["data-note-modal-url-param"] }.uniq
+    assert_equal 1, destinos.size, "as duas linhas abrem a anotação do mesmo cliente"
+    assert_includes destinos.first, empresa.uuid
+    # O recorte da listagem viaja junto, para a volta reabrir onde estava.
+    assert_includes destinos.first, "origin=sub_channel"
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do

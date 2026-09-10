@@ -11,7 +11,7 @@
     </p>
   </section>
 
-  <section class="table-frame" data-controller="sticky-table">
+  <section class="table-frame" data-controller="sticky-table note-modal">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Pré-aprovado</p>
@@ -57,6 +57,7 @@
             <th scope="col" class="text-right">Prazo pré-aprovado</th>
             <th scope="col" class="text-right">Taxa pré-aprovada</th>
             <th scope="col" class="text-right">Parcela pré-aprovada</th>
+            <th scope="col" class="note-col">Anotação</th>
           </tr>
         </thead>
         <tbody>
@@ -83,6 +84,18 @@
               <td class="text-right tabular-nums">
                 <%= report["preapproved_installment"].present? ? brl(report["preapproved_installment"]) : "—" %>
               </td>
+              <%# Aqui a linha já é o cliente e sobram colunas, então cabe um trecho do texto
+                  servindo de leitura direta — diferente da listagem do MIC, apertada. %>
+              <td class="note-col">
+                <%= render "shared/company_note_cell",
+                  company_uuid: report["company_uuid"],
+                  name: report["legal_name"].to_s,
+                  note_id: report["note_id"], note_updated_at: report["note_updated_at"],
+                  note_params: { channel_id: @selected_channel&.uuid }.compact_blank %>
+                <% if (trecho = @note_excerpts[report["note_id"]]).present? %>
+                  <p class="note-cell__excerpt" title="<%= trecho %>"><%= truncate(trecho, length: 80) %></p>
+                <% end %>
+              </td>
             </tr>
           <% end %>
         </tbody>
@@ -91,5 +104,7 @@
         <div class="empty-state">Nenhum cliente com oferta pré-aprovada no arquivo importado.</div>
       <% end %>
     </div>
+
+    <%= render "shared/company_note_modal" %>
   </section>
 </div>

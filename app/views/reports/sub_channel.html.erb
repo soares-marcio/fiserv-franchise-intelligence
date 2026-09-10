@@ -214,7 +214,7 @@
     <% end %>
   </nav>
 
-  <section class="table-frame" data-controller="sticky-table daily-modal conversation-modal">
+  <section class="table-frame" data-controller="sticky-table daily-modal conversation-modal note-modal">
     <div class="table-toolbar">
       <div>
         <p class="section-label">Desempenho por estabelecimento</p>
@@ -276,6 +276,7 @@
                 hint: (column == "previous_full_revenue" ? "competência fechada" : (day_range_label(@from_day, @to_day) if @window)) %>
             <% end %>
             <th scope="col" class="conversation-col">Melhor conversa</th>
+            <th scope="col" class="note-col">Anotação</th>
             <th scope="col" class="text-right variation-col">Variação</th>
           </tr>
         </thead>
@@ -364,6 +365,16 @@
                   <%= icon("list-bullets", css: "btn-icon") %>
                 <% end %>
               </td>
+              <%# A anotação é do CNPJ: cliente com vários ECs mostra a mesma nota em todas as
+                  linhas dele, e o modal diz isso para não parecer repetição por engano. %>
+              <td class="note-col">
+                <%= render "shared/company_note_cell",
+                  company_uuid: report["company_uuid"], name: nome,
+                  note_id: report["note_id"], note_updated_at: report["note_updated_at"],
+                  note_params: sub_channel_listing_params(
+                    origin: "sub_channel", sub_channel_id: @sub_channel.uuid
+                  ) %>
+              </td>
               <td class="text-right variation-col">
                 <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
                     anterior; antigo que saiu do zero vira "Voltou a vender". %>
@@ -433,6 +444,8 @@
         <ol class="conversation-steps" data-conversation-modal-target="steps"></ol>
       </div>
     </dialog>
+
+    <%= render "shared/company_note_modal" %>
   </section>
   </div>
 

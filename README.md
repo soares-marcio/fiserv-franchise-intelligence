@@ -240,7 +240,7 @@ Grava três arquivos com o mesmo carimbo de data em `BACKUP_DIR` (padrão
 | Arquivo | Conteúdo |
 | --- | --- |
 | `fiserv_<data>.dump` | banco inteiro (`pg_dump -Fc`) |
-| `fiserv_<data>_storage.tar.gz` | volume `storage` — as planilhas BIN importadas |
+| `fiserv_<data>_storage.tar.gz` | volume `storage` — as planilhas BIN e os anexos das anotações |
 | `fiserv_<data>_metabase.tar.gz` | volume `metabase_data` — perguntas e dashboards |
 
 O Metabase para pelos segundos do `tar`: o H2 é um arquivo aberto pelo processo e a cópia a
@@ -265,6 +265,33 @@ docker run --rm -v fiserv-franchise-intelligence_storage:/data \
 
 O `pg_dump` de um banco **não** carrega papéis do cluster: num cluster novo, rodar
 `bin/rails db:seed` depois de restaurar, para recriar o `metabase_ro` e o `GRANT`.
+
+### Levar o sistema para outra máquina
+
+**Migração roda sozinha.** O `bin/docker-entrypoint` chama `db:prepare` quando o comando
+começa com `bin/rails server`, que é o `command` do serviço `web` — banco novo nasce do
+`db/structure.sql` com o seed aplicado, e banco existente recebe só as migrations pendentes.
+O `worker` (`bin/jobs`) não migra, de propósito: só um processo deve fazer isso, e ele espera
+o healthcheck do `web`, que só responde depois do `db:prepare`.
+
+Com o código apenas, `docker compose up -d` basta. **Levando os dados junto, são três coisas,
+e a terceira é a que surpreende:**
+
+| O quê | Por quê |
+| --- | --- |
+| `fiserv_<data>.dump` | o banco |
+| `fiserv_<data>_storage.tar.gz` | as planilhas e os anexos das anotações vivem no disco, não no banco |
+| o **mesmo** `SECRET_KEY_BASE` | verificado: o `sgid` que o Action Text grava dentro do HTML da anotação é assinado com ele |
+
+Sobre o terceiro: com outro `SECRET_KEY_BASE`, a anotação chega com o texto intacto e **os
+anexos somem** — o `<action-text-attachment sgid="…">` deixa de resolver, porque a assinatura
+não passa. Isso não vale para as planilhas importadas, que são referenciadas por chave
+estrangeira comum; é uma consequência dos anexos das anotações.
+
+Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ**, não a
+`companies.id`. Dá para reimportar as planilhas num banco novo e restaurar só
+`company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
+sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 
 Agendamento diário às 3h30 pelo `launchd`, no arquivo
 `~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist` (não versionado
