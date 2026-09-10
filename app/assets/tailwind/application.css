@@ -2173,6 +2173,63 @@
     gap: var(--space-2);
   }
 
+  /* No telefone a hierarquia é fixa, não uma consequência de flex-wrap: marca e ações
+     rápidas dividem a primeira linha, o status ocupa a largura útil e o menu aparece
+     abaixo apenas quando solicitado. */
+  @media (max-width: 767px) {
+    .topbar-inner {
+      display: grid;
+      grid-template-areas:
+        "brand menu search"
+        "status status status"
+        "navigation navigation navigation";
+      grid-template-columns: minmax(0, 1fr) 2.75rem 2.75rem;
+      align-items: center;
+      gap: var(--space-2);
+    }
+
+    .brand-lockup {
+      grid-area: brand;
+      min-height: 2.75rem;
+    }
+
+    .topbar-tools {
+      display: contents;
+    }
+
+    .nav-toggle {
+      grid-area: menu;
+      width: 2.75rem;
+      height: 2.75rem;
+      padding: 0;
+    }
+
+    .search-content {
+      grid-area: search;
+      width: 2.75rem;
+      height: 2.75rem;
+      padding: 0;
+      justify-content: center;
+    }
+
+    .header-status {
+      grid-area: status;
+      width: 100%;
+      min-height: 2.5rem;
+      justify-content: center;
+      padding-inline: var(--space-3);
+    }
+
+    .primary-nav {
+      grid-area: navigation;
+    }
+
+    .primary-nav.is-open {
+      margin-top: var(--space-1);
+      padding-top: var(--space-3);
+    }
+  }
+
   .header-status {
     padding-inline: var(--space-2);
     font-size: 0.75rem;
