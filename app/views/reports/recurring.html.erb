@@ -72,8 +72,9 @@
           label: "Ordenar os MICs" %>
       </div>
 
-      <%# Cards em duas colunas: a série de sete colunas não cabe em card de um terço. %>
-      <div class="earnings-card-grid">
+      <%# Um card por linha: a série de sete colunas de valor mede mais que meio card em
+          1440 e, sem quebrar número, Ajuste e Ganho do mês ficariam atrás de um scroll. %>
+      <div class="earnings-card-grid earnings-card-grid--stacked">
         <% @reports.each do |report| %>
           <%= render "recurring_card", report: %>
         <% end %>

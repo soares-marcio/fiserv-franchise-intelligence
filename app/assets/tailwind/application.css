@@ -2473,20 +2473,16 @@
     max-width: 100%;
   }
 
+  /* Um valor nunca quebra no meio do número: a tabela cresce até o máximo do conteúdo e
+     rola dentro do card, que é o scrollport. Com layout automático o mês fica com a largura
+     do próprio texto, e a sobra vai para as colunas de valor. */
   .earnings-card__table {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    table-layout: fixed;
-  }
-
-  .earnings-card__table th,
-  .earnings-card__table td {
-    overflow-wrap: anywhere;
+    width: max-content;
+    min-width: 100%;
   }
 
   .earnings-card__table .tabular-nums {
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .table-frame .table-toolbar,
@@ -2670,6 +2666,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* O recorrente fica em coluna única em qualquer largura: ver o comentário na view. */
+  .earnings-card-grid--stacked {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .filter-bar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2739,16 +2740,6 @@
   .earnings-card > * {
     min-width: 0;
     max-width: 100%;
-  }
-
-  .earnings-card__table {
-    min-width: 0;
-    max-width: 100%;
-    table-layout: fixed;
-  }
-
-  .earnings-card__table .tabular-nums {
-    white-space: normal;
   }
 
   /* A pilha fixa se ancora na página, não no scrollport horizontal. Assim o leitor conserva

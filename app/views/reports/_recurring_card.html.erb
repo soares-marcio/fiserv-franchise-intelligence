@@ -45,7 +45,11 @@
           <tr>
             <th scope="row" class="font-normal">
               <%= l(month[:period], format: "%b/%Y") %>
-              <% if month[:partial] %><span class="badge badge-ghost">parcial</span><% end %>
+              <%# Mesma decisão do card 3M: badge ao lado do mês competia com ele e alargava
+                  a coluna; abaixo, miúdo, é o que qualifica a linha. %>
+              <% if month[:partial] %>
+                <span class="block normal-case tracking-normal opacity-60">parcial</span>
+              <% end %>
             </th>
             <td class="text-right tabular-nums"><%= brl(month[:debit]) %></td>
             <td class="text-right tabular-nums"><%= brl(month[:credit]) %></td>
