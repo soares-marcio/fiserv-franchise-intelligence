@@ -245,7 +245,11 @@ declara a lacuna em vez de mostrar zero.
 
 A tela tinha uma coluna MIC repetindo o mesmo nome em toda linha e empurrando a tabela na
 horizontal. Desde 10/09/2026 ela é um **select** acima da tabela, que abre em "Todas"
-(`reports/stalled.html.erb`, `PreapprovedOffers#sub_channel_options`).
+(`reports/stalled.html.erb`, `PreapprovedOffers#sub_channel_options`). O nome do MIC não
+sumiu da linha: ficou **dentro da célula do estabelecimento**, abaixo da contagem de ECs e
+sem destaque — mesma classe discreta da linha de ECs. Medido nas duas formas, com a janela em
+1440px e a carteira real: como coluna, a tabela pedia 1614px num espaço de 1376px (238px de
+rolagem horizontal); como linha da célula, pede 1376px e a rolagem some.
 
 Três decisões, cada uma com um porquê:
 
@@ -262,6 +266,14 @@ Três decisões, cada uma com um porquê:
 
 O canal escolhido viaja num campo oculto do formulário, senão aplicar o MIC derrubaria o
 recorte de Master de quem chegou por ele.
+
+**A tela exporta CSV e XLSX** (`PreapprovedOffersExporter`), no molde das outras duas:
+`TabularExporter` faz a mecânica e o exportador só declara colunas, nome da aba e a nota do
+cabeçalho. O arquivo leva o recorte que estiver aplicado — o MIC viaja no link do botão e
+também no nome do arquivo (`clover-capital-mic-goiania-4.csv`), senão dois downloads de MICs
+diferentes chegam com o mesmo nome. A anotação fica de fora: é texto livre com anexos, e uma
+célula de planilha não é onde se lê isso. No total só entram volume e contagem de ECs —
+somar prazo ou taxa de clientes diferentes não descreve oferta nenhuma, e a média tampouco.
 
 ### Anotação do cliente
 

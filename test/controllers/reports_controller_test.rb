@@ -110,6 +110,53 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O segundo caminho de 404: o MIC existe, mas é de outro Master que o escolhido. Responder
   # "nenhum cliente" a um recorte impossível seria pior do que dizer que o endereço não existe.
+  # O arquivo acompanha o recorte da tela, como o da auditoria de faturamento já fazia: quem
+  # está olhando um MIC não baixa a carteira inteira sem perceber.
+  test "Clover Capital exporta CSV e XLSX com o recorte da tela" do
+    import_synthetic_workbook(lojas: lojas_com_oferta + [ loja_com_oferta_em_outro_mic ])
+    gama = SubChannel.find_by!(name: "MIC GAMA")
+
+    get stalled_reports_path
+
+    assert_select "a.export-action[href=?]", stalled_reports_path(format: :csv)
+    assert_select "a.export-action[href=?]", stalled_reports_path(format: :xlsx)
+
+    get stalled_reports_path(format: :csv)
+
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal PreapprovedOffersExporter::HEADERS, tabela.headers
+    assert_equal [ "MIC ALFA", "MIC GAMA", "TOTAL" ], tabela.map { |linha| linha["MIC"] }
+
+    get stalled_reports_path(format: :csv, sub_channel_id: gama.uuid)
+
+    assert_equal [ "MIC GAMA", "TOTAL" ],
+      CSV.parse(response.body, headers: true).map { |linha| linha["MIC"] }
+    # O nome do arquivo diz o recorte: dois downloads seguidos não chegam com o mesmo nome.
+    assert_match(/clover-capital-mic-gama\.csv/, response.headers["Content-Disposition"])
+
+    get stalled_reports_path(format: :xlsx, sub_channel_id: gama.uuid)
+
+    assert_response :success
+    assert_equal Mime[:xlsx].to_s, response.media_type
+    assert_match(/clover-capital-mic-gama\.xlsx/, response.headers["Content-Disposition"])
+  end
+
+  # O MIC voltou à tela como informação da célula do estabelecimento — sem destaque e sem
+  # coluna própria, que era o que empurrava a tabela na horizontal.
+  test "o MIC aparece dentro da célula do estabelecimento, não como coluna" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+
+    get stalled_reports_path
+
+    assert_response :success
+    assert_select "th", text: "MIC", count: 0
+    assert_select "tbody tr td:first-child p", text: "MIC ALFA"
+    # Sem destaque: a mesma classe discreta da linha de ECs, e não a do nome do cliente.
+    assert_select "tbody tr td:first-child p.text-xs.opacity-60", text: "MIC ALFA"
+  end
+
   test "MIC de outro Master que o escolhido também é 404" do
     import_synthetic_workbook(lojas: lojas_com_oferta)
     outro = Channel.create!(external_id: "ZZ", name: "CANAL Z")

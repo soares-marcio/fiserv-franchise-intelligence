@@ -29,6 +29,15 @@ class ReportsController < ApplicationController
     @sub_channels = offers.sub_channel_options
     @diverging_cnpjs = offers.diverging_cnpjs
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
+    respond_to do |format|
+      format.html
+      format.csv do
+        send_data stalled_exporter.to_csv, filename: stalled_filename("csv"), type: "text/csv"
+      end
+      format.xlsx do
+        send_data stalled_exporter.to_xlsx, filename: stalled_filename("xlsx"), type: Mime[:xlsx]
+      end
+    end
   end
 
   def weekly
@@ -285,6 +294,18 @@ class ReportsController < ApplicationController
       sub_channel.channel_id != @selected_channel.id
 
     sub_channel
+  end
+
+  def stalled_exporter
+    PreapprovedOffersExporter.new(@reports, sub_channel_name: @selected_sub_channel&.name)
+  end
+
+  # O arquivo diz no nome qual recorte ele carrega: sem isso, dois downloads seguidos de MICs
+  # diferentes chegam com o mesmo nome na pasta de downloads.
+  def stalled_filename(extension)
+    return "clover-capital-ofertas.#{extension}" if @selected_sub_channel.nil?
+
+    "clover-capital-#{@selected_sub_channel.name.parameterize}.#{extension}"
   end
 
   # A exportação repete o recorte da tela e larga a paginação: o arquivo é do filtro, não

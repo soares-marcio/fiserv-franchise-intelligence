@@ -92,6 +92,9 @@ class PreapprovedOffers
       SELECT company.cnpj, company.uuid AS company_uuid,
         note.id AS note_id, note.updated_at AS note_updated_at,
         mode() WITHIN GROUP (ORDER BY snapshot.legal_name) AS legal_name,
+        -- Um CNPJ pode ter ECs em MICs diferentes; hoje nenhum dos 15 com oferta tem, mas a
+        -- linha não pode escolher um deles em silêncio se um dia tiver.
+        string_agg(DISTINCT sub_channel.name, ' | ') AS sub_channels,
         MAX(snapshot.preapproved_volume) AS preapproved_volume,
         MAX(snapshot.preapproved_term) AS preapproved_term,
         MAX(snapshot.preapproved_rate) AS preapproved_rate,
@@ -103,8 +106,8 @@ class PreapprovedOffers
       JOIN latest_map_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
-      -- O MIC deixou de ser coluna da tela e virou filtro; o JOIN continua porque é ele que
-      -- o HAVING consulta e é ele que deixa de fora o EC sem subcanal no snapshot.
+      -- O MIC não é coluna da tabela: é filtro, e o nome aparece sem destaque dentro da
+      -- célula do estabelecimento. O JOIN também deixa de fora o EC sem subcanal no snapshot.
       JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       -- Ver o comentário igual em EstablishmentListingQuery: a anotação se liga pelo CNPJ.
       LEFT JOIN company_notes note ON note.cnpj = company.cnpj

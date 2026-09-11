@@ -2,13 +2,27 @@
 
 <div class="grid grid-cols-1 gap-5">
   <section class="page-hero">
-    <p class="eyebrow">Oferta de capital</p>
-    <h1 class="page-title">Clover Capital</h1>
-    <p class="page-description">
-      Ofertas pré-aprovadas da aba Mapa de Clientes BIN: volume, prazo, taxa e parcela.
-      A oferta é do CNPJ, não do equipamento — cada linha é um cliente, ainda que ele
-      tenha vários ECs.
-    </p>
+    <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
+      <div>
+        <p class="eyebrow">Oferta de capital</p>
+        <h1 class="page-title">Clover Capital</h1>
+        <p class="page-description">
+          Ofertas pré-aprovadas da aba Mapa de Clientes BIN: volume, prazo, taxa e parcela.
+          A oferta é do CNPJ, não do equipamento — cada linha é um cliente, ainda que ele
+          tenha vários ECs.
+        </p>
+      </div>
+      <%# O arquivo sai com o recorte que estiver na tela — o MIC escolhido viaja no link,
+          senão o download traria a carteira inteira para quem está olhando um MIC só. %>
+      <% recorte = { channel_id: @selected_channel&.uuid,
+        sub_channel_id: @selected_sub_channel&.uuid }.compact_blank %>
+      <div class="export-actions relative z-10 flex flex-wrap gap-2">
+        <%= link_to icon_label("download-simple", "Exportar CSV"),
+          stalled_reports_path(format: :csv, **recorte), class: "btn btn-outline export-action" %>
+        <%= link_to icon_label("download-simple", "Exportar XLSX"),
+          stalled_reports_path(format: :xlsx, **recorte), class: "btn btn-neutral export-action" %>
+      </div>
+    </div>
   </section>
 
   <%# O MIC saiu da tabela e virou filtro: a coluna repetia o mesmo nome linha após linha e
@@ -83,6 +97,10 @@
                     <%= pluralize(report["establishments"], "EC", "ECs") %> neste CNPJ
                   </p>
                 <% end %>
+                <%# O MIC saiu da tabela como coluna e voltou aqui como informação de rodapé
+                    da célula: quem lê a linha sabe de onde o cliente é, sem uma coluna
+                    repetindo o mesmo nome e empurrando a tabela na horizontal. %>
+                <p class="text-xs opacity-60"><%= present_or_dash(report["sub_channels"]) %></p>
               </td>
               <td class="text-right tabular-nums"><%= brl(report["preapproved_volume"]) %></td>
               <td class="text-right tabular-nums">
