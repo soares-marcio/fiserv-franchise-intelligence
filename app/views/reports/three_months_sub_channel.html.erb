@@ -2,14 +2,32 @@
 
 <div class="grid grid-cols-1 gap-5">
   <section class="page-hero">
-    <p class="eyebrow">Modelo de remuneração</p>
-    <h1 class="page-title"><%= @sub_channel.name %></h1>
-    <p class="page-description">
-      Estabelecimentos <strong>credenciados no mês escolhido (M0)</strong>, apurados na
-      janela deles: M0, M1 e M2 — o modelo dos primeiros 3 meses, com o prêmio de entrada
-      de cada EC. O ganho recorrente da carteira vive na página
-      <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
-    </p>
+    <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
+      <div>
+        <p class="eyebrow">Modelo de remuneração</p>
+        <h1 class="page-title"><%= @sub_channel.name %></h1>
+        <p class="page-description">
+          Estabelecimentos <strong>credenciados no mês escolhido (M0)</strong>, apurados na
+          janela deles: M0, M1 e M2 — o modelo dos primeiros 3 meses, com o prêmio de entrada
+          de cada EC. O ganho recorrente da carteira vive na página
+          <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
+        </p>
+      </div>
+      <% if @window %>
+        <%# O arquivo sai com o recorte da tela: os mesmos parâmetros que o link carrega,
+            senão o download traz um recorte diferente do que está à vista. %>
+        <% recorte = { id: @sub_channel.uuid, channel_id: @selected_channel&.uuid,
+          from_date: @window&.first, to_date: @window&.last }.compact %>
+        <div class="export-actions relative z-10 flex flex-wrap gap-2">
+          <%= link_to icon_label("download-simple", "Exportar CSV"),
+            three_months_sub_channel_report_path(format: :csv, **recorte),
+            class: "btn btn-outline export-action" %>
+          <%= link_to icon_label("download-simple", "Exportar XLSX"),
+            three_months_sub_channel_report_path(format: :xlsx, **recorte),
+            class: "btn btn-neutral export-action" %>
+        </div>
+      <% end %>
+    </div>
   </section>
 
   <section class="filter-panel">

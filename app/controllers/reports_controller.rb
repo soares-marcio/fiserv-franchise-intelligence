@@ -19,12 +19,8 @@ class ReportsController < ApplicationController
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
     respond_to do |format|
       format.html
-      format.csv do
-        send_data stalled_exporter.to_csv, filename: stalled_filename("csv"), type: "text/csv"
-      end
-      format.xlsx do
-        send_data stalled_exporter.to_xlsx, filename: stalled_filename("xlsx"), type: Mime[:xlsx]
-      end
+      format.csv { send_data stalled_exporter.to_csv, **arquivo(nome_do_clover, "csv") }
+      format.xlsx { send_data stalled_exporter.to_xlsx, **arquivo(nome_do_clover, "xlsx") }
     end
   end
 
@@ -39,6 +35,11 @@ class ReportsController < ApplicationController
     @totals = @scope.month_totals(period: @period, up_to_day: @covered_days)
     load_previous_month_anchor
     load_calendar_neighbours
+    respond_to do |format|
+      format.html
+      format.csv { send_data weekly_exporter.to_csv, **arquivo(nome_do_ritmo, "csv") }
+      format.xlsx { send_data weekly_exporter.to_xlsx, **arquivo(nome_do_ritmo, "xlsx") }
+    end
   end
 
   # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
@@ -88,6 +89,11 @@ class ReportsController < ApplicationController
     @order = ListingSort.new(columns: ReportScope::RECURRING_SORT_COLUMNS, default: "earnings",
       column: params[:sort], direction: params[:direction])
     @reports = @order.sort_rows(@scope.recurring_earnings) { |row| recurring_sort_value(row) }
+    respond_to do |format|
+      format.html
+      format.csv { send_data recurring_exporter.to_csv, **arquivo("ganho-recorrente", "csv") }
+      format.xlsx { send_data recurring_exporter.to_xlsx, **arquivo("ganho-recorrente", "xlsx") }
+    end
   end
 
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
@@ -98,6 +104,11 @@ class ReportsController < ApplicationController
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
     @order = three_month_order
     @reports = @order.sort_rows(@reports) { |row| three_month_value(row) }
+    respond_to do |format|
+      format.html
+      format.csv { send_data three_month_exporter.to_csv, **arquivo("ganhos-3m", "csv") }
+      format.xlsx { send_data three_month_exporter.to_xlsx, **arquivo("ganhos-3m", "xlsx") }
+    end
   end
 
   def three_months_sub_channel
@@ -110,6 +121,15 @@ class ReportsController < ApplicationController
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
     @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
+    respond_to do |format|
+      format.html
+      format.csv do
+        send_data three_month_establishments_exporter.to_csv, **arquivo(nome_3m_do_mic, "csv")
+      end
+      format.xlsx do
+        send_data three_month_establishments_exporter.to_xlsx, **arquivo(nome_3m_do_mic, "xlsx")
+      end
+    end
   end
 
   def sub_channel
@@ -167,7 +187,11 @@ class ReportsController < ApplicationController
     @previous_day = @day > 1 ? @day - 1 : nil
     @next_day = @day < @covered_days ? @day + 1 : nil
 
-    render partial: "reports/day_companies", layout: false
+    respond_to do |format|
+      format.html { render partial: "reports/day_companies", layout: false }
+      format.csv { send_data day_companies_exporter.to_csv, **arquivo(nome_do_dia, "csv") }
+      format.xlsx { send_data day_companies_exporter.to_xlsx, **arquivo(nome_do_dia, "xlsx") }
+    end
   end
 
   # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma
@@ -286,16 +310,58 @@ class ReportsController < ApplicationController
     sub_channel
   end
 
+  # Cabeçalho do download, num lugar só: o tipo sai do formato e o nome carrega o recorte.
+  # Sem o recorte no nome, dois downloads seguidos chegam com o mesmo nome na pasta.
+  def arquivo(nome, extensao)
+    tipo = extensao == "csv" ? "text/csv" : Mime[:xlsx]
+    { filename: "#{nome}.#{extensao}", type: tipo }
+  end
+
+  def recurring_exporter
+    RecurringEarningsExporter.new(@reports, channel_name: channel_name_or_nil)
+  end
+
+  def three_month_exporter
+    ThreeMonthEarningsExporter.new(@reports, window: @window, channel_name: channel_name_or_nil)
+  end
+
+  def three_month_establishments_exporter
+    ThreeMonthEstablishmentsExporter.new(@reports, window: @window,
+      sub_channel_name: @sub_channel.name)
+  end
+
+  def weekly_exporter
+    WeeklyRevenueExporter.new(@calendar, period: @period, channel_name: channel_name_or_nil)
+  end
+
+  def day_companies_exporter
+    DayCompaniesExporter.new(@rows, date: @date)
+  end
+
+  def channel_name_or_nil
+    helpers.channel_name(@selected_channel)
+  end
+
+  def nome_3m_do_mic
+    "ganhos-3m-#{@sub_channel.name.parameterize}"
+  end
+
+  def nome_do_ritmo
+    "ritmo-#{@period.strftime('%Y-%m')}"
+  end
+
+  def nome_do_dia
+    "clientes-do-dia-#{@date.strftime('%Y-%m-%d')}"
+  end
+
   def stalled_exporter
     PreapprovedOffersExporter.new(@reports, sub_channel_name: @selected_sub_channel&.name)
   end
 
-  # O arquivo diz no nome qual recorte ele carrega: sem isso, dois downloads seguidos de MICs
-  # diferentes chegam com o mesmo nome na pasta de downloads.
-  def stalled_filename(extension)
-    return "clover-capital-ofertas.#{extension}" if @selected_sub_channel.nil?
+  def nome_do_clover
+    return "clover-capital-ofertas" if @selected_sub_channel.nil?
 
-    "clover-capital-#{@selected_sub_channel.name.parameterize}.#{extension}"
+    "clover-capital-#{@selected_sub_channel.name.parameterize}"
   end
 
   # A exportação repete o recorte da tela e larga a paginação: o arquivo é do filtro, não

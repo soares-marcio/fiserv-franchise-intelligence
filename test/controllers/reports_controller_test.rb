@@ -424,6 +424,91 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Ganho recorrente"
   end
 
+  # Toda tela de relatório exporta, e o arquivo é do recorte que está à vista: mesmos
+  # parâmetros no link, e a contagem do arquivo bate com a da tela.
+  test "o ganho recorrente exporta CSV e XLSX com a série mês a mês" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get recurring_reports_path
+
+    assert_select "a.export-action[href*=?]", "csv"
+
+    get recurring_reports_path(format: :csv)
+
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal RecurringEarningsExporter::HEADERS, tabela.headers
+    # Uma linha por MIC e competência, e o total fecha o arquivo.
+    assert_includes tabela.map { |linha| linha["MIC"] }, "MIC GAMA"
+    assert_equal "TOTAL", tabela.to_a.last.first
+    assert_match(/^\d{2}\/\d{4}$/, tabela.first["Competência"])
+
+    get recurring_reports_path(format: :xlsx)
+
+    assert_response :success
+    assert_equal Mime[:xlsx].to_s, response.media_type
+    assert_match(/ganho-recorrente\.xlsx/, response.headers["Content-Disposition"])
+  end
+
+  test "as duas páginas 3M exportam, com a janela no cabeçalho do arquivo" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+    mic = SubChannel.find_by!(name: "MIC GAMA")
+    janela = { from_date: "2026-06-01", to_date: "2026-08-01" }
+
+    get three_months_reports_path(format: :csv, **janela)
+
+    assert_response :success
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal "MIC", tabela.headers.first
+    assert_includes tabela.headers, "M0 Total"
+    assert_includes tabela.map { |linha| linha["MIC"] }, "MIC GAMA"
+
+    get three_months_sub_channel_report_path(id: mic.uuid, format: :csv, **janela)
+
+    assert_response :success
+    assert_equal "EC", CSV.parse(response.body, headers: true).headers.first
+    assert_match(/ganhos-3m-mic-gama\.csv/, response.headers["Content-Disposition"])
+  end
+
+  test "o ritmo do mês exporta um dia por linha, só os dias cobertos" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path(format: :csv, period: "2026-08-01")
+
+    assert_response :success
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal WeeklyRevenueExporter::HEADERS, tabela.headers
+    dias = tabela.reject { |linha| linha["Semana"] == "TOTAL" }
+    assert_predicate dias.size, :positive?
+    # Dia além da cobertura não vira linha zerada: "sem dado" não é "não vendeu".
+    assert_operator dias.size, :<=, 31
+    assert_equal "TOTAL", tabela.to_a.last.first
+    assert_match(/ritmo-2026-08\.csv/, response.headers["Content-Disposition"])
+  end
+
+  test "o modal do dia exporta os clientes daquele dia, escapando do frame" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_response :success
+    # Dentro de um frame, sem turbo: false o Turbo tentaria encaixar o arquivo na página.
+    assert_select "a.export-action[data-turbo=false]", count: 2
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01", format: :csv)
+
+    assert_response :success
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal DayCompaniesExporter::HEADERS, tabela.headers
+    assert_match(%r{\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}}, tabela.first["CNPJ"])
+    assert_match(/clientes-do-dia-2026-08-01\.csv/, response.headers["Content-Disposition"])
+  end
+
   test "a página 3M abre sem volume importado e explica a dependência da planilha" do
     get three_months_reports_path
     assert_response :success

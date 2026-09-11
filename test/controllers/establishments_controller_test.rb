@@ -1,4 +1,5 @@
 require "test_helper"
+require "csv"
 
 class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   test "lista os campos de cadastro do snapshot atual do mapa" do
@@ -101,6 +102,41 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  # O arquivo é do filtro, não da página: exportar a página entregaria um recorte que
+  # ninguém pediu, e a contagem do arquivo não bateria com a da tela.
+  test "exporta o cadastro em CSV e XLSX, com a busca e sem a paginação" do
+    seed_establishment
+    outra = Company.create!(cnpj: "99888777000166")
+    Establishment.create!(ec: "99999999", company: outra,
+      channel: Channel.find_by!(external_id: "1478"))
+
+    get establishments_path
+
+    assert_select "a.export-action[href=?]", establishments_path(format: :csv)
+
+    get establishments_path(format: :csv)
+
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal EstablishmentsExporter::HEADERS, tabela.headers
+    assert_equal 2, tabela.size, "as duas empresas, não só a página"
+    linha = tabela.find { |l| l["CNPJ"] == "12.345.678/0001-95" }
+    assert_equal "PADARIA CENTRAL LTDA", linha["Razão social"]
+    assert_equal "12345678", linha["ECs"]
+    assert_equal "MIC GOIANIA 4", linha["MIC"]
+
+    get establishments_path(format: :csv, q: "PADARIA")
+
+    assert_equal 1, CSV.parse(response.body, headers: true).size, "o arquivo leva a busca"
+    assert_match(/estabelecimentos-padaria\.csv/, response.headers["Content-Disposition"])
+
+    get establishments_path(format: :xlsx)
+
+    assert_response :success
+    assert_equal Mime[:xlsx].to_s, response.media_type
+  end
 
   # A anotação é do CNPJ e a ficha é de um CNPJ só: aqui ela aparece por inteiro, e não
   # atrás de um botão como nas tabelas.

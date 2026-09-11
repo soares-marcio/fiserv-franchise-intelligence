@@ -267,19 +267,50 @@ Três decisões, cada uma com um porquê:
 O canal escolhido viaja num campo oculto do formulário, senão aplicar o MIC derrubaria o
 recorte de Master de quem chegou por ele.
 
-**A tela exporta CSV e XLSX** (`PreapprovedOffersExporter`), no molde da listagem do MIC:
-`TabularExporter` faz a mecânica e o exportador só declara colunas, nome da aba e a nota do
-cabeçalho. O arquivo leva o recorte que estiver aplicado — o MIC viaja no link do botão e
-também no nome do arquivo (`clover-capital-mic-goiania-4.csv`), senão dois downloads de MICs
-diferentes chegam com o mesmo nome. A anotação fica de fora: é texto livre com anexos, e uma
-célula de planilha não é onde se lê isso. No total só entram volume e contagem de ECs —
-somar prazo ou taxa de clientes diferentes não descreve oferta nenhuma, e a média tampouco.
+**A tela exporta CSV e XLSX** (`PreapprovedOffersExporter`). A anotação fica de fora do
+arquivo: é texto livre com anexos, e célula de planilha não é onde se lê isso. No total só
+entram volume e contagem de ECs — somar prazo ou taxa de clientes diferentes não descreve
+oferta nenhuma, e a média tampouco.
 
-**Quem exporta são as duas telas cuja linha é um cliente.** A auditoria de faturamento
-(`/reports`) exportava e deixou de exportar em 10/09/2026, a pedido do usuário: ali a linha é
-o MIC, e quem precisa de arquivo desce ao MIC, onde a linha é o cliente. Saíram os botões, o
-endpoint e o `ReportsExporter` — botão escondido com a rota de pé é meia remoção, e
-`/reports.csv` responde 406.
+### Exportações
+
+**Toda tela de relatório exporta CSV e XLSX, menos uma.** `TabularExporter` faz a mecânica —
+CSV e planilha a partir das mesmas linhas — e cada tela declara só colunas, nome da aba e a
+nota do cabeçalho. Um exportador por tela, nenhum herdando de outro: o que elas compartilham
+é a mecânica, não o formato.
+
+| Tela | Exportador | A linha do arquivo |
+| --- | --- | --- |
+| Listagem do MIC | `EstablishmentListingExporter` | cliente |
+| Clover Capital | `PreapprovedOffersExporter` | cliente |
+| `/establishments` | `EstablishmentsExporter` | cliente, com os ECs numa célula |
+| Ritmo do mês | `WeeklyRevenueExporter` | dia coberto pelo arquivo |
+| Modal do dia | `DayCompaniesExporter` | cliente que vendeu naquele dia |
+| Recorrente | `RecurringEarningsExporter` | MIC × competência |
+| Ganhos 3M | `ThreeMonthEarningsExporter` | MIC, com M0/M1/M2 em colunas |
+| Ganhos 3M de um MIC | `ThreeMonthEstablishmentsExporter` | EC, com M0/M1/M2 em colunas |
+
+Quatro regras valem para todos:
+
+- **O arquivo é do recorte da tela, não da página.** Os parâmetros da tela viajam no link do
+  botão, e a paginação fica de fora: exportar só a página entregaria um recorte que ninguém
+  pediu. Em `/establishments` isso é asserção de teste — a contagem do arquivo tem que bater
+  com a da tela, não com a da página.
+- **O nome do arquivo carrega o recorte** (`ganhos-3m-mic-gama.xlsx`, `ritmo-2026-08.csv`),
+  senão dois downloads seguidos chegam com o mesmo nome na pasta.
+- **Ausência de dado sai vazia, nunca zerada.** Mês sem cobertura no 3M, ajuste inexistente no
+  recorrente, dia além da cobertura no ritmo: zero seria uma afirmação, e no Excel entra na
+  média. É a mesma distinção que as telas fazem com o travessão.
+- **O total só soma o que é somável.** A contagem de ECs distintos do ritmo fica em branco —
+  somar ECs por dia contaria o mesmo EC uma vez por dia —, e prazo e taxa do Clover Capital
+  também.
+
+**A auditoria de faturamento (`/reports`) é a exceção**: exportava e deixou de exportar em
+10/09/2026, a pedido do usuário. Saíram os botões, o endpoint e o `ReportsExporter` — botão
+escondido com a rota de pé é meia remoção, e `/reports.csv` responde 406.
+
+O link do **modal do dia** leva `data-turbo="false"`: ele vive dentro de um turbo_frame, e sem
+isso o Turbo tentaria encaixar o arquivo no frame em vez de baixá-lo.
 
 ### Anotação do cliente
 
