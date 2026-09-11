@@ -243,17 +243,20 @@ declara a lacuna em vez de mostrar zero.
 
 ### Anotação do cliente
 
-Coluna "Anotação" na listagem por MIC e no Clover Capital, com partial compartilhado
-(`shared/_company_note_cell`, `shared/_company_note_modal`) e **um diálogo por tabela**.
+A mesma célula nas duas telas (`shared/_company_note_cell`, `shared/_company_note_modal`), em
+lugares diferentes: no Clover Capital é a coluna "Anotação", que tem largura para um trecho do
+texto; na listagem do MIC é um item do **menu de ações**, porque ali as colunas não sobram. Um
+diálogo por tabela, nunca por linha.
 
 A anotação é do **CNPJ**, não do EC, e quem diz isso é o cabeçalho do modal ("vale para os
 3 ECs deste cliente"): as duas telas mostram um cliente por linha, e a linha não lista mais os
 ECs, então o alcance da nota precisa estar escrito em algum lugar.
 
-Quando a listagem do MIC era por EC, a mesma nota ocupava uma célula por linha — é por isso
-que o `turbo_stream` de salvar usa `replace_all` com o seletor `[data-note-company=…]` em vez
-do id de uma célula. Depois do agrupamento ele troca uma célula só: ficou mais largo do que
-precisa, não errado.
+Salvar não recarrega a tela: um `turbo_stream` troca a célula daquele cliente. O alvo é o id
+que `company_note_cell_id` monta da uuid do cliente, e o helper existe porque duas pontas
+precisam da mesma string — a partial escreve o id, o controller o endereça. Enquanto a listagem
+do MIC era por EC, o mesmo cliente ocupava várias células e o alvo era um `replace_all` por
+seletor; com uma linha por CNPJ, o id único basta.
 
 A tabela se liga pelo CNPJ e não por FK — ver o porquê no `CLAUDE.md`.
 
@@ -264,8 +267,8 @@ resposta do redirect e engoliria o flash — e fecha o diálogo no submit, porqu
 `turbo_refreshes_with method: :morph`.
 
 O botão **nunca vem `disabled`**, ao contrário do da melhor conversa: lá "não tem" é fato da
-planilha; aqui é o convite para escrever. Sem nota ele é `btn-outline` e diz "Anotar"; com
-nota, laranja cheio e "Ver".
+planilha; aqui é o convite para escrever. O rótulo é sempre "Anotar" — quem avisa que já há
+conteúdo é o ponto (`.note-trigger__dot`), e o botão sai de `btn-outline` para o laranja cheio.
 
 Editor é o Trix (Action Text), vendorizado em `vendor/javascript/trix.js` — o CSP tem
 `script_src 'self'` e não aceitaria CDN. Anexo sai em tamanho original, com a largura contida

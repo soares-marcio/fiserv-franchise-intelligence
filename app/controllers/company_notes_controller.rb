@@ -37,10 +37,9 @@ class CompanyNotesController < ApplicationController
 
   private
 
-  # Salvar não recarrega a tela: troca a célula daquele cliente e o aviso, e pronto. O
-  # `replace_all` por seletor, e não por id, vem de quando a listagem do MIC tinha uma linha
-  # por EC e a mesma anotação ocupava uma célula por linha. Hoje a linha é o cliente e há uma
-  # célula só — o seletor continua correto e é mais largo do que precisa.
+  # Salvar não recarrega a tela: troca a célula daquele cliente e o aviso, e pronto. O id vem
+  # do mesmo helper que a partial usa para escrevê-lo — é o que impede as duas pontas de
+  # divergirem em silêncio.
   #
   # O caminho HTML fica de pé para quem chegar sem JavaScript, e é ele que os testes de
   # redirect exercitam.
@@ -49,8 +48,8 @@ class CompanyNotesController < ApplicationController
       format.turbo_stream do
         flash.now[flash_message.keys.first] = flash_message.values.first
         render turbo_stream: [
-          turbo_stream.replace_all(
-            "[data-note-company='#{company.uuid}']",
+          turbo_stream.replace(
+            helpers.company_note_cell_id(company.uuid),
             partial: "shared/company_note_cell", locals: celula(company, note)
           ),
           turbo_stream.update("flash", partial: "layouts/flash",

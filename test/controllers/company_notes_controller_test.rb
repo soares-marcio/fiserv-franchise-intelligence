@@ -74,17 +74,18 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   end
 
   # Salvar deixou de recarregar a tela: o stream troca a célula do cliente e o aviso. O alvo é
-  # o seletor `[data-note-company=...]`, herdado de quando a listagem do MIC tinha uma linha
-  # por EC e o mesmo cliente ocupava várias células; hoje é uma só.
-  test "salvar responde por turbo_stream, trocando as células do cliente e o aviso" do
+  # o id que a própria partial escreve, pelo helper — o teste o monta pelo helper também, senão
+  # passaria a conferir uma string que a tela não usa mais.
+  test "salvar responde por turbo_stream, trocando a célula do cliente e o aviso" do
     patch company_note_path(@company), params: { body: "<div>Ligar.</div>" },
       as: :turbo_stream
 
     assert_response :success
     assert_equal "text/vnd.turbo-stream.html", response.media_type
-    # As aspas simples do seletor saem escapadas no atributo; o que importa é o alvo endereçar
-    # a célula pelo cliente, e não pelo id da célula.
-    assert_match(/targets="\[data-note-company=&#39;#{@company.uuid}&#39;\]"/, response.body)
+    assert_match(
+      /target="#{ApplicationController.helpers.company_note_cell_id(@company.uuid)}"/,
+      response.body
+    )
     assert_match(/action="replace"/, response.body)
     # O aviso vem no mesmo lote, em vez de esperar a próxima navegação.
     assert_match(/target="flash"/, response.body)

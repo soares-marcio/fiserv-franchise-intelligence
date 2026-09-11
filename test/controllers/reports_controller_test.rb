@@ -69,6 +69,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     destinos = todos.map { |botao| botao["data-note-modal-url-param"] }.uniq
     assert_equal 1, destinos.size, "a linha abre a anotação do cliente"
     assert_includes destinos.first, empresa.uuid
+    # O alvo que o turbo_stream de salvar endereça existe na página, e uma vez só: com o id
+    # repetido, o Turbo trocaria a primeira célula e deixaria as outras mostrando o estado
+    # velho. É o agrupamento por CNPJ que garante a unicidade.
+    assert_select "##{ApplicationController.helpers.company_note_cell_id(empresa.uuid)}",
+      count: 1
     # O recorte da listagem viaja junto, para a volta reabrir onde estava.
     assert_includes destinos.first, "origin=sub_channel"
   end

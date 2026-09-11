@@ -390,6 +390,16 @@ module ApplicationHelper
     menor == maior ? menor : "#{menor} a #{maior}"
   end
 
+  # Endereço da célula da anotação para o turbo_stream de salvar. Vive aqui porque duas pontas
+  # precisam da mesma string: a partial, que escreve o id, e o controller, que o endereça — se
+  # divergirem, salvar deixa de atualizar a tela e nada quebra em voz alta.
+  #
+  # A uuid do cliente basta como sufixo: as duas telas que mostram a célula têm uma linha por
+  # CNPJ, então o id é único na página.
+  def company_note_cell_id(company_uuid)
+    "note-cell-#{company_uuid}"
+  end
+
   # A melhor conversa é de cada EC, e 116 dos 302 clientes da carteira têm mais de um texto
   # diferente. A consulta os traz todos num JSON rotulado pelo EC; o parse fica aqui para a
   # tela não conhecer o formato da coluna.
