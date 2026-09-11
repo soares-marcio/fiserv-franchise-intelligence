@@ -364,12 +364,15 @@
               <td class="actions-col">
                 <% conversas = client_conversations(report["best_conversations"]) %>
                 <% nome = report["trade_name"].presence || report["legal_name"] %>
-                <details class="actions-menu">
+                <%# O painel do menu é posicionado por JavaScript quando abre: a tabela
+                    rola na horizontal e, por isso, recorta na vertical. Ver o controller. %>
+                <details class="actions-menu" data-controller="actions-menu"
+                  data-action="toggle->actions-menu#toggle">
                   <summary class="btn btn-sm btn-square actions-menu__trigger"
                     aria-label="Ações para <%= nome %>">
                     <%= icon("caret-down", css: "btn-icon") %>
                   </summary>
-                  <div class="actions-menu__list">
+                  <div class="actions-menu__list" data-actions-menu-target="list">
                     <%# Vão todas as conversas dos ECs do cliente, rotuladas pelo EC dentro
                         do modal: 116 dos 302 clientes têm mais de um texto diferente, e
                         escolher um esconderia a pendência do outro ponto de venda. %>
@@ -407,17 +410,8 @@
         <% end %>
       </div>
     <% elsif @total_pages > 1 %>
-      <nav class="pagination-bar" aria-label="Paginação">
-        <%= link_to icon_label("caret-left", "Anterior"),
-          sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: [ @page - 1, 1 ].max)),
-          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page <= 1}",
-          aria: { disabled: @page <= 1 } %>
-        <span class="pagination-bar__status">Página <%= @page %> de <%= @total_pages %></span>
-        <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]),
-          sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: [ @page + 1, @total_pages ].min)),
-          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page >= @total_pages}",
-          aria: { disabled: @page >= @total_pages } %>
-      </nav>
+      <%= render "shared/pagination", page: @page, total_pages: @total_pages,
+        path: ->(numero) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: numero)) } %>
     <% end %>
 
     <%# Lançamentos diários do cliente clicado, somando os ECs dele. O frame nasce vazio e

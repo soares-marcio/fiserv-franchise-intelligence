@@ -140,6 +140,43 @@ Duas armadilhas que esta mudança pagou:
 - **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
   `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
 
+### Paginação
+
+`app/views/shared/_pagination.html.erb`. A barra leva **Anterior, os números e Próxima**: até
+sete páginas todas aparecem; acima disso vale uma janela — a primeira, cinco em volta da atual
+e a última, com `…` nos saltos. Um salto de **uma** página vira o próprio número, que ocupa o
+mesmo espaço e leva a algum lugar. O "Página X de Y" saiu: a atual está em laranja cheio e a
+última é sempre o número do fim.
+
+Cada bloco contíguo é um `join` — o mesmo grupo de escolha do "Por página" logo acima. Isso não
+é estética: `.btn` solto herda o laranja cheio da regra do sistema, e as páginas ficariam todas
+iguais, sem mostrar qual é a atual. Quem calcula a janela é `pagination_page_groups`; o caminho
+de cada página vem de quem renderiza, num lambda, porque cada tela tem o seu recorte na URL.
+
+A listagem de `/establishments` ainda usa a barra antiga, só com Anterior e Próxima.
+
+### O menu de ações não pode ser recortado pela tabela
+
+O painel do menu (`.actions-menu__list`) abre para fora da linha, e `.table-scroll` o cortava:
+ele tem `overflow-x: auto` para a tabela rolar na horizontal, e **overflow declarado num eixo
+torna o outro `auto` também** — não existe pedir só o horizontal. Medido no menu da última
+linha da carteira real: dos 100px do painel, 57 ficavam fora, e o resto aparecia por baixo da
+barra de paginação.
+
+Nenhuma solução de CSS resolve: `absolute` é recortado por qualquer ancestral com overflow, e
+abrir para cima quebra quando a página tem poucas linhas. Por isso
+`actions_menu_controller.js` troca o painel para **`position: fixed`** ao abrir e calcula a
+posição a partir do gatilho, refazendo a conta a cada rolagem (com `capture`, porque quem rola
+é a tabela, não a janela). Sem JavaScript o painel continua `absolute` — recortado, como era,
+e não quebrado.
+
+Duas escolhas que já custaram medição:
+
+- **Ancorar pela direita, não pela esquerda.** Com `left`, a caixa `fixed` encolhe para caber
+  no que resta até a borda e sai do alinhamento — 11px fora, medido.
+- **`documentElement.clientWidth`, não `window.innerWidth`.** O bloco que contém um elemento
+  `fixed` exclui a barra de rolagem; `innerWidth` a inclui.
+
 ### Ordenação das listagens
 
 A regra vive em `ListingSort`, num lugar só. A coluna e o sentido vêm da URL e são validados

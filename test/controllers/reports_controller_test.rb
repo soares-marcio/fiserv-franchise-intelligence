@@ -792,6 +792,37 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Próxima"
   end
 
+  # Pedido do usuário (10/09/2026): poder clicar na página 3, em vez de chegar nela clicando
+  # "Próxima" duas vezes. Os números levam o recorte da tela junto, como os demais links.
+  test "a paginação leva a cada página pelo número, com o recorte preservado" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    seed_second_establishment(channel, sub_channel)
+    terceiro = Establishment.create!(
+      ec: "33333333", company: Company.create!(cnpj: "12345678000193"), channel:
+    )
+    RevenueSnapshot.create!(
+      import_batch: ImportBatch.find_by!(channel:), channel:, sub_channel:,
+      establishment: terceiro, legal_name: "LOJA TRES LTDA", trade_name: "LOJA TRES",
+      contract_status: "Active", previous_month_total: 10, current_month_total: 5
+    )
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, per_page: 1, q: "loja")
+
+    assert_response :success
+    # As três páginas viram três destinos clicáveis, e a atual não é link nenhum.
+    assert_select "nav.pagination-bar a", text: "2"
+    destino = css_select("nav.pagination-bar a").find { |link| link.text.strip == "3" }
+    assert destino, "a página 3 precisa ser clicável"
+    assert_includes CGI.unescape(destino["href"]), "page=3"
+    assert_includes CGI.unescape(destino["href"]), "q=loja", "o número leva a busca junto"
+    assert_select "nav.pagination-bar [aria-current=?]", "page", text: "1"
+    assert_select "nav.pagination-bar a", text: "1", count: 0
+    # Anterior e Próxima continuam onde estavam.
+    assert_select "nav.pagination-bar a", text: /Anterior/
+    assert_select "nav.pagination-bar a", text: /Próxima/
+  end
+
   # A tela de subcanal é a que tem filtros, abas e paginação — e era a única sem exportação.
   # O arquivo leva o recorte da tela inteiro, menos a paginação: exportar só a página seria
   # entregar um recorte que ninguém pediu.

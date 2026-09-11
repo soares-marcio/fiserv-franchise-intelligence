@@ -66,6 +66,27 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_includes html, 'data-tip="Zerado nos dois períodos"'
   end
 
+  # O paginador mostra a primeira, a última e uma vizinhança da atual. Cada bloco é contíguo;
+  # entre blocos a tela escreve "…". Sem janela, 31 páginas viravam 31 botões.
+  test "blocos de páginas: primeira, vizinhança da atual e última" do
+    assert_equal [], pagination_page_groups(1, 1), "uma página só não tem paginador"
+    assert_equal [ (1..7).to_a ], pagination_page_groups(3, 7), "até sete, todas cabem"
+    assert_equal [ [ 1, 2, 3, 4, 5 ], [ 16 ] ], pagination_page_groups(3, 16)
+    assert_equal [ [ 1 ], [ 6, 7, 8, 9, 10 ], [ 16 ] ], pagination_page_groups(8, 16)
+    assert_equal [ [ 1 ], [ 12, 13, 14, 15, 16 ] ], pagination_page_groups(16, 16)
+  end
+
+  # Um "…" que esconde uma página só é pior que a própria página: o número ocupa o mesmo
+  # espaço e leva a algum lugar.
+  test "salto de uma página vira o número, não reticências" do
+    assert_equal [ (1..8).to_a ], pagination_page_groups(4, 8)
+  end
+
+  test "página fora da faixa não quebra o paginador" do
+    assert_equal pagination_page_groups(1, 16), pagination_page_groups(0, 16)
+    assert_equal pagination_page_groups(16, 16), pagination_page_groups(99, 16)
+  end
+
   test "NET MDR trunca em duas casas, sem arredondar" do
     assert_equal "0,29%", net_mdr_label(0.299)
     assert_equal "0,30%", net_mdr_label(0.30)

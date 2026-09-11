@@ -349,6 +349,35 @@ module ApplicationHelper
     "#{number_with_precision(value.to_d.truncate(2), precision: 2, separator: ',')}%"
   end
 
+  # Blocos de páginas do paginador, cada bloco com páginas contíguas: a primeira, uma
+  # vizinhança da atual e a última. Entre blocos a tela escreve "…". Listar todas não é
+  # navegação — 302 clientes a 10 por página dão 31 páginas, e uma parede de números.
+  PAGINATION_WINDOW = 5
+
+  def pagination_page_groups(page, total_pages)
+    total = total_pages.to_i
+    return [] if total < 2
+
+    atual = page.to_i.clamp(1, total)
+    numeros = pagination_numbers(atual, total)
+    # Salto de uma página só não merece "…": o número ocupa o mesmo espaço e é clicável.
+    numeros.flat_map { |numero| pagination_fill(numeros, numero) }
+      .slice_when { |anterior, seguinte| seguinte - anterior > 1 }.to_a
+  end
+
+  def pagination_numbers(atual, total)
+    return (1..total).to_a if total <= PAGINATION_WINDOW + 2
+
+    primeira = (atual - PAGINATION_WINDOW / 2).clamp(1, total - PAGINATION_WINDOW + 1)
+    ([ 1, total ] + (primeira...(primeira + PAGINATION_WINDOW)).to_a).uniq.sort
+  end
+
+  def pagination_fill(numeros, numero)
+    return [ numero, numero + 1 ] if numeros.include?(numero + 2) && numeros.exclude?(numero + 1)
+
+    [ numero ]
+  end
+
   # Net MDR do cliente na listagem por subcanal: entra só porcentagem positiva (pedido do
   # usuário, 10/09/2026). Quando os ECs do mesmo CNPJ declaram alíquotas positivas
   # diferentes — 5 CNPJs da carteira real, e num deles de 0,62% a 2,53% — a célula mostra a

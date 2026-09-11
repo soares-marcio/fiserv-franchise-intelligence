@@ -215,6 +215,47 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert botao.disabled?, "o botão da linha sem conversa precisa vir desabilitado"
   end
 
+  # O menu de ações abre para fora da tabela, e a tabela o recortava: `.table-scroll` tem
+  # `overflow-x: auto` para rolar na horizontal, e overflow declarado num eixo torna o outro
+  # `auto` também. Medido na tela real, no menu da última linha: dos 100px do painel, 57
+  # ficavam fora do recorte, e o resto aparecia por baixo da barra de paginação.
+  #
+  # A correção é o painel virar `position: fixed`, que escapa de qualquer recorte por
+  # overflow — e é isso que o teste tranca. Se o controller sumir, o painel volta a
+  # `absolute` e esta asserção cai. As outras duas garantem que a posição calculada aqui
+  # continua colada no gatilho e dentro da janela; `elementFromPoint` prova que o rodapé do
+  # painel está à vista, e não atrás de outra coisa.
+  test "o menu de ações da última linha aparece inteiro, sem a tabela cortar" do
+    visit sub_channel_report_path(@sub_channel)
+
+    all("tr.daily-row").last.find("summary.actions-menu__trigger").click
+    assert_selector ".actions-menu[open] .actions-menu__list"
+
+    medida = page.evaluate_script(<<~JS)
+      (() => {
+        const lista = document.querySelector(".actions-menu[open] .actions-menu__list")
+        const gatilho = lista.closest(".actions-menu").querySelector("summary")
+        const l = lista.getBoundingClientRect()
+        const g = gatilho.getBoundingClientRect()
+        const alvo = document.elementFromPoint(l.left + l.width / 2, l.bottom - 6)
+        return {
+          posicao: getComputedStyle(lista).position,
+          desalinho: Math.round(Math.abs(l.right - g.right)),
+          distanciaDoGatilho: Math.round(Math.min(Math.abs(l.top - g.bottom), Math.abs(g.top - l.bottom))),
+          rodapeVisivel: lista.contains(alvo),
+          naJanela: l.bottom <= window.innerHeight && l.top >= 0
+        }
+      })()
+    JS
+
+    assert_equal "fixed", medida["posicao"], "o painel precisa escapar do recorte da tabela"
+    assert_operator medida["desalinho"], :<=, 2, "o painel fica alinhado à direita do gatilho"
+    # Abre para baixo; sem espaço até o fim da janela, abre para cima. As duas contam.
+    assert_operator medida["distanciaDoGatilho"], :<=, 12, "e colado a ele"
+    assert medida["rodapeVisivel"], "o rodapé do painel precisa estar à vista, não atrás da tabela"
+    assert medida["naJanela"], "o painel precisa caber na janela"
+  end
+
   # No hover, a célula de variação assume a cor da própria variação — verde para alta,
   # vermelho para queda. A cor vem do chip que está dentro, então o teste passa o mouse e
   # compara o fundo das duas linhas.

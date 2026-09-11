@@ -1278,6 +1278,22 @@
     text-align: center;
   }
 
+  /* Os blocos de páginas e os "…" entre eles. A quebra é aqui dentro, e não na barra: em
+     tela estreita os números descem de linha sem empurrar Anterior e Próxima para fora. */
+  .pagination-bar__pages {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .pagination-bar__gap {
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    font-weight: 650;
+    line-height: 1;
+  }
+
   .table-scroll-hint {
     display: none;
   }
@@ -2858,6 +2874,13 @@
 .join-item.btn.btn-outline:focus-visible {
   background-color: var(--color-primary);
   color: var(--color-primary-content);
+}
+
+/* A página atual do paginador não é destino: fica no laranja cheio do grupo de escolha, mas
+   sem o cursor de link. Fora de camada porque `cursor` é do daisyUI em `.btn`, e camada perde
+   para o que não tem camada. */
+.pagination-bar__pages [aria-current="page"] {
+  cursor: default;
 }
 
 /* --------------------------------------------------------------------------------------
