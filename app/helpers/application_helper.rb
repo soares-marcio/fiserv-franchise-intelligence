@@ -400,6 +400,13 @@ module ApplicationHelper
     "note-cell-#{company_uuid}"
   end
 
+  # A ficha do cliente mostra o texto da anotação, não só o botão. O bloco tem id próprio para
+  # o mesmo turbo_stream que troca a célula trocar também o texto — nas telas de tabela esse
+  # alvo não existe, e o Turbo ignora em silêncio o que não encontra.
+  def company_note_body_id(company_uuid)
+    "note-body-#{company_uuid}"
+  end
+
   # A melhor conversa é de cada EC, e 116 dos 302 clientes da carteira têm mais de um texto
   # diferente. A consulta os traz todos num JSON rotulado pelo EC; o parse fica aqui para a
   # tela não conhecer o formato da coluna.

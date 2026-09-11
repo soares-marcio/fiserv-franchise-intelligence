@@ -102,6 +102,51 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
 
   private
 
+  # A anotação é do CNPJ e a ficha é de um CNPJ só: aqui ela aparece por inteiro, e não
+  # atrás de um botão como nas tabelas.
+  test "a ficha do cliente mostra a anotação escrita, com o botão de editar" do
+    establishment = seed_establishment
+    Operations::SaveCompanyNote.call(cnpj: establishment.company.cnpj,
+      body: "<div>Dono viaja, retomar dia 10.</div>")
+
+    get establishment_path(establishment.company)
+
+    assert_response :success
+    assert_select "h2", text: "O que sabemos deste cliente"
+    bloco = ApplicationController.helpers.company_note_body_id(establishment.company.uuid)
+    assert_select "##{bloco}", text: /Dono viaja, retomar dia 10./
+    assert_select "button.note-trigger .note-trigger__dot"
+    assert_select "dialog.note-modal"
+  end
+
+  test "sem anotação, a ficha diz que não há em vez de mostrar bloco vazio" do
+    establishment = seed_establishment
+
+    get establishment_path(establishment.company)
+
+    assert_select ".empty-state", text: /Nenhuma anotação sobre este cliente/
+    assert_select "button.note-trigger"
+    assert_select "button.note-trigger .note-trigger__dot", count: 0
+  end
+
+  # A listagem também é uma linha por cliente: cabe a mesma célula das outras telas.
+  test "a listagem tem a coluna da anotação, com o ponto de quem já tem" do
+    establishment = seed_establishment
+    outro = Company.create!(cnpj: "99888777000166")
+    Establishment.create!(ec: "99999999", company: outro, channel: establishment.channel)
+    Operations::SaveCompanyNote.call(cnpj: establishment.company.cnpj, body: "<div>Ligar.</div>")
+
+    get establishments_path
+
+    assert_response :success
+    assert_select "th", text: "Anotação"
+    assert_select "td.note-col button.note-trigger", count: 2
+    assert_select "td.note-col .note-trigger__dot", count: 1
+    # O diálogo fica fora do frame da listagem: dentro dele o flash do redirect sumiria.
+    assert_select "turbo-frame#establishments dialog.note-modal", count: 0
+    assert_select "dialog.note-modal", count: 1
+  end
+
   def seed_establishment(**snapshot_attributes)
     channel = Channel.create!(external_id: "1478", name: "MASTER")
     sub_channel = channel.sub_channels.create!(name: "MIC GOIANIA 4")

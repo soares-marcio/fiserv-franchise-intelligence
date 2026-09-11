@@ -21,6 +21,22 @@ class SearchControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.search-more[href=?]", establishments_path(q: "mic alfa")
   end
 
+  # A busca é índice, não leitura: ela avisa que há anotação e o resultado já leva à ficha,
+  # que é onde o texto está.
+  test "o resultado avisa quando o cliente tem anotação" do
+    import_synthetic_workbook
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+
+    get search_path(q: "30000001")
+
+    assert_response :success
+    assert_select "a.search-result .note-flag", text: /anotado/
+
+    get search_path(q: "30000003")
+
+    assert_select "a.search-result .note-flag", count: 0
+  end
+
   test "encontra estabelecimento por EC, CNPJ e nome" do
     import_synthetic_workbook
     beta = Establishment.find_by!(ec: "30000002")

@@ -162,6 +162,8 @@ class ReportsController < ApplicationController
 
     @date = @period + (@day - 1)
     @rows = @scope.day_companies(period: @period, day: @day)
+    # Só a existência da anotação: o modal é apertado e o texto mora na ficha do cliente.
+    @noted_cnpjs = CompanyNote.where(cnpj: @rows.map { |row| row["cnpj"] }).pluck(:cnpj).to_set
     @previous_day = @day > 1 ? @day - 1 : nil
     @next_day = @day < @covered_days ? @day + 1 : nil
 

@@ -32,6 +32,10 @@
 
   <%# Links de página e de tamanho ficam dentro do frame: o Turbo troca só a listagem e
       "advance" mantém a URL em dia para compartilhar. %>
+  <%# O diálogo da anotação fica fora do turbo_frame: dentro dele, o Turbo procuraria o frame
+      na resposta do redirect e engoliria o flash. O controller do Stimulus envolve os dois,
+      para o botão de dentro do frame alcançar o diálogo de fora. %>
+  <div data-controller="note-modal">
   <%= turbo_frame_tag "establishments", data: { turbo_action: "advance" } do %>
   <section class="table-frame" data-controller="sticky-table">
     <div class="table-toolbar">
@@ -69,6 +73,7 @@
         <th scope="col">CNAE</th>
         <th scope="col">Status</th>
         <th scope="col">Segmento</th>
+        <th scope="col" class="note-col">Anotação</th>
       </tr>
     </thead>
     <tbody>
@@ -131,6 +136,15 @@
               <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.business_line %></p>
             <% end %>
           </td>
+          <%# A anotação é do CNPJ, e aqui a linha já é o cliente: a mesma célula das outras
+              telas, com o botão e o ponto de "já tem". O texto fica no modal e na ficha. %>
+          <td class="note-col">
+            <% nota = @notes_by_cnpj[company.cnpj] %>
+            <%= render "shared/company_note_cell", company_uuid: company.uuid,
+              name: present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),
+              note_id: nota&.id, note_updated_at: nota&.updated_at,
+              note_params: listing_params(origin: "establishments") %>
+          </td>
         </tr>
       <% end %>
     </tbody>
@@ -159,4 +173,6 @@
     <% end %>
   </section>
   <% end %>
+  <%= render "shared/company_note_modal" %>
+  </div>
 </div>

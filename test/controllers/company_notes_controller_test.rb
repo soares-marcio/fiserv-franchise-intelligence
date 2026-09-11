@@ -106,6 +106,34 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
     assert_match(/note-trigger__dot/, response.body)
   end
 
+  # A ficha do cliente mostra o texto, e não só o botão: o mesmo stream troca os dois. Nas
+  # telas de tabela esse segundo alvo não existe, e o Turbo ignora o que não encontra.
+  test "salvar também troca o bloco de texto da ficha" do
+    patch company_note_path(@company), params: { body: "<div>Dono viaja.</div>" },
+      as: :turbo_stream
+
+    assert_response :success
+    assert_match(
+      /target="#{ApplicationController.helpers.company_note_body_id(@company.uuid)}"/,
+      response.body
+    )
+    assert_match(/Dono viaja\./, response.body)
+  end
+
+  # Cada tela conhecida volta para si mesma, e nenhuma delas sai de caminho vindo na
+  # requisição: a origem escolhe entre destinos montados por route helper.
+  test "a ficha e a listagem de estabelecimentos voltam para onde se anotou" do
+    patch company_note_path(@company), params: { body: "<div>x</div>", origin: "establishment" }
+
+    assert_redirected_to establishment_path(@company)
+
+    patch company_note_path(@company), params: {
+      body: "<div>y</div>", origin: "establishments", q: "PADARIA", page: "2", per_page: "50"
+    }
+
+    assert_redirected_to establishments_path(q: "PADARIA", per_page: "50", page: "2")
+  end
+
   test "erro de validação também volta por turbo_stream, sem derrubar a tela" do
     patch company_note_path(@company), as: :turbo_stream,
       params: { body: "<div>#{'a' * (Operations::SaveCompanyNote::MAX_LENGTH + 1)}</div>" }

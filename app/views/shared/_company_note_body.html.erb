@@ -1,0 +1,14 @@
+<%# O texto da anotação, para as telas que têm largura para ele — hoje a ficha do cliente. Nas
+    tabelas fica só o botão: lá o texto estica a coluna e leva a tabela à rolagem horizontal.
+
+    O id vem do helper porque o turbo_stream de salvar troca este bloco junto com a célula. %>
+<div id="<%= company_note_body_id(company_uuid) %>">
+  <% if note&.body&.present? %>
+    <div class="trix-content"><%= note.body %></div>
+    <p class="note-cell__date">
+      Editada em <%= l(note.updated_at.to_date) %> às <%= note.updated_at.strftime("%H:%M") %>
+    </p>
+  <% else %>
+    <p class="empty-state">Nenhuma anotação sobre este cliente.</p>
+  <% end %>
+</div>

@@ -52,6 +52,13 @@ class CompanyNotesController < ApplicationController
             helpers.company_note_cell_id(company.uuid),
             partial: "shared/company_note_cell", locals: celula(company, note)
           ),
+          # A ficha do cliente mostra o texto; as telas de tabela não têm este alvo, e o Turbo
+          # ignora em silêncio o que não encontra.
+          turbo_stream.replace(
+            helpers.company_note_body_id(company.uuid),
+            partial: "shared/company_note_body",
+            locals: { company_uuid: company.uuid, note: note&.persisted? ? note : nil }
+          ),
           turbo_stream.update("flash", partial: "layouts/flash",
             locals: { notice: flash.now[:notice], alert: flash.now[:alert] })
         ]
@@ -83,6 +90,13 @@ class CompanyNotesController < ApplicationController
     if params[:origin] == "sub_channel" && sub_channel
       return sub_channel_report_path(sub_channel, listing_params)
     end
+    # A ficha do cliente: o :id da rota da anotação já é a uuid da empresa, então não há
+    # parâmetro novo para carregar — e nenhum caminho vindo da requisição é seguido.
+    return establishment_path(params[:id]) if params[:origin] == "establishment"
+    if params[:origin] == "establishments"
+      return establishments_path(listing_params.slice(:q, :per_page, :page))
+    end
+
 
     # Origem desconhecida, ausente ou sem o MIC cai no Clover Capital: lá a linha é o próprio
     # cliente, então quem salvou vê a anotação que acabou de escrever. O recorte da tela vai

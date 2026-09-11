@@ -1987,6 +1987,23 @@
     border-color: var(--color-base-100);
   }
 
+  /* Sinal de "este cliente tem anotação" nas telas que só avisam — o modal do dia e a busca.
+     Diferente do ponto do botão, recortado no canto dele, aqui é marcador em linha: não há
+     botão para ancorar, e o que importa é caber junto do nome sem disputar atenção. */
+  .note-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  .note-flag .icon {
+    width: 0.85rem;
+    height: 0.85rem;
+  }
+
   .note-cell__date {
     margin-top: 0.2rem;
     color: color-mix(in oklab, var(--color-base-content) 55%, transparent);

@@ -43,6 +43,11 @@
                 <%= formatted_cnpj(establishment.company.cnpj) %>
                 <% if snapshot&.sub_channel %> · <%= snapshot.sub_channel.name %><% end %>
                 <% if snapshot&.city.present? %> · <%= snapshot.city %><% end %>
+                <%# Só o aviso: quem quer ler abre a ficha, que é para onde este resultado já
+                    leva. Carregar o texto aqui seria carregar HTML com anexos a cada tecla. %>
+                <% if @search.noted_cnpjs.include?(establishment.company.cnpj) %>
+                  · <span class="note-flag"><%= icon("note-pencil", css: "icon") %>anotado</span>
+                <% end %>
               </small>
             </span>
           <% end %>

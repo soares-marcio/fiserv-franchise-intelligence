@@ -42,6 +42,9 @@
               <th scope="row" class="font-normal">
                 <span class="font-mono"><%= row["cnpj"] %></span>
                 <span class="day-modal__name"><%= present_or_dash(row["legal_name"]) %></span>
+                <% if @noted_cnpjs.include?(row["cnpj"]) %>
+                  <span class="note-flag"><%= icon("note-pencil", css: "icon") %>anotado</span>
+                <% end %>
               </th>
               <td><%= present_or_dash(row["sub_channels"]) %></td>
               <td class="day-modal__cnae"><%= present_or_dash(row["cnaes"]) %></td>

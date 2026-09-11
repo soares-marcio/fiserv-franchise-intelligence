@@ -293,7 +293,7 @@ uma anotação longa esticava a coluna até a tabela precisar rolar na horizonta
 modal, que é onde se lê e se escreve; na célula fica o ponto, que diz que existe.
 
 A anotação é do **CNPJ**, não do EC, e quem diz isso é o cabeçalho do modal ("vale para os
-3 ECs deste cliente"): as duas telas mostram um cliente por linha, e a linha não lista mais os
+3 ECs deste cliente"): toda tela que a edita mostra um cliente por linha e nenhuma lista os
 ECs, então o alcance da nota precisa estar escrito em algum lugar.
 
 Salvar não recarrega a tela: um `turbo_stream` troca a célula daquele cliente. O alvo é o id
@@ -301,6 +301,11 @@ que `company_note_cell_id` monta da uuid do cliente, e o helper existe porque du
 precisam da mesma string — a partial escreve o id, o controller o endereça. Enquanto a listagem
 do MIC era por EC, o mesmo cliente ocupava várias células e o alvo era um `replace_all` por
 seletor; com uma linha por CNPJ, o id único basta.
+
+A volta de cada tela é montada por route helper, a partir de uma lista fechada de origens
+(`sub_channel`, `establishment`, `establishments`, e o Clover Capital como padrão). Caminho que
+venha na requisição nunca é seguido: seria redirecionamento aberto, e o projeto entrega com o
+brakeman limpo.
 
 A tabela se liga pelo CNPJ e não por FK — ver o porquê no `CLAUDE.md`.
 

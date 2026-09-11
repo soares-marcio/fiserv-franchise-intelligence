@@ -192,6 +192,22 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/Dono viaja/, response.body)
   end
 
+  # As linhas do modal do dia são clientes: cabe o aviso de que há anotação, sem o texto —
+  # o modal é apertado e a leitura mora na ficha.
+  test "o modal do dia avisa quais clientes têm anotação" do
+    # Este recorte tem dois CNPJs vendendo no dia 1: um anotado e um sem anotação, que é o
+    # par necessário para o teste provar as duas coisas.
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    refresh_audit_views
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_response :success
+    assert_select "tbody tr", count: 2
+    assert_select ".note-flag", count: 1, text: /anotado/
+  end
+
   test "sem oferta no arquivo, Clover Capital diz que não há" do
     import_synthetic_workbook
 
