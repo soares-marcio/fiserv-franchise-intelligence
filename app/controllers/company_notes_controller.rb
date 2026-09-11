@@ -85,8 +85,10 @@ class CompanyNotesController < ApplicationController
     end
 
     # Origem desconhecida, ausente ou sem o MIC cai no Clover Capital: lá a linha é o próprio
-    # cliente, então quem salvou vê a anotação que acabou de escrever.
-    stalled_reports_path(channel_id: params[:channel_id].presence)
+    # cliente, então quem salvou vê a anotação que acabou de escrever. O recorte da tela vai
+    # junto, senão salvar desfaz o filtro de quem chegou filtrando.
+    stalled_reports_path(channel_id: params[:channel_id].presence,
+      sub_channel_id: params[:sub_channel_id].presence)
   end
 
   def listing_params

@@ -15,7 +15,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     linha = linhas.first
     assert_equal "11222333000181", linha["cnpj"]
     assert_equal "ALFA COMERCIO LTDA", linha["legal_name"]
-    assert_equal "MIC ALFA", linha["sub_channels"], "três ECs no mesmo MIC: um nome só"
+    assert_equal 3, linha["establishments"].to_i, "três ECs do mesmo CNPJ, numa linha só"
     assert_equal 350_000.to_d, linha["preapproved_volume"].to_d
     assert_equal 24, linha["preapproved_term"].to_i
     assert_equal 3.28.to_d, linha["preapproved_rate"].to_d
@@ -73,7 +73,67 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     assert_nil PreapprovedOffers.new.call.first["preapproved_installment"]
   end
 
+  # O MIC virou filtro da tela: sem escolha, vêm todos; com escolha, só os clientes daquele
+  # MIC. A lista de opções é o que a tela oferece — e só pode oferecer MIC que tenha cliente
+  # com oferta, senão oferece uma tabela vazia.
+  test "filtra por MIC, e só oferece MIC que tem cliente com oferta" do
+    # Segundo import com conteúdo diferente: dois iguais no mesmo segundo dão o mesmo
+    # SHA-256 e o segundo é recusado.
+    import_synthetic_workbook(lojas: lojas + lojas_de_outros_mics, filename: "b.xlsx")
+
+    alfa = SubChannel.find_by!(name: "MIC ALFA")
+    gama = SubChannel.find_by!(name: "MIC GAMA")
+
+    assert_equal %w[11222333000181 44555666000177].sort,
+      PreapprovedOffers.new.call.map { |linha| linha["cnpj"] }.sort
+    assert_equal [ "11222333000181" ],
+      PreapprovedOffers.new(sub_channel_id: alfa.id).call.map { |linha| linha["cnpj"] }
+    assert_equal [ "44555666000177" ],
+      PreapprovedOffers.new(sub_channel_id: gama.id).call.map { |linha| linha["cnpj"] }
+
+    # "MIC BETA" veio na mesma planilha, mas o cliente dele não tem oferta: não é oferecido.
+    assert_equal [ "MIC ALFA", "MIC GAMA" ],
+      PreapprovedOffers.new.sub_channel_options.map { |mic| mic["name"] }
+    assert_equal [ "MIC ALFA", "MIC GAMA" ],
+      PreapprovedOffers.new(sub_channel_id: alfa.id).sub_channel_options.map { |mic| mic["name"] },
+      "escolher um MIC não faz os outros sumirem da própria lista"
+  end
+
+  # A armadilha da consulta agrupada: no WHERE, o cliente com ECs em dois MICs apareceria com
+  # a contagem de ECs recortada pelo filtro. No HAVING, a linha é o cliente inteiro.
+  test "cliente com ECs em dois MICs aparece inteiro, seja qual for o MIC escolhido" do
+    MapSnapshot.joins(:establishment).where(establishments: { ec: "30000002" })
+      .update_all(sub_channel_id: SubChannel.create!(
+        channel: Channel.first, name: "MIC DELTA"
+      ).id)
+
+    delta = SubChannel.find_by!(name: "MIC DELTA")
+    linha = PreapprovedOffers.new(sub_channel_id: delta.id).call.sole
+
+    assert_equal "11222333000181", linha["cnpj"]
+    assert_equal 3, linha["establishments"].to_i,
+      "o filtro escolhe o cliente; a linha continua contando os três ECs dele"
+  end
+
   private
+
+  # Um MIC com oferta e um MIC sem: é o par que prova a lista de opções, porque só o
+  # primeiro pode ser oferecido no filtro.
+  def lojas_de_outros_mics
+    [
+      BinWorkbook::Loja.new(
+        ec: "30000005", cnpj: "44555666000177", sub_channel_name: "MIC GAMA",
+        legal_name: "GAMA TRANSPORTES LTDA", trade_name: "GAMA EXPRESS",
+        contract_status: "Active", dias_m1: { 1 => 90 }, dias_atual: { 1 => 95 },
+        preapproved_volume: 120_000, preapproved_term: 18, preapproved_rate: 2.7
+      ),
+      BinWorkbook::Loja.new(
+        ec: "30000006", cnpj: "55666777000148", sub_channel_name: "MIC BETA",
+        legal_name: "BETA LOGISTICA LTDA", trade_name: "BETA CARGO",
+        contract_status: "Active", dias_m1: { 1 => 70 }, dias_atual: { 1 => 60 }
+      )
+    ]
+  end
 
   def lojas
     [

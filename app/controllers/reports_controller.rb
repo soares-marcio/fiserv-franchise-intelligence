@@ -22,11 +22,13 @@ class ReportsController < ApplicationController
 
   # Clover Capital: as ofertas pré-aprovadas da carteira, uma por CNPJ.
   def stalled
-    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id)
+    @selected_sub_channel = selected_stalled_sub_channel
+    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id,
+      sub_channel_id: @selected_sub_channel&.id)
     @reports = offers.call
+    @sub_channels = offers.sub_channel_options
     @diverging_cnpjs = offers.diverging_cnpjs
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
-    @note_excerpts = note_excerpts(@reports)
   end
 
   def weekly
@@ -272,6 +274,19 @@ class ReportsController < ApplicationController
     @cutoff_day = @scope.cutoff_day
   end
 
+  # O MIC do filtro segue a regra do canal: uuid inexistente é 404, e MIC de outro Master que
+  # o escolhido também — senão a tela responderia "nenhum cliente" para um recorte impossível,
+  # que é uma resposta pior do que dizer que o endereço não existe.
+  def selected_stalled_sub_channel
+    return if params[:sub_channel_id].blank?
+
+    sub_channel = SubChannel.find_param!(params[:sub_channel_id])
+    raise ActiveRecord::RecordNotFound if @selected_channel &&
+      sub_channel.channel_id != @selected_channel.id
+
+    sub_channel
+  end
+
   # A exportação repete o recorte da tela e larga a paginação: o arquivo é do filtro, não
   # da página que o usuário estava vendo.
   def listing_exporter
@@ -304,14 +319,6 @@ class ReportsController < ApplicationController
   # O corpo da anotação é rich text e não entra no SQL da listagem: viria como HTML com
   # anexos dentro de uma consulta com GROUP BY. O trecho da tela sai daqui, numa query só,
   # pelo índice que o Action Text já mantém.
-  def note_excerpts(rows)
-    ids = rows.filter_map { |row| row["note_id"] }.uniq
-    return {} if ids.empty?
-
-    ActionText::RichText.where(record_type: "CompanyNote", name: "body", record_id: ids)
-      .to_h { |rich| [ rich.record_id, rich.to_plain_text.squish ] }
-  end
-
   def sub_channel_listing_params(overrides = {})
     {
       channel_id: @selected_channel&.uuid,

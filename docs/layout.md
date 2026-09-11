@@ -241,12 +241,38 @@ dias da mesma semana. E a âncora do mês anterior segue a regra de alinhamento 
 escolhido parcial compara com o anterior até o mesmo dia; competência anterior não importada
 declara a lacuna em vez de mostrar zero.
 
+### Clover Capital: o MIC é filtro, não coluna
+
+A tela tinha uma coluna MIC repetindo o mesmo nome em toda linha e empurrando a tabela na
+horizontal. Desde 10/09/2026 ela é um **select** acima da tabela, que abre em "Todas"
+(`reports/stalled.html.erb`, `PreapprovedOffers#sub_channel_options`).
+
+Três decisões, cada uma com um porquê:
+
+- **O select só oferece MIC que tem cliente com oferta.** Na carteira real são 15 clientes
+  espalhados por 6 MICs (medido em 10/09/2026); oferecer os outros seria oferecer tabela vazia.
+  A lista também não se recorta pelo MIC escolhido — senão escolher um faria os demais sumirem
+  da própria lista, e não haveria como voltar.
+- **O filtro vive no `HAVING`**, como na listagem do MIC e pela mesma razão: no `WHERE`, o
+  cliente com ECs em mais de um MIC apareceria com a contagem de ECs e a checagem de
+  divergência recortadas pelo filtro. Hoje nenhum dos 15 tem ECs em dois MICs (medido), mas a
+  consulta não depende disso ser verdade amanhã — e há teste para o caso.
+- **MIC inexistente é 404, não tabela vazia**, e MIC de outro Master que o escolhido também: a
+  mesma regra que o canal já seguia.
+
+O canal escolhido viaja num campo oculto do formulário, senão aplicar o MIC derrubaria o
+recorte de Master de quem chegou por ele.
+
 ### Anotação do cliente
 
 A mesma célula nas duas telas (`shared/_company_note_cell`, `shared/_company_note_modal`), em
-lugares diferentes: no Clover Capital é a coluna "Anotação", que tem largura para um trecho do
-texto; na listagem do MIC é um item do **menu de ações**, porque ali as colunas não sobram. Um
-diálogo por tabela, nunca por linha.
+lugares diferentes: no Clover Capital é a coluna "Anotação"; na listagem do MIC é um item do
+**menu de ações**, porque ali as colunas não sobram. Um diálogo por tabela, nunca por linha.
+
+A célula leva **só o botão**. O trecho do texto salvo já apareceu ali embaixo, no Clover
+Capital, e saiu a pedido do usuário (10/09/2026): a linha cresce com o tamanho da anotação, e
+uma anotação longa esticava a coluna até a tabela precisar rolar na horizontal. O texto vive no
+modal, que é onde se lê e se escreve; na célula fica o ponto, que diz que existe.
 
 A anotação é do **CNPJ**, não do EC, e quem diz isso é o cabeçalho do modal ("vale para os
 3 ECs deste cliente"): as duas telas mostram um cliente por linha, e a linha não lista mais os

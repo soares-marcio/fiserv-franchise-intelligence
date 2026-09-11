@@ -1993,19 +1993,6 @@
     font-size: 0.68rem;
   }
 
-  /* Só no Clover Capital, onde a linha é o próprio cliente e sobra largura. Na listagem do
-     MIC a coluna leva apenas o botão. */
-  .note-cell__excerpt {
-    max-width: 18rem;
-    margin-top: 0.3rem;
-    overflow: hidden;
-    color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
-    font-size: 0.72rem;
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   /* O editor do Trix e o que a anotação renderiza. A imagem sai em tamanho original — o
      processador de variantes está desligado no projeto —, então a largura é contida aqui. */
   /* Mais largo que os 34rem do modal de texto: aqui se escreve, não se lê. Com 48rem o aviso

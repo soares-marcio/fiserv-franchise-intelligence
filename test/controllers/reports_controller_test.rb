@@ -22,17 +22,19 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", text: "Clover Capital"
-    %w[MIC Estabelecimento Volume\ pré-aprovado Prazo\ pré-aprovado
+    %w[Estabelecimento Volume\ pré-aprovado Prazo\ pré-aprovado
        Taxa\ pré-aprovada].each do |rotulo|
       assert_select "th", text: rotulo
     end
     # O CNPJ não tem coluna: fica acima da razão social, na célula dela.
     assert_select "th", text: "CNPJ", count: 0
+    # O MIC deixou de ser coluna e virou filtro: repetido em toda linha, ele só empurrava a
+    # tabela na horizontal.
+    assert_select "th", text: "MIC", count: 0
 
     # Dois ECs do mesmo CNPJ são uma linha; quem não tem oferta não entra.
     assert_select "tbody tr", count: 1
     linha = css_select("tbody tr").first
-    assert_select "tbody tr td:first-child", text: "MIC ALFA"
     assert_match(/11\.222\.333\/0001-81\s+ALFA COMERCIO LTDA/, linha.text)
     assert_match(/R\$ 350\.000,00/, linha.text)
     assert_match(/24 meses/, linha.text)
@@ -76,6 +78,71 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       count: 1
     # O recorte da listagem viaja junto, para a volta reabrir onde estava.
     assert_includes destinos.first, "origin=sub_channel"
+  end
+
+  # O MIC saiu da tabela e virou select, com "Todas" como padrão: repetido em toda linha, o
+  # nome do MIC só empurrava a tabela na horizontal.
+  test "Clover Capital filtra por MIC, e abre em Todas" do
+    import_synthetic_workbook(lojas: lojas_com_oferta + [ loja_com_oferta_em_outro_mic ])
+    gama = SubChannel.find_by!(name: "MIC GAMA")
+
+    get stalled_reports_path
+
+    assert_response :success
+    # Duas opções de MIC mais o "Todas", que é o que abre selecionado.
+    assert_select "select[name=sub_channel_id] option", count: 3
+    assert_select "select[name=sub_channel_id] option:first-of-type", text: "Todas"
+    assert_select "select[name=sub_channel_id] option[selected]", count: 0
+    assert_select "tbody tr", count: 2
+
+    get stalled_reports_path(sub_channel_id: gama.uuid)
+
+    assert_response :success
+    assert_select "tbody tr", count: 1
+    assert_select "tbody tr", text: /GAMA TRANSPORTES LTDA/
+    assert_select "select[name=sub_channel_id] option[selected][value=?]", gama.uuid
+    # A contagem do topo acompanha o filtro, senão diria um número que a tabela desmente.
+    assert_select ".badge", text: "1 cliente"
+    # O MIC escolhido continua no endereço que o botão da anotação carrega: salvar sem
+    # JavaScript volta para o mesmo recorte.
+    assert_select "button.note-trigger[data-note-modal-url-param*=?]", gama.uuid
+  end
+
+  # O segundo caminho de 404: o MIC existe, mas é de outro Master que o escolhido. Responder
+  # "nenhum cliente" a um recorte impossível seria pior do que dizer que o endereço não existe.
+  test "MIC de outro Master que o escolhido também é 404" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    outro = Channel.create!(external_id: "ZZ", name: "CANAL Z")
+    mic_de_outro = outro.sub_channels.create!(name: "MIC ZETA")
+
+    do_arquivo = SubChannel.find_by!(name: "MIC ALFA").channel
+
+    get stalled_reports_path(channel_id: do_arquivo.uuid, sub_channel_id: mic_de_outro.uuid)
+
+    assert_response :not_found
+  end
+
+  test "MIC que não existe não vira recorte, vira 404" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+
+    get stalled_reports_path(sub_channel_id: SecureRandom.uuid)
+
+    assert_response :not_found
+  end
+
+  # O texto salvo saía na célula e esticava a coluna até a tabela rolar na horizontal. A
+  # célula voltou a levar só o botão; o texto vive no modal, que é onde se lê e se escreve.
+  test "a coluna da anotação não traz o texto salvo" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181",
+      body: "<div>Dono viaja, retomar dia 10.</div>")
+
+    get stalled_reports_path
+
+    assert_response :success
+    assert_select "td.note-col button.note-trigger"
+    assert_select "td.note-col .note-trigger__dot"
+    assert_no_match(/Dono viaja/, response.body)
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do
@@ -1003,6 +1070,17 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
         contract_status: "Active", dias_m1: { 1 => 400 }, dias_atual: { 1 => 300 }
       )
     ]
+  end
+
+  # Um segundo MIC com oferta: é o que dá o que filtrar. Sem ele o select teria uma opção só
+  # e o filtro passaria por vacuidade.
+  def loja_com_oferta_em_outro_mic
+    BinWorkbook::Loja.new(
+      ec: "30000005", cnpj: "44555666000177", sub_channel_name: "MIC GAMA",
+      legal_name: "GAMA TRANSPORTES LTDA", trade_name: "GAMA EXPRESS",
+      contract_status: "Active", dias_m1: { 1 => 90 }, dias_atual: { 1 => 95 },
+      preapproved_volume: 120_000, preapproved_term: 18, preapproved_rate: 2.7
+    )
   end
 
   def seed_subchannel_revenue(template)

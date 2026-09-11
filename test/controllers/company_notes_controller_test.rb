@@ -43,6 +43,18 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
     assert_includes CGI.unescape(destino), "date_kind[]=credenciamento"
   end
 
+  # O Clover Capital ganhou filtro de MIC: salvar sem JavaScript precisa voltar para o mesmo
+  # recorte, como já voltava com o Master escolhido.
+  test "sem origem declarada, a volta ao Clover Capital mantém o recorte da tela" do
+    patch company_note_path(@company), params: {
+      body: "<div>Ligar.</div>",
+      channel_id: @sub_channel.channel.uuid, sub_channel_id: @sub_channel.uuid
+    }
+
+    assert_redirected_to stalled_reports_path(channel_id: @sub_channel.channel.uuid,
+      sub_channel_id: @sub_channel.uuid)
+  end
+
   test "editor esvaziado remove a anotação" do
     Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Alguma coisa.</div>")
 
