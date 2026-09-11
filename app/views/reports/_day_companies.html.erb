@@ -13,11 +13,24 @@
         <%= brl(@rows.sum { |row| row["revenue"].to_d }) %>
       </p>
     </div>
-    <%# Andar de dia sem fechar o modal: os links miram o próprio frame. %>
-    <nav class="period-stepper" aria-label="Trocar o dia">
-      <%= day_step(@previous_day, "caret-left", "Dia anterior") %>
-      <%= day_step(@next_day, "caret-right", "Próximo dia") %>
-    </nav>
+    <div class="flex flex-wrap items-center gap-2">
+      <% if @rows.any? %>
+        <%# O link vive dentro do frame: sem `turbo: false` o Turbo tentaria encaixar o
+            arquivo aqui dentro em vez de baixá-lo. %>
+        <% recorte = { day: @day, period: @period, channel_id: @selected_channel&.uuid }.compact %>
+        <%= link_to icon_label("download-simple", "CSV"),
+          weekly_day_report_path(format: :csv, **recorte),
+          class: "btn btn-sm btn-outline export-action", data: { turbo: false } %>
+        <%= link_to icon_label("download-simple", "XLSX"),
+          weekly_day_report_path(format: :xlsx, **recorte),
+          class: "btn btn-sm export-action", data: { turbo: false } %>
+      <% end %>
+      <%# Andar de dia sem fechar o modal: os links miram o próprio frame. %>
+      <nav class="period-stepper" aria-label="Trocar o dia">
+        <%= day_step(@previous_day, "caret-left", "Dia anterior") %>
+        <%= day_step(@next_day, "caret-right", "Próximo dia") %>
+      </nav>
+    </div>
   </div>
 
   <% if @rows.any? %>
@@ -42,6 +55,9 @@
               <th scope="row" class="font-normal">
                 <span class="font-mono"><%= row["cnpj"] %></span>
                 <span class="day-modal__name"><%= present_or_dash(row["legal_name"]) %></span>
+                <% if @noted_cnpjs.include?(row["cnpj"]) %>
+                  <span class="note-flag"><%= icon("note-pencil", css: "icon") %>anotado</span>
+                <% end %>
               </th>
               <td><%= present_or_dash(row["sub_channels"]) %></td>
               <td class="day-modal__cnae"><%= present_or_dash(row["cnaes"]) %></td>

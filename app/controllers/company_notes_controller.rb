@@ -37,9 +37,9 @@ class CompanyNotesController < ApplicationController
 
   private
 
-  # Salvar não recarrega a tela: troca as células daquele cliente e o aviso, e pronto. O
-  # `replace_all` por seletor, e não por id, é o que resolve o caso do CNPJ com vários ECs —
-  # na listagem do MIC a mesma anotação ocupa uma célula por EC, e todas precisam mudar juntas.
+  # Salvar não recarrega a tela: troca a célula daquele cliente e o aviso, e pronto. O id vem
+  # do mesmo helper que a partial usa para escrevê-lo — é o que impede as duas pontas de
+  # divergirem em silêncio.
   #
   # O caminho HTML fica de pé para quem chegar sem JavaScript, e é ele que os testes de
   # redirect exercitam.
@@ -48,9 +48,16 @@ class CompanyNotesController < ApplicationController
       format.turbo_stream do
         flash.now[flash_message.keys.first] = flash_message.values.first
         render turbo_stream: [
-          turbo_stream.replace_all(
-            "[data-note-company='#{company.uuid}']",
+          turbo_stream.replace(
+            helpers.company_note_cell_id(company.uuid),
             partial: "shared/company_note_cell", locals: celula(company, note)
+          ),
+          # A ficha do cliente mostra o texto; as telas de tabela não têm este alvo, e o Turbo
+          # ignora em silêncio o que não encontra.
+          turbo_stream.replace(
+            helpers.company_note_body_id(company.uuid),
+            partial: "shared/company_note_body",
+            locals: { company_uuid: company.uuid, note: note&.persisted? ? note : nil }
           ),
           turbo_stream.update("flash", partial: "layouts/flash",
             locals: { notice: flash.now[:notice], alert: flash.now[:alert] })
@@ -83,10 +90,19 @@ class CompanyNotesController < ApplicationController
     if params[:origin] == "sub_channel" && sub_channel
       return sub_channel_report_path(sub_channel, listing_params)
     end
+    # A ficha do cliente: o :id da rota da anotação já é a uuid da empresa, então não há
+    # parâmetro novo para carregar — e nenhum caminho vindo da requisição é seguido.
+    return establishment_path(params[:id]) if params[:origin] == "establishment"
+    if params[:origin] == "establishments"
+      return establishments_path(listing_params.slice(:q, :per_page, :page))
+    end
+
 
     # Origem desconhecida, ausente ou sem o MIC cai no Clover Capital: lá a linha é o próprio
-    # cliente, então quem salvou vê a anotação que acabou de escrever.
-    stalled_reports_path(channel_id: params[:channel_id].presence)
+    # cliente, então quem salvou vê a anotação que acabou de escrever. O recorte da tela vai
+    # junto, senão salvar desfaz o filtro de quem chegou filtrando.
+    stalled_reports_path(channel_id: params[:channel_id].presence,
+      sub_channel_id: params[:sub_channel_id].presence)
   end
 
   def listing_params

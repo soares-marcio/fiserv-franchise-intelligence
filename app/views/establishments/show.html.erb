@@ -70,6 +70,26 @@
     </div>
   </section>
 
+  <%# A anotação é do CNPJ, e esta ficha é de um CNPJ só: aqui ela aparece por inteiro, e não
+      atrás de um botão como nas tabelas, onde não há largura para o texto. O diálogo fica
+      dentro do mesmo controller do botão, e um só por página. %>
+  <section class="table-frame" data-controller="note-modal">
+    <div class="table-toolbar">
+      <div>
+        <p class="section-label">Anotação</p>
+        <h2 class="table-title">O que sabemos deste cliente</h2>
+      </div>
+      <%# Sem a data aqui: quem a diz é o bloco do texto, logo abaixo. %>
+      <%= render "shared/company_note_cell", company_uuid: @company.uuid,
+        name: present_or_dash(@snapshot&.trade_name.presence || @snapshot&.legal_name),
+        note_id: @note&.id, note_updated_at: nil, note_params: { origin: "establishment" } %>
+    </div>
+    <div class="p-5">
+      <%= render "shared/company_note_body", company_uuid: @company.uuid, note: @note %>
+    </div>
+    <%= render "shared/company_note_modal" %>
+  </section>
+
   <%# Um card por EC: o EC é o produto contratado — POS, Smart POS, link de pagamento —, e é
       aqui que moram as particularidades dele. Medido na carteira: 173 dos 187 CNPJs com mais
       de um EC têm equipamento diferente entre eles. O segmento performado também é do EC:

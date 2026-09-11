@@ -43,6 +43,18 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
     assert_includes CGI.unescape(destino), "date_kind[]=credenciamento"
   end
 
+  # O Clover Capital ganhou filtro de MIC: salvar sem JavaScript precisa voltar para o mesmo
+  # recorte, como já voltava com o Master escolhido.
+  test "sem origem declarada, a volta ao Clover Capital mantém o recorte da tela" do
+    patch company_note_path(@company), params: {
+      body: "<div>Ligar.</div>",
+      channel_id: @sub_channel.channel.uuid, sub_channel_id: @sub_channel.uuid
+    }
+
+    assert_redirected_to stalled_reports_path(channel_id: @sub_channel.channel.uuid,
+      sub_channel_id: @sub_channel.uuid)
+  end
+
   test "editor esvaziado remove a anotação" do
     Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Alguma coisa.</div>")
 
@@ -73,24 +85,53 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  # Salvar deixou de recarregar a tela. O que prova isso é o alvo do stream ser um seletor, e
-  # não um id: na listagem do MIC o mesmo cliente ocupa uma célula por EC, e todas mudam
-  # juntas — com id único, só a primeira mudaria.
-  test "salvar responde por turbo_stream, trocando as células do cliente e o aviso" do
+  # Salvar deixou de recarregar a tela: o stream troca a célula do cliente e o aviso. O alvo é
+  # o id que a própria partial escreve, pelo helper — o teste o monta pelo helper também, senão
+  # passaria a conferir uma string que a tela não usa mais.
+  test "salvar responde por turbo_stream, trocando a célula do cliente e o aviso" do
     patch company_note_path(@company), params: { body: "<div>Ligar.</div>" },
       as: :turbo_stream
 
     assert_response :success
     assert_equal "text/vnd.turbo-stream.html", response.media_type
-    # As aspas simples do seletor saem escapadas no atributo; o que importa é o alvo ser um
-    # seletor de todas as células daquele cliente, e não o id de uma só.
-    assert_match(/targets="\[data-note-company=&#39;#{@company.uuid}&#39;\]"/, response.body)
+    assert_match(
+      /target="#{ApplicationController.helpers.company_note_cell_id(@company.uuid)}"/,
+      response.body
+    )
     assert_match(/action="replace"/, response.body)
     # O aviso vem no mesmo lote, em vez de esperar a próxima navegação.
     assert_match(/target="flash"/, response.body)
     assert_match(/Anotação salva\./, response.body)
     # E a célula trocada já traz o ponto que avisa que há anotação.
     assert_match(/note-trigger__dot/, response.body)
+  end
+
+  # A ficha do cliente mostra o texto, e não só o botão: o mesmo stream troca os dois. Nas
+  # telas de tabela esse segundo alvo não existe, e o Turbo ignora o que não encontra.
+  test "salvar também troca o bloco de texto da ficha" do
+    patch company_note_path(@company), params: { body: "<div>Dono viaja.</div>" },
+      as: :turbo_stream
+
+    assert_response :success
+    assert_match(
+      /target="#{ApplicationController.helpers.company_note_body_id(@company.uuid)}"/,
+      response.body
+    )
+    assert_match(/Dono viaja\./, response.body)
+  end
+
+  # Cada tela conhecida volta para si mesma, e nenhuma delas sai de caminho vindo na
+  # requisição: a origem escolhe entre destinos montados por route helper.
+  test "a ficha e a listagem de estabelecimentos voltam para onde se anotou" do
+    patch company_note_path(@company), params: { body: "<div>x</div>", origin: "establishment" }
+
+    assert_redirected_to establishment_path(@company)
+
+    patch company_note_path(@company), params: {
+      body: "<div>y</div>", origin: "establishments", q: "PADARIA", page: "2", per_page: "50"
+    }
+
+    assert_redirected_to establishments_path(q: "PADARIA", per_page: "50", page: "2")
   end
 
   test "erro de validação também volta por turbo_stream, sem derrubar a tela" do

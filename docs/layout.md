@@ -99,6 +99,88 @@ O card é o próprio scrollport da tabela que ele contém (`min-width: 0` no ite
 da grade e vazava por cima do card vizinho — `test/system/layout_and_import_test.rb` compara
 `scrollWidth` e `clientWidth` de cada card e falha se voltar a acontecer.
 
+### Listagem do MIC: uma linha por cliente
+
+Em `/reports/sub_channels/:id` a linha é o **cliente (CNPJ)**, e não o ponto de venda: o
+faturamento de todos os ECs dele entra somado numa linha só (pedido do usuário, 10/09/2026).
+Na carteira real isso leva 470 linhas a 302, e nenhum CNPJ aparece em dois MICs — medido —,
+então agrupar dentro do subcanal é o mesmo que agrupar por CNPJ.
+
+O que a linha mostra, e de onde o valor vem quando os ECs divergem:
+
+| Coluna | Regra | Por quê |
+| --- | --- | --- |
+| **Net MDR** | só alíquota **positiva**; faixa (`0,42% a 2,52%`) quando os ECs divergem | dos 470 ECs, 253 chegam `Inativo`, 4 negativos e 2 zerados: nenhum afirma alíquota. 5 CNPJs têm dois positivos diferentes, num deles de 0,62% a 2,53% — escolher um esconderia 4× a diferença |
+| Estabelecimento | CNPJ acima do nome; nome pelo valor mais frequente (`mode()`) | 3 CNPJs têm razão social divergente entre os ECs e 2, nome fantasia. `MAX` pegaria o maior alfabeticamente, não o mais provável |
+| Status | **Ativo** se ao menos um EC estiver ativo | a suspensão é do cliente; 8 dos 9 CNPJs de status misto são troca de EC |
+| Datas do ciclo | Cred. e Ativ. = a mais antiga; Susp. e Uso do app = a mais recente | o cliente entrou na primeira; um EC novo não rejuvenesce o credenciamento |
+| Melhor conversa | **todas**, uma por EC, rotuladas pelo EC no modal | 116 dos 302 clientes têm mais de um texto diferente |
+
+A coluna do número do EC **deixou de existir** na tela — o inventário de equipamentos saiu
+com ela, porque é de cada ponto de venda. Os dois continuam na ficha do cliente
+(`/establishments/:id`), onde a unidade é o EC.
+
+**O filtro escolhe o cliente; a soma é sempre dos ECs todos.** Isso não é detalhe de
+implementação: todo filtro desta tela nasceu por EC, e se um deles voltar para o `WHERE`
+antes do `GROUP BY`, o cliente com três ECs em que só um casa aparece com a soma de **um** —
+faturamento errado e calado, numa tela de auditoria. Em `EstablishmentListingQuery` os
+filtros vivem no `HAVING`, e `test/services/establishment_listing_query_test.rb` trava a
+invariante: buscar o número de um EC devolve o cliente com os dois ECs somados.
+
+Status e data comparam o **valor agregado** — o mesmo que a linha mostra —, para que quem
+filtra "suspensos" nunca receba uma linha escrita "Ativo". A busca é a exceção e mede EC por
+EC: quem digita o número de um EC está procurando o cliente dono dele, e esse número não está
+mais na tela para ser comparado como agregado.
+
+Duas armadilhas que esta mudança pagou:
+
+- **`pluralize(2, "estabelecimento")` devolve `"2 estabelecimento"`.** O pt-BR não declara
+  inflexões, então sem o plural explícito nada é pluralizado. Todo `pluralize` de texto em
+  português precisa dos dois argumentos.
+- **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
+  `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
+
+### Paginação
+
+`app/views/shared/_pagination.html.erb`. A barra leva **Anterior, os números e Próxima**: até
+sete páginas todas aparecem; acima disso vale uma janela — a primeira, cinco em volta da atual
+e a última, com `…` nos saltos. Um salto de **uma** página vira o próprio número, que ocupa o
+mesmo espaço e leva a algum lugar. O "Página X de Y" saiu: a atual está em laranja cheio e a
+última é sempre o número do fim.
+
+Cada bloco contíguo é um `join` — o mesmo grupo de escolha do "Por página" logo acima. Isso não
+é estética: `.btn` solto herda o laranja cheio da regra do sistema, e as páginas ficariam todas
+iguais, sem mostrar qual é a atual. Quem calcula a janela é `pagination_page_groups`; o caminho
+de cada página vem de quem renderiza, num lambda, porque cada tela tem o seu recorte na URL.
+
+A listagem de `/establishments` ainda usa a barra antiga, só com Anterior e Próxima.
+
+### O menu de ações não pode ser recortado pela tabela
+
+O painel do menu (`.actions-menu__list`) abre para fora da linha, e `.table-scroll` o cortava:
+ele tem `overflow-x: auto` para a tabela rolar na horizontal, e **overflow declarado num eixo
+torna o outro `auto` também** — não existe pedir só o horizontal. Medido no menu da última
+linha da carteira real: dos 100px do painel, 57 ficavam fora, e o resto aparecia por baixo da
+barra de paginação.
+
+Nenhuma solução de CSS resolve: `absolute` é recortado por qualquer ancestral com overflow, e
+abrir sempre para cima só troca o problema de lugar — na primeira linha da tabela o painel
+sairia pelo topo. Por isso `actions_menu_controller.js` troca o painel para
+**`position: fixed`** ao abrir e calcula a posição a partir do gatilho, refazendo a conta a
+cada rolagem e a cada `resize`. Ele abre para baixo e **inverte para cima só quando o painel
+não cabe até o fim da janela** — conta que depende da altura medida na hora, que o CSS não
+tem. Sem JavaScript o painel continua `absolute` — recortado, como era, e não quebrado.
+
+Três escolhas que já custaram medição:
+
+- **Ancorar pela direita, não pela esquerda.** Com `left`, a caixa `fixed` encolhe para caber
+  no que resta até a borda e sai do alinhamento — 11px fora, medido.
+- **`documentElement.clientWidth`, não `window.innerWidth`.** O bloco que contém um elemento
+  `fixed` exclui a barra de rolagem; `innerWidth` a inclui.
+- **Duas inscrições de `scroll`, com e sem `capture`.** Quem rola é o `.table-scroll`, e
+  rolagem de elemento não borbulha — daí a captura. Com **só** a de captura, medido: rolar a
+  tabela reposicionava o painel e rolar a página o deixava para trás.
+
 ### Ordenação das listagens
 
 A regra vive em `ListingSort`, num lugar só. A coluna e o sentido vêm da URL e são validados
@@ -159,15 +241,104 @@ dias da mesma semana. E a âncora do mês anterior segue a regra de alinhamento 
 escolhido parcial compara com o anterior até o mesmo dia; competência anterior não importada
 declara a lacuna em vez de mostrar zero.
 
+### Clover Capital: o MIC é filtro, não coluna
+
+A tela tinha uma coluna MIC repetindo o mesmo nome em toda linha e empurrando a tabela na
+horizontal. Desde 10/09/2026 ela é um **select** acima da tabela, que abre em "Todas"
+(`reports/stalled.html.erb`, `PreapprovedOffers#sub_channel_options`). O nome do MIC não
+sumiu da linha: ficou **dentro da célula do estabelecimento**, abaixo da contagem de ECs e
+sem destaque — mesma classe discreta da linha de ECs. Medido nas duas formas, com a janela em
+1440px e a carteira real: como coluna, a tabela pedia 1614px num espaço de 1376px (238px de
+rolagem horizontal); como linha da célula, pede 1376px e a rolagem some.
+
+Três decisões, cada uma com um porquê:
+
+- **O select só oferece MIC que tem cliente com oferta.** Na carteira real são 15 clientes
+  espalhados por 6 MICs (medido em 10/09/2026); oferecer os outros seria oferecer tabela vazia.
+  A lista também não se recorta pelo MIC escolhido — senão escolher um faria os demais sumirem
+  da própria lista, e não haveria como voltar.
+- **O filtro vive no `HAVING`**, como na listagem do MIC e pela mesma razão: no `WHERE`, o
+  cliente com ECs em mais de um MIC apareceria com a contagem de ECs e a checagem de
+  divergência recortadas pelo filtro. Hoje nenhum dos 15 tem ECs em dois MICs (medido), mas a
+  consulta não depende disso ser verdade amanhã — e há teste para o caso.
+- **MIC inexistente é 404, não tabela vazia**, e MIC de outro Master que o escolhido também: a
+  mesma regra que o canal já seguia.
+
+O canal escolhido viaja num campo oculto do formulário, senão aplicar o MIC derrubaria o
+recorte de Master de quem chegou por ele.
+
+**A tela exporta CSV e XLSX** (`PreapprovedOffersExporter`). A anotação fica de fora do
+arquivo: é texto livre com anexos, e célula de planilha não é onde se lê isso. No total só
+entram volume e contagem de ECs — somar prazo ou taxa de clientes diferentes não descreve
+oferta nenhuma, e a média tampouco.
+
+### Exportações
+
+**Toda tela de relatório exporta CSV e XLSX, menos uma.** `TabularExporter` faz a mecânica —
+CSV e planilha a partir das mesmas linhas — e cada tela declara só colunas, nome da aba e a
+nota do cabeçalho. Um exportador por tela, nenhum herdando de outro: o que elas compartilham
+é a mecânica, não o formato.
+
+| Tela | Exportador | A linha do arquivo |
+| --- | --- | --- |
+| Listagem do MIC | `EstablishmentListingExporter` | cliente |
+| Clover Capital | `PreapprovedOffersExporter` | cliente |
+| `/establishments` | `EstablishmentsExporter` | cliente, com os ECs numa célula |
+| Ritmo do mês | `WeeklyRevenueExporter` | dia coberto pelo arquivo |
+| Modal do dia | `DayCompaniesExporter` | cliente que vendeu naquele dia |
+| Recorrente | `RecurringEarningsExporter` | MIC × competência |
+| Ganhos 3M | `ThreeMonthEarningsExporter` | MIC, com M0/M1/M2 em colunas |
+| Ganhos 3M de um MIC | `ThreeMonthEstablishmentsExporter` | EC, com M0/M1/M2 em colunas |
+
+Quatro regras valem para todos:
+
+- **O arquivo é do recorte da tela, não da página.** Os parâmetros da tela viajam no link do
+  botão, e a paginação fica de fora: exportar só a página entregaria um recorte que ninguém
+  pediu. Em `/establishments` isso é asserção de teste — a contagem do arquivo tem que bater
+  com a da tela, não com a da página.
+- **O nome do arquivo carrega o recorte** (`ganhos-3m-mic-gama.xlsx`, `ritmo-2026-08.csv`),
+  senão dois downloads seguidos chegam com o mesmo nome na pasta.
+- **Ausência de dado sai vazia, nunca zerada.** Mês sem cobertura no 3M, ajuste inexistente no
+  recorrente, dia além da cobertura no ritmo: zero seria uma afirmação, e no Excel entra na
+  média. É a mesma distinção que as telas fazem com o travessão.
+- **O total só soma o que é somável.** A contagem de ECs distintos do ritmo fica em branco —
+  somar ECs por dia contaria o mesmo EC uma vez por dia —, e prazo e taxa do Clover Capital
+  também.
+
+**A auditoria de faturamento (`/reports`) é a exceção**: exportava e deixou de exportar em
+10/09/2026, a pedido do usuário. Saíram os botões, o endpoint e o `ReportsExporter` — botão
+escondido com a rota de pé é meia remoção, e `/reports.csv` responde 406.
+
+O link do **modal do dia** leva `data-turbo="false"`: ele vive dentro de um turbo_frame, e sem
+isso o Turbo tentaria encaixar o arquivo no frame em vez de baixá-lo.
+
 ### Anotação do cliente
 
-Coluna "Anotação" na listagem por MIC e no Clover Capital, com partial compartilhado
-(`shared/_company_note_cell`, `shared/_company_note_modal`) e **um diálogo por tabela**.
+A mesma célula nas duas telas (`shared/_company_note_cell`, `shared/_company_note_modal`), em
+lugares diferentes: no Clover Capital é a coluna "Anotação"; na listagem do MIC é um item do
+**menu de ações**, porque ali as colunas não sobram. Um diálogo por tabela, nunca por linha.
 
-A anotação é do **CNPJ**, não do EC: um cliente com três ECs mostra a mesma nota nas três
-linhas, e o cabeçalho do modal escreve isso ("vale para os 3 ECs deste cliente") para a
-repetição ler como intenção. A tabela se liga pelo CNPJ e não por FK — ver o porquê no
-`CLAUDE.md`.
+A célula leva **só o botão**. O trecho do texto salvo já apareceu ali embaixo, no Clover
+Capital, e saiu a pedido do usuário (10/09/2026): a linha cresce com o tamanho da anotação, e
+uma anotação longa esticava a coluna até a tabela precisar rolar na horizontal. O texto vive no
+modal, que é onde se lê e se escreve; na célula fica o ponto, que diz que existe.
+
+A anotação é do **CNPJ**, não do EC, e quem diz isso é o cabeçalho do modal ("vale para os
+3 ECs deste cliente"): toda tela que a edita mostra um cliente por linha e nenhuma lista os
+ECs, então o alcance da nota precisa estar escrito em algum lugar.
+
+Salvar não recarrega a tela: um `turbo_stream` troca a célula daquele cliente. O alvo é o id
+que `company_note_cell_id` monta da uuid do cliente, e o helper existe porque duas pontas
+precisam da mesma string — a partial escreve o id, o controller o endereça. Enquanto a listagem
+do MIC era por EC, o mesmo cliente ocupava várias células e o alvo era um `replace_all` por
+seletor; com uma linha por CNPJ, o id único basta.
+
+A volta de cada tela é montada por route helper, a partir de uma lista fechada de origens
+(`sub_channel`, `establishment`, `establishments`, e o Clover Capital como padrão). Caminho que
+venha na requisição nunca é seguido: seria redirecionamento aberto, e o projeto entrega com o
+brakeman limpo.
+
+A tabela se liga pelo CNPJ e não por FK — ver o porquê no `CLAUDE.md`.
 
 Diferente dos outros modais da casa, o conteúdo **chega por Turbo Frame** em vez de vir num
 `data-*` do botão: é HTML com anexos, e vinte linhas de tabela carregariam vinte cópias. O
@@ -176,8 +347,8 @@ resposta do redirect e engoliria o flash — e fecha o diálogo no submit, porqu
 `turbo_refreshes_with method: :morph`.
 
 O botão **nunca vem `disabled`**, ao contrário do da melhor conversa: lá "não tem" é fato da
-planilha; aqui é o convite para escrever. Sem nota ele é `btn-outline` e diz "Anotar"; com
-nota, laranja cheio e "Ver".
+planilha; aqui é o convite para escrever. O rótulo é sempre "Anotar" — quem avisa que já há
+conteúdo é o ponto (`.note-trigger__dot`), e o botão sai de `btn-outline` para o laranja cheio.
 
 Editor é o Trix (Action Text), vendorizado em `vendor/javascript/trix.js` — o CSP tem
 `script_src 'self'` e não aceitaria CDN. Anexo sai em tamanho original, com a largura contida
@@ -186,10 +357,16 @@ arquivo cheio em silêncio.
 
 ### Modal de lançamentos diários
 
-Clicar na linha do estabelecimento, na tela de subcanal, abre `.daily-modal` por Turbo Frame
+Clicar na linha do cliente, na tela de subcanal, abre `.daily-modal` por Turbo Frame
 (`reports/_daily_revenues.html.erb`). Ele mostra **três competências** lado a lado —
 penúltimo mês, último e atual —, um dia por linha, com o cabeçalho da tabela colado no topo
 ao rolar (o scrollport é a própria tabela, não a página).
+
+O modal é do **cliente**, e soma os mesmos ECs que a linha soma: a rota é
+`reports/sub_channels/:id/daily/:company_id`, com a uuid da empresa — nunca o CNPJ, que o
+filtro de log esconde dos parâmetros mas não do caminho da URL. Quando a soma tem mais de um
+EC, o cabeçalho escreve quantos; sem isso, quem confere o dia a dia contra a planilha não
+sabe se está vendo um ponto de venda ou a soma de três.
 
 Três regras que o modal segue de propósito:
 
@@ -263,20 +440,25 @@ mas quem decide a cor é o sistema.
 ```
 
 **A regra vive fora de qualquer `@layer`**, no fim do arquivo, e isso não é preferência de
-organização. O daisyUI declara `.btn { color: var(--btn-fg) }` e o próprio `--btn-fg` **sem
-camada**, e estilo sem camada vence estilo em camada **independentemente da especificidade**.
+organização. O daisyUI declara `.btn { color: var(--btn-fg) }` e o próprio `--btn-fg` **dentro
+de `@layer utilities`** (em sub-camadas próprias, `daisyui.l1.l2…`) — depois da
+`@layer components`, onde moram as regras do projeto —, e camada posterior vence
+**independentemente da especificidade**; quem não está em camada alguma vence as duas.
 Dentro de `@layer components` a regra pintava o fundo — porque o daisyUI lê a nossa
 `--btn-color` — e perdia a cor do texto: o sintoma foi a seta preta sobre o laranja, que
 sobreviveu a duas tentativas de resolver por especificidade. Quando algo de botão não pegar,
 confira a camada antes da especificidade.
 
 **E não é só de botão.** A regra vale para **qualquer propriedade que o daisyUI também
-declare**: `.btn-square { width }`, `.table :where(th,td) { padding-inline }`, e o que mais
-vier. Em `@layer components` elas perdem, e perdem em silêncio — a regra aparece no CSS
-servido, o `grep` a encontra, e mesmo assim o navegador aplica a do daisyUI. Foi o que
-aconteceu com a largura do botão da melhor conversa e o padding da coluna de variação: as
-duas ficaram sem efeito até saírem da camada (medido: botão parado em 32px onde a regra
-pedia 34; coluna com os 16px do daisyUI onde a regra pedia 9,6).
+declare**: `.btn-square { width }`, `.table :where(th,td) { padding-inline }`,
+`.btn { cursor }` — o da página atual da paginação — e o que mais vier. Em `@layer components`
+elas perdem, e perdem em silêncio — a regra aparece no CSS servido, o `grep` a encontra, e
+mesmo assim o navegador aplica a do daisyUI. Foi o que aconteceu com a largura do botão da
+melhor conversa e o padding da coluna de variação: as duas ficaram sem efeito até saírem da
+camada (medido: botão parado em 32px onde a regra pedia 34; coluna com os 16px do daisyUI onde
+a regra pedia 9,6). Conferido no CSS servido em 10/09/2026, com daisyUI 5.7.22, contando as
+chaves regra por regra: `.btn` e `.btn-square` caem em `utilities`, as regras do projeto em
+`components`, e o bloco do fim do arquivo, fora de camada.
 
 Conferir isso exige medir no navegador, porque ler o CSS não revela o problema. O caminho
 usado foi baixar a página e as folhas servidas, inliná-las num arquivo local e abri-lo com
@@ -290,10 +472,14 @@ do botão, não o SVG.
 Vale para **todos** os botões, com o mesmo comportamento — inclusive as setas do calendário,
 as do modal do dia e as da paginação, que passaram a ter seta junto do texto.
 
-A única exceção é o **grupo de escolha** (`join-item`, hoje os itens por página): a opção
-selecionada fica no laranja cheio e as demais assumem o formato do hover — branco com `#333`
-e borda laranja —, invertendo para laranja ao passar o mouse. Sem isso o grupo inteiro vira
-um bloco laranja e não dá para ver o que está escolhido.
+A única exceção é o **grupo de escolha** (`join-item`: os itens por página e os números da
+paginação): a opção selecionada fica no laranja cheio e as demais assumem o formato do hover —
+branco com `#333` e borda laranja —, invertendo para laranja ao passar o mouse. Sem isso o
+grupo inteiro vira um bloco laranja e não dá para ver o que está escolhido.
+
+Na paginação a página atual é um `<span>`, e não um link: não há para onde ir. O cursor dela
+volta a `default` numa regra fora de `@layer`, pelo mesmo motivo das regras de botão acima —
+dentro da camada, o `cursor` do `.btn` do daisyUI vence.
 
 `btn--field` alinha a altura do botão à dos campos numa barra de filtros, e `btn-sm` é
 tamanho, não cor.

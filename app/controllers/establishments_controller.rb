@@ -22,6 +22,13 @@ class EstablishmentsController < ApplicationController
       .includes(:company, :channel, :primary_establishment, current_map_snapshot: :sub_channel)
       .order(:ec).group_by(&:company)
     @companies = page_companies.map { |company| @establishments_by_company.keys.find { |c| c.id == company.id } }
+    # Uma consulta para a página inteira, pelo CNPJ: a anotação não tem FK para companies.
+    @notes_by_cnpj = CompanyNote.where(cnpj: @companies.map(&:cnpj)).index_by(&:cnpj)
+    respond_to do |format|
+      format.html
+      format.csv { send_data exporter(companies).to_csv, **arquivo("csv") }
+      format.xlsx { send_data exporter(companies).to_xlsx, **arquivo("xlsx") }
+    end
   end
 
   # A ficha é do estabelecimento — o CNPJ —, e os ECs são os produtos contratados nele: POS,
@@ -37,6 +44,8 @@ class EstablishmentsController < ApplicationController
     # ficha e listagem precisam mostrar o mesmo nome e o mesmo endereço para o mesmo cliente.
     @snapshot = @establishments.first&.current_map_snapshot
     @diverging = diverging_client_fields(@establishments)
+    # A anotação se liga pelo CNPJ, não por FK — ver o porquê no CLAUDE.md.
+    @note = CompanyNote.with_rich_text_body.find_by(cnpj: @company.cnpj)
   end
 
   private
@@ -61,6 +70,26 @@ class EstablishmentsController < ApplicationController
   end
 
   # Mesmas regras da listagem por subcanal: tamanho dentro do teto, página dentro do total.
+  # O arquivo é do filtro, não da página: a exportação refaz a consulta sem o recorte de
+  # paginação. Exportar só a página entregaria um recorte que ninguém pediu.
+  def exporter(companies)
+    todas = companies.group("companies.id").select("companies.*, MIN(establishments.ec) AS first_ec")
+      .order("first_ec").to_a
+    por_empresa = Establishment.where(company_id: todas.map(&:id))
+      .includes(:company, :channel, :primary_establishment, current_map_snapshot: :sub_channel)
+      .order(:ec).group_by(&:company)
+    # group_by devolve as instâncias carregadas aqui; a lista ordenada vem da outra consulta,
+    # então as chaves precisam ser as mesmas instâncias para o fetch do exportador achá-las.
+    ordenadas = todas.map { |company| por_empresa.keys.find { |c| c.id == company.id } }.compact
+    EstablishmentsExporter.new(ordenadas, establishments_by_company: por_empresa, query: @query)
+  end
+
+  def arquivo(extensao)
+    tipo = extensao == "csv" ? "text/csv" : Mime[:xlsx]
+    nome = @query.present? ? "estabelecimentos-#{@query.parameterize}" : "estabelecimentos"
+    { filename: "#{nome}.#{extensao}", type: tipo }
+  end
+
   def paginate(total_count)
     per_page = params[:per_page].to_i
     per_page = DEFAULT_PER_PAGE unless per_page.positive?

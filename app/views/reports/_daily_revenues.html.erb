@@ -2,13 +2,19 @@
 <%= turbo_frame_tag "daily_revenues" do %>
   <div class="daily-modal__head">
     <p class="section-label">Lançamentos diários</p>
-    <h2 class="table-title">EC <%= @establishment.ec %></h2>
-    <% if @window %>
-      <p class="page-description">
-        Mês inteiro de cada competência, como a planilha entrega.
+    <h2 class="table-title"><%= @client.name %></h2>
+    <p class="page-description">
+      <%# Quantos ECs entram na soma fica escrito: sem isso, quem confere o dia a dia contra
+          a planilha não sabe se está vendo um ponto de venda ou a soma de três. %>
+      <%= formatted_cnpj(@company.cnpj) %>
+      <% if @client.establishment_ids.size > 1 %>
+        · soma de <%= pluralize(@client.establishment_ids.size, "EC", "ECs") %>
+      <% end %>
+      <% if @window %>
+        — mês inteiro de cada competência, como a planilha entrega.
         O mês atual vai até o dia <%= @window.max_day %> de cobertura.
-      </p>
-    <% end %>
+      <% end %>
+    </p>
   </div>
 
   <% if @rows.any? %>
@@ -17,10 +23,10 @@
         célula três vezes no cabeçalho, no corpo e no rodapé. %>
     <% colunas = @window.daily_columns.map { |period, key| [ period, key, Time.days_in_month(period.month, period.year) ] } %>
     <div class="table-scroll" role="region" tabindex="0"
-      aria-label="Faturamento diário do EC <%= @establishment.ec %>">
+      aria-label="Faturamento diário de <%= @client.name %>">
       <table class="table">
         <caption class="sr-only">
-          Faturamento por dia do EC <%= @establishment.ec %>, uma coluna por competência
+          Faturamento por dia de <%= @client.name %>, somando os ECs do CNPJ, uma coluna por competência
         </caption>
         <thead>
           <tr>

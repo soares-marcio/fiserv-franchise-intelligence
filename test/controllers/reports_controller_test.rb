@@ -22,17 +22,19 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", text: "Clover Capital"
-    %w[MIC Estabelecimento Volume\ pré-aprovado Prazo\ pré-aprovado
+    %w[Estabelecimento Volume\ pré-aprovado Prazo\ pré-aprovado
        Taxa\ pré-aprovada].each do |rotulo|
       assert_select "th", text: rotulo
     end
     # O CNPJ não tem coluna: fica acima da razão social, na célula dela.
     assert_select "th", text: "CNPJ", count: 0
+    # O MIC deixou de ser coluna e virou filtro: repetido em toda linha, ele só empurrava a
+    # tabela na horizontal.
+    assert_select "th", text: "MIC", count: 0
 
     # Dois ECs do mesmo CNPJ são uma linha; quem não tem oferta não entra.
     assert_select "tbody tr", count: 1
     linha = css_select("tbody tr").first
-    assert_select "tbody tr td:first-child", text: "MIC ALFA"
     assert_match(/11\.222\.333\/0001-81\s+ALFA COMERCIO LTDA/, linha.text)
     assert_match(/R\$ 350\.000,00/, linha.text)
     assert_match(/24 meses/, linha.text)
@@ -43,10 +45,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-tip*=?]", "PARCELA_PRE_APROVADA", count: 0
   end
 
-  # A anotação é do CNPJ, e a listagem do MIC é por EC: os ECs 30000001 e 90000001 dividem o
-  # mesmo CNPJ na planilha sintética, então as duas linhas apontam para a mesma anotação. É a
-  # decisão de domínio virando comportamento verificável.
-  test "os ECs do mesmo CNPJ dividem a anotação do cliente" do
+  # A anotação é do CNPJ, e a listagem do MIC também: os ECs 30000001 e 90000001 dividem o
+  # mesmo CNPJ na planilha sintética, e desde que a linha é o cliente eles ocupam uma linha
+  # só, com a anotação daquele cliente. É a decisão de domínio virando comportamento
+  # verificável — antes eram duas linhas apontando para a mesma anotação.
+  test "os ECs do mesmo CNPJ são uma linha só, com a anotação do cliente" do
     import_synthetic_workbook
     refresh_audit_views
     empresa = Company.find_by!(cnpj: "11222333000181")
@@ -57,19 +60,152 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "th", text: "Ações"
     assert_select "th", text: "Anotação", count: 0
-    # O rótulo do botão não muda; quem avisa que há anotação é o ponto. As duas linhas do
-    # CNPJ o exibem, e as demais não.
+    # O rótulo do botão não muda; quem avisa que há anotação é o ponto. A linha do CNPJ
+    # anotado o exibe, e as demais não.
     todos = css_select("td.actions-col button.note-trigger")
     com_ponto = todos.select { |botao| botao.css(".note-trigger__dot").any? }
-    assert_equal 2, todos.size, "o MIC ALFA tem dois ECs, os dois do mesmo CNPJ"
-    assert_equal 2, com_ponto.size, "e os dois avisam que há anotação"
+    assert_equal 1, todos.size, "os dois ECs do MIC ALFA são um cliente, numa linha só"
+    assert_equal 1, com_ponto.size, "e a linha avisa que há anotação"
     assert_equal [ "Anotar" ], todos.map { |botao| botao.text.strip }.uniq,
       "o rótulo não muda: quem avisa é o ponto"
     destinos = todos.map { |botao| botao["data-note-modal-url-param"] }.uniq
-    assert_equal 1, destinos.size, "as duas linhas abrem a anotação do mesmo cliente"
+    assert_equal 1, destinos.size, "a linha abre a anotação do cliente"
     assert_includes destinos.first, empresa.uuid
+    # O alvo que o turbo_stream de salvar endereça existe na página, e uma vez só: com o id
+    # repetido, o Turbo trocaria a primeira célula e deixaria as outras mostrando o estado
+    # velho. É o agrupamento por CNPJ que garante a unicidade.
+    assert_select "##{ApplicationController.helpers.company_note_cell_id(empresa.uuid)}",
+      count: 1
     # O recorte da listagem viaja junto, para a volta reabrir onde estava.
     assert_includes destinos.first, "origin=sub_channel"
+  end
+
+  # O MIC saiu da tabela e virou select, com "Todas" como padrão: repetido em toda linha, o
+  # nome do MIC só empurrava a tabela na horizontal.
+  test "Clover Capital filtra por MIC, e abre em Todas" do
+    import_synthetic_workbook(lojas: lojas_com_oferta + [ loja_com_oferta_em_outro_mic ])
+    gama = SubChannel.find_by!(name: "MIC GAMA")
+
+    get stalled_reports_path
+
+    assert_response :success
+    # Duas opções de MIC mais o "Todas", que é o que abre selecionado.
+    assert_select "select[name=sub_channel_id] option", count: 3
+    assert_select "select[name=sub_channel_id] option:first-of-type", text: "Todas"
+    assert_select "select[name=sub_channel_id] option[selected]", count: 0
+    assert_select "tbody tr", count: 2
+
+    get stalled_reports_path(sub_channel_id: gama.uuid)
+
+    assert_response :success
+    assert_select "tbody tr", count: 1
+    assert_select "tbody tr", text: /GAMA TRANSPORTES LTDA/
+    assert_select "select[name=sub_channel_id] option[selected][value=?]", gama.uuid
+    # A contagem do topo acompanha o filtro, senão diria um número que a tabela desmente.
+    assert_select ".badge", text: "1 cliente"
+    # O MIC escolhido continua no endereço que o botão da anotação carrega: salvar sem
+    # JavaScript volta para o mesmo recorte.
+    assert_select "button.note-trigger[data-note-modal-url-param*=?]", gama.uuid
+  end
+
+  # O segundo caminho de 404: o MIC existe, mas é de outro Master que o escolhido. Responder
+  # "nenhum cliente" a um recorte impossível seria pior do que dizer que o endereço não existe.
+  # O arquivo acompanha o recorte da tela, como o da auditoria de faturamento já fazia: quem
+  # está olhando um MIC não baixa a carteira inteira sem perceber.
+  test "Clover Capital exporta CSV e XLSX com o recorte da tela" do
+    import_synthetic_workbook(lojas: lojas_com_oferta + [ loja_com_oferta_em_outro_mic ])
+    gama = SubChannel.find_by!(name: "MIC GAMA")
+
+    get stalled_reports_path
+
+    assert_select "a.export-action[href=?]", stalled_reports_path(format: :csv)
+    assert_select "a.export-action[href=?]", stalled_reports_path(format: :xlsx)
+
+    get stalled_reports_path(format: :csv)
+
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal PreapprovedOffersExporter::HEADERS, tabela.headers
+    assert_equal [ "MIC ALFA", "MIC GAMA", "TOTAL" ], tabela.map { |linha| linha["MIC"] }
+
+    get stalled_reports_path(format: :csv, sub_channel_id: gama.uuid)
+
+    assert_equal [ "MIC GAMA", "TOTAL" ],
+      CSV.parse(response.body, headers: true).map { |linha| linha["MIC"] }
+    # O nome do arquivo diz o recorte: dois downloads seguidos não chegam com o mesmo nome.
+    assert_match(/clover-capital-mic-gama\.csv/, response.headers["Content-Disposition"])
+
+    get stalled_reports_path(format: :xlsx, sub_channel_id: gama.uuid)
+
+    assert_response :success
+    assert_equal Mime[:xlsx].to_s, response.media_type
+    assert_match(/clover-capital-mic-gama\.xlsx/, response.headers["Content-Disposition"])
+  end
+
+  # O MIC voltou à tela como informação da célula do estabelecimento — sem destaque e sem
+  # coluna própria, que era o que empurrava a tabela na horizontal.
+  test "o MIC aparece dentro da célula do estabelecimento, não como coluna" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+
+    get stalled_reports_path
+
+    assert_response :success
+    assert_select "th", text: "MIC", count: 0
+    assert_select "tbody tr td:first-child p", text: "MIC ALFA"
+    # Sem destaque: a mesma classe discreta da linha de ECs, e não a do nome do cliente.
+    assert_select "tbody tr td:first-child p.text-xs.opacity-60", text: "MIC ALFA"
+  end
+
+  test "MIC de outro Master que o escolhido também é 404" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    outro = Channel.create!(external_id: "ZZ", name: "CANAL Z")
+    mic_de_outro = outro.sub_channels.create!(name: "MIC ZETA")
+
+    do_arquivo = SubChannel.find_by!(name: "MIC ALFA").channel
+
+    get stalled_reports_path(channel_id: do_arquivo.uuid, sub_channel_id: mic_de_outro.uuid)
+
+    assert_response :not_found
+  end
+
+  test "MIC que não existe não vira recorte, vira 404" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+
+    get stalled_reports_path(sub_channel_id: SecureRandom.uuid)
+
+    assert_response :not_found
+  end
+
+  # O texto salvo saía na célula e esticava a coluna até a tabela rolar na horizontal. A
+  # célula voltou a levar só o botão; o texto vive no modal, que é onde se lê e se escreve.
+  test "a coluna da anotação não traz o texto salvo" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181",
+      body: "<div>Dono viaja, retomar dia 10.</div>")
+
+    get stalled_reports_path
+
+    assert_response :success
+    assert_select "td.note-col button.note-trigger"
+    assert_select "td.note-col .note-trigger__dot"
+    assert_no_match(/Dono viaja/, response.body)
+  end
+
+  # As linhas do modal do dia são clientes: cabe o aviso de que há anotação, sem o texto —
+  # o modal é apertado e a leitura mora na ficha.
+  test "o modal do dia avisa quais clientes têm anotação" do
+    # Este recorte tem dois CNPJs vendendo no dia 1: um anotado e um sem anotação, que é o
+    # par necessário para o teste provar as duas coisas.
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    refresh_audit_views
+    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_response :success
+    assert_select "tbody tr", count: 2
+    assert_select ".note-flag", count: 1, text: /anotado/
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do
@@ -288,6 +424,91 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Ganho recorrente"
   end
 
+  # Toda tela de relatório exporta, e o arquivo é do recorte que está à vista: mesmos
+  # parâmetros no link, e a contagem do arquivo bate com a da tela.
+  test "o ganho recorrente exporta CSV e XLSX com a série mês a mês" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+
+    get recurring_reports_path
+
+    assert_select "a.export-action[href*=?]", "csv"
+
+    get recurring_reports_path(format: :csv)
+
+    assert_response :success
+    assert_equal "text/csv", response.media_type
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal RecurringEarningsExporter::HEADERS, tabela.headers
+    # Uma linha por MIC e competência, e o total fecha o arquivo.
+    assert_includes tabela.map { |linha| linha["MIC"] }, "MIC GAMA"
+    assert_equal "TOTAL", tabela.to_a.last.first
+    assert_match(/^\d{2}\/\d{4}$/, tabela.first["Competência"])
+
+    get recurring_reports_path(format: :xlsx)
+
+    assert_response :success
+    assert_equal Mime[:xlsx].to_s, response.media_type
+    assert_match(/ganho-recorrente\.xlsx/, response.headers["Content-Disposition"])
+  end
+
+  test "as duas páginas 3M exportam, com a janela no cabeçalho do arquivo" do
+    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    refresh_audit_views
+    mic = SubChannel.find_by!(name: "MIC GAMA")
+    janela = { from_date: "2026-06-01", to_date: "2026-08-01" }
+
+    get three_months_reports_path(format: :csv, **janela)
+
+    assert_response :success
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal "MIC", tabela.headers.first
+    assert_includes tabela.headers, "M0 Total"
+    assert_includes tabela.map { |linha| linha["MIC"] }, "MIC GAMA"
+
+    get three_months_sub_channel_report_path(id: mic.uuid, format: :csv, **janela)
+
+    assert_response :success
+    assert_equal "EC", CSV.parse(response.body, headers: true).headers.first
+    assert_match(/ganhos-3m-mic-gama\.csv/, response.headers["Content-Disposition"])
+  end
+
+  test "o ritmo do mês exporta um dia por linha, só os dias cobertos" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_reports_path(format: :csv, period: "2026-08-01")
+
+    assert_response :success
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal WeeklyRevenueExporter::HEADERS, tabela.headers
+    dias = tabela.reject { |linha| linha["Semana"] == "TOTAL" }
+    assert_predicate dias.size, :positive?
+    # Dia além da cobertura não vira linha zerada: "sem dado" não é "não vendeu".
+    assert_operator dias.size, :<=, 31
+    assert_equal "TOTAL", tabela.to_a.last.first
+    assert_match(/ritmo-2026-08\.csv/, response.headers["Content-Disposition"])
+  end
+
+  test "o modal do dia exporta os clientes daquele dia, escapando do frame" do
+    import_synthetic_workbook
+    refresh_audit_views
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01")
+
+    assert_response :success
+    # Dentro de um frame, sem turbo: false o Turbo tentaria encaixar o arquivo na página.
+    assert_select "a.export-action[data-turbo=false]", count: 2
+
+    get weekly_day_report_path(day: 1, period: "2026-08-01", format: :csv)
+
+    assert_response :success
+    tabela = CSV.parse(response.body, headers: true)
+    assert_equal DayCompaniesExporter::HEADERS, tabela.headers
+    assert_match(%r{\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}}, tabela.first["CNPJ"])
+    assert_match(/clientes-do-dia-2026-08-01\.csv/, response.headers["Content-Disposition"])
+  end
+
   test "a página 3M abre sem volume importado e explica a dependência da planilha" do
     get three_months_reports_path
     assert_response :success
@@ -404,15 +625,25 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", text: /Mês anterior comparável/
   end
 
-  test "exporta CSV" do
-    get reports_path(format: :csv)
+  # A auditoria de faturamento não exporta (decisão do usuário, 10/09/2026): quem precisa de
+  # arquivo desce ao MIC, onde a linha é o cliente. O endpoint saiu junto com os botões —
+  # botão escondido com a rota de pé seria meia remoção.
+  test "a auditoria de faturamento não oferece nem responde exportação" do
+    get reports_path
+
     assert_response :success
-    assert_equal "text/csv", response.media_type
-    assert_includes response.body, "Mês anterior (cheio)"
-    assert_includes response.body, "Mês anterior comparável"
+    assert_select "a.export-action", count: 0
+
+    # Sem formato declarado na ação, a rota responde 406 em vez de entregar arquivo: é o
+    # que um link antigo para /reports.csv encontra.
+    get reports_path(format: :csv)
+    assert_response :not_acceptable
+
+    get reports_path(format: :xlsx)
+    assert_response :not_acceptable
   end
 
-  test "seleciona um Master e o preserva nas exportações" do
+  test "seleciona um Master e o mantém no filtro" do
     selected = Channel.create!(external_id: "1", name: "CANAL A")
     Channel.create!(external_id: "2", name: "CANAL B")
 
@@ -421,8 +652,6 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "select[name='channel_id'] option[selected]", text: "CANAL A"
     assert_select "select[name='channel_id'] option", text: "CANAL B"
-    assert_select "a[href='#{reports_path(format: :csv, channel_id: selected.uuid)}']", text: "Exportar CSV"
-    assert_select "a[href='#{reports_path(format: :xlsx, channel_id: selected.uuid)}']", text: "Exportar XLSX"
   end
 
   test "liga cada MIC à sua listagem de estabelecimentos" do
@@ -445,17 +674,22 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     import_synthetic_workbook
     refresh_audit_views
 
+    # No MIC ALFA, o EC 30000001 tem conversa e o 90000001 não — e os dois são o mesmo
+    # cliente. A conversa que existe vai para o modal, rotulada pelo EC de onde veio.
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
 
     assert_response :success
-    # A ALFA LANCHES tem conversa na planilha sintética; a ALFA EXPRESS, não.
-    assert_select "button.actions-menu__item", count: 2
-    assert_select "button.actions-menu__item[disabled]", count: 1
-    assert_select "button.actions-menu__item[data-conversation-modal-text-param=?]",
-      "Ligar > Enviar proposta"
-    # Sem texto não há o que passar ao modal: o botão desabilitado não carrega param nenhum.
-    assert_select "button.actions-menu__item[disabled][data-conversation-modal-text-param]",
-      count: 0
+    assert_select "button.conversation-trigger", count: 1
+    assert_select "button.conversation-trigger[disabled]", count: 0
+    assert_select "button.conversation-trigger[data-conversation-modal-items-param=?]",
+      [ { "ec" => "30000001", "text" => "Ligar > Enviar proposta" } ].to_json
+
+    # O cliente do MIC BETA não tem conversa em nenhum EC: botão desabilitado e sem param,
+    # porque não há o que o modal mostre.
+    get sub_channel_report_path(SubChannel.find_by!(name: "MIC BETA"))
+
+    assert_select "button.conversation-trigger[disabled]", count: 1
+    assert_select "button.conversation-trigger[data-conversation-modal-items-param]", count: 0
   end
 
   test "as colunas de valor ordenam a listagem e anunciam o sentido" do
@@ -509,26 +743,28 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel)
 
     assert_response :success
-    # Em MIC ALFA a fixture tem dois ECs no mesmo CNPJ, ambos ativos: o badge conta os dois
-    # ECs, e a composição conta o cliente uma vez. É a diferença de unidade, na prática.
-    assert_select ".badge", text: /2 ECs/
+    # Em MIC ALFA a fixture tem dois ECs no mesmo CNPJ, ambos ativos: badge e composição
+    # contam a mesma coisa, um cliente — eram unidades diferentes quando a linha era o EC.
+    assert_select ".badge", text: /1 estabelecimento/
     assert_select ".table-toolbar__breakdown", text: /1 ativos.*0 suspensos.*por CNPJ/m
     # Cada contagem carrega a regra em tooltip, para a tela explicar sozinha.
     assert_select ".table-toolbar__breakdown .tooltip[data-tip*=?]", "pelo menos um EC ativo"
     assert_select ".table-toolbar__breakdown .tooltip[data-tip*=?]", "todos os ECs suspensos"
   end
 
-  test "lançamentos diários do EC chegam sem layout, um dia por linha" do
+  test "lançamentos diários do cliente chegam sem layout, um dia por linha" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
-    establishment = Establishment.find_by!(ec: "11111111")
+    company = Establishment.find_by!(ec: "11111111").company
 
-    get sub_channel_daily_report_path(sub_channel, establishment, channel_id: channel.uuid)
+    get sub_channel_daily_report_path(sub_channel, company, channel_id: channel.uuid)
 
     assert_response :success
     assert_select "turbo-frame#daily_revenues"
     assert_select "body", false, "o modal chega sem layout"
-    assert_select "h2", text: "EC 11111111"
+    # O título é o cliente, não o ponto de venda: a soma da tela é a do CNPJ.
+    assert_select "h2", text: "LOJA UM"
+    assert_select ".page-description", text: /12\.345\.678\/0001-91/
     assert_select "tbody th[scope=?]", "row", text: "24"
     # brl usa espaço não separável entre o símbolo e o número; o regex evita a armadilha.
     assert_select "td", text: /100,00/
@@ -543,7 +779,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     establishment = Establishment.find_by!(ec: "11111111")
     cover_penultimate_period(channel, establishment, Date.new(2026, 6, 1), amount: 60)
 
-    get sub_channel_daily_report_path(sub_channel, establishment, channel_id: channel.uuid)
+    get sub_channel_daily_report_path(sub_channel, establishment.company, channel_id: channel.uuid)
 
     assert_response :success
     assert_select "thead th", count: 4, message: "Dia mais as três competências"
@@ -560,9 +796,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   test "lançamentos diários trazem o mês inteiro mesmo com a tela filtrada" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
-    establishment = Establishment.find_by!(ec: "11111111")
+    company = Establishment.find_by!(ec: "11111111").company
 
-    get sub_channel_daily_report_path(sub_channel, establishment,
+    get sub_channel_daily_report_path(sub_channel, company,
       channel_id: channel.uuid, from_day: 1, to_day: 10)
 
     assert_response :success
@@ -582,7 +818,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2", text: "MIC A"
     assert_select "th", text: /Mês anterior cheio/
     assert_select "th", text: /Mês anterior comparável/
-    assert_select "td", text: /11111111/
+    # O número do EC não aparece mais: a linha é o cliente, e a coluna dele virou o Net MDR.
+    assert_select "th", text: "Net MDR"
+    assert_select "td", text: /11111111/, count: 0
     # O CNPJ divide a célula com o nome, acima dele: não há mais coluna própria.
     assert_select "th", text: "CNPJ", count: 0
     assert_select "td", text: /12\.345\.678\/0001-91\s+LOJA UM/
@@ -599,14 +837,15 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # carrega o texto e o nome do EC para o modal montar a sequência.
     assert_select "thead th:last-child", text: "Ações"
     assert_select "td.actions-col details.actions-menu", count: 1
-    assert_select "button.actions-menu__item:not([disabled])" do |botao|
-      assert_equal "Ofereça a antecipação > Revise o MDR",
-        botao.first["data-conversation-modal-text-param"]
+    assert_select "button.conversation-trigger:not([disabled])" do |botao|
+      assert_equal [ { "ec" => "11111111", "text" => "Ofereça a antecipação > Revise o MDR" } ].to_json,
+        botao.first["data-conversation-modal-items-param"]
       assert_equal "LOJA UM", botao.first["data-conversation-modal-name-param"]
     end
-    # Sob o EC: NET MDR truncado (0,299 nunca vira 0,30) e os equipamentos do Mapa.
-    assert_select ".ec-meta p", text: "NET MDR 0,29%"
-    assert_select ".ec-meta p", text: "Link pgto · 2 POS"
+    # A primeira coluna leva só o Net MDR, truncado (0,299 nunca vira 0,30). O inventário de
+    # equipamentos saiu com o EC: ele é de cada ponto de venda, e a linha é o cliente.
+    assert_select "td", text: "0,29%"
+    assert_select ".ec-meta", count: 0
     assert_select "tfoot", false
     assert_select "input[name='status[]']"
     assert_select "input[name='date_kind[]']"
@@ -640,7 +879,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.variation-tabs .tab-hint", text: "vendeu menos, está sem venda ou voltou do zero"
   end
 
-  test "abas de variação separam alta e baixa, com EC zerado na baixa" do
+  test "abas de variação separam alta e baixa, com cliente zerado na baixa" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
@@ -684,17 +923,17 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
     assert_select "section.table-frame[data-variation-filter='alta'] .variation-chip--up", count: 1
-    assert_select "tbody td", text: /11111111/
-    assert_select "tbody td", text: "22222222", count: 0
-    assert_select "tbody td", text: "33333333", count: 0
+    assert_select "tbody td p", text: "LOJA UM"
+    assert_select "tbody td p", text: "LOJA DOIS", count: 0
+    assert_select "tbody td p", text: "LOJA TRES", count: 0
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em queda · 2/
     assert_select "section.table-frame[data-variation-filter='baixa']"
-    assert_select "tbody td", text: "22222222"
-    assert_select "tbody td", text: "33333333"
-    assert_select "tbody td", text: /11111111/, count: 0
+    assert_select "tbody td p", text: "LOJA DOIS"
+    assert_select "tbody td p", text: "LOJA TRES"
+    assert_select "tbody td p", text: "LOJA UM", count: 0
     assert_select ".variation-chip", text: /Voltou a vender/
   end
 
@@ -711,12 +950,13 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_select ".metric-value", text: "R$\u00A0100,00"
     # A variação verdadeira do subcanal fica ancorada ao lado da enviesada da aba.
-    assert_select ".metric-hint", text: /Somando só a aba Em crescimento \(1 ECs\).*MIC inteiro:.*\+25,0%/m
+    assert_select ".metric-hint",
+      text: /Somando só a aba Em crescimento \(1 estabelecimento\).*MIC inteiro:.*\+25,0%/m
 
     get sub_channel_report_path(sub_channel, variation: "baixa")
     assert_select ".metric-value", text: "R$\u00A0100,00", count: 0
     assert_select ".metric-value", text: "R$\u00A00,00"
-    assert_select ".metric-hint", text: /Somando só a aba Em queda \(0 ECs\)/
+    assert_select ".metric-hint", text: /Somando só a aba Em queda \(0 estabelecimentos\)/
     assert_select ".empty-state"
   end
 
@@ -738,8 +978,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     )
 
     assert_response :success
-    assert_select "td", text: /11111111/
-    assert_select "td", text: "22222222", count: 0
+    assert_select "td p", text: "LOJA UM"
+    assert_select "td p", text: "LOJA DOIS", count: 0
     assert_select "input#status_Active[checked]"
     assert_select "input#date_kind_credenciamento[checked]"
     assert_select "input[name='from_date'][value='2024-03-01']"
@@ -757,11 +997,16 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       contract_status: "Active", previous_month_total: 20, current_month_total: 30
     )
 
+    # Dois clientes no recorte: o plural é explícito porque o pt-BR não declara inflexões e
+    # pluralize devolveria "2 estabelecimento".
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid)
+    assert_select ".badge", text: /2 estabelecimentos/
+
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid, q: "loja dois")
 
     assert_response :success
-    assert_select "td", text: "22222222"
-    assert_select "td", text: /11111111/, count: 0
+    assert_select "td p", text: "LOJA DOIS"
+    assert_select "td p", text: "LOJA UM", count: 0
     assert_select "input[name='q'][value='loja dois']"
 
     get sub_channel_report_path(
@@ -769,10 +1014,41 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     )
 
     assert_response :success
-    assert_select "td", text: "22222222"
-    assert_select "td", text: /11111111/, count: 0
+    assert_select "td p", text: "LOJA DOIS"
+    assert_select "td p", text: "LOJA UM", count: 0
     assert_select "a", text: "Anterior"
     assert_select "a", text: "Próxima"
+  end
+
+  # Pedido do usuário (10/09/2026): poder clicar na página 3, em vez de chegar nela clicando
+  # "Próxima" duas vezes. Os números levam o recorte da tela junto, como os demais links.
+  test "a paginação leva a cada página pelo número, com o recorte preservado" do
+    template = BinImport::Template.register!
+    channel, sub_channel = seed_subchannel_revenue(template)
+    seed_second_establishment(channel, sub_channel)
+    terceiro = Establishment.create!(
+      ec: "33333333", company: Company.create!(cnpj: "12345678000193"), channel:
+    )
+    RevenueSnapshot.create!(
+      import_batch: ImportBatch.find_by!(channel:), channel:, sub_channel:,
+      establishment: terceiro, legal_name: "LOJA TRES LTDA", trade_name: "LOJA TRES",
+      contract_status: "Active", previous_month_total: 10, current_month_total: 5
+    )
+
+    get sub_channel_report_path(sub_channel, channel_id: channel.uuid, per_page: 1, q: "loja")
+
+    assert_response :success
+    # As três páginas viram três destinos clicáveis, e a atual não é link nenhum.
+    assert_select "nav.pagination-bar a", text: "2"
+    destino = css_select("nav.pagination-bar a").find { |link| link.text.strip == "3" }
+    assert destino, "a página 3 precisa ser clicável"
+    assert_includes CGI.unescape(destino["href"]), "page=3"
+    assert_includes CGI.unescape(destino["href"]), "q=loja", "o número leva a busca junto"
+    assert_select "nav.pagination-bar [aria-current=?]", "page", text: "1"
+    assert_select "nav.pagination-bar a", text: "1", count: 0
+    # Anterior e Próxima continuam onde estavam.
+    assert_select "nav.pagination-bar a", text: /Anterior/
+    assert_select "nav.pagination-bar a", text: /Próxima/
   end
 
   # A tela de subcanal é a que tem filtros, abas e paginação — e era a única sem exportação.
@@ -790,7 +1066,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     table = CSV.parse(response.body, headers: true)
 
     assert_equal EstablishmentListingExporter::HEADERS, table.headers
-    assert_equal [ "11111111", "22222222", "TOTAL" ], table.map { |row| row["EC"] }
+    # Uma linha por cliente, identificada pelo CNPJ. A primeira coluna deixou de ser o EC:
+    # leva o Net MDR, vazio em quem não tem alíquota positiva, e o rótulo TOTAL no rodapé.
+    assert_equal [ "12.345.678/0001-91", "12.345.678/0001-92", nil ],
+      table.map { |row| row["CNPJ"] }
+    assert_equal [ "0,29%", nil, "TOTAL" ], table.map { |row| row["Net MDR"] }
     assert_equal "12.345.678/0001-91", table[0]["CNPJ"]
     assert_equal "LOJA UM", table[0]["Nome fantasia"]
     assert_equal "Ativo", table[0]["Status do contrato"]
@@ -805,14 +1085,15 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     seed_second_establishment(channel, sub_channel)
 
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid, q: "loja dois", format: :csv)
-    ecs = CSV.parse(response.body, headers: true).map { |row| row["EC"] }
+    clientes = CSV.parse(response.body, headers: true).map { |row| row["Nome fantasia"] }
 
-    assert_equal [ "22222222", "TOTAL" ], ecs
+    assert_equal [ "LOJA DOIS", nil ], clientes
 
     # A segunda loja não tem faturamento diário consolidado: cai na aba de queda.
     get sub_channel_report_path(sub_channel, channel_id: channel.uuid, variation: "baixa", format: :csv)
 
-    assert_equal [ "22222222", "TOTAL" ], CSV.parse(response.body, headers: true).map { |row| row["EC"] }
+    assert_equal [ "LOJA DOIS", nil ],
+      CSV.parse(response.body, headers: true).map { |row| row["Nome fantasia"] }
   end
 
   # A exportação não tem página: montar a listagem paginada antes de responder era rodar o SQL
@@ -945,6 +1226,17 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
         contract_status: "Active", dias_m1: { 1 => 400 }, dias_atual: { 1 => 300 }
       )
     ]
+  end
+
+  # Um segundo MIC com oferta: é o que dá o que filtrar. Sem ele o select teria uma opção só
+  # e o filtro passaria por vacuidade.
+  def loja_com_oferta_em_outro_mic
+    BinWorkbook::Loja.new(
+      ec: "30000005", cnpj: "44555666000177", sub_channel_name: "MIC GAMA",
+      legal_name: "GAMA TRANSPORTES LTDA", trade_name: "GAMA EXPRESS",
+      contract_status: "Active", dias_m1: { 1 => 90 }, dias_atual: { 1 => 95 },
+      preapproved_volume: 120_000, preapproved_term: 18, preapproved_rate: 2.7
+    )
   end
 
   def seed_subchannel_revenue(template)

@@ -349,6 +349,73 @@ module ApplicationHelper
     "#{number_with_precision(value.to_d.truncate(2), precision: 2, separator: ',')}%"
   end
 
+  # Blocos de páginas do paginador, cada bloco com páginas contíguas: a primeira, uma
+  # vizinhança da atual e a última. Entre blocos a tela escreve "…". Listar todas não é
+  # navegação — 302 clientes a 10 por página dão 31 páginas, e uma parede de números.
+  PAGINATION_WINDOW = 5
+
+  def pagination_page_groups(page, total_pages)
+    total = total_pages.to_i
+    return [] if total < 2
+
+    atual = page.to_i.clamp(1, total)
+    numeros = pagination_numbers(atual, total)
+    # Salto de uma página só não merece "…": o número ocupa o mesmo espaço e é clicável.
+    numeros.flat_map { |numero| pagination_fill(numeros, numero) }
+      .slice_when { |anterior, seguinte| seguinte - anterior > 1 }.to_a
+  end
+
+  def pagination_numbers(atual, total)
+    return (1..total).to_a if total <= PAGINATION_WINDOW + 2
+
+    primeira = (atual - PAGINATION_WINDOW / 2).clamp(1, total - PAGINATION_WINDOW + 1)
+    ([ 1, total ] + (primeira...(primeira + PAGINATION_WINDOW)).to_a).uniq.sort
+  end
+
+  def pagination_fill(numeros, numero)
+    return [ numero, numero + 1 ] if numeros.include?(numero + 2) && numeros.exclude?(numero + 1)
+
+    [ numero ]
+  end
+
+  # Net MDR do cliente na listagem por subcanal: entra só porcentagem positiva (pedido do
+  # usuário, 10/09/2026). Quando os ECs do mesmo CNPJ declaram alíquotas positivas
+  # diferentes — 5 CNPJs da carteira real, e num deles de 0,62% a 2,53% — a célula mostra a
+  # faixa. Escolher um dos valores esconderia quatro vezes a diferença.
+  def client_net_mdr_label(minimum, maximum)
+    return if minimum.blank?
+
+    menor = net_mdr_label(minimum)
+    maior = net_mdr_label(maximum)
+    menor == maior ? menor : "#{menor} a #{maior}"
+  end
+
+  # Endereço da célula da anotação para o turbo_stream de salvar. Vive aqui porque duas pontas
+  # precisam da mesma string: a partial, que escreve o id, e o controller, que o endereça — se
+  # divergirem, salvar deixa de atualizar a tela e nada quebra em voz alta.
+  #
+  # A uuid do cliente basta como sufixo: as duas telas que mostram a célula têm uma linha por
+  # CNPJ, então o id é único na página.
+  def company_note_cell_id(company_uuid)
+    "note-cell-#{company_uuid}"
+  end
+
+  # A ficha do cliente mostra o texto da anotação, não só o botão. O bloco tem id próprio para
+  # o mesmo turbo_stream que troca a célula trocar também o texto — nas telas de tabela esse
+  # alvo não existe, e o Turbo ignora em silêncio o que não encontra.
+  def company_note_body_id(company_uuid)
+    "note-body-#{company_uuid}"
+  end
+
+  # A melhor conversa é de cada EC, e 116 dos 302 clientes da carteira têm mais de um texto
+  # diferente. A consulta os traz todos num JSON rotulado pelo EC; o parse fica aqui para a
+  # tela não conhecer o formato da coluna.
+  def client_conversations(raw)
+    return [] if raw.blank?
+
+    JSON.parse(raw)
+  end
+
   # Famílias nomeadas de terminal do Mapa; Smart POS e Demais POS aparecem como um
   # único "POS" (decisão do usuário). "QTDE OUTROS TERMINAIS" é tratada à parte.
   EQUIPMENT_COUNTS = {

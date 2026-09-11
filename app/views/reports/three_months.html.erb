@@ -2,15 +2,33 @@
 
 <div class="grid grid-cols-1 gap-5">
   <section class="page-hero">
-    <p class="eyebrow">Modelo de remuneração</p>
-    <h1 class="page-title">Ganhos 3M por MIC</h1>
-    <p class="page-description">
-      O modelo dos primeiros 3 meses: escolha o mês de credenciamento (M0) e a apuração segue
-      na janela M0, M1 e M2. A tabela mostra o faturamento da <strong>carteira inteira</strong>
-      de cada MIC nesses meses, quantos ECs foram <strong>credenciados no M0</strong> e o
-      prêmio de entrada da safra. O repasse recorrente e o acelerador/redutor vivem na página
-      <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
-    </p>
+    <div class="relative z-10 flex flex-wrap items-start justify-between gap-6">
+      <div>
+        <p class="eyebrow">Modelo de remuneração</p>
+        <h1 class="page-title">Ganhos 3M por MIC</h1>
+        <p class="page-description">
+          O modelo dos primeiros 3 meses: escolha o mês de credenciamento (M0) e a apuração segue
+          na janela M0, M1 e M2. A tabela mostra o faturamento da <strong>carteira inteira</strong>
+          de cada MIC nesses meses, quantos ECs foram <strong>credenciados no M0</strong> e o
+          prêmio de entrada da safra. O repasse recorrente e o acelerador/redutor vivem na página
+          <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
+        </p>
+      </div>
+      <% if @window %>
+        <%# O arquivo sai com o recorte da tela: os mesmos parâmetros que o link carrega,
+            senão o download traz um recorte diferente do que está à vista. %>
+        <% recorte = { channel_id: @selected_channel&.uuid, from_date: @window&.first,
+          to_date: @window&.last, sort: @order.column, direction: @order.direction }.compact %>
+        <div class="export-actions relative z-10 flex flex-wrap gap-2">
+          <%= link_to icon_label("download-simple", "Exportar CSV"),
+            three_months_reports_path(format: :csv, **recorte),
+            class: "btn btn-outline export-action" %>
+          <%= link_to icon_label("download-simple", "Exportar XLSX"),
+            three_months_reports_path(format: :xlsx, **recorte),
+            class: "btn btn-neutral export-action" %>
+        </div>
+      <% end %>
+    </div>
   </section>
 
   <section class="filter-panel">

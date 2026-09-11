@@ -46,16 +46,40 @@ class ReportScope
   end
 
   def contract_statuses(sub_channel_id:)
-    sub_channel = SubChannel.find(sub_channel_id)
-    channel_id = @channel_id || sub_channel.channel_id
-    # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
-    import_batch_id = ImportBatch.where(channel_id:, status: "validated")
-      .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)
-      .maximum(:id)
+    import_batch_id = latest_validated_batch_id(sub_channel_id)
     return [] unless import_batch_id
 
     RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(contract_status: [ nil, "" ])
       .distinct.order(:contract_status).pluck(:contract_status)
+  end
+
+  # O cliente como a listagem o enxerga: os ECs que a linha dele soma, e o nome pela mesma
+  # regra da linha. Serve o modal de lançamentos diários, que passou a somar o CNPJ inteiro.
+  #
+  # O recorte é o MIC, e não o canal: nenhum CNPJ da carteira aparece em dois MICs (medido em
+  # 10/09/2026), mas o dia em que aparecer, somar por canal faria o modal mostrar mais ECs do
+  # que a linha — e ninguém seria avisado.
+  ClientInSubChannel = Struct.new(:establishment_ids, :name, keyword_init: true)
+
+  # Nome do cliente pela mesma regra da linha da listagem, passo a passo: fantasia e razão
+  # social cada um pelo valor mais frequente entre os ECs (com o alfabético como desempate do
+  # mode()), e a razão social só entra quando não há fantasia. Combinar os dois dentro de um
+  # COALESCE no SQL daria outro resultado no cliente em que um EC tem fantasia e outro não —
+  # e o título do modal divergiria do nome na linha, calado.
+  CLIENT_TRADE_NAME_SQL = "mode() WITHIN GROUP (ORDER BY trade_name)"
+  CLIENT_LEGAL_NAME_SQL = "mode() WITHIN GROUP (ORDER BY legal_name)"
+
+  def client_in_sub_channel(company_id:, sub_channel_id:)
+    snapshots = RevenueSnapshot
+      .where(import_batch_id: latest_validated_batch_id(sub_channel_id), sub_channel_id:)
+      .joins(:establishment).where(establishments: { company_id: })
+    trade_name, legal_name =
+      snapshots.pick(Arel.sql(CLIENT_TRADE_NAME_SQL), Arel.sql(CLIENT_LEGAL_NAME_SQL))
+
+    ClientInSubChannel.new(
+      establishment_ids: snapshots.distinct.pluck(:establishment_id),
+      name: trade_name.presence || legal_name
+    )
   end
 
   # Memoizado: a janela é montada para a tela e de novo para a listagem, no mesmo scope.
@@ -85,10 +109,14 @@ class ReportScope
   # aparecer zerado, senão o modal esconde exatamente o buraco que o usuário foi ver.
   SHEET_DAYS = 31
 
-  def establishment_daily_revenues(establishment_id:, window:)
+  # Soma os dias de um ou mais ECs: desde que a listagem agrupa por CNPJ, o modal mostra o
+  # dia a dia do cliente inteiro, e não de um ponto de venda.
+  def establishment_daily_revenues(establishment_ids:, window:)
     return [] unless window
+    return [] if Array(establishment_ids).empty?
 
-    binds = window.to_binds.merge(establishment_id:, from_day: 1, to_day: SHEET_DAYS)
+    binds = window.to_binds.merge(establishment_ids: Array(establishment_ids),
+      from_day: 1, to_day: SHEET_DAYS)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT dias.day,
         COALESCE(SUM(revenue.amount) FILTER (WHERE revenue.period = :current_period), 0) AS current_amount,
@@ -97,7 +125,7 @@ class ReportScope
       FROM generate_series(:from_day::int, :to_day::int) AS dias(day)
       LEFT JOIN daily_revenues_consolidated revenue
         ON revenue.day = dias.day
-        AND revenue.establishment_id = :establishment_id
+        AND revenue.establishment_id IN (:establishment_ids)
         AND revenue.period IN (:penultimate_period, :previous_period, :current_period)
       GROUP BY dias.day
       ORDER BY dias.day
@@ -219,6 +247,14 @@ class ReportScope
   end
 
   private
+
+  # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
+  def latest_validated_batch_id(sub_channel_id)
+    channel_id = @channel_id || SubChannel.find(sub_channel_id).channel_id
+    ImportBatch.where(channel_id:, status: "validated")
+      .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)
+      .maximum(:id)
+  end
 
   def calendar_rows(sql, period:, covered_days:)
     binds = { period:, covered_days:, channel_id: @channel_id }

@@ -6,27 +6,22 @@ class ReportsController < ApplicationController
       default: "previous_full_revenue", column: params[:sort], direction: params[:direction])
     @reports = @order.sort_rows(@scope.revenue_by_sub_channel) { |row| sub_channel_sort_value(row) }
     @totals = @scope.totals
-    respond_to do |format|
-      format.html
-      format.csv do
-        send_data ReportsExporter.new(@reports, cutoff_day: @cutoff_day, totals: @totals).to_csv,
-          filename: export_filename("csv"), type: "text/csv"
-      end
-      format.xlsx do
-        send_data ReportsExporter.new(@reports, cutoff_day: @cutoff_day, totals: @totals).to_xlsx,
-          filename: export_filename("xlsx"),
-          type: Mime[:xlsx]
-      end
-    end
   end
 
   # Clover Capital: as ofertas pré-aprovadas da carteira, uma por CNPJ.
   def stalled
-    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id)
+    @selected_sub_channel = selected_stalled_sub_channel
+    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id,
+      sub_channel_id: @selected_sub_channel&.id)
     @reports = offers.call
+    @sub_channels = offers.sub_channel_options
     @diverging_cnpjs = offers.diverging_cnpjs
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
-    @note_excerpts = note_excerpts(@reports)
+    respond_to do |format|
+      format.html
+      format.csv { send_data stalled_exporter.to_csv, **arquivo(nome_do_clover, "csv") }
+      format.xlsx { send_data stalled_exporter.to_xlsx, **arquivo(nome_do_clover, "xlsx") }
+    end
   end
 
   def weekly
@@ -40,6 +35,11 @@ class ReportsController < ApplicationController
     @totals = @scope.month_totals(period: @period, up_to_day: @covered_days)
     load_previous_month_anchor
     load_calendar_neighbours
+    respond_to do |format|
+      format.html
+      format.csv { send_data weekly_exporter.to_csv, **arquivo(nome_do_ritmo, "csv") }
+      format.xlsx { send_data weekly_exporter.to_xlsx, **arquivo(nome_do_ritmo, "xlsx") }
+    end
   end
 
   # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
@@ -89,6 +89,11 @@ class ReportsController < ApplicationController
     @order = ListingSort.new(columns: ReportScope::RECURRING_SORT_COLUMNS, default: "earnings",
       column: params[:sort], direction: params[:direction])
     @reports = @order.sort_rows(@scope.recurring_earnings) { |row| recurring_sort_value(row) }
+    respond_to do |format|
+      format.html
+      format.csv { send_data recurring_exporter.to_csv, **arquivo("ganho-recorrente", "csv") }
+      format.xlsx { send_data recurring_exporter.to_xlsx, **arquivo("ganho-recorrente", "xlsx") }
+    end
   end
 
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
@@ -99,6 +104,11 @@ class ReportsController < ApplicationController
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
     @order = three_month_order
     @reports = @order.sort_rows(@reports) { |row| three_month_value(row) }
+    respond_to do |format|
+      format.html
+      format.csv { send_data three_month_exporter.to_csv, **arquivo("ganhos-3m", "csv") }
+      format.xlsx { send_data three_month_exporter.to_xlsx, **arquivo("ganhos-3m", "xlsx") }
+    end
   end
 
   def three_months_sub_channel
@@ -111,6 +121,15 @@ class ReportsController < ApplicationController
     @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
     @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
+    respond_to do |format|
+      format.html
+      format.csv do
+        send_data three_month_establishments_exporter.to_csv, **arquivo(nome_3m_do_mic, "csv")
+      end
+      format.xlsx do
+        send_data three_month_establishments_exporter.to_xlsx, **arquivo(nome_3m_do_mic, "xlsx")
+      end
+    end
   end
 
   def sub_channel
@@ -163,23 +182,35 @@ class ReportsController < ApplicationController
 
     @date = @period + (@day - 1)
     @rows = @scope.day_companies(period: @period, day: @day)
+    # Só a existência da anotação: o modal é apertado e o texto mora na ficha do cliente.
+    @noted_cnpjs = CompanyNote.where(cnpj: @rows.map { |row| row["cnpj"] }).pluck(:cnpj).to_set
     @previous_day = @day > 1 ? @day - 1 : nil
     @next_day = @day < @covered_days ? @day + 1 : nil
 
-    render partial: "reports/day_companies", layout: false
+    respond_to do |format|
+      format.html { render partial: "reports/day_companies", layout: false }
+      format.csv { send_data day_companies_exporter.to_csv, **arquivo(nome_do_dia, "csv") }
+      format.xlsx { send_data day_companies_exporter.to_xlsx, **arquivo(nome_do_dia, "xlsx") }
+    end
   end
 
   # Conteúdo do modal de lançamentos diários: chega por Turbo Frame, sem layout, com a mesma
   # janela e faixa de dias da tela que o abriu.
+  # O modal soma os ECs do cliente, os mesmos que a linha da listagem soma. Cliente sem EC
+  # neste MIC não tem lançamento para mostrar: é 404, como era para um EC de outro canal.
   def sub_channel_daily
     @sub_channel = SubChannel.find_param!(params[:id])
     @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
-    @establishment = Establishment.where(channel_id: @sub_channel.channel_id)
-                                  .find_param!(params[:establishment_id])
+    @company = Company.find_param!(params[:company_id])
+    @client = @scope.client_in_sub_channel(company_id: @company.id, sub_channel_id: @sub_channel.id)
+    raise ActiveRecord::RecordNotFound if @client.establishment_ids.empty?
+
     @window = @scope.establishment_window(
       period: params[:period], from_day: params[:from_day], to_day: params[:to_day]
     )
-    @rows = @scope.establishment_daily_revenues(establishment_id: @establishment.id, window: @window)
+    @rows = @scope.establishment_daily_revenues(
+      establishment_ids: @client.establishment_ids, window: @window
+    )
 
     render partial: "reports/daily_revenues", layout: false
   end
@@ -266,6 +297,73 @@ class ReportsController < ApplicationController
     @cutoff_day = @scope.cutoff_day
   end
 
+  # O MIC do filtro segue a regra do canal: uuid inexistente é 404, e MIC de outro Master que
+  # o escolhido também — senão a tela responderia "nenhum cliente" para um recorte impossível,
+  # que é uma resposta pior do que dizer que o endereço não existe.
+  def selected_stalled_sub_channel
+    return if params[:sub_channel_id].blank?
+
+    sub_channel = SubChannel.find_param!(params[:sub_channel_id])
+    raise ActiveRecord::RecordNotFound if @selected_channel &&
+      sub_channel.channel_id != @selected_channel.id
+
+    sub_channel
+  end
+
+  # Cabeçalho do download, num lugar só: o tipo sai do formato e o nome carrega o recorte.
+  # Sem o recorte no nome, dois downloads seguidos chegam com o mesmo nome na pasta.
+  def arquivo(nome, extensao)
+    tipo = extensao == "csv" ? "text/csv" : Mime[:xlsx]
+    { filename: "#{nome}.#{extensao}", type: tipo }
+  end
+
+  def recurring_exporter
+    RecurringEarningsExporter.new(@reports, channel_name: channel_name_or_nil)
+  end
+
+  def three_month_exporter
+    ThreeMonthEarningsExporter.new(@reports, window: @window, channel_name: channel_name_or_nil)
+  end
+
+  def three_month_establishments_exporter
+    ThreeMonthEstablishmentsExporter.new(@reports, window: @window,
+      sub_channel_name: @sub_channel.name)
+  end
+
+  def weekly_exporter
+    WeeklyRevenueExporter.new(@calendar, period: @period, channel_name: channel_name_or_nil)
+  end
+
+  def day_companies_exporter
+    DayCompaniesExporter.new(@rows, date: @date)
+  end
+
+  def channel_name_or_nil
+    helpers.channel_name(@selected_channel)
+  end
+
+  def nome_3m_do_mic
+    "ganhos-3m-#{@sub_channel.name.parameterize}"
+  end
+
+  def nome_do_ritmo
+    "ritmo-#{@period.strftime('%Y-%m')}"
+  end
+
+  def nome_do_dia
+    "clientes-do-dia-#{@date.strftime('%Y-%m-%d')}"
+  end
+
+  def stalled_exporter
+    PreapprovedOffersExporter.new(@reports, sub_channel_name: @selected_sub_channel&.name)
+  end
+
+  def nome_do_clover
+    return "clover-capital-ofertas" if @selected_sub_channel.nil?
+
+    "clover-capital-#{@selected_sub_channel.name.parameterize}"
+  end
+
   # A exportação repete o recorte da tela e larga a paginação: o arquivo é do filtro, não
   # da página que o usuário estava vendo.
   def listing_exporter
@@ -283,10 +381,6 @@ class ReportsController < ApplicationController
     "#{@sub_channel.name.parameterize}-estabelecimentos.#{extension}"
   end
 
-  def export_filename(extension)
-    "auditoria-faturamento-dia-#{@cutoff_day || 'sem-corte'}.#{extension}"
-  end
-
   def parse_filter_date(value)
     return if value.blank?
 
@@ -298,14 +392,6 @@ class ReportsController < ApplicationController
   # O corpo da anotação é rich text e não entra no SQL da listagem: viria como HTML com
   # anexos dentro de uma consulta com GROUP BY. O trecho da tela sai daqui, numa query só,
   # pelo índice que o Action Text já mantém.
-  def note_excerpts(rows)
-    ids = rows.filter_map { |row| row["note_id"] }.uniq
-    return {} if ids.empty?
-
-    ActionText::RichText.where(record_type: "CompanyNote", name: "body", record_id: ids)
-      .to_h { |rich| [ rich.record_id, rich.to_plain_text.squish ] }
-  end
-
   def sub_channel_listing_params(overrides = {})
     {
       channel_id: @selected_channel&.uuid,

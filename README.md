@@ -40,9 +40,12 @@ aceitação, no mesmo arquivo; a regra da marca d'água ponta a ponta, pela view
 Quatro números da tela são derivados, e a regra de cada um é decisão registrada — não convém
 adivinhar pela tela:
 
-- **ECs e CNPJs não se misturam.** A listagem tem **uma linha por EC**, porque cada EC tem
-  faturamento próprio; as abas e as contagens do topo somam **CNPJs distintos**. Um cliente
-  com dois ECs conta um no rótulo e ocupa duas linhas na tabela.
+- **A linha é o CNPJ, e as contagens também.** Desde 10/09/2026 a listagem mostra **uma
+  linha por cliente**, com o faturamento de todos os ECs dele somado: na carteira real, 470
+  linhas viraram 302 (medido). Antes a linha era o EC, e as abas e contagens do topo — que
+  sempre somaram **CNPJs distintos** — diziam um número diferente do de linhas da tabela.
+  No banco o faturamento continua por EC; a soma é da consulta, não do dado. A regra de cada
+  coluna da linha agrupada está em `docs/layout.md`.
 - **Ativo ou suspenso é do cliente, não do ponto de venda.** Um CNPJ é ativo se tiver ao
   menos um EC ativo (`STATUS DO CONTRATO`, da aba Mapa de Clientes BIN) e só entra em
   suspensos quando **todos** os ECs dele estão suspensos. Na carteira real, oito dos nove

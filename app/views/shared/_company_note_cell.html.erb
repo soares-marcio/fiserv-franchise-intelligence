@@ -1,15 +1,15 @@
 <%# Célula da anotação, nas duas telas que a editam. O botão carrega só o endereço do
     formulário — o conteúdo vem por Turbo Frame quando o modal abre.
 
-    O `data-note-company` é o endereço da célula para o turbo_stream: salvar troca **todas** as
-    células daquele cliente de uma vez, e um CNPJ com três ECs tem três linhas na listagem do
-    MIC. Por isso a atualização é por seletor, não por id único.
+    O id vem de `company_note_cell_id`: é o endereço da célula para o turbo_stream, que troca
+    esta célula ao salvar, sem recarregar a tela. As duas telas mostram uma linha por CNPJ, e
+    por isso o id é único na página.
 
     O rótulo é sempre "Anotar"; quem avisa que já há conteúdo é o ponto. Nunca vem `disabled`,
     ao contrário do botão da melhor conversa: lá "não tem" é fato da planilha; aqui é o
     convite para escrever. %>
 <% tem_nota = note_id.present? %>
-<div class="note-cell" data-note-company="<%= company_uuid %>">
+<div class="note-cell" id="<%= company_note_cell_id(company_uuid) %>">
   <%= button_tag type: "button",
         class: "btn btn-sm note-trigger #{'btn-outline' unless tem_nota}",
         title: tem_nota ? "Ver ou editar a anotação" : "Anotar sobre este cliente",

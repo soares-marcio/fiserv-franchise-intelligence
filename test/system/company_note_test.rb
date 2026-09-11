@@ -4,6 +4,10 @@ require "application_system_test_case"
 # por Turbo Frame e o layout usa morph no retorno. Nada disso é exercitado por teste de
 # controller — ali o servidor entrega o botão certo mesmo que o JavaScript nunca rode.
 class CompanyNoteTest < ApplicationSystemTestCase
+  # A linha da listagem é o cliente: ela se localiza pelo CNPJ, não pelo número do EC, que
+  # saiu da tela quando o agrupamento entrou.
+  CNPJ_ALFA = "11.222.333/0001-81".freeze
+
   setup do
     import_synthetic_workbook
     refresh_audit_views
@@ -13,7 +17,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   test "escreve a anotação pelo modal e ela volta na tela, sem perder o recorte" do
     visit sub_channel_report_path(@sub_channel, q: "ALFA LANCHES")
 
-    abrir_anotacao("30000001")
+    abrir_anotacao
 
     # O formulário chega pelo frame, não pronto na página.
     assert_selector "dialog[open] trix-editor"
@@ -35,7 +39,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   # há navegação nenhuma depois de salvar.
   test "o aviso de sucesso desaparece sozinho" do
     visit sub_channel_report_path(@sub_channel)
-    abrir_anotacao("30000001")
+    abrir_anotacao
     find("dialog[open] trix-editor").click.send_keys("Nota rápida.")
     click_button "Salvar anotação"
 
@@ -43,18 +47,20 @@ class CompanyNoteTest < ApplicationSystemTestCase
     assert_no_text "Anotação salva.", wait: 10
   end
 
-  # O CNPJ com dois ECs tem duas linhas na listagem, e as duas mostram a mesma anotação. Com
-  # alvo por id, só a primeira mudaria depois de salvar; com seletor, as duas mudam.
-  test "salvar atualiza todas as linhas do mesmo cliente de uma vez" do
+  # O CNPJ da planilha sintética tem dois ECs, e desde que a listagem agrupa por cliente eles
+  # são uma linha só: a anotação aparece uma vez, não duas. Antes deste agrupamento, o teste
+  # contava duas — era ele que provava o alvo do turbo_stream ser um seletor e não um id.
+  test "cliente com vários ECs mostra uma anotação só" do
     visit sub_channel_report_path(@sub_channel)
 
     assert_no_selector ".note-trigger__dot", visible: :all
-    abrir_anotacao("30000001")
+    abrir_anotacao
     find("dialog[open] trix-editor").click.send_keys("Vale para os dois ECs.")
     click_button "Salvar anotação"
 
     assert_text "Anotação salva."
-    assert_selector "td.actions-col .actions-menu:has(.note-trigger__dot)", count: 2
+    assert_selector "td.actions-col .actions-menu:has(.note-trigger__dot)", count: 1
+    assert_selector "tr.daily-row", count: 1, text: CNPJ_ALFA
   end
 
   # Reabrir precisa trazer o que foi salvo, não o formulário como ele estava: é por isso que o
@@ -63,7 +69,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
     Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Escrito antes.</div>")
 
     visit sub_channel_report_path(@sub_channel)
-    abrir_anotacao("30000001")
+    abrir_anotacao
 
     assert_selector "dialog[open] trix-editor", text: "Escrito antes."
   end
@@ -73,7 +79,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
     Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Para apagar.</div>")
 
     visit sub_channel_report_path(@sub_channel)
-    abrir_anotacao("30000001")
+    abrir_anotacao
     editor = find("dialog[open] trix-editor")
     editor.click
     editor.send_keys([ :control, "a" ], :backspace)
@@ -86,8 +92,8 @@ class CompanyNoteTest < ApplicationSystemTestCase
   private
 
   # O botão da anotação vive no menu de ações da linha, fechado até o clique no gatilho.
-  def abrir_anotacao(ec)
-    linha = find("tr.daily-row", text: ec)
+  def abrir_anotacao(cnpj = CNPJ_ALFA)
+    linha = find("tr.daily-row", text: cnpj)
     linha.find("summary.actions-menu__trigger").click
     linha.find("button.note-trigger").click
   end

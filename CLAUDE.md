@@ -243,10 +243,23 @@ parar o serviço fecha a porta; deixar como está é escolha, não descuido.
 
 `bin/rails test` · `bin/rubocop` · `bin/brakeman` devem passar antes de entregar. A suíte roda em
 processo único de propósito (ver `README.md`). Os testes de sistema (`test/system`) ficam fora do
-`bin/rails test` e precisam de navegador: rodam pela imagem de testes, `docker compose run --rm
-test`, que executa `test:all` (suíte completa, sistema incluído) — obrigatória quando a mudança
-toca telas ou JavaScript. A imagem de produção exclui deliberadamente as dependências de
-desenvolvimento e teste.
+`bin/rails test` e precisam de navegador: rodam pela imagem de testes, que executa `test:all`
+(suíte completa, sistema incluído) — obrigatória quando a mudança toca telas ou JavaScript. A
+imagem de produção exclui deliberadamente as dependências de desenvolvimento e teste.
+
+**A imagem de testes não monta o repositório: o código entra nela na build** (`Dockerfile`,
+alvo `test`, `COPY . .`). Rodar `docker compose run --rm test` sem rebuildar executa o código
+de quando a imagem foi criada, e o resultado **passa** — porque ali o código e os testes são
+os antigos, coerentes entre si. Um verde assim não diz nada sobre a mudança em curso; custou
+uma verificação falsa em 10/09/2026. Sempre as duas linhas, nesta ordem:
+
+```bash
+docker compose build test
+docker compose run --rm test
+```
+
+O sinal de que a imagem está velha é o resultado repetir exatamente a contagem de runs de
+antes da mudança, ou uma falha citar marcação que já não existe no repositório.
 
 ---
 

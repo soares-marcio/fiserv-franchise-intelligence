@@ -11,8 +11,8 @@
     </h3>
     <p class="text-xs opacity-60">
       <%= formatted_cnpj(@company.cnpj) %>
-      <%# A anotação é do CNPJ: quem tem vários ECs vê a mesma nota em todas as linhas dele,
-          e a tela diz isso em vez de deixar parecer repetição por engano. %>
+      <%# A anotação é do CNPJ, e a linha da listagem não mostra mais os ECs: é aqui que o
+          alcance da nota fica escrito, senão não fica em lugar nenhum. %>
       <% ecs = @company.establishments.count %>
       <% if ecs > 1 %>
         · vale para os <%= ecs %> ECs deste cliente
