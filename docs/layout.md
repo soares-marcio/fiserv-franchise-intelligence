@@ -164,18 +164,22 @@ linha da carteira real: dos 100px do painel, 57 ficavam fora, e o resto aparecia
 barra de paginação.
 
 Nenhuma solução de CSS resolve: `absolute` é recortado por qualquer ancestral com overflow, e
-abrir para cima quebra quando a página tem poucas linhas. Por isso
-`actions_menu_controller.js` troca o painel para **`position: fixed`** ao abrir e calcula a
-posição a partir do gatilho, refazendo a conta a cada rolagem (com `capture`, porque quem rola
-é a tabela, não a janela). Sem JavaScript o painel continua `absolute` — recortado, como era,
-e não quebrado.
+abrir sempre para cima só troca o problema de lugar — na primeira linha da tabela o painel
+sairia pelo topo. Por isso `actions_menu_controller.js` troca o painel para
+**`position: fixed`** ao abrir e calcula a posição a partir do gatilho, refazendo a conta a
+cada rolagem e a cada `resize`. Ele abre para baixo e **inverte para cima só quando o painel
+não cabe até o fim da janela** — conta que depende da altura medida na hora, que o CSS não
+tem. Sem JavaScript o painel continua `absolute` — recortado, como era, e não quebrado.
 
-Duas escolhas que já custaram medição:
+Três escolhas que já custaram medição:
 
 - **Ancorar pela direita, não pela esquerda.** Com `left`, a caixa `fixed` encolhe para caber
   no que resta até a borda e sai do alinhamento — 11px fora, medido.
 - **`documentElement.clientWidth`, não `window.innerWidth`.** O bloco que contém um elemento
   `fixed` exclui a barra de rolagem; `innerWidth` a inclui.
+- **Duas inscrições de `scroll`, com e sem `capture`.** Quem rola é o `.table-scroll`, e
+  rolagem de elemento não borbulha — daí a captura. Com **só** a de captura, medido: rolar a
+  tabela reposicionava o painel e rolar a página o deixava para trás.
 
 ### Ordenação das listagens
 
@@ -242,10 +246,16 @@ declara a lacuna em vez de mostrar zero.
 Coluna "Anotação" na listagem por MIC e no Clover Capital, com partial compartilhado
 (`shared/_company_note_cell`, `shared/_company_note_modal`) e **um diálogo por tabela**.
 
-A anotação é do **CNPJ**, não do EC: um cliente com três ECs mostra a mesma nota nas três
-linhas, e o cabeçalho do modal escreve isso ("vale para os 3 ECs deste cliente") para a
-repetição ler como intenção. A tabela se liga pelo CNPJ e não por FK — ver o porquê no
-`CLAUDE.md`.
+A anotação é do **CNPJ**, não do EC, e quem diz isso é o cabeçalho do modal ("vale para os
+3 ECs deste cliente"): as duas telas mostram um cliente por linha, e a linha não lista mais os
+ECs, então o alcance da nota precisa estar escrito em algum lugar.
+
+Quando a listagem do MIC era por EC, a mesma nota ocupava uma célula por linha — é por isso
+que o `turbo_stream` de salvar usa `replace_all` com o seletor `[data-note-company=…]` em vez
+do id de uma célula. Depois do agrupamento ele troca uma célula só: ficou mais largo do que
+precisa, não errado.
+
+A tabela se liga pelo CNPJ e não por FK — ver o porquê no `CLAUDE.md`.
 
 Diferente dos outros modais da casa, o conteúdo **chega por Turbo Frame** em vez de vir num
 `data-*` do botão: é HTML com anexos, e vinte linhas de tabela carregariam vinte cópias. O
@@ -347,20 +357,25 @@ mas quem decide a cor é o sistema.
 ```
 
 **A regra vive fora de qualquer `@layer`**, no fim do arquivo, e isso não é preferência de
-organização. O daisyUI declara `.btn { color: var(--btn-fg) }` e o próprio `--btn-fg` **sem
-camada**, e estilo sem camada vence estilo em camada **independentemente da especificidade**.
+organização. O daisyUI declara `.btn { color: var(--btn-fg) }` e o próprio `--btn-fg` **dentro
+de `@layer utilities`** (em sub-camadas próprias, `daisyui.l1.l2…`) — depois da
+`@layer components`, onde moram as regras do projeto —, e camada posterior vence
+**independentemente da especificidade**; quem não está em camada alguma vence as duas.
 Dentro de `@layer components` a regra pintava o fundo — porque o daisyUI lê a nossa
 `--btn-color` — e perdia a cor do texto: o sintoma foi a seta preta sobre o laranja, que
 sobreviveu a duas tentativas de resolver por especificidade. Quando algo de botão não pegar,
 confira a camada antes da especificidade.
 
 **E não é só de botão.** A regra vale para **qualquer propriedade que o daisyUI também
-declare**: `.btn-square { width }`, `.table :where(th,td) { padding-inline }`, e o que mais
-vier. Em `@layer components` elas perdem, e perdem em silêncio — a regra aparece no CSS
-servido, o `grep` a encontra, e mesmo assim o navegador aplica a do daisyUI. Foi o que
-aconteceu com a largura do botão da melhor conversa e o padding da coluna de variação: as
-duas ficaram sem efeito até saírem da camada (medido: botão parado em 32px onde a regra
-pedia 34; coluna com os 16px do daisyUI onde a regra pedia 9,6).
+declare**: `.btn-square { width }`, `.table :where(th,td) { padding-inline }`,
+`.btn { cursor }` — o da página atual da paginação — e o que mais vier. Em `@layer components`
+elas perdem, e perdem em silêncio — a regra aparece no CSS servido, o `grep` a encontra, e
+mesmo assim o navegador aplica a do daisyUI. Foi o que aconteceu com a largura do botão da
+melhor conversa e o padding da coluna de variação: as duas ficaram sem efeito até saírem da
+camada (medido: botão parado em 32px onde a regra pedia 34; coluna com os 16px do daisyUI onde
+a regra pedia 9,6). Conferido no CSS servido em 10/09/2026, com daisyUI 5.7.22, contando as
+chaves regra por regra: `.btn` e `.btn-square` caem em `utilities`, as regras do projeto em
+`components`, e o bloco do fim do arquivo, fora de camada.
 
 Conferir isso exige medir no navegador, porque ler o CSS não revela o problema. O caminho
 usado foi baixar a página e as folhas servidas, inliná-las num arquivo local e abri-lo com
@@ -374,10 +389,14 @@ do botão, não o SVG.
 Vale para **todos** os botões, com o mesmo comportamento — inclusive as setas do calendário,
 as do modal do dia e as da paginação, que passaram a ter seta junto do texto.
 
-A única exceção é o **grupo de escolha** (`join-item`, hoje os itens por página): a opção
-selecionada fica no laranja cheio e as demais assumem o formato do hover — branco com `#333`
-e borda laranja —, invertendo para laranja ao passar o mouse. Sem isso o grupo inteiro vira
-um bloco laranja e não dá para ver o que está escolhido.
+A única exceção é o **grupo de escolha** (`join-item`: os itens por página e os números da
+paginação): a opção selecionada fica no laranja cheio e as demais assumem o formato do hover —
+branco com `#333` e borda laranja —, invertendo para laranja ao passar o mouse. Sem isso o
+grupo inteiro vira um bloco laranja e não dá para ver o que está escolhido.
+
+Na paginação a página atual é um `<span>`, e não um link: não há para onde ir. O cursor dela
+volta a `default` numa regra fora de `@layer`, pelo mesmo motivo das regras de botão acima —
+dentro da camada, o `cursor` do `.btn` do daisyUI vence.
 
 `btn--field` alinha a altura do botão à dos campos numa barra de filtros, e `btn-sm` é
 tamanho, não cor.

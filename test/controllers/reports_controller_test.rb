@@ -58,8 +58,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "th", text: "Ações"
     assert_select "th", text: "Anotação", count: 0
-    # O rótulo do botão não muda; quem avisa que há anotação é o ponto. As duas linhas do
-    # CNPJ o exibem, e as demais não.
+    # O rótulo do botão não muda; quem avisa que há anotação é o ponto. A linha do CNPJ
+    # anotado o exibe, e as demais não.
     todos = css_select("td.actions-col button.note-trigger")
     com_ponto = todos.select { |botao| botao.css(".note-trigger__dot").any? }
     assert_equal 1, todos.size, "os dois ECs do MIC ALFA são um cliente, numa linha só"

@@ -37,9 +37,10 @@ class CompanyNotesController < ApplicationController
 
   private
 
-  # Salvar não recarrega a tela: troca as células daquele cliente e o aviso, e pronto. O
-  # `replace_all` por seletor, e não por id, é o que resolve o caso do CNPJ com vários ECs —
-  # na listagem do MIC a mesma anotação ocupa uma célula por EC, e todas precisam mudar juntas.
+  # Salvar não recarrega a tela: troca a célula daquele cliente e o aviso, e pronto. O
+  # `replace_all` por seletor, e não por id, vem de quando a listagem do MIC tinha uma linha
+  # por EC e a mesma anotação ocupava uma célula por linha. Hoje a linha é o cliente e há uma
+  # célula só — o seletor continua correto e é mais largo do que precisa.
   #
   # O caminho HTML fica de pé para quem chegar sem JavaScript, e é ele que os testes de
   # redirect exercitam.
