@@ -267,13 +267,19 @@ Três decisões, cada uma com um porquê:
 O canal escolhido viaja num campo oculto do formulário, senão aplicar o MIC derrubaria o
 recorte de Master de quem chegou por ele.
 
-**A tela exporta CSV e XLSX** (`PreapprovedOffersExporter`), no molde das outras duas:
+**A tela exporta CSV e XLSX** (`PreapprovedOffersExporter`), no molde da listagem do MIC:
 `TabularExporter` faz a mecânica e o exportador só declara colunas, nome da aba e a nota do
 cabeçalho. O arquivo leva o recorte que estiver aplicado — o MIC viaja no link do botão e
 também no nome do arquivo (`clover-capital-mic-goiania-4.csv`), senão dois downloads de MICs
 diferentes chegam com o mesmo nome. A anotação fica de fora: é texto livre com anexos, e uma
 célula de planilha não é onde se lê isso. No total só entram volume e contagem de ECs —
 somar prazo ou taxa de clientes diferentes não descreve oferta nenhuma, e a média tampouco.
+
+**Quem exporta são as duas telas cuja linha é um cliente.** A auditoria de faturamento
+(`/reports`) exportava e deixou de exportar em 10/09/2026, a pedido do usuário: ali a linha é
+o MIC, e quem precisa de arquivo desce ao MIC, onde a linha é o cliente. Saíram os botões, o
+endpoint e o `ReportsExporter` — botão escondido com a rota de pé é meia remoção, e
+`/reports.csv` responde 406.
 
 ### Anotação do cliente
 

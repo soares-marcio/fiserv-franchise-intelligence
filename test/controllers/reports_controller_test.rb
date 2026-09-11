@@ -524,15 +524,25 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", text: /Mês anterior comparável/
   end
 
-  test "exporta CSV" do
-    get reports_path(format: :csv)
+  # A auditoria de faturamento não exporta (decisão do usuário, 10/09/2026): quem precisa de
+  # arquivo desce ao MIC, onde a linha é o cliente. O endpoint saiu junto com os botões —
+  # botão escondido com a rota de pé seria meia remoção.
+  test "a auditoria de faturamento não oferece nem responde exportação" do
+    get reports_path
+
     assert_response :success
-    assert_equal "text/csv", response.media_type
-    assert_includes response.body, "Mês anterior (cheio)"
-    assert_includes response.body, "Mês anterior comparável"
+    assert_select "a.export-action", count: 0
+
+    # Sem formato declarado na ação, a rota responde 406 em vez de entregar arquivo: é o
+    # que um link antigo para /reports.csv encontra.
+    get reports_path(format: :csv)
+    assert_response :not_acceptable
+
+    get reports_path(format: :xlsx)
+    assert_response :not_acceptable
   end
 
-  test "seleciona um Master e o preserva nas exportações" do
+  test "seleciona um Master e o mantém no filtro" do
     selected = Channel.create!(external_id: "1", name: "CANAL A")
     Channel.create!(external_id: "2", name: "CANAL B")
 
@@ -541,8 +551,6 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "select[name='channel_id'] option[selected]", text: "CANAL A"
     assert_select "select[name='channel_id'] option", text: "CANAL B"
-    assert_select "a[href='#{reports_path(format: :csv, channel_id: selected.uuid)}']", text: "Exportar CSV"
-    assert_select "a[href='#{reports_path(format: :xlsx, channel_id: selected.uuid)}']", text: "Exportar XLSX"
   end
 
   test "liga cada MIC à sua listagem de estabelecimentos" do
