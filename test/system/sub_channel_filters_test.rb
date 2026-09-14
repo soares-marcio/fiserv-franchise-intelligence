@@ -156,25 +156,55 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert_current_path(/to_date=2026-07-09/)
   end
 
-  # O modal fica dentro do .table-frame da listagem e herdava o cabeçalho fixo ancorado na
-  # topbar da página: o thead parava no meio da tabela. Aqui o scrollport é a própria
-  # tabela, então o cabeçalho tem que colar no topo dela ao rolar.
+  # O modal fica dentro do .table-frame da listagem e herdava duas coisas de lá: a regra que
+  # declara `position: static` no thead — que empatava em especificidade e vencia por vir
+  # depois no arquivo — e, por causa do turbo_frame no meio, um corpo que não segurava a
+  # altura, deixando o diálogo inteiro rolar. Com as duas, o cabeçalho saía de vista.
+  #
+  # O teste anterior passava por vacuidade: ele mandava `scrollTop = 400` num contêiner que
+  # não rolava, e o cabeçalho ficava no topo porque nada tinha se movido. As asserções aqui
+  # exigem primeiro que a rolagem exista e aconteça.
   test "cabeçalho da tabela do modal cola no topo ao rolar" do
+    # Janela baixa de propósito: o modal tem 31 linhas e 88vh de altura máxima, e numa janela
+    # de 1000px as duas medidas ficam a poucos pixels uma da outra — o teste passava ou falhava
+    # conforme a altura da linha. Com 620px a rolagem é certa, e é uma condição real: notebook
+    # com a janela não maximizada.
+    page.driver.browser.manage.window.resize_to(1400, 620)
     visit sub_channel_report_path(@sub_channel)
     find("tr.daily-row", text: CNPJ_ALFA).all("td").first.click
     assert_selector "dialog.daily-modal[open]"
     assert_selector "dialog.daily-modal tbody th", text: "01"
 
-    page.execute_script("document.querySelector('dialog.daily-modal .table-scroll').scrollTop = 400")
-    colado = page.evaluate_script(<<~JS)
+    medida = page.evaluate_script(<<~JS)
       (() => {
-        const scroll = document.querySelector("dialog.daily-modal .table-scroll")
+        const dialogo = document.querySelector("dialog.daily-modal[open]")
+        const scroll = dialogo.querySelector(".table-scroll")
         const th = scroll.querySelector("thead th")
-        return Math.abs(th.getBoundingClientRect().top - scroll.getBoundingClientRect().top) < 2
+        const primeira = dialogo.querySelector("tbody th")
+        const antes = { th: th.getBoundingClientRect().top,
+                        linha: primeira.getBoundingClientRect().top }
+        scroll.scrollTop = 400
+        return {
+          quem_rola_tabela: scroll.scrollHeight > scroll.clientHeight + 2,
+          quem_rola_dialogo: dialogo.scrollHeight > dialogo.clientHeight + 2,
+          rolou: scroll.scrollTop,
+          posicao: getComputedStyle(th).position,
+          desalinho: Math.abs(th.getBoundingClientRect().top - scroll.getBoundingClientRect().top),
+          linha_subiu: antes.linha - primeira.getBoundingClientRect().top,
+          th_parado: Math.abs(th.getBoundingClientRect().top - antes.th)
+        }
       })()
     JS
 
-    assert colado, "o cabeçalho da tabela precisa ficar no topo do scroll do modal"
+    assert medida["quem_rola_tabela"], "quem rola tem que ser a tabela do modal"
+    refute medida["quem_rola_dialogo"], "o diálogo inteiro não pode rolar: o cabeçalho iria junto"
+    assert_operator medida["rolou"], :>, 0, "sem rolagem o teste passaria por vacuidade"
+    assert_operator medida["linha_subiu"], :>, 100, "as linhas precisam ter subido de verdade"
+    assert_equal "sticky", medida["posicao"]
+    assert_operator medida["th_parado"], :<, 2, "o cabeçalho não pode acompanhar as linhas"
+    assert_operator medida["desalinho"], :<, 2, "e tem que ficar colado no topo do scroll"
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
   end
 
   # O modal da melhor conversa monta a sequência no navegador, a partir do que o botão carrega.

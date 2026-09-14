@@ -362,6 +362,24 @@ Clicar na linha do cliente, na tela de subcanal, abre `.daily-modal` por Turbo F
 penúltimo mês, último e atual —, um dia por linha, com o cabeçalho da tabela colado no topo
 ao rolar (o scrollport é a própria tabela, não a página).
 
+**Esse cabeçalho já esteve parado e voltou a rolar duas vezes, por duas causas somadas**
+(corrigidas em 14/09/2026, medidas no navegador contra a página servida):
+
+- **O `turbo_frame` quebrava a cadeia do flex.** `.daily-modal__body` é a coluna e
+  `.daily-modal .table-scroll` pede `flex: 1; min-height: 0; overflow: auto` — mas entre os
+  dois entrou o elemento `turbo-frame`, que não é flex container nem item flexível. Quem
+  crescia era ele, e quem rolava passou a ser o `<dialog>` inteiro: medido, diálogo com 664px
+  de janela para 1656px de conteúdo e a tabela sem rolagem nenhuma. A regra que conserta é
+  `.daily-modal__body > turbo-frame { display: flex; flex: 1 1 auto; min-height: 0 }`.
+- **A moldura da listagem alcançava o `thead` do modal.** Os diálogos vivem dentro do mesmo
+  `.table-frame` da tabela, e `.table-frame[data-controller~="sticky-table"] thead th` declara
+  `position: static` — empatava em especificidade com a regra do modal e vencia por vir depois
+  no arquivo. As duas regras de `position: static` passaram a usar `> .table-scroll`: elas são
+  do cabeçalho **daquela** tabela, não de qualquer `thead` dentro da seção.
+
+A mesma correção vale para o modal de **clientes do dia** (`/reports/weekly`), que tem a mesma
+estrutura e sofria do mesmo problema.
+
 O modal é do **cliente**, e soma os mesmos ECs que a linha soma: a rota é
 `reports/sub_channels/:id/daily/:company_id`, com a uuid da empresa — nunca o CNPJ, que o
 filtro de log esconde dos parâmetros mas não do caminho da URL. Quando a soma tem mais de um
