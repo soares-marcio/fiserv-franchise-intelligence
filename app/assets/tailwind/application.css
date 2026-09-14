@@ -2065,6 +2065,17 @@
     line-height: 1.35;
   }
 
+  /* O conteúdo do modal chega dentro de um turbo_frame, e o elemento dele quebra a cadeia do
+     flex: o corpo é a coluna, mas quem cresce passa a ser o frame, e não a tabela. Sem isto o
+     diálogo inteiro é que rola — medido: diálogo com 664px de janela para 1656px de conteúdo,
+     e a tabela sem rolagem nenhuma —, e o cabeçalho sai de vista junto com as linhas. */
+  .daily-modal__body > turbo-frame {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
   .daily-modal .table-scroll {
     flex: 1 1 auto;
     min-height: 0;
@@ -2074,9 +2085,14 @@
 
   /* O diálogo vive dentro do .table-frame da listagem e herda o cabeçalho fixo ancorado na
      topbar da página, que o fazia parar no meio da tabela. Dentro do modal o scrollport é a
-     própria tabela. Três classes de propósito: com duas, a especificidade empatava com
-     .table-frame thead th e vencia a que viesse depois no arquivo — que é a de lá. */
-  .daily-modal .table-scroll thead th {
+     própria tabela.
+
+     Três classes de propósito, e agora são três de verdade: com duas, a especificidade
+     empatava com `.table-frame[data-controller~="sticky-table"] thead th`, que declara
+     `position: static` e vem depois no arquivo — e empate se decide pela ordem. Medido antes
+     da correção: o `th` do modal computava `static` em qualquer largura acima de 1024px. */
+  .daily-modal .daily-modal__body .table-scroll thead th {
+    position: sticky;
     top: 0;
     z-index: 3;
     background: var(--color-base-100);
@@ -2502,8 +2518,11 @@
     white-space: nowrap;
   }
 
+  /* `> .table-scroll` de propósito: os diálogos da tela (lançamentos, melhor conversa,
+     anotação) vivem dentro desta mesma moldura, e sem o filho direto esta regra alcançava o
+     `thead` deles e desmanchava o cabeçalho fixo do modal. */
   .table-frame .table-toolbar,
-  .table-frame thead th {
+  .table-frame > .table-scroll thead th {
     position: static;
   }
 
@@ -2553,14 +2572,6 @@
   .mobile-table-head__table th {
     position: static;
     background: var(--color-base-100);
-  }
-
-  .daily-modal .table-scroll thead th {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    background: var(--color-base-100);
-    box-shadow: inset 0 -1px 0 var(--color-base-300);
   }
 
   .establishment-revenue-table tbody tr:hover td.variation-col:has(.variation-chip--up) {
@@ -2774,7 +2785,10 @@
     box-shadow: 0 8px 12px rgb(68 47 34 / 8%);
   }
 
-  .table-frame[data-controller~="sticky-table"] thead th {
+  /* Filho direto pela mesma razão do bloco de cima: sem ele, esta regra empatava em
+     especificidade com a do cabeçalho do modal e vencia por vir depois no arquivo — medido,
+     o `th` do modal computava `static` em qualquer largura acima de 1024px. */
+  .table-frame[data-controller~="sticky-table"] > .table-scroll thead th {
     position: static;
   }
 
