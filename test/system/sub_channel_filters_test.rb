@@ -259,7 +259,10 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     visit sub_channel_report_path(@sub_channel)
 
     all("tr.daily-row").last.find("summary.actions-menu__trigger").click
-    assert_selector ".actions-menu[open] .actions-menu__list"
+    # Esperar pelo `style` e não só pelo `[open]`: o `open` do <details> vira true no clique,
+    # mas o evento `toggle` — que dispara o reposicionamento — é assíncrono. Medir logo depois
+    # do `[open]` pega o painel ainda `absolute`, e o teste falha por corrida, não por defeito.
+    assert_selector ".actions-menu[open] .actions-menu__list[style*='fixed']"
 
     medida = page.evaluate_script(<<~JS)
       (() => {
