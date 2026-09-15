@@ -140,6 +140,36 @@ Duas armadilhas que esta mudança pagou:
 - **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
   `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
 
+### A barra de filtros da listagem do MIC
+
+Barra em **pílulas** (15/09/2026). Cada filtro é um controle só, com o rótulo dentro e o valor
+à vista: `( Status  Ativo × ⌄ )`, `( Faturamento  mês atual até R$ 12.000,00 ⌄ )`. O que veio
+antes, e por que saiu:
+
+| Antes | Problema |
+| --- | --- |
+| Cinco rótulos em caixa-alta laranja sobre os controles | competiam com o título da seção e repetiam o que o valor já dizia |
+| Cinco aparências de controle | caixa com chip, botão com ícone, select, alça crua e campo de texto, lado a lado |
+| Linha de chips com o recorte ativo | repetia o estado que os próprios controles mostram |
+| Grade de colunas de largura fixa | obrigava a inventar um valor de `rem` por campo, e quebrou duas vezes quando um campo novo entrou |
+
+O que a barra é agora:
+
+- **Uma forma só**: `.filter-pill__trigger`, 2,5rem de altura, borda e raio iguais. O rótulo
+  (`.filter-pill__label`) é miúdo e sem cor; o valor (`.filter-pill__value`) é o que tem peso,
+  e fica apagado quando não há escolha ("todos", "todas", "qualquer").
+- **Fileira que quebra sozinha** (`display: flex; flex-wrap: wrap`), no lugar da grade: cada
+  pílula tem a largura do próprio conteúdo, e nenhum campo novo pede recálculo de colunas.
+- **O faturamento é pílula com painel** (`revenue_filter_controller.js`): o gatilho resume o
+  recorte e o painel guarda a competência e a alça. Era o único controle com dois campos à
+  mostra, e era ele que obrigava a barra a ter duas alturas.
+- **O valor marcado é texto, não caixinha** (`.filter-pill__tag`): caixa com borda dentro de
+  caixa com borda vira ruído. O `×` de cada valor continua, com alvo de toque de 44px.
+- **"Limpar" só existe quando há o que limpar.** Botão permanente para desfazer o nada é ruído.
+
+O seletor de intervalo (`reports/_date_range_picker`) ganhou a variante `pill: true`, usada só
+aqui; as telas 3M seguem com o rótulo em cima, como o resto da barra delas.
+
 ### Filtro por faixa de faturamento
 
 Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de uma alça**

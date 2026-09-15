@@ -164,6 +164,11 @@ export default class extends Controller {
       label.textContent = this.monthTitle(this.monthAt(index))
     })
     this.triggerLabelTarget.textContent = this.rangeLabel()
+    // Sem intervalo escolhido o texto é convite, não valor: na barra em pílulas ele vai
+    // apagado, como o "todas" e o "qualquer" dos vizinhos.
+    this.triggerLabelTarget.classList.toggle(
+      "filter-pill__value--empty", !this.fromDateTarget.value
+    )
     this.hintTarget.textContent = this.hintText()
   }
 

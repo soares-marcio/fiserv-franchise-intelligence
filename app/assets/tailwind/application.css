@@ -302,14 +302,234 @@
     overflow: visible;
   }
 
+  /* Faixa de pílulas, e não grade de colunas: cada filtro tem a largura do próprio conteúdo
+     e a linha quebra sozinha quando não cabe. A grade de larguras fixas era o que obrigava a
+     inventar um valor de coluna para cada campo e a refazer a conta a cada campo novo. */
   .filter-bar {
-    display: grid;
-    grid-template-columns: minmax(12rem, 0.95fr) minmax(12rem, 0.95fr)
-      minmax(14rem, 1fr) minmax(13rem, 1fr) auto;
-    gap: 0.9rem 1.1rem;
-    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
   }
 
+  /* A pílula: rótulo miúdo, valor em destaque, tudo dentro de um controle só de 2,5rem. */
+  .filter-pill {
+    position: relative;
+    display: flex;
+  }
+
+  .filter-pill__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    height: 2.5rem;
+    max-width: 22rem;
+    padding: 0 0.85rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 999px;
+    background: var(--color-base-100);
+    color: inherit;
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .filter-pill__trigger:hover {
+    border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+  }
+
+  .filter-pill__trigger:focus-visible,
+  .filter-pill__trigger.is-open {
+    border-color: var(--color-primary);
+    outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  /* O rótulo é referência, não manchete: fica miúdo e sem cor. Antes eram cinco linhas em
+     caixa-alta laranja, todas com o mesmo peso do título da seção. */
+  .filter-pill__label {
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .filter-pill__value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .filter-pill__value--empty {
+    color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+    font-weight: 400;
+  }
+
+  .filter-pill__value:empty {
+    display: none;
+  }
+
+  .filter-pill__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .filter-pill__tag + .filter-pill__tag::before {
+    content: "·";
+    margin-right: 0.2rem;
+    opacity: 0.45;
+  }
+
+  .filter-pill__tag-remove {
+    border: 0;
+    background: none;
+    color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .filter-pill__tag-remove:hover,
+  .filter-pill__tag-remove:focus-visible {
+    color: var(--color-error);
+  }
+
+  .filter-pill__caret {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex: none;
+    opacity: 0.5;
+  }
+
+  /* Select nativo dentro da pílula: a caixa é a pílula, e o select entra sem borda nenhuma.
+     Um <select> não aceita rótulo por dentro, então ele vem ao lado, no mesmo peso miúdo dos
+     outros rótulos da barra. */
+  .filter-pill--select {
+    align-items: center;
+    gap: 0.4rem;
+    height: 2.5rem;
+    padding: 0 0.6rem 0 0.85rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 999px;
+    background: var(--color-base-100);
+  }
+
+  .filter-pill--select:focus-within {
+    border-color: var(--color-primary);
+    outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  .filter-pill__native {
+    height: 2rem;
+    min-height: 2rem;
+    max-width: 16rem;
+    padding: 0 1.4rem 0 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .filter-pill__native:focus {
+    outline: none;
+  }
+
+  /* Busca: a mesma pílula, com o campo por dentro e sem borda própria. */
+  .filter-pill--search {
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 16rem;
+    flex: 1 1 16rem;
+    height: 2.5rem;
+    padding: 0 0.95rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 999px;
+    background: var(--color-base-100);
+  }
+
+  .filter-pill--search:focus-within {
+    border-color: var(--color-primary);
+    outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
+  }
+
+  .filter-pill__input {
+    width: 100%;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 0.85rem;
+  }
+
+  .filter-pill__input:focus {
+    outline: none;
+  }
+
+  .filter-pill__submit {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    border-radius: 999px;
+  }
+
+  .filter-bar__clear {
+    color: color-mix(in oklab, var(--color-base-content) 62%, transparent);
+    font-size: 0.8rem;
+    text-decoration: underline;
+  }
+
+  /* Painel da pílula de faturamento, no mesmo molde do menu do tag-select. */
+  .filter-pill__panel {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    display: grid;
+    gap: 0.5rem;
+    width: 19rem;
+    padding: 0.9rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 0.9rem;
+    background: var(--color-base-100);
+    box-shadow: 0 18px 38px rgb(31 45 61 / 16%);
+  }
+
+  .filter-pill__panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .filter-pill__panel-label {
+    color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
+    font-size: 0.75rem;
+  }
+
+  .filter-pill__amount {
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .filter-pill__select {
+    width: 100%;
+    height: 2.4rem;
+    min-height: 2.4rem;
+    font-size: 0.85rem;
+  }
+
+  .filter-pill__hint {
+    margin: 0;
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  /* As telas 3M seguem com o rótulo em cima e o controle embaixo: a barra em pílulas é da
+     listagem do MIC, onde os cinco filtros dividem a linha. */
   .filter-field {
     position: relative;
     display: grid;
@@ -383,62 +603,6 @@
     font-size: 0.9rem;
   }
 
-  .status-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    min-height: 1.7rem;
-    padding: 0.1rem 0.25rem 0.1rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid color-mix(in oklab, var(--color-primary) 18%, transparent);
-    background: color-mix(in oklab, var(--color-primary) 12%, white);
-    color: var(--color-neutral);
-    font-size: 0.78rem;
-    font-weight: 750;
-  }
-
-  .status-tag[data-tone="success"] {
-    border-color: color-mix(in oklab, var(--color-success) 24%, transparent);
-    background: color-mix(in oklab, var(--color-success) 14%, white);
-    color: var(--color-success-content);
-  }
-
-  .status-tag[data-tone="warning"] {
-    border-color: color-mix(in oklab, var(--color-warning) 34%, transparent);
-    background: color-mix(in oklab, var(--color-warning) 18%, white);
-    color: color-mix(in oklab, var(--color-neutral) 82%, var(--color-warning));
-  }
-
-  .status-tag[data-tone="teal"] {
-    border-color: color-mix(in oklab, var(--color-secondary) 28%, transparent);
-    background: color-mix(in oklab, var(--color-secondary) 13%, white);
-    color: color-mix(in oklab, var(--color-neutral) 82%, var(--color-secondary));
-  }
-
-  .status-tag[data-tone="rose"] {
-    border-color: color-mix(in oklab, var(--color-error) 24%, transparent);
-    background: color-mix(in oklab, var(--color-error) 12%, white);
-    color: var(--color-error);
-  }
-
-  .status-tag__remove {
-    display: grid;
-    width: 1.4rem;
-    height: 1.4rem;
-    place-items: center;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: inherit;
-    font-size: 0.95rem;
-    line-height: 1;
-  }
-
-  .status-tag__remove:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 1px;
-  }
-
   .tag-select__chevron {
     margin-left: auto;
     flex: none;
@@ -451,10 +615,6 @@
   .tag-select.is-open .tag-select__chevron,
   .date-range.is-open .tag-select__chevron {
     transform: rotate(180deg);
-  }
-
-  .status-tag__remove:hover {
-    background: color-mix(in oklab, var(--color-primary) 22%, white);
   }
 
   .tag-select__menu {
@@ -1189,45 +1349,13 @@
   /* Slider do teto de faturamento, na barra de filtros. A alça é o input nativo: ele já vem
      acessível pelo teclado e continua funcionando sem JavaScript — o que o Stimulus faz é só
      mostrar o valor antes de aplicar o filtro. */
-  .revenue-range {
-    display: grid;
-    gap: 0.4rem;
-  }
-
-  .revenue-range__row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    min-height: 2rem;
-  }
-
-  .revenue-range__basis {
-    width: 100%;
-    height: 2.5rem;
-    font-size: 0.85rem;
-  }
-
   .revenue-range__input {
     flex: 1 1 auto;
-    min-width: 7rem;
+    min-width: 6rem;
     accent-color: var(--color-primary);
   }
 
-  /* Desligado, a alça continua na tela mas apagada: some-la faria a barra saltar de largura
-     a cada troca do dropdown, e escondê-la esconderia também que existe um teto para ajustar. */
-  .revenue-range.is-off .revenue-range__input {
-    opacity: 0.35;
-  }
 
-  /* Largura mínima reservada: sem ela o campo pula de tamanho a cada casa que o valor ganha
-     enquanto a alça anda, e a barra inteira dança junto. */
-  .revenue-range__value {
-    min-width: 6.5rem;
-    color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
-    font-size: 0.78rem;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
 
   /* Contagem de clientes abaixo do corte, com destaque próprio entre o título e a paginação
      (pedido do usuário, 14/09/2026). Mesma linguagem dos cards do topo — barra de acento à
@@ -2527,9 +2655,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .filter-bar {
-    grid-template-columns: minmax(0, 1fr);
-  }
 
   .filter-actions {
     display: grid;
@@ -2720,7 +2845,7 @@
   .btn-toggle,
   .btn,
   .datepicker__nav-btn,
-  .status-tag__remove {
+  .filter-pill__tag-remove {
     min-width: 44px;
     min-height: 44px;
   }
@@ -2798,13 +2923,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .filter-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
-  .filter-actions {
-    grid-column: 1 / -1;
-  }
 
   .datepicker__months {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2824,14 +2943,9 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .filter-bar {
-    grid-template-columns: minmax(12rem, 0.95fr) minmax(12rem, 0.95fr)
-      minmax(14rem, 1fr) minmax(13rem, 1fr) auto;
-  }
+  /* Três colunas nesta faixa. A linha única com os seis itens pede 1272px de mínimo e aqui
+     transbordava 250px — medido a 1024px. */
 
-  .filter-actions {
-    grid-column: auto;
-  }
 
   .nav-toggle {
     display: none;
@@ -2909,6 +3023,9 @@
   .metric-grid--5 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+
+  /* Uma coluna por campo mais a das ações: a barra inteira numa linha só. O mínimo desta
+     grade é 1272px, por isso ela começa aqui e não aos 1024px, onde transbordava. */
 }
 
 @media (prefers-reduced-motion: reduce) {
