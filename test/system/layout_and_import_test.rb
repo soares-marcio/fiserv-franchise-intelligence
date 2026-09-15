@@ -33,6 +33,49 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     File.delete(path) if path && File.exist?(path)
   end
 
+  # A mensagem de falha não tinha limite de largura: ela esticava a coluna de Status e
+  # empurrava o botão "Descartar" para fora da área visível da tabela — medido na carteira
+  # real, janela de 1600px, a tabela pedia 2947px num espaço de 1502px. O texto inteiro
+  # continua na ficha do lote e no title; aqui ele fica em duas linhas.
+  test "a mensagem de falha não empurra o botão de descartar para fora" do
+    ImportBatch.create!(
+      source_filename: "BIN_TESTE_20260903.xlsx", file_checksum: "abc123def456789",
+      status: "failed",
+      validation_errors: [
+        "A aba \"Mapa de Clientes BIN\" está sem a coluna \"REPORT_ID\". No lugar apareceu " \
+        "\"ELEGIBILIDADE\", e o importador lê as células pelo nome da coluna, então nenhuma " \
+        "linha seria reconhecida."
+      ]
+    )
+
+    visit import_batches_path
+    assert_selector "tbody .import-error"
+
+    medida = page.evaluate_script(<<~JS)
+      (() => {
+        const rolagem = document.querySelector(".table-scroll")
+        const tabela = rolagem.querySelector("table")
+        const mensagem = document.querySelector("tbody .import-error")
+        const botao = document.querySelector("tbody td .btn")
+        const linha = parseFloat(getComputedStyle(mensagem).lineHeight)
+        return {
+          sobra: Math.round(tabela.scrollWidth - rolagem.clientWidth),
+          linhas: Math.round(mensagem.getBoundingClientRect().height / linha),
+          botao_dentro: botao
+            ? Math.round(botao.getBoundingClientRect().right) <= Math.round(rolagem.getBoundingClientRect().right) + 1
+            : null,
+          texto_completo: mensagem.getAttribute("title") || ""
+        }
+      })()
+    JS
+
+    assert_operator medida["sobra"], :<=, 0, "a tabela não pode transbordar por causa da mensagem"
+    assert medida["botao_dentro"], "o botão Descartar precisa caber na área visível"
+    assert_operator medida["linhas"], :<=, 2, "a mensagem fica em duas linhas"
+    assert_includes medida["texto_completo"], "REPORT_ID",
+      "o texto inteiro continua acessível no title"
+  end
+
   # A tabela de sete colunas dentro do card vazava por cima do card vizinho: no desktop o
   # .table-scroll geral é overflow: visible, e o item de grid sem min-width: 0 esticava a
   # coluna inteira. O card tem que conter a própria tabela, rolando por dentro.

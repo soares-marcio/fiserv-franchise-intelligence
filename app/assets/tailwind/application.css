@@ -1294,6 +1294,19 @@
     line-height: 1;
   }
 
+  /* A mensagem de falha do import é diagnóstico de relance, não a leitura principal da linha.
+     Sem limite ela esticava a coluna de Status a 1698px e empurrava o botão "Descartar" para
+     fora da área visível — medido na carteira real, janela de 1600px: a tabela pedia 2947px
+     num espaço de 1502px, 1445px além. Duas linhas identificam o problema; o texto inteiro
+     está a um clique, na ficha do lote, e no `title` ao passar o mouse. */
+  .import-error {
+    display: -webkit-box;
+    max-width: 20rem;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .table-scroll-hint {
     display: none;
   }

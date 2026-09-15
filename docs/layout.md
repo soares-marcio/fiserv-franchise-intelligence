@@ -355,6 +355,17 @@ Editor é o Trix (Action Text), vendorizado em `vendor/javascript/trix.js` — o
 pelo CSS: o processador de variantes está desligado no projeto, e pedir variante devolveria o
 arquivo cheio em silêncio.
 
+### A mensagem de falha do import
+
+Na tabela de lotes (`/import_batches`), a linha que falhou traz a mensagem sob o badge. Ela é
+**diagnóstico de relance** e vive limitada (`.import-error`: duas linhas e 20rem): sem limite,
+ela esticava a coluna de Status e empurrava o botão "Descartar" para fora da área visível —
+medido na carteira real, janela de 1600px, com a tabela pedindo 2947px num espaço de 1502px,
+1445px além, e a coluna de Status sozinha com 1698px.
+
+O texto inteiro não se perde: está no `title` ao passar o mouse, no bloco `failure-report` do
+topo da tela (para o último lote) e na ficha do lote, para onde o nome do arquivo já leva.
+
 ### Modal de lançamentos diários
 
 Clicar na linha do cliente, na tela de subcanal, abre `.daily-modal` por Turbo Frame

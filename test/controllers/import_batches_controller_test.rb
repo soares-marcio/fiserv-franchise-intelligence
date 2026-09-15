@@ -229,6 +229,22 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     assert_select ".failure-report__message", text: /Abas ausentes: Faturamento/
   end
 
+  # Na linha da tabela a mensagem é diagnóstico de relance: limitada por CSS e com o texto
+  # inteiro no title. Sem limite, ela esticava a coluna e empurrava o botão de descartar para
+  # fora da área visível.
+  test "a linha da tabela traz a mensagem limitada, com o texto inteiro no title" do
+    inteiro = "A aba \"Mapa de Clientes BIN\" está sem a coluna \"REPORT_ID\". " \
+      "No lugar apareceu \"ELEGIBILIDADE\"."
+    ImportBatch.create!(source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado",
+      status: "failed", validation_errors: [ inteiro ])
+
+    get import_batches_path
+
+    assert_response :success
+    assert_select "tbody p.import-error[title=?]", inteiro, text: /REPORT_ID/
+    assert_select "tbody td .btn", text: /Descartar/
+  end
+
   test "card do worker reflete o batimento do Solid Queue" do
     get import_batches_path
     assert_select ".metric-card[data-tone=rose]", text: /Worker de importação\s+Parado/
