@@ -143,10 +143,10 @@ Duas armadilhas que esta mudança pagou:
 ### Filtro por faixa de faturamento
 
 Na barra de filtros da listagem do MIC, um **slider de uma alça** escolhe o teto de
-faturamento, de 0 a R$ 30.000,00 em passos de R$ 500
+faturamento, de 0 a R$ 300.000,00 em passos de R$ 1.000
 (`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`). A listagem passa a
-mostrar quem ficou **até** esse valor, e o bloco ao lado do título conta quantos são em cada
-competência.
+mostrar quem ficou **até** esse valor **no mês atual**, e o bloco ao lado do título conta
+quantos são em cada competência.
 
 Quatro decisões, cada uma com um porquê:
 
@@ -154,9 +154,14 @@ Quatro decisões, cada uma com um porquê:
   valor: se o topo filtrasse, a tela abriria escondendo os maiores clientes da carteira. A
   regra vive em `normalize_max_revenue`, num lugar só, porque a barra e a consulta precisam
   concordar sobre o que é ausência de escolha — zero e vazio também são ausência.
-- **Vale para qualquer uma das duas competências** (decisão do usuário, 15/09/2026): o cliente
-  entra se o mês anterior cheio **ou** o mês atual couber no teto. Na carteira real, com teto
-  de R$ 5.000, 14 dos 35 clientes entram — e só 7 deles pelo mês anterior cheio.
+- **A base é o mês atual** (decisão do usuário, 15/09/2026): é a competência em curso que
+  responde "quem está fraco agora", e quem faturou muito no mês passado e nada agora precisa
+  aparecer. O rótulo do campo diz "Mês atual até" justamente porque, sem isso, o filtro
+  pareceria valer para a linha inteira. Na carteira real, com teto de R$ 5.000, 14 dos 35
+  clientes entram; com teto zero, 7 — os que não faturaram nada no mês.
+- **Zero é escolha, e não ausência dela.** Teto zero responde "quem não faturou nada", que é
+  uma pergunta legítima desta tela; por isso a ausência se testa por `blank?`, e não por
+  "menor ou igual a zero".
 - **"Até" inclui o próprio valor.** A contagem anterior era estritamente abaixo; com o slider,
   "até R$ 5.000" lê como ≤, e a dica da tela escreve isso.
 - **O filtro mora no `HAVING`**, como os outros desta tela: no `WHERE` antes do `GROUP BY`, o
@@ -165,8 +170,13 @@ Quatro decisões, cada uma com um porquê:
 
 O bloco ao lado do título mostra a faixa por extenso e as duas contagens (mês anterior cheio e
 mês atual). Elas são independentes — o mesmo cliente costuma estar nas duas — e por isso nunca
-são somadas. Sem teto escolhido, o bloco usa o topo da escala como referência, que é a leitura
-com que ele nasceu.
+são somadas. Com teto aplicado, a contagem do mês atual coincide com a da tabela, porque é por
+essa competência que o filtro recorta; quem informa aí é a do mês anterior cheio.
+
+**Sem teto escolhido o bloco conta pela referência, e não pelo topo da escala**
+(`LOW_REVENUE_REFERENCE`, R$ 30.000,00): com a escala em R$ 300 mil, "abaixo do topo" devolve a
+carteira inteira — 35 de 35, medido —, que é verdade e não informa nada. R$ 30 mil é o corte que
+o usuário pediu em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.
 
 Sem JavaScript o slider continua funcionando: é um campo comum e o formulário o envia igual —
 o que o Stimulus faz é só mostrar o valor antes de aplicar o filtro, no mesmo formato do `brl`

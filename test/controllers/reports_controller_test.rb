@@ -218,9 +218,13 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(mic)
 
     assert_response :success
-    # O slider vive junto dos outros filtros e abre no topo da escala: sem teto.
+    # O slider vive junto dos outros filtros e abre no topo da escala: sem teto. O rótulo diz
+    # a base — o filtro recorta pelo mês atual, e sem isso pareceria valer para a linha toda.
+    assert_select ".filter-bar label[for=max_revenue]", text: "Mês atual até"
     assert_select ".filter-bar input[type=range][name=max_revenue][max=?]",
       EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
+    assert_select "input[type=range][name=max_revenue][step=?]",
+      EstablishmentListingQuery::LOW_REVENUE_STEP.to_s
     assert_select ".revenue-range__value", text: /sem teto/
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
@@ -235,6 +239,16 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
     assert_select "input[type=range][name=max_revenue][value=?]", "1000"
     assert_select ".revenue-range__value", text: /R\$\u00A01\.000,00/
+
+    # Zero é escolha, e não ausência dela: a alça volta no zero, e não no topo da escala. Os
+    # dois clientes desta planilha venderam no mês atual, então o recorte fica vazio — que é
+    # justamente a prova de que o zero filtrou em vez de ser ignorado.
+    get sub_channel_report_path(mic, max_revenue: 0)
+
+    assert_response :success
+    assert_select "input[type=range][name=max_revenue][value=?]", "0"
+    assert_select ".revenue-range__value", text: /R\$\u00A00,00/
+    assert_select "tbody tr", count: 0
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do

@@ -378,7 +378,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   # em cada competência. São duas contagens independentes — o mesmo cliente pode estar nas
   # duas — e o "até" inclui o próprio valor, como se lê em português.
   test "conta os clientes até o teto em cada competência, incluindo quem fica nele" do
-    teto = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+    teto = EstablishmentListingQuery::LOW_REVENUE_REFERENCE
     # ALFA LANCHES passa o teto nas duas competências; ALFA SUSPENSA fica exatamente nele no
     # mês anterior cheio, e o "até" o inclui.
     acima_do_corte("11222333000181", previous: teto + 1, current: teto + 1)
@@ -402,37 +402,50 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       "o filtro de status também vale"
   end
 
-  # O teto vindo da tela filtra a listagem, e vale para **qualquer uma** das competências
-  # (decisão do usuário, 15/09/2026): quem cabe no mês atual entra mesmo com o mês anterior
-  # cheio acima do teto.
-  test "o teto escolhido filtra a listagem por qualquer uma das competências" do
+  # O teto vindo da tela filtra pelo **mês atual** (decisão do usuário, 15/09/2026): é a
+  # competência em curso que responde "quem está fraco agora". O mês anterior cheio não entra
+  # na conta do filtro — quem faturou muito no mês passado e nada agora precisa aparecer.
+  test "o teto escolhido filtra a listagem pelo mês atual" do
     acima_do_corte("11222333000181", previous: 20_000, current: 20_000)
     acima_do_corte("22333444000105", previous: 25_000, current: 2_000)
-    acima_do_corte("33444555000130", previous: 26_000, current: 26_000)
+    acima_do_corte("33444555000130", previous: 1_000, current: 26_000)
 
     cnpjs = listing(max_revenue: 5_000).rows.map { |row| row["cnpj"] }
 
     assert_includes cnpjs, "22333444000105", "cabe pelo mês atual, mesmo com o anterior acima"
-    assert_not_includes cnpjs, "11222333000181", "acima do teto nas duas competências"
-    assert_not_includes cnpjs, "33444555000130"
-    # Os dois clientes zerados nas duas competências continuam: zero cabe em qualquer teto.
+    assert_not_includes cnpjs, "11222333000181", "acima do teto no mês atual"
+    assert_not_includes cnpjs, "33444555000130",
+      "o mês anterior cheio baixo não salva quem está acima do teto no mês atual"
+    # Os dois clientes zerados no mês atual continuam: zero cabe em qualquer teto.
     assert_equal 3, listing(max_revenue: 5_000).total_count
   end
 
   # Um input de range sempre envia valor: se o topo da escala filtrasse, a tela abriria
   # escondendo os maiores clientes da carteira.
   test "o topo da escala significa sem teto, e não filtra" do
-    acima_do_corte("11222333000181", previous: 99_999, current: 99_999)
+    acima_do_corte("11222333000181", previous: 999_999, current: 999_999)
     teto = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
 
     assert_equal 5, listing(max_revenue: teto).total_count
     assert_equal 5, listing(max_revenue: teto + 1_000).total_count
     assert_equal 5, listing(max_revenue: "").total_count
-    assert_equal 5, listing(max_revenue: 0).total_count, "zero também é ausência de escolha"
+    assert_equal 5, listing(max_revenue: nil).total_count
   end
 
-  # Com teto escolhido, o bloco conta dentro do resultado — e com a referência do topo da
-  # escala quando não há escolha.
+  # Zero é escolha, e não ausência dela (pedido do usuário, 15/09/2026): teto zero responde
+  # "quem não faturou nada no mês atual".
+  test "teto zero mostra quem não faturou nada no mês atual" do
+    cnpjs = listing(max_revenue: 0).rows.map { |row| row["cnpj"] }
+
+    assert_equal [ "33444555000130" ], cnpjs,
+      "só ALFA SUSPENSA está zerada no mês atual; os outros quatro venderam alguma coisa"
+    assert_equal 0, EstablishmentListingQuery.normalize_max_revenue(0),
+      "zero atravessa a normalização como escolha"
+    assert_nil EstablishmentListingQuery.normalize_max_revenue("")
+  end
+
+  # Com teto escolhido, o bloco conta dentro do resultado — e pela referência quando não há
+  # escolha, que não é o topo da escala.
   test "as contagens do bloco usam o teto escolhido" do
     acima_do_corte("11222333000181", previous: 20_000, current: 1_000)
 
