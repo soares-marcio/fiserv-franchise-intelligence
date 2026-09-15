@@ -25,6 +25,11 @@ class EstablishmentListingQuery
     "ativacao" => "activated_on",
     "suspensao" => "suspended_on"
   }.freeze
+  # Corte de faturamento baixo, pedido do usuário em 14/09/2026: a tela conta quantos
+  # clientes do recorte ficaram **abaixo** de R$ 30.000,00 — estritamente abaixo, então quem
+  # fez exatamente o valor não entra. Vale para o mês anterior cheio e para o mês atual, que
+  # é parcial: no mês em curso a contagem cai à medida que o arquivo avança.
+  LOW_REVENUE_THRESHOLD = 30_000
   PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
   DEFAULT_PER_PAGE = 20
 
@@ -96,7 +101,8 @@ class EstablishmentListingQuery
     EstablishmentRevenuePage.new(
       rows: fetch_rows(page, per_page), total_count: summary[:total_count],
       totals: summary[:totals], page:, per_page:, variation_counts: summary[:variation_counts],
-      status_counts: summary[:status_counts], overall_totals: summary[:overall_totals]
+      status_counts: summary[:status_counts], overall_totals: summary[:overall_totals],
+      low_revenue_counts: summary[:low_revenue_counts]
     )
   end
 
@@ -112,7 +118,8 @@ class EstablishmentListingQuery
   def binds
     @binds ||= begin
       values = @window.to_binds.merge(
-        channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses
+        channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses,
+        low_revenue: LOW_REVENUE_THRESHOLD
       )
       values.merge!(from_date: @from_date, to_date: @to_date) if lifecycle_filter?
       values.merge(search_binds)
@@ -157,6 +164,10 @@ class EstablishmentListingQuery
       },
       variation_counts: { todas: row["todas"].to_i, alta: row["alta"].to_i, baixa: row["baixa"].to_i },
       status_counts: status_counts(row),
+      low_revenue_counts: {
+        previous_full: row["previous_low_count"].to_i,
+        current: row["current_low_count"].to_i
+      },
       overall_totals: @variation && {
         previous_revenue: row["overall_previous_revenue"].to_d,
         current_revenue: row["overall_current_revenue"].to_d
@@ -192,6 +203,12 @@ class EstablishmentListingQuery
         COUNT(*) FILTER (
           WHERE (#{tab_clause}) AND contract_status = 'Active'
         ) AS active_count,
+        COUNT(*) FILTER (
+          WHERE (#{tab_clause}) AND previous_full_revenue < :low_revenue
+        ) AS previous_low_count,
+        COUNT(*) FILTER (
+          WHERE (#{tab_clause}) AND current_revenue < :low_revenue
+        ) AS current_low_count,
         COUNT(*) AS todas,
         COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
         COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['baixa']}) AS baixa,

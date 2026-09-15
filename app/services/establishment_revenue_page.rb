@@ -2,10 +2,10 @@ class EstablishmentRevenuePage
   include Enumerable
 
   attr_reader :rows, :total_count, :totals, :page, :per_page, :variation_counts, :status_counts,
-    :overall_totals
+    :overall_totals, :low_revenue_counts
 
   def initialize(rows:, total_count:, totals:, page:, per_page:, variation_counts: {},
-    status_counts: {}, overall_totals: nil)
+    status_counts: {}, overall_totals: nil, low_revenue_counts: {})
     @rows = rows
     @total_count = total_count.to_i
     @totals = totals
@@ -14,6 +14,9 @@ class EstablishmentRevenuePage
     @variation_counts = variation_counts
     @status_counts = status_counts
     @overall_totals = overall_totals
+    # Quantos clientes do recorte ficaram abaixo do corte em cada competência. Duas contagens
+    # independentes: o mesmo cliente pode estar nas duas, e a soma delas não descreve nada.
+    @low_revenue_counts = low_revenue_counts
   end
 
   def each(&block)
