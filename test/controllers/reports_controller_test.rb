@@ -218,14 +218,18 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(mic)
 
     assert_response :success
-    # O slider vive junto dos outros filtros e abre no topo da escala: sem teto. O rótulo diz
-    # a base — o filtro recorta pelo mês atual, e sem isso pareceria valer para a linha toda.
-    assert_select ".filter-bar label[for=max_revenue]", text: "Mês atual até"
+    # O slider vive junto dos outros filtros, com o dropdown da base ao lado. "Todas" é o
+    # estado desligado, e é assim que a tela abre.
+    assert_select ".filter-bar label[for=revenue_basis]", text: "Faturamento até"
+    assert_select "select[name=revenue_basis] option", count: 3
+    assert_select "select[name=revenue_basis] option[selected]", count: 0
+    assert_select "select[name=revenue_basis] option[value=atual]", text: "Mês atual"
+    assert_select "select[name=revenue_basis] option[value=anterior]", text: "Mês anterior cheio"
     assert_select ".filter-bar input[type=range][name=max_revenue][max=?]",
       EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
     assert_select "input[type=range][name=max_revenue][step=?]",
       EstablishmentListingQuery::LOW_REVENUE_STEP.to_s
-    assert_select ".revenue-range__value", text: /sem teto/
+    assert_select ".revenue-range__value", text: /sem filtro/
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
@@ -233,9 +237,17 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".low-revenue__numbers", text: /2\s+mês anterior cheio\s+2\s+mês atual/
     assert_select "[data-tip*=?]", "incluindo o próprio valor"
 
+    # Teto sem base é o estado desligado: a tabela não filtra e o bloco volta à referência.
     get sub_channel_report_path(mic, max_revenue: 1_000)
 
     assert_response :success
+    assert_select "tbody tr", count: 2
+    assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
+
+    get sub_channel_report_path(mic, max_revenue: 1_000, revenue_basis: "atual")
+
+    assert_response :success
+    assert_select "select[name=revenue_basis] option[selected][value=?]", "atual"
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
     assert_select "input[type=range][name=max_revenue][value=?]", "1000"
     assert_select ".revenue-range__value", text: /R\$\u00A01\.000,00/
@@ -243,7 +255,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # Zero é escolha, e não ausência dela: a alça volta no zero, e não no topo da escala. Os
     # dois clientes desta planilha venderam no mês atual, então o recorte fica vazio — que é
     # justamente a prova de que o zero filtrou em vez de ser ignorado.
-    get sub_channel_report_path(mic, max_revenue: 0)
+    get sub_channel_report_path(mic, max_revenue: 0, revenue_basis: "atual")
 
     assert_response :success
     assert_select "input[type=range][name=max_revenue][value=?]", "0"

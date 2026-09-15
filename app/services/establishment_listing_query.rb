@@ -34,6 +34,14 @@ class EstablishmentListingQuery
   # Passo do slider: R$ 1.000 dá 300 posições na escala. Com passo maior a ponta baixa da
   # escala — onde mora a pergunta "quem está fraco?" — ficaria com meia dúzia de paradas.
   LOW_REVENUE_STEP = 1_000
+  # Base do teto: qual competência o filtro olha. "Todas" é o estado desligado — a escolha do
+  # usuário (15/09/2026) por um jeito explícito de voltar à tela sem filtro, no lugar da regra
+  # implícita que o topo da escala carregava. Lista fechada porque o valor vira nome de coluna.
+  REVENUE_BASES = {
+    "atual" => "current_revenue",
+    "anterior" => "previous_full_revenue"
+  }.freeze
+
   # Referência do bloco quando **não** há teto escolhido. Não é o topo da escala: com a escala
   # em R$ 300 mil, contar "quem está abaixo do topo" devolve a carteira inteira — na carteira
   # real, 35 de 35, que é verdade e não informa nada. R$ 30 mil é o corte que o usuário pediu
@@ -72,7 +80,7 @@ class EstablishmentListingQuery
 
   def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
     from_date: nil, to_date: nil, query: nil, variation: nil, sort: nil, direction: nil,
-    max_revenue: nil, page: 1, per_page: nil)
+    max_revenue: nil, revenue_basis: nil, page: 1, per_page: nil)
     @channel_id = channel_id
     @sub_channel_id = sub_channel_id
     @window = window
@@ -83,6 +91,7 @@ class EstablishmentListingQuery
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
     @max_revenue = self.class.normalize_max_revenue(max_revenue)
+    @revenue_basis = self.class.normalize_revenue_basis(revenue_basis)
     @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
     @order = self.class.listing_sort(column: sort, direction:)
 
@@ -90,22 +99,29 @@ class EstablishmentListingQuery
     @per_page = per_page
   end
 
-  # Teto escolhido na tela, normalizado num lugar só para a consulta e a barra concordarem:
-  # vazio, negativo ou do topo da escala para cima significa **sem teto**, e aí a listagem não
-  # é filtrada. Sem essa regra o formulário filtraria sozinho, porque um input de range sempre
-  # envia valor — e a tela abriria escondendo os maiores clientes da carteira.
+  # Teto escolhido na tela, preso à escala e ao passo do slider. Quem decide se ele filtra é a
+  # base, e não o valor: o topo da escala significa R$ 300.000,00 e nada mais.
   #
-  # Zero **é** escolha (pedido do usuário, 15/09/2026): teto zero mostra quem não faturou nada
-  # no mês atual, que é uma pergunta legítima desta tela. Por isso a ausência se testa por
-  # `blank?`, e não por "menor ou igual a zero".
+  # Zero **é** escolha (pedido do usuário, 15/09/2026): teto zero mostra quem não faturou nada,
+  # que é uma pergunta legítima desta tela. Por isso a ausência se testa por `blank?`.
   def self.normalize_max_revenue(value)
     return if value.blank?
 
-    teto = value.to_i
-    return if teto >= LOW_REVENUE_THRESHOLD
-
-    teto = 0 if teto.negative?
+    teto = value.to_i.clamp(0, LOW_REVENUE_THRESHOLD)
     teto - (teto % LOW_REVENUE_STEP)
+  end
+
+  # Teto que a contagem do bloco usa: o escolhido quando o filtro está ligado, a referência
+  # quando não está. Sai daqui e vai para a tela junto das contagens, em vez de ser recalculado
+  # lá — as duas pontas divergiram uma vez, e o bloco anunciava uma faixa que não era a contada.
+  def low_revenue_ceiling
+    (@revenue_basis && @max_revenue) || LOW_REVENUE_REFERENCE
+  end
+
+  # Base válida ou nada. "Todas", vazio e qualquer coisa fora da lista caem em nada, que é o
+  # estado desligado — o filtro só existe quando a tela escolheu uma competência.
+  def self.normalize_revenue_basis(value)
+    value.to_s.presence_in(REVENUE_BASES.keys)
   end
 
   # A tela e a consulta falam do mesmo objeto de ordenação: uma lista fechada só.
@@ -147,8 +163,7 @@ class EstablishmentListingQuery
     @binds ||= begin
       values = @window.to_binds.merge(
         channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses,
-        # Sem teto escolhido, a contagem do bloco usa a referência, não o topo da escala.
-        low_revenue: @max_revenue || LOW_REVENUE_REFERENCE, max_revenue: @max_revenue
+        low_revenue: low_revenue_ceiling, max_revenue: @max_revenue
       )
       values.merge!(from_date: @from_date, to_date: @to_date) if lifecycle_filter?
       values.merge(search_binds)
@@ -195,7 +210,8 @@ class EstablishmentListingQuery
       status_counts: status_counts(row),
       low_revenue_counts: {
         previous_full: row["previous_low_count"].to_i,
-        current: row["current_low_count"].to_i
+        current: row["current_low_count"].to_i,
+        ceiling: low_revenue_ceiling
       },
       overall_totals: @variation && {
         previous_revenue: row["overall_previous_revenue"].to_d,
@@ -416,14 +432,13 @@ class EstablishmentListingQuery
     "#{CLIENT_STATUS} IN (:statuses)" if @statuses.any?
   end
 
-  # A base é o **mês atual** (decisão do usuário, 15/09/2026): o cliente entra se o que ele
-  # faturou no mês em curso couber no teto. A competência é parcial, e é essa a pergunta que
-  # a tela responde — quem está fraco agora. A soma se repete aqui porque HAVING não enxerga
-  # o apelido do SELECT, a mesma razão das outras condições desta lista.
+  # Quem manda é a base escolhida na tela: sem ela não há filtro nenhum, com ela o teto vale
+  # para aquela competência. A soma se repete aqui porque HAVING não enxerga o apelido do
+  # SELECT, a mesma razão das outras condições desta lista.
   def max_revenue_condition
-    return if @max_revenue.nil?
+    return if @revenue_basis.nil? || @max_revenue.nil?
 
-    "SUM(current_revenue) <= :max_revenue"
+    "SUM(#{REVENUE_BASES.fetch(@revenue_basis)}) <= :max_revenue"
   end
 
   def lifecycle_condition

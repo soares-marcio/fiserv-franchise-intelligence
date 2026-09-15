@@ -1190,16 +1190,33 @@
      acessível pelo teclado e continua funcionando sem JavaScript — o que o Stimulus faz é só
      mostrar o valor antes de aplicar o filtro. */
   .revenue-range {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .revenue-range__row {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    min-height: 2.5rem;
+    min-height: 2rem;
+  }
+
+  .revenue-range__basis {
+    width: 100%;
+    height: 2.5rem;
+    font-size: 0.85rem;
   }
 
   .revenue-range__input {
     flex: 1 1 auto;
-    min-width: 8rem;
+    min-width: 7rem;
     accent-color: var(--color-primary);
+  }
+
+  /* Desligado, a alça continua na tela mas apagada: some-la faria a barra saltar de largura
+     a cada troca do dropdown, e escondê-la esconderia também que existe um teto para ajustar. */
+  .revenue-range.is-off .revenue-range__input {
+    opacity: 0.35;
   }
 
   /* Largura mínima reservada: sem ela o campo pula de tamanho a cada casa que o valor ganha

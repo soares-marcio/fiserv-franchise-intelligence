@@ -142,26 +142,34 @@ Duas armadilhas que esta mudança pagou:
 
 ### Filtro por faixa de faturamento
 
-Na barra de filtros da listagem do MIC, um **slider de uma alça** escolhe o teto de
-faturamento, de 0 a R$ 300.000,00 em passos de R$ 1.000
-(`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`). A listagem passa a
-mostrar quem ficou **até** esse valor **no mês atual**, e o bloco ao lado do título conta
-quantos são em cada competência.
+Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de uma alça**
+formam o filtro de faturamento. O slider vai de 0 a R$ 300.000,00 em passos de R$ 1.000
+(`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`); o dropdown diz a que
+competência o teto se aplica (`REVENUE_BASES`):
+
+| Base | O que filtra |
+| --- | --- |
+| **Todas** (padrão) | nada — é o estado desligado |
+| **Mês atual** | `mês atual ≤ teto` |
+| **Mês anterior cheio** | `mês anterior cheio ≤ teto` |
+
+**Quem liga e desliga o filtro é a base, não o valor** (decisão do usuário, 15/09/2026). Antes
+o desligado era implícito — o topo da escala significava "sem teto", porque um
+`input[type=range]` sempre envia valor. Com o dropdown o desligado ficou explícito, o topo da
+escala voltou a significar R$ 300.000,00 e nada mais, e a alça fica apagada enquanto a base
+está em "Todas".
 
 Quatro decisões, cada uma com um porquê:
 
-- **O topo da escala significa "sem teto", e não filtra.** Um `input[type=range]` sempre envia
-  valor: se o topo filtrasse, a tela abriria escondendo os maiores clientes da carteira. A
-  regra vive em `normalize_max_revenue`, num lugar só, porque a barra e a consulta precisam
-  concordar sobre o que é ausência de escolha — zero e vazio também são ausência.
-- **A base é o mês atual** (decisão do usuário, 15/09/2026): é a competência em curso que
-  responde "quem está fraco agora", e quem faturou muito no mês passado e nada agora precisa
-  aparecer. O rótulo do campo diz "Mês atual até" justamente porque, sem isso, o filtro
-  pareceria valer para a linha inteira. Na carteira real, com teto de R$ 5.000, 14 dos 35
-  clientes entram; com teto zero, 7 — os que não faturaram nada no mês.
 - **Zero é escolha, e não ausência dela.** Teto zero responde "quem não faturou nada", que é
   uma pergunta legítima desta tela; por isso a ausência se testa por `blank?`, e não por
-  "menor ou igual a zero".
+  "menor ou igual a zero". Na carteira real, com base no mês atual: teto de R$ 12.000 devolve
+  26 dos 35 clientes; teto zero devolve 7.
+- **Por que a base é escolha da tela, e não decisão do código — medido:** enquanto o mês atual
+  é parcial, ele é quase sempre o menor dos dois. Na carteira inteira, só 22 dos 406 clientes
+  já faturaram no mês em curso mais do que no mês fechado inteiro. Com teto de R$ 12.000 num
+  MIC de 35 clientes, "mês atual" devolve 26 e "mês anterior cheio" devolve 9: são perguntas
+  diferentes.
 - **"Até" inclui o próprio valor.** A contagem anterior era estritamente abaixo; com o slider,
   "até R$ 5.000" lê como ≤, e a dica da tela escreve isso.
 - **O filtro mora no `HAVING`**, como os outros desta tela: no `WHERE` antes do `GROUP BY`, o
@@ -170,10 +178,14 @@ Quatro decisões, cada uma com um porquê:
 
 O bloco ao lado do título mostra a faixa por extenso e as duas contagens (mês anterior cheio e
 mês atual). Elas são independentes — o mesmo cliente costuma estar nas duas — e por isso nunca
-são somadas. Com teto aplicado, a contagem do mês atual coincide com a da tabela, porque é por
-essa competência que o filtro recorta; quem informa aí é a do mês anterior cheio.
+são somadas. Com o filtro ligado, a contagem da competência escolhida coincide com a da tabela,
+porque é por ela que o recorte acontece; quem informa aí é a outra.
 
-**Sem teto escolhido o bloco conta pela referência, e não pelo topo da escala**
+**O teto que o bloco anuncia vem da consulta** (`low_revenue_counts[:ceiling]`), e não é
+recalculado na tela: as duas pontas divergiram uma vez — com o filtro desligado e um teto na
+URL, o bloco anunciava R$ 12.000 enquanto as contagens usavam a referência.
+
+**Com o filtro desligado o bloco conta pela referência, e não pelo topo da escala**
 (`LOW_REVENUE_REFERENCE`, R$ 30.000,00): com a escala em R$ 300 mil, "abaixo do topo" devolve a
 carteira inteira — 35 de 35, medido —, que é verdade e não informa nada. R$ 30 mil é o corte que
 o usuário pediu em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.

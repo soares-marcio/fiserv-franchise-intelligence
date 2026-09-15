@@ -162,15 +162,23 @@
         <%= render "reports/date_range_picker", label: "Intervalo da data",
           from_date: @from_date, to_date: @to_date, open_on: nil %>
 
-        <%# Teto de faturamento. Uma alça só, de 0 ao topo da escala: no topo não há teto, e
-            é assim que a tela abre — um input de range sempre envia valor, e sem essa regra o
-            formulário filtraria sozinho, escondendo os maiores clientes da carteira. Zero é
-            escolha legítima: mostra quem não faturou nada no mês.
-            A base é o **mês atual** (decisão do usuário), e o rótulo diz isso: sem ele o
-            filtro pareceria valer para a linha inteira. %>
+        <%# Teto de faturamento, com a competência que ele olha ao lado. Quem liga e desliga o
+            filtro é a base: "Todas" é o estado sem filtro (escolha do usuário, 15/09/2026),
+            e com isso o topo da escala voltou a significar R$ 300.000,00 e nada mais — antes
+            ele carregava, escondido, o papel de "sem teto", porque um input de range sempre
+            envia valor. Zero é escolha legítima: mostra quem não faturou nada. %>
         <div class="filter-field" data-controller="revenue-range">
-          <label class="section-label" for="max_revenue">Mês atual até</label>
+          <label class="section-label" for="revenue_basis">Faturamento até</label>
+          <%# Base em cima, alça embaixo: lado a lado, os três controles pediam 25rem e a
+              coluna da grade tem 13rem — o valor ia parar debaixo do campo de busca (medido:
+              o campo terminava em 1419px e a busca começava em 1320px). %>
           <div class="revenue-range">
+            <%= select_tag :revenue_basis,
+              options_for_select([ [ "Todas", "" ], [ "Mês atual", "atual" ],
+                [ "Mês anterior cheio", "anterior" ] ], @revenue_basis),
+              id: "revenue_basis", class: "select select-bordered revenue-range__basis",
+              data: { revenue_range_target: "basis", action: "change->revenue-range#sync" } %>
+            <div class="revenue-range__row">
             <%= range_field_tag :max_revenue,
               @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
               min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
@@ -179,8 +187,9 @@
               data: { revenue_range_target: "input", action: "input->revenue-range#sync" } %>
             <output id="max_revenue_value" class="revenue-range__value"
               data-revenue-range-target="value">
-              <%= @max_revenue ? brl(@max_revenue) : "sem teto" %>
+              <%= @revenue_basis ? brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) : "sem filtro" %>
             </output>
+            </div>
           </div>
         </div>
 
@@ -250,7 +259,9 @@
           a dica diz isso: no mês em curso o número cai conforme o arquivo avança. %>
       <% baixos = @listing.low_revenue_counts %>
       <% if @total_count.to_i.positive? && baixos.present? %>
-        <% corte = brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_REFERENCE) %>
+        <%# O teto vem da consulta, e não recalculado aqui: as duas pontas já divergiram uma
+            vez — o bloco anunciava uma faixa diferente da que as contagens usavam. %>
+        <% corte = brl(baixos[:ceiling]) %>
         <div class="low-revenue" data-tone="gold">
           <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado
               usa espaços diferentes e desalinha a leitura. %>

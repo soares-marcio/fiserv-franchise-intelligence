@@ -1,10 +1,13 @@
 import { Controller } from "@hotwired/stimulus"
 
-// O teto do filtro de faturamento enquanto a alça anda. Sem JavaScript o slider continua
-// funcionando — ele é um input comum e o formulário o envia igual —, só não mostra o valor
-// antes de aplicar.
+// O teto do filtro de faturamento enquanto a alça anda, e o estado ligado/desligado do
+// conjunto. Quem liga é a base — "Todas" é o desligado —, então sem base escolhida a alça
+// fica apagada e o rótulo diz "sem filtro" em vez de um valor que não vale nada.
+//
+// Sem JavaScript os dois campos continuam funcionando: são campos comuns e o formulário os
+// envia igual. O que o controller faz é só mostrar o estado antes de aplicar.
 export default class extends Controller {
-  static targets = ["input", "value"]
+  static targets = ["input", "value", "basis"]
 
   connect() {
     // Mesmo formato do helper brl do servidor: sem isso o rótulo troca de cara quando o
@@ -15,10 +18,12 @@ export default class extends Controller {
     this.sync()
   }
 
-  // No topo da escala não há teto: é assim que a tela abre, e é o que a consulta entende.
   sync() {
-    const valor = Number(this.inputTarget.value)
-    const teto = Number(this.inputTarget.max)
-    this.valueTarget.textContent = valor >= teto ? "sem teto" : this.formato.format(valor)
+    const ligado = this.basisTarget.value !== ""
+    this.inputTarget.disabled = !ligado
+    this.inputTarget.closest(".revenue-range").classList.toggle("is-off", !ligado)
+    this.valueTarget.textContent = ligado
+      ? this.formato.format(Number(this.inputTarget.value))
+      : "sem filtro"
   }
 }
