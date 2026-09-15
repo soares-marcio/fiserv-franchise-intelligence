@@ -125,7 +125,14 @@
               <td>
                 <%= import_status_badge(batch) %>
                 <% if batch.validation_errors.any? %>
-                  <p class="mt-1 text-xs opacity-70"><%= batch.validation_errors.first %></p>
+                  <%# Diagnóstico de relance. O texto inteiro vive na ficha do lote, para onde
+                      o nome do arquivo já leva, e no title ao passar o mouse: aqui ele fica
+                      limitado porque sem limite esticava a coluna e empurrava o "Descartar"
+                      para fora da área visível. %>
+                  <p class="import-error mt-1 text-xs opacity-70"
+                    title="<%= batch.validation_errors.first %>">
+                    <%= batch.validation_errors.first %>
+                  </p>
                 <% end %>
               </td>
               <td><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></td>
