@@ -1186,6 +1186,32 @@
     border-bottom: 1px solid var(--color-base-300);
   }
 
+  /* Slider do teto de faturamento, na barra de filtros. A alça é o input nativo: ele já vem
+     acessível pelo teclado e continua funcionando sem JavaScript — o que o Stimulus faz é só
+     mostrar o valor antes de aplicar o filtro. */
+  .revenue-range {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 2.5rem;
+  }
+
+  .revenue-range__input {
+    flex: 1 1 auto;
+    min-width: 8rem;
+    accent-color: var(--color-primary);
+  }
+
+  /* Largura mínima reservada: sem ela o campo pula de tamanho a cada casa que o valor ganha
+     enquanto a alça anda, e a barra inteira dança junto. */
+  .revenue-range__value {
+    min-width: 6.5rem;
+    color: color-mix(in oklab, var(--color-base-content) 75%, transparent);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
   /* Contagem de clientes abaixo do corte, com destaque próprio entre o título e a paginação
      (pedido do usuário, 14/09/2026). Mesma linguagem dos cards do topo — barra de acento à
      esquerda e fundo levemente afastado do papel —, em tamanho de barra: aqui ela divide
