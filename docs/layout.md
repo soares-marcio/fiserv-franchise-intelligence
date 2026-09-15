@@ -140,31 +140,37 @@ Duas armadilhas que esta mudança pagou:
 - **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
   `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
 
-### Contagem de clientes abaixo do corte
+### Filtro por faixa de faturamento
 
-A barra da listagem do MIC conta **quantos clientes ficaram abaixo de R$ 30.000,00** no mês
-anterior cheio e no mês atual (pedido do usuário, 14/09/2026;
-`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD`).
+Na barra de filtros da listagem do MIC, um **slider de uma alça** escolhe o teto de
+faturamento, de 0 a R$ 30.000,00 em passos de R$ 500
+(`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`). A listagem passa a
+mostrar quem ficou **até** esse valor, e o bloco ao lado do título conta quantos são em cada
+competência.
 
-O número tem **bloco próprio, entre o título e o seletor de página** — a pedido do usuário, que
-viu a primeira versão como miudeza no meio da linha de contagens. O bloco fala a mesma língua
-dos cards do topo (barra de acento à esquerda, fundo afastado do papel), em tamanho de barra: o
-número em corpo grande e o rótulo da competência miúdo ao lado. Custa 49px de altura na barra,
-que é fixa ao rolar (77px antes da contagem, 126px com o bloco — medido).
+Quatro decisões, cada uma com um porquê:
 
-Três coisas que o número precisa dizer, e que a tela escreve:
+- **O topo da escala significa "sem teto", e não filtra.** Um `input[type=range]` sempre envia
+  valor: se o topo filtrasse, a tela abriria escondendo os maiores clientes da carteira. A
+  regra vive em `normalize_max_revenue`, num lugar só, porque a barra e a consulta precisam
+  concordar sobre o que é ausência de escolha — zero e vazio também são ausência.
+- **Vale para qualquer uma das duas competências** (decisão do usuário, 15/09/2026): o cliente
+  entra se o mês anterior cheio **ou** o mês atual couber no teto. Na carteira real, com teto
+  de R$ 5.000, 14 dos 35 clientes entram — e só 7 deles pelo mês anterior cheio.
+- **"Até" inclui o próprio valor.** A contagem anterior era estritamente abaixo; com o slider,
+  "até R$ 5.000" lê como ≤, e a dica da tela escreve isso.
+- **O filtro mora no `HAVING`**, como os outros desta tela: no `WHERE` antes do `GROUP BY`, o
+  cliente com três ECs em que só um cabe no teto apareceria com a soma de um — faturamento
+  errado e calado.
 
-- **O corte é estrito.** Quem faturou exatamente R$ 30.000,00 não entra — está na dica, porque
-  a diferença entre "abaixo" e "até" é uma decisão, não um detalhe.
-- **São duas contagens independentes.** O mesmo cliente costuma estar nas duas, e somá-las não
-  descreve nada; por isso a tela as apresenta lado a lado e nunca como total.
-- **O mês atual é parcial.** Ele vale até o dia de cobertura do arquivo, então a contagem
-  começa alta e cai conforme o mês avança. Sem esse aviso o número compara um mês fechado com
-  alguns dias e parece dizer que a carteira piorou.
+O bloco ao lado do título mostra a faixa por extenso e as duas contagens (mês anterior cheio e
+mês atual). Elas são independentes — o mesmo cliente costuma estar nas duas — e por isso nunca
+são somadas. Sem teto escolhido, o bloco usa o topo da escala como referência, que é a leitura
+com que ele nasceu.
 
-As duas contagens seguem o recorte da tela — busca, status, datas e aba —, a mesma regra das
-contagens de ativos e suspensos, e vêm na mesma passada do resumo (`summary_sql`), sem consulta
-nova.
+Sem JavaScript o slider continua funcionando: é um campo comum e o formulário o envia igual —
+o que o Stimulus faz é só mostrar o valor antes de aplicar o filtro, no mesmo formato do `brl`
+do servidor.
 
 ### Paginação
 

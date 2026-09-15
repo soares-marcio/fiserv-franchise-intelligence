@@ -374,32 +374,74 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   private
 
-  # Pedido do usuário (14/09/2026): junto da contagem de clientes, quantos ficaram abaixo de
-  # R$ 30.000,00 em cada competência. São duas contagens independentes — o mesmo cliente pode
-  # estar nas duas — e o corte é estrito: quem fez exatamente o valor não entra.
-  test "conta os clientes abaixo do corte em cada competência" do
-    corte = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
-    # ALFA LANCHES passa o corte nas duas competências; ALFA SUSPENSA fica exatamente nele no
-    # mês anterior cheio, que é o caso de borda que o "abaixo" precisa deixar de fora.
-    acima_do_corte("11222333000181", previous: corte + 1, current: corte + 1)
-    acima_do_corte("33444555000130", previous: corte, current: 0)
+  # Pedido do usuário (14/09/2026, virou filtro em 15/09): quantos clientes ficaram até o teto
+  # em cada competência. São duas contagens independentes — o mesmo cliente pode estar nas
+  # duas — e o "até" inclui o próprio valor, como se lê em português.
+  test "conta os clientes até o teto em cada competência, incluindo quem fica nele" do
+    teto = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+    # ALFA LANCHES passa o teto nas duas competências; ALFA SUSPENSA fica exatamente nele no
+    # mês anterior cheio, e o "até" o inclui.
+    acima_do_corte("11222333000181", previous: teto + 1, current: teto + 1)
+    acima_do_corte("33444555000130", previous: teto, current: 0)
 
     page = listing
 
-    assert_equal 3, page.low_revenue_counts[:previous_full],
-      "dos cinco clientes, um passou o corte e um ficou exatamente nele"
+    assert_equal 4, page.low_revenue_counts[:previous_full],
+      "dos cinco clientes, um passou do teto e o que ficou exatamente nele conta"
     assert_equal 4, page.low_revenue_counts[:current]
   end
 
-  test "as contagens do corte seguem o recorte, como as de status" do
+  test "as contagens seguem o recorte, como as de status" do
     acima_do_corte("11222333000181", previous: 99_999, current: 99_999)
 
     assert_equal 1, listing(query: "ALFA EXPRESS").low_revenue_counts[:previous_full],
       "a busca recorta a contagem"
     assert_equal 0, listing(query: "ALFA LANCHES").low_revenue_counts[:previous_full],
-      "e o cliente acima do corte não entra em recorte nenhum"
+      "e o cliente acima do teto não entra em recorte nenhum"
     assert_equal 1, listing(statuses: [ "Suspended" ]).low_revenue_counts[:previous_full],
       "o filtro de status também vale"
+  end
+
+  # O teto vindo da tela filtra a listagem, e vale para **qualquer uma** das competências
+  # (decisão do usuário, 15/09/2026): quem cabe no mês atual entra mesmo com o mês anterior
+  # cheio acima do teto.
+  test "o teto escolhido filtra a listagem por qualquer uma das competências" do
+    acima_do_corte("11222333000181", previous: 20_000, current: 20_000)
+    acima_do_corte("22333444000105", previous: 25_000, current: 2_000)
+    acima_do_corte("33444555000130", previous: 26_000, current: 26_000)
+
+    cnpjs = listing(max_revenue: 5_000).rows.map { |row| row["cnpj"] }
+
+    assert_includes cnpjs, "22333444000105", "cabe pelo mês atual, mesmo com o anterior acima"
+    assert_not_includes cnpjs, "11222333000181", "acima do teto nas duas competências"
+    assert_not_includes cnpjs, "33444555000130"
+    # Os dois clientes zerados nas duas competências continuam: zero cabe em qualquer teto.
+    assert_equal 3, listing(max_revenue: 5_000).total_count
+  end
+
+  # Um input de range sempre envia valor: se o topo da escala filtrasse, a tela abriria
+  # escondendo os maiores clientes da carteira.
+  test "o topo da escala significa sem teto, e não filtra" do
+    acima_do_corte("11222333000181", previous: 99_999, current: 99_999)
+    teto = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+
+    assert_equal 5, listing(max_revenue: teto).total_count
+    assert_equal 5, listing(max_revenue: teto + 1_000).total_count
+    assert_equal 5, listing(max_revenue: "").total_count
+    assert_equal 5, listing(max_revenue: 0).total_count, "zero também é ausência de escolha"
+  end
+
+  # Com teto escolhido, o bloco conta dentro do resultado — e com a referência do topo da
+  # escala quando não há escolha.
+  test "as contagens do bloco usam o teto escolhido" do
+    acima_do_corte("11222333000181", previous: 20_000, current: 1_000)
+
+    page = listing(max_revenue: 5_000)
+
+    assert_equal 5, page.total_count, "ALFA LANCHES entra pelo mês atual, com 1.000"
+    assert_equal 4, page.low_revenue_counts[:previous_full],
+      "mas no mês anterior cheio ele tem 20.000 e fica de fora da contagem"
+    assert_equal 5, page.low_revenue_counts[:current]
   end
 
   # Troca o faturamento consolidado do cliente para um valor acima do corte: a planilha

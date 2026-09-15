@@ -162,6 +162,26 @@
         <%= render "reports/date_range_picker", label: "Intervalo da data",
           from_date: @from_date, to_date: @to_date, open_on: nil %>
 
+        <%# Teto de faturamento. Uma alça só, de 0 ao topo da escala: no topo não há teto, e
+            é assim que a tela abre — um input de range sempre envia valor, e sem essa regra o
+            formulário filtraria sozinho, escondendo os maiores clientes da carteira.
+            O filtro vale para **qualquer uma** das duas competências (decisão do usuário). %>
+        <div class="filter-field" data-controller="revenue-range">
+          <label class="section-label" for="max_revenue">Faturamento até</label>
+          <div class="revenue-range">
+            <%= range_field_tag :max_revenue,
+              @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+              min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+              step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "max_revenue",
+              class: "revenue-range__input", aria: { describedby: "max_revenue_value" },
+              data: { revenue_range_target: "input", action: "input->revenue-range#sync" } %>
+            <output id="max_revenue_value" class="revenue-range__value"
+              data-revenue-range-target="value">
+              <%= @max_revenue ? brl(@max_revenue) : "sem teto" %>
+            </output>
+          </div>
+        </div>
+
         <div class="filter-field">
           <label class="section-label" for="establishment_query">Buscar estabelecimento</label>
           <%= search_field_tag :q, @query, id: "establishment_query", class: "filter-search",
@@ -228,17 +248,19 @@
           a dica diz isso: no mês em curso o número cai conforme o arquivo avança. %>
       <% baixos = @listing.low_revenue_counts %>
       <% if @total_count.to_i.positive? && baixos.present? %>
-        <% corte = brl(EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) %>
+        <% corte = brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) %>
         <div class="low-revenue" data-tone="gold">
-          <p class="section-label">Abaixo de <%= corte %></p>
+          <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado
+              usa espaços diferentes e desalinha a leitura. %>
+          <p class="section-label">Entre <%= brl(0) %> e <%= corte %></p>
           <div class="low-revenue__numbers">
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Clientes cujo faturamento do mês anterior cheio ficou abaixo de <%= corte %>. Exatamente o valor não entra.">
+              data-tip="Clientes cujo faturamento do mês anterior cheio ficou até <%= corte %>, incluindo o próprio valor.">
               <strong><%= baixos[:previous_full].to_i %></strong>
               <span class="low-revenue__label">mês anterior cheio</span>
             </span>
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número cai conforme o mês avança.">
+              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número muda conforme o mês avança.">
               <strong><%= baixos[:current].to_i %></strong>
               <span class="low-revenue__label">mês atual</span>
             </span>

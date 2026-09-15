@@ -208,24 +208,33 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".note-flag", count: 1, text: /anotado/
   end
 
-  # Pedido do usuário (14/09/2026): junto da contagem de clientes, quantos ficaram abaixo de
-  # R$ 30.000,00 no mês anterior cheio e no mês atual. Duas contagens independentes, e o mês
-  # atual é parcial — a dica da tela diz isso, senão o número engana.
-  test "a listagem do MIC conta os clientes abaixo do corte nas duas competências" do
+  # O teto do faturamento virou filtro (decisão do usuário, 15/09/2026): slider na barra,
+  # junto dos outros filtros, e o bloco conta dentro da faixa escolhida.
+  test "a listagem do MIC tem o slider de faturamento e conta a faixa nas duas competências" do
     import_synthetic_workbook(lojas: lojas_com_oferta)
     refresh_audit_views
+    mic = SubChannel.find_by!(name: "MIC ALFA")
 
-    get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
+    get sub_channel_report_path(mic)
 
     assert_response :success
-    # Bloco próprio entre o título e a paginação, e não uma miudeza na linha de contagens.
+    # O slider vive junto dos outros filtros e abre no topo da escala: sem teto.
+    assert_select ".filter-bar input[type=range][name=max_revenue][max=?]",
+      EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
+    assert_select ".revenue-range__value", text: /sem teto/
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
-    assert_select ".low-revenue .section-label", text: /Abaixo de R\$\u00A030\.000,00/
-    # Os dois clientes da planilha sintética faturam centenas: os dois ficam abaixo do corte.
+    assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
+    # Os dois clientes da planilha sintética faturam centenas: os dois cabem na faixa.
     assert_select ".low-revenue__numbers", text: /2\s+mês anterior cheio\s+2\s+mês atual/
-    assert_select "[data-tip*=?]", "Exatamente o valor não entra"
-    assert_select "[data-tip*=?]", "cai conforme o mês avança"
+    assert_select "[data-tip*=?]", "incluindo o próprio valor"
+
+    get sub_channel_report_path(mic, max_revenue: 1_000)
+
+    assert_response :success
+    assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
+    assert_select "input[type=range][name=max_revenue][value=?]", "1000"
+    assert_select ".revenue-range__value", text: /R\$\u00A01\.000,00/
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do

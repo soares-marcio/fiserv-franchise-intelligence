@@ -25,11 +25,14 @@ class EstablishmentListingQuery
     "ativacao" => "activated_on",
     "suspensao" => "suspended_on"
   }.freeze
-  # Corte de faturamento baixo, pedido do usuário em 14/09/2026: a tela conta quantos
-  # clientes do recorte ficaram **abaixo** de R$ 30.000,00 — estritamente abaixo, então quem
-  # fez exatamente o valor não entra. Vale para o mês anterior cheio e para o mês atual, que
-  # é parcial: no mês em curso a contagem cai à medida que o arquivo avança.
+  # Topo da escala do filtro de faturamento e referência da contagem (pedido do usuário,
+  # 14/09/2026, virou filtro em 15/09). O usuário escolhe um teto de 0 até aqui e a listagem
+  # mostra quem ficou **até** esse valor — inclusive, como "até" se lê em português. Sem
+  # escolha, a escala fica no topo e nada é filtrado: o bloco então conta pela referência.
   LOW_REVENUE_THRESHOLD = 30_000
+  # Passo do slider: 500 dá 60 posições entre 0 e 30 mil, fino o bastante para achar uma
+  # faixa e grosso o bastante para a alça parar onde o usuário quer.
+  LOW_REVENUE_STEP = 500
   PER_PAGE_OPTIONS = [ 10, 20, 50, 100 ].freeze
   DEFAULT_PER_PAGE = 20
 
@@ -63,7 +66,7 @@ class EstablishmentListingQuery
 
   def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
     from_date: nil, to_date: nil, query: nil, variation: nil, sort: nil, direction: nil,
-    page: 1, per_page: nil)
+    max_revenue: nil, page: 1, per_page: nil)
     @channel_id = channel_id
     @sub_channel_id = sub_channel_id
     @window = window
@@ -73,11 +76,25 @@ class EstablishmentListingQuery
     @to_date = parse_date(to_date)
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
+    @max_revenue = self.class.normalize_max_revenue(max_revenue)
     @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
     @order = self.class.listing_sort(column: sort, direction:)
 
     @page = page
     @per_page = per_page
+  end
+
+  # Teto escolhido na tela, normalizado num lugar só para a consulta e a barra concordarem:
+  # vazio, negativo ou do topo da escala para cima significa **sem teto**, e aí a listagem
+  # não é filtrada. Sem essa regra o formulário filtraria sozinho, porque um input de range
+  # sempre envia valor — e a tela abriria escondendo os maiores clientes da carteira.
+  def self.normalize_max_revenue(value)
+    return if value.blank?
+
+    teto = value.to_i
+    return if teto <= 0 || teto >= LOW_REVENUE_THRESHOLD
+
+    teto - (teto % LOW_REVENUE_STEP)
   end
 
   # A tela e a consulta falam do mesmo objeto de ordenação: uma lista fechada só.
@@ -119,7 +136,8 @@ class EstablishmentListingQuery
     @binds ||= begin
       values = @window.to_binds.merge(
         channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses,
-        low_revenue: LOW_REVENUE_THRESHOLD
+        # Sem teto escolhido, a contagem do bloco usa o topo da escala como referência.
+        low_revenue: @max_revenue || LOW_REVENUE_THRESHOLD, max_revenue: @max_revenue
       )
       values.merge!(from_date: @from_date, to_date: @to_date) if lifecycle_filter?
       values.merge(search_binds)
@@ -204,10 +222,10 @@ class EstablishmentListingQuery
           WHERE (#{tab_clause}) AND contract_status = 'Active'
         ) AS active_count,
         COUNT(*) FILTER (
-          WHERE (#{tab_clause}) AND previous_full_revenue < :low_revenue
+          WHERE (#{tab_clause}) AND previous_full_revenue <= :low_revenue
         ) AS previous_low_count,
         COUNT(*) FILTER (
-          WHERE (#{tab_clause}) AND current_revenue < :low_revenue
+          WHERE (#{tab_clause}) AND current_revenue <= :low_revenue
         ) AS current_low_count,
         COUNT(*) AS todas,
         COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
@@ -376,7 +394,8 @@ class EstablishmentListingQuery
   # exceção e compara EC por EC: quem digita o número de um EC está procurando o cliente
   # dono dele, e o EC não está mais na tela para ser comparado como agregado.
   def having_clause
-    conditions = [ status_condition, lifecycle_condition, search_condition ].compact
+    conditions = [ status_condition, lifecycle_condition, search_condition,
+      max_revenue_condition ].compact
     return "" if conditions.empty?
 
     "HAVING #{conditions.join(' AND ')}"
@@ -384,6 +403,15 @@ class EstablishmentListingQuery
 
   def status_condition
     "#{CLIENT_STATUS} IN (:statuses)" if @statuses.any?
+  end
+
+  # "Qualquer uma das duas competências" (decisão do usuário, 15/09/2026): o cliente entra se
+  # o mês anterior cheio **ou** o mês atual couber no teto. As somas se repetem aqui porque
+  # HAVING não enxerga o apelido do SELECT — a mesma razão das outras condições desta lista.
+  def max_revenue_condition
+    return if @max_revenue.nil?
+
+    "(SUM(previous_full_revenue) <= :max_revenue OR SUM(current_revenue) <= :max_revenue)"
   end
 
   def lifecycle_condition

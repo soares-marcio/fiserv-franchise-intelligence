@@ -145,6 +145,9 @@ class ReportsController < ApplicationController
     @from_date = parse_filter_date(params[:from_date])
     @to_date = parse_filter_date(params[:to_date])
     @query = params[:q].to_s.strip
+    # O teto do faturamento vem do slider e é normalizado pela própria consulta: a barra
+    # precisa mostrar a mesma coisa que o filtro aplica.
+    @max_revenue = EstablishmentListingQuery.normalize_max_revenue(params[:max_revenue])
     # A tela precisa saber a ordem efetiva, não só a pedida: sem isso o cabeçalho não marca
     # a coluna que está ordenando quando o usuário não escolheu nenhuma.
     @order = EstablishmentListingQuery.listing_sort(column: params[:sort], direction: params[:direction])
@@ -277,6 +280,7 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       query: @query,
+      max_revenue: @max_revenue,
       sort: @sort,
       direction: @direction,
       page: params[:page],
@@ -372,7 +376,7 @@ class ReportsController < ApplicationController
       statuses: @selected_statuses, period: params[:period],
       from_day: params[:from_day], to_day: params[:to_day],
       date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query,
-      sort: @sort, direction: @direction
+      max_revenue: @max_revenue, sort: @sort, direction: @direction
     )
     EstablishmentListingExporter.new(rows, sub_channel_name: @sub_channel.name, window: @window)
   end
@@ -401,6 +405,7 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       q: @query,
+      max_revenue: @max_revenue,
       # A ordem padrão não vai na URL: ela é o estado natural da tela.
       **(@order&.params || {}),
       period: @period,
