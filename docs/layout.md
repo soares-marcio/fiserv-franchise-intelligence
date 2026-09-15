@@ -140,6 +140,32 @@ Duas armadilhas que esta mudança pagou:
 - **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
   `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
 
+### Contagem de clientes abaixo do corte
+
+A barra da listagem do MIC conta **quantos clientes ficaram abaixo de R$ 30.000,00** no mês
+anterior cheio e no mês atual (pedido do usuário, 14/09/2026;
+`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD`).
+
+O número tem **bloco próprio, entre o título e o seletor de página** — a pedido do usuário, que
+viu a primeira versão como miudeza no meio da linha de contagens. O bloco fala a mesma língua
+dos cards do topo (barra de acento à esquerda, fundo afastado do papel), em tamanho de barra: o
+número em corpo grande e o rótulo da competência miúdo ao lado. Custa 49px de altura na barra,
+que é fixa ao rolar (77px antes da contagem, 126px com o bloco — medido).
+
+Três coisas que o número precisa dizer, e que a tela escreve:
+
+- **O corte é estrito.** Quem faturou exatamente R$ 30.000,00 não entra — está na dica, porque
+  a diferença entre "abaixo" e "até" é uma decisão, não um detalhe.
+- **São duas contagens independentes.** O mesmo cliente costuma estar nas duas, e somá-las não
+  descreve nada; por isso a tela as apresenta lado a lado e nunca como total.
+- **O mês atual é parcial.** Ele vale até o dia de cobertura do arquivo, então a contagem
+  começa alta e cai conforme o mês avança. Sem esse aviso o número compara um mês fechado com
+  alguns dias e parece dizer que a carteira piorou.
+
+As duas contagens seguem o recorte da tela — busca, status, datas e aba —, a mesma regra das
+contagens de ativos e suspensos, e vêm na mesma passada do resumo (`summary_sql`), sem consulta
+nova.
+
 ### Paginação
 
 `app/views/shared/_pagination.html.erb`. A barra leva **Anterior, os números e Próxima**: até

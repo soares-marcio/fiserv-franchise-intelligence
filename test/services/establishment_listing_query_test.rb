@@ -374,6 +374,50 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   private
 
+  # Pedido do usuário (14/09/2026): junto da contagem de clientes, quantos ficaram abaixo de
+  # R$ 30.000,00 em cada competência. São duas contagens independentes — o mesmo cliente pode
+  # estar nas duas — e o corte é estrito: quem fez exatamente o valor não entra.
+  test "conta os clientes abaixo do corte em cada competência" do
+    corte = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+    # ALFA LANCHES passa o corte nas duas competências; ALFA SUSPENSA fica exatamente nele no
+    # mês anterior cheio, que é o caso de borda que o "abaixo" precisa deixar de fora.
+    acima_do_corte("11222333000181", previous: corte + 1, current: corte + 1)
+    acima_do_corte("33444555000130", previous: corte, current: 0)
+
+    page = listing
+
+    assert_equal 3, page.low_revenue_counts[:previous_full],
+      "dos cinco clientes, um passou o corte e um ficou exatamente nele"
+    assert_equal 4, page.low_revenue_counts[:current]
+  end
+
+  test "as contagens do corte seguem o recorte, como as de status" do
+    acima_do_corte("11222333000181", previous: 99_999, current: 99_999)
+
+    assert_equal 1, listing(query: "ALFA EXPRESS").low_revenue_counts[:previous_full],
+      "a busca recorta a contagem"
+    assert_equal 0, listing(query: "ALFA LANCHES").low_revenue_counts[:previous_full],
+      "e o cliente acima do corte não entra em recorte nenhum"
+    assert_equal 1, listing(statuses: [ "Suspended" ]).low_revenue_counts[:previous_full],
+      "o filtro de status também vale"
+  end
+
+  # Troca o faturamento consolidado do cliente para um valor acima do corte: a planilha
+  # sintética trabalha em centenas, e o corte é de dezenas de milhares.
+  def acima_do_corte(cnpj, previous:, current:)
+    establishment = Establishment.joins(:company).find_by!(companies: { cnpj: })
+    DailyRevenueConsolidated.where(establishment_id: establishment.id).delete_all
+    competencias = [ [ window.previous_period, previous ], [ window.current_period, current ] ]
+    competencias.each do |period, valor|
+      next if valor.to_d.zero?
+
+      DailyRevenueConsolidated.create!(
+        channel_id: establishment.channel_id, establishment_id: establishment.id,
+        source_import_batch: @batch, period:, day: 1, amount: valor, provisional: false
+      )
+    end
+  end
+
   def listing(window: self.window, **options)
     EstablishmentListingQuery.new(
       channel_id: @batch.channel_id, sub_channel_id: @sub_channel.id, window:, **options

@@ -221,6 +221,31 @@
         <p class="section-label">Desempenho por estabelecimento</p>
         <h2 class="table-title"><%= @sub_channel.name %></h2>
       </div>
+      <%# Quantos clientes do recorte ficaram abaixo do corte em cada competência, com o
+          destaque que o usuário pediu: bloco próprio entre o título e a paginação, e não uma
+          miudeza na linha de contagens. São duas contagens independentes — o mesmo cliente
+          costuma estar nas duas —, e por isso a tela nunca as soma. O mês atual é parcial, e
+          a dica diz isso: no mês em curso o número cai conforme o arquivo avança. %>
+      <% baixos = @listing.low_revenue_counts %>
+      <% if @total_count.to_i.positive? && baixos.present? %>
+        <% corte = brl(EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) %>
+        <div class="low-revenue" data-tone="gold">
+          <p class="section-label">Abaixo de <%= corte %></p>
+          <div class="low-revenue__numbers">
+            <span class="tooltip tooltip-bottom" tabindex="0"
+              data-tip="Clientes cujo faturamento do mês anterior cheio ficou abaixo de <%= corte %>. Exatamente o valor não entra.">
+              <strong><%= baixos[:previous_full].to_i %></strong>
+              <span class="low-revenue__label">mês anterior cheio</span>
+            </span>
+            <span class="tooltip tooltip-bottom" tabindex="0"
+              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número cai conforme o mês avança.">
+              <strong><%= baixos[:current].to_i %></strong>
+              <span class="low-revenue__label">mês atual</span>
+            </span>
+          </div>
+        </div>
+      <% end %>
+
       <% if @total_count.to_i.positive? %>
         <div class="table-toolbar__meta">
           <%# Badge e status contam a mesma coisa: estabelecimentos, um por CNPJ. Eram
