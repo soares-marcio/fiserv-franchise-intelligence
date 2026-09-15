@@ -65,15 +65,17 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     check "Credenciamento"
     check "Ativação"
 
+    # Na barra em pílulas o valor marcado é texto dentro do próprio controle, e não uma
+    # caixinha: caixa com borda dentro de caixa com borda virava ruído.
     within "#date_kind_filter_trigger" do
-      assert_selector ".status-tag", count: 2
+      assert_selector ".filter-pill__tag", count: 2
     end
 
     click_button "Remover Credenciamento"
 
     within "#date_kind_filter_trigger" do
-      assert_selector ".status-tag", count: 1
-      assert_selector ".status-tag", text: "Ativação"
+      assert_selector ".filter-pill__tag", count: 1
+      assert_selector ".filter-pill__tag", text: "Ativação"
     end
     assert_not find("#date_kind_credenciamento", visible: :all).checked?
 
@@ -141,14 +143,17 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     find("#date_range_trigger").click
     2.times { click_button "Mês anterior" }
     find("#date_range_panel button[data-date='2026-04-04']").click
-    assert_selector ".date-range__label", text: "04/04/2026"
+    # O alvo do Stimulus, e não a classe: o rótulo do gatilho tem classe diferente na barra
+    # em pílulas e na barra com rótulo em cima, e o que o teste quer é o texto que ele mostra.
+    assert_selector "[data-date-range-picker-target=triggerLabel]", text: "04/04/2026"
 
     3.times { click_button "Próximo mês" }
     assert_selector ".datepicker__month", text: /julho de 2026/i
     find("#date_range_panel button[data-date='2026-07-09']").click
 
     # Sem voltar ao mês inicial: o rótulo já mostra o intervalo inteiro.
-    assert_selector ".date-range__label", text: "04/04/2026 a 09/07/2026"
+    assert_selector "[data-date-range-picker-target=triggerLabel]",
+      text: "04/04/2026 a 09/07/2026"
     click_button "Concluir"
     click_button "Aplicar"
 

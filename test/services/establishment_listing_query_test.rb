@@ -378,7 +378,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   # em cada competência. São duas contagens independentes — o mesmo cliente pode estar nas
   # duas — e o "até" inclui o próprio valor, como se lê em português.
   test "conta os clientes até o teto em cada competência, incluindo quem fica nele" do
-    teto = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+    teto = EstablishmentListingQuery::LOW_REVENUE_REFERENCE
     # ALFA LANCHES passa o teto nas duas competências; ALFA SUSPENSA fica exatamente nele no
     # mês anterior cheio, e o "até" o inclui.
     acima_do_corte("11222333000181", previous: teto + 1, current: teto + 1)
@@ -402,46 +402,85 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       "o filtro de status também vale"
   end
 
-  # O teto vindo da tela filtra a listagem, e vale para **qualquer uma** das competências
-  # (decisão do usuário, 15/09/2026): quem cabe no mês atual entra mesmo com o mês anterior
-  # cheio acima do teto.
-  test "o teto escolhido filtra a listagem por qualquer uma das competências" do
+  # Quem decide se o teto filtra — e por qual competência — é a base escolhida no dropdown
+  # (decisão do usuário, 15/09/2026). Com "mês atual", quem faturou muito no mês passado e
+  # nada agora aparece; com "mês anterior cheio", o contrário.
+  test "o teto filtra pela competência que a base escolhe" do
     acima_do_corte("11222333000181", previous: 20_000, current: 20_000)
     acima_do_corte("22333444000105", previous: 25_000, current: 2_000)
-    acima_do_corte("33444555000130", previous: 26_000, current: 26_000)
+    acima_do_corte("33444555000130", previous: 1_000, current: 26_000)
 
-    cnpjs = listing(max_revenue: 5_000).rows.map { |row| row["cnpj"] }
+    atual = listing(max_revenue: 5_000, revenue_basis: "atual").rows.map { |row| row["cnpj"] }
 
-    assert_includes cnpjs, "22333444000105", "cabe pelo mês atual, mesmo com o anterior acima"
-    assert_not_includes cnpjs, "11222333000181", "acima do teto nas duas competências"
-    assert_not_includes cnpjs, "33444555000130"
-    # Os dois clientes zerados nas duas competências continuam: zero cabe em qualquer teto.
-    assert_equal 3, listing(max_revenue: 5_000).total_count
+    assert_includes atual, "22333444000105", "cabe pelo mês atual, mesmo com o anterior acima"
+    assert_not_includes atual, "11222333000181", "acima do teto no mês atual"
+    assert_not_includes atual, "33444555000130",
+      "o mês anterior cheio baixo não salva quem está acima do teto no mês atual"
+    assert_equal 3, listing(max_revenue: 5_000, revenue_basis: "atual").total_count
+
+    anterior = listing(max_revenue: 5_000, revenue_basis: "anterior").rows.map { |r| r["cnpj"] }
+
+    assert_includes anterior, "33444555000130", "cabe pelo mês anterior cheio, com 1.000"
+    assert_not_includes anterior, "22333444000105", "25.000 no mês anterior cheio"
+    assert_equal 3, listing(max_revenue: 5_000, revenue_basis: "anterior").total_count
   end
 
-  # Um input de range sempre envia valor: se o topo da escala filtrasse, a tela abriria
-  # escondendo os maiores clientes da carteira.
-  test "o topo da escala significa sem teto, e não filtra" do
+  # "Todas" é o estado desligado: o teto viaja na URL e não filtra nada. É o jeito explícito
+  # de voltar à tela sem filtro, no lugar da regra implícita que o topo da escala carregava.
+  test "sem base escolhida o teto não filtra, mesmo viajando na URL" do
     acima_do_corte("11222333000181", previous: 99_999, current: 99_999)
+
+    assert_equal 5, listing(max_revenue: 1_000).total_count
+    assert_equal 5, listing(max_revenue: 1_000, revenue_basis: "").total_count
+    assert_equal 5, listing(max_revenue: 1_000, revenue_basis: "todas").total_count,
+      "qualquer valor fora da lista fechada é o estado desligado"
+    assert_equal 4, listing(max_revenue: 1_000, revenue_basis: "atual").total_count,
+      "e com base escolhida o mesmo teto filtra: sai o que tem 99.999 no mês atual"
+  end
+
+  # O topo da escala voltou a significar o próprio valor: quem liga e desliga o filtro é a
+  # base. Acima do topo o valor é preso à escala, e não vira ausência de teto.
+  test "o teto é preso à escala e ao passo do slider" do
     teto = EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
 
-    assert_equal 5, listing(max_revenue: teto).total_count
-    assert_equal 5, listing(max_revenue: teto + 1_000).total_count
-    assert_equal 5, listing(max_revenue: "").total_count
-    assert_equal 5, listing(max_revenue: 0).total_count, "zero também é ausência de escolha"
+    assert_equal teto, EstablishmentListingQuery.normalize_max_revenue(teto + 50_000)
+    assert_equal 0, EstablishmentListingQuery.normalize_max_revenue(-500)
+    assert_equal 12_000, EstablishmentListingQuery.normalize_max_revenue(12_400),
+      "o valor cai no passo de baixo, como a alça faz"
+    assert_nil EstablishmentListingQuery.normalize_max_revenue("")
+    assert_nil EstablishmentListingQuery.normalize_max_revenue(nil)
   end
 
-  # Com teto escolhido, o bloco conta dentro do resultado — e com a referência do topo da
-  # escala quando não há escolha.
+  # Zero é escolha, e não ausência dela (pedido do usuário, 15/09/2026): teto zero responde
+  # "quem não faturou nada no mês atual".
+  test "teto zero mostra quem não faturou nada no mês atual" do
+    cnpjs = listing(max_revenue: 0, revenue_basis: "atual").rows.map { |row| row["cnpj"] }
+
+    assert_equal [ "33444555000130" ], cnpjs,
+      "só ALFA SUSPENSA está zerada no mês atual; os outros quatro venderam alguma coisa"
+    assert_equal 0, EstablishmentListingQuery.normalize_max_revenue(0),
+      "zero atravessa a normalização como escolha"
+    assert_nil EstablishmentListingQuery.normalize_max_revenue("")
+  end
+
+  # Com teto escolhido, o bloco conta dentro do resultado — e pela referência quando não há
+  # escolha, que não é o topo da escala.
   test "as contagens do bloco usam o teto escolhido" do
     acima_do_corte("11222333000181", previous: 20_000, current: 1_000)
 
-    page = listing(max_revenue: 5_000)
+    page = listing(max_revenue: 5_000, revenue_basis: "atual")
 
     assert_equal 5, page.total_count, "ALFA LANCHES entra pelo mês atual, com 1.000"
     assert_equal 4, page.low_revenue_counts[:previous_full],
       "mas no mês anterior cheio ele tem 20.000 e fica de fora da contagem"
     assert_equal 5, page.low_revenue_counts[:current]
+    assert_equal 5_000, page.low_revenue_counts[:ceiling]
+
+    # Desligado, a contagem volta à referência — e o bloco anuncia a mesma faixa que contou.
+    sem_filtro = listing(max_revenue: 5_000)
+
+    assert_equal EstablishmentListingQuery::LOW_REVENUE_REFERENCE,
+      sem_filtro.low_revenue_counts[:ceiling]
   end
 
   # Troca o faturamento consolidado do cliente para um valor acima do corte: a planilha

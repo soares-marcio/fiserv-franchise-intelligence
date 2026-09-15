@@ -21,6 +21,13 @@ module EstablishmentsHelper
     "Active" => { label: "Ativo", tone: "success" },
     "Suspended" => { label: "Suspenso", tone: "warning" }
   }.freeze
+  # As bases do filtro de faturamento, com o rótulo que a tela mostra. "Todas" é o estado
+  # desligado, e por isso vai com valor vazio: o formulário envia o campo sempre.
+  REVENUE_BASIS_OPTIONS = [
+    [ "Todas", "" ], [ "Mês atual", "atual" ], [ "Mês anterior cheio", "anterior" ]
+  ].freeze
+  REVENUE_BASIS_LABELS = { "atual" => "Mês atual", "anterior" => "Mês anterior cheio" }.freeze
+
   DATE_KIND_OPTIONS = [
     [ "credenciamento", "Credenciamento" ],
     [ "ativacao", "Ativação" ],

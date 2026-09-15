@@ -102,9 +102,11 @@ export default class extends Controller {
     const value = box.value
     const label = box.dataset.label || value
     const tone = box.dataset.tone || "neutral"
-    return `<span class="status-tag" data-tone="${this.escape(tone)}">
+    // Texto, e não caixinha: dentro da pílula o valor é a informação, e uma caixa com borda
+    // dentro de outra caixa com borda vira ruído. O × fica discreto ao lado de cada valor.
+    return `<span class="filter-pill__tag" data-tone="${this.escape(tone)}">
       <span>${this.escape(label)}</span>
-      <button type="button" class="status-tag__remove" data-tag-select-remove
+      <button type="button" class="filter-pill__tag-remove" data-tag-select-remove
         data-action="click->tag-select#remove" data-value="${this.escape(value)}"
         aria-label="Remover ${this.escape(label)}">×</button>
     </span>`

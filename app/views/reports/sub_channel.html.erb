@@ -93,23 +93,27 @@
   </section>
 
   <% if @window %>
+    <%# Barra em pílulas: cada filtro é um controle só, com o rótulo dentro e o valor à vista.
+        Antes eram cinco rótulos em caixa-alta acima de cinco controles de aparências
+        diferentes — caixa com chip, botão com ícone, select, alça crua, campo de texto —,
+        mais uma linha de chips repetindo o que os controles já diziam. Aqui todos têm a mesma
+        forma, a mesma altura e o mesmo peso; quem grita é o valor, não o rótulo. %>
     <section class="filter-panel">
       <%= form_with url: sub_channel_report_path(@sub_channel), method: :get, class: "filter-bar" do %>
         <% if @selected_channel %>
           <%= hidden_field_tag :channel_id, @selected_channel.uuid %>
         <% end %>
 
-        <div class="filter-field" data-controller="tag-select">
-          <span class="section-label">Status do contrato</span>
-          <div id="status_filter_trigger" class="tag-select" role="combobox" tabindex="0"
+        <div class="filter-pill" data-controller="tag-select">
+          <div id="status_filter_trigger" class="filter-pill__trigger" role="combobox" tabindex="0"
             data-tag-select-target="trigger" aria-haspopup="listbox" aria-expanded="false"
-            aria-controls="status_filter_menu"
+            aria-controls="status_filter_menu" aria-label="Status do contrato"
             data-action="click->tag-select#toggle keydown->tag-select#keydown">
-            <span class="tag-select__chips" data-tag-select-target="chips"></span>
-            <span class="tag-select__placeholder" data-tag-select-target="placeholder">
-              Todos os status
-            </span>
-            <span class="tag-select__chevron" aria-hidden="true">⌄</span>
+            <span class="filter-pill__label">Status</span>
+            <span class="filter-pill__value" data-tag-select-target="chips"></span>
+            <span class="filter-pill__value filter-pill__value--empty"
+              data-tag-select-target="placeholder">todos</span>
+            <%= icon("caret-down", css: "filter-pill__caret") %>
           </div>
           <div id="status_filter_menu" class="tag-select__menu" data-tag-select-target="menu"
             hidden role="listbox" aria-multiselectable="true"
@@ -129,17 +133,16 @@
           </div>
         </div>
 
-        <div class="filter-field" data-controller="tag-select">
-          <span class="section-label">Tipo de data</span>
-          <div id="date_kind_filter_trigger" class="tag-select" role="combobox" tabindex="0"
-            data-tag-select-target="trigger" aria-haspopup="listbox" aria-expanded="false"
-            aria-controls="date_kind_filter_menu"
-            data-action="click->tag-select#toggle keydown->tag-select#keydown">
-            <span class="tag-select__chips" data-tag-select-target="chips"></span>
-            <span class="tag-select__placeholder" data-tag-select-target="placeholder">
-              Todas as datas
-            </span>
-            <span class="tag-select__chevron" aria-hidden="true">⌄</span>
+        <div class="filter-pill" data-controller="tag-select">
+          <div id="date_kind_filter_trigger" class="filter-pill__trigger" role="combobox"
+            tabindex="0" data-tag-select-target="trigger" aria-haspopup="listbox"
+            aria-expanded="false" aria-controls="date_kind_filter_menu"
+            aria-label="Tipo de data" data-action="click->tag-select#toggle keydown->tag-select#keydown">
+            <span class="filter-pill__label">Data</span>
+            <span class="filter-pill__value" data-tag-select-target="chips"></span>
+            <span class="filter-pill__value filter-pill__value--empty"
+              data-tag-select-target="placeholder">todas</span>
+            <%= icon("caret-down", css: "filter-pill__caret") %>
           </div>
           <div id="date_kind_filter_menu" class="tag-select__menu" data-tag-select-target="menu"
             hidden role="listbox" aria-multiselectable="true"
@@ -159,32 +162,56 @@
           </div>
         </div>
 
-        <%= render "reports/date_range_picker", label: "Intervalo da data",
-          from_date: @from_date, to_date: @to_date, open_on: nil %>
+        <%= render "reports/date_range_picker", label: "Período",
+          from_date: @from_date, to_date: @to_date, open_on: nil, pill: true %>
 
-        <%# Teto de faturamento. Uma alça só, de 0 ao topo da escala: no topo não há teto, e
-            é assim que a tela abre — um input de range sempre envia valor, e sem essa regra o
-            formulário filtraria sozinho, escondendo os maiores clientes da carteira.
-            O filtro vale para **qualquer uma** das duas competências (decisão do usuário). %>
-        <div class="filter-field" data-controller="revenue-range">
-          <label class="section-label" for="max_revenue">Faturamento até</label>
-          <div class="revenue-range">
+        <%# O faturamento também é uma pílula: a base e a alça moram no painel, e o gatilho
+            diz o recorte por extenso. Sem isso ele seria o único controle da barra com dois
+            campos à mostra, e a linha voltaria a ter duas alturas. %>
+        <div class="filter-pill" data-controller="revenue-filter">
+          <button type="button" id="revenue_filter_trigger" class="filter-pill__trigger"
+            data-revenue-filter-target="trigger" aria-haspopup="dialog" aria-expanded="false"
+            aria-controls="revenue_filter_panel"
+            data-action="click->revenue-filter#toggle">
+            <span class="filter-pill__label">Faturamento</span>
+            <span class="filter-pill__value <%= "filter-pill__value--empty" if @revenue_basis.nil? %>"
+              data-revenue-filter-target="summary">
+              <%= @revenue_basis ? "#{EstablishmentsHelper::REVENUE_BASIS_LABELS.fetch(@revenue_basis).downcase} até #{brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD)}" : "qualquer" %>
+            </span>
+            <%= icon("caret-down", css: "filter-pill__caret") %>
+          </button>
+          <div id="revenue_filter_panel" class="filter-pill__panel"
+            data-revenue-filter-target="panel" hidden role="dialog"
+            aria-label="Filtrar por faturamento">
+            <label class="filter-pill__panel-label" for="revenue_basis">Competência</label>
+            <%= select_tag :revenue_basis,
+              options_for_select(EstablishmentsHelper::REVENUE_BASIS_OPTIONS, @revenue_basis),
+              id: "revenue_basis", class: "select select-bordered filter-pill__select",
+              data: { revenue_filter_target: "basis", action: "change->revenue-filter#sync" } %>
+            <div class="filter-pill__panel-head">
+              <label class="filter-pill__panel-label" for="max_revenue">Até</label>
+              <output id="max_revenue_value" class="filter-pill__amount"
+                data-revenue-filter-target="value">
+                <%= @revenue_basis ? brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) : "sem filtro" %>
+              </output>
+            </div>
             <%= range_field_tag :max_revenue,
               @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
               min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
               step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "max_revenue",
               class: "revenue-range__input", aria: { describedby: "max_revenue_value" },
-              data: { revenue_range_target: "input", action: "input->revenue-range#sync" } %>
-            <output id="max_revenue_value" class="revenue-range__value"
-              data-revenue-range-target="value">
-              <%= @max_revenue ? brl(@max_revenue) : "sem teto" %>
-            </output>
+              data: { revenue_filter_target: "input", action: "input->revenue-filter#sync" } %>
+            <p class="filter-pill__hint">
+              "Todas" não filtra. O valor entra inteiro: até <%= brl(0) %> mostra quem não
+              faturou nada.
+            </p>
           </div>
         </div>
 
-        <div class="filter-field">
-          <label class="section-label" for="establishment_query">Buscar estabelecimento</label>
-          <%= search_field_tag :q, @query, id: "establishment_query", class: "filter-search",
+        <div class="filter-pill filter-pill--search">
+          <label class="sr-only" for="establishment_query">Buscar estabelecimento</label>
+          <%= icon("magnifying-glass", css: "filter-pill__caret") %>
+          <%= search_field_tag :q, @query, id: "establishment_query", class: "filter-pill__input",
             placeholder: "EC, CNPJ, nome ou melhor conversa", autocomplete: "off" %>
         </div>
 
@@ -194,9 +221,15 @@
         <%= hidden_field_tag :per_page, @per_page %>
 
         <div class="filter-actions">
-          <%= button_tag icon_label("funnel", "Filtrar"), type: "submit", class: "btn btn-primary btn--field" %>
-          <%= link_to icon_label("eraser", "Limpar"), sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
-            class: "btn btn-outline btn--field" %>
+          <%= button_tag icon_label("funnel", "Filtrar"), type: "submit",
+            class: "btn btn-primary filter-pill__submit" %>
+          <%# O "Limpar" só existe quando há o que limpar: botão permanente para desfazer o
+              nada é ruído. %>
+          <% if @selected_statuses.any? || @selected_date_kinds.any? || @from_date || @query.present? || @revenue_basis %>
+            <%= link_to "Limpar",
+              sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
+              class: "filter-bar__clear" %>
+          <% end %>
         </div>
       <% end %>
     </section>
@@ -248,19 +281,21 @@
           a dica diz isso: no mês em curso o número cai conforme o arquivo avança. %>
       <% baixos = @listing.low_revenue_counts %>
       <% if @total_count.to_i.positive? && baixos.present? %>
-        <% corte = brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) %>
+        <%# O teto vem da consulta, e não recalculado aqui: as duas pontas já divergiram uma
+            vez — o bloco anunciava uma faixa diferente da que as contagens usavam. %>
+        <% corte = brl(baixos[:ceiling]) %>
         <div class="low-revenue" data-tone="gold">
           <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado
               usa espaços diferentes e desalinha a leitura. %>
           <p class="section-label">Entre <%= brl(0) %> e <%= corte %></p>
           <div class="low-revenue__numbers">
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Clientes cujo faturamento do mês anterior cheio ficou até <%= corte %>, incluindo o próprio valor.">
+              data-tip="Clientes cujo faturamento do mês anterior cheio ficou até <%= corte %>, incluindo o próprio valor. O filtro da barra não olha esta competência: ele recorta pelo mês atual.">
               <strong><%= baixos[:previous_full].to_i %></strong>
               <span class="low-revenue__label">mês anterior cheio</span>
             </span>
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número muda conforme o mês avança.">
+              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número muda conforme o mês avança. É por esta competência que o filtro da barra recorta.">
               <strong><%= baixos[:current].to_i %></strong>
               <span class="low-revenue__label">mês atual</span>
             </span>

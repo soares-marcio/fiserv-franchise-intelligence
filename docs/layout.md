@@ -140,23 +140,66 @@ Duas armadilhas que esta mudança pagou:
 - **A exportação acompanha a tela.** `EstablishmentListingExporter::HEADERS` trocou `EC` por
   `Net MDR`, como texto e não número, porque o cliente com alíquotas divergentes leva a faixa.
 
+### A barra de filtros da listagem do MIC
+
+Barra em **pílulas** (15/09/2026). Cada filtro é um controle só, com o rótulo dentro e o valor
+à vista: `( Status  Ativo × ⌄ )`, `( Faturamento  mês atual até R$ 12.000,00 ⌄ )`. O que veio
+antes, e por que saiu:
+
+| Antes | Problema |
+| --- | --- |
+| Cinco rótulos em caixa-alta laranja sobre os controles | competiam com o título da seção e repetiam o que o valor já dizia |
+| Cinco aparências de controle | caixa com chip, botão com ícone, select, alça crua e campo de texto, lado a lado |
+| Linha de chips com o recorte ativo | repetia o estado que os próprios controles mostram |
+| Grade de colunas de largura fixa | obrigava a inventar um valor de `rem` por campo, e quebrou duas vezes quando um campo novo entrou |
+
+O que a barra é agora:
+
+- **Uma forma só**: `.filter-pill__trigger`, 2,5rem de altura, borda e raio iguais. O rótulo
+  (`.filter-pill__label`) é miúdo e sem cor; o valor (`.filter-pill__value`) é o que tem peso,
+  e fica apagado quando não há escolha ("todos", "todas", "qualquer").
+- **Fileira que quebra sozinha** (`display: flex; flex-wrap: wrap`), no lugar da grade: cada
+  pílula tem a largura do próprio conteúdo, e nenhum campo novo pede recálculo de colunas.
+- **O faturamento é pílula com painel** (`revenue_filter_controller.js`): o gatilho resume o
+  recorte e o painel guarda a competência e a alça. Era o único controle com dois campos à
+  mostra, e era ele que obrigava a barra a ter duas alturas.
+- **O valor marcado é texto, não caixinha** (`.filter-pill__tag`): caixa com borda dentro de
+  caixa com borda vira ruído. O `×` de cada valor continua, com alvo de toque de 44px.
+- **"Limpar" só existe quando há o que limpar.** Botão permanente para desfazer o nada é ruído.
+
+O seletor de intervalo (`reports/_date_range_picker`) ganhou a variante `pill: true`, usada só
+aqui; as telas 3M seguem com o rótulo em cima, como o resto da barra delas.
+
 ### Filtro por faixa de faturamento
 
-Na barra de filtros da listagem do MIC, um **slider de uma alça** escolhe o teto de
-faturamento, de 0 a R$ 30.000,00 em passos de R$ 500
-(`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`). A listagem passa a
-mostrar quem ficou **até** esse valor, e o bloco ao lado do título conta quantos são em cada
-competência.
+Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de uma alça**
+formam o filtro de faturamento. O slider vai de 0 a R$ 300.000,00 em passos de R$ 1.000
+(`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`); o dropdown diz a que
+competência o teto se aplica (`REVENUE_BASES`):
+
+| Base | O que filtra |
+| --- | --- |
+| **Todas** (padrão) | nada — é o estado desligado |
+| **Mês atual** | `mês atual ≤ teto` |
+| **Mês anterior cheio** | `mês anterior cheio ≤ teto` |
+
+**Quem liga e desliga o filtro é a base, não o valor** (decisão do usuário, 15/09/2026). Antes
+o desligado era implícito — o topo da escala significava "sem teto", porque um
+`input[type=range]` sempre envia valor. Com o dropdown o desligado ficou explícito, o topo da
+escala voltou a significar R$ 300.000,00 e nada mais, e a alça fica apagada enquanto a base
+está em "Todas".
 
 Quatro decisões, cada uma com um porquê:
 
-- **O topo da escala significa "sem teto", e não filtra.** Um `input[type=range]` sempre envia
-  valor: se o topo filtrasse, a tela abriria escondendo os maiores clientes da carteira. A
-  regra vive em `normalize_max_revenue`, num lugar só, porque a barra e a consulta precisam
-  concordar sobre o que é ausência de escolha — zero e vazio também são ausência.
-- **Vale para qualquer uma das duas competências** (decisão do usuário, 15/09/2026): o cliente
-  entra se o mês anterior cheio **ou** o mês atual couber no teto. Na carteira real, com teto
-  de R$ 5.000, 14 dos 35 clientes entram — e só 7 deles pelo mês anterior cheio.
+- **Zero é escolha, e não ausência dela.** Teto zero responde "quem não faturou nada", que é
+  uma pergunta legítima desta tela; por isso a ausência se testa por `blank?`, e não por
+  "menor ou igual a zero". Na carteira real, com base no mês atual: teto de R$ 12.000 devolve
+  26 dos 35 clientes; teto zero devolve 7.
+- **Por que a base é escolha da tela, e não decisão do código — medido:** enquanto o mês atual
+  é parcial, ele é quase sempre o menor dos dois. Na carteira inteira, só 22 dos 406 clientes
+  já faturaram no mês em curso mais do que no mês fechado inteiro. Com teto de R$ 12.000 num
+  MIC de 35 clientes, "mês atual" devolve 26 e "mês anterior cheio" devolve 9: são perguntas
+  diferentes.
 - **"Até" inclui o próprio valor.** A contagem anterior era estritamente abaixo; com o slider,
   "até R$ 5.000" lê como ≤, e a dica da tela escreve isso.
 - **O filtro mora no `HAVING`**, como os outros desta tela: no `WHERE` antes do `GROUP BY`, o
@@ -165,8 +208,17 @@ Quatro decisões, cada uma com um porquê:
 
 O bloco ao lado do título mostra a faixa por extenso e as duas contagens (mês anterior cheio e
 mês atual). Elas são independentes — o mesmo cliente costuma estar nas duas — e por isso nunca
-são somadas. Sem teto escolhido, o bloco usa o topo da escala como referência, que é a leitura
-com que ele nasceu.
+são somadas. Com o filtro ligado, a contagem da competência escolhida coincide com a da tabela,
+porque é por ela que o recorte acontece; quem informa aí é a outra.
+
+**O teto que o bloco anuncia vem da consulta** (`low_revenue_counts[:ceiling]`), e não é
+recalculado na tela: as duas pontas divergiram uma vez — com o filtro desligado e um teto na
+URL, o bloco anunciava R$ 12.000 enquanto as contagens usavam a referência.
+
+**Com o filtro desligado o bloco conta pela referência, e não pelo topo da escala**
+(`LOW_REVENUE_REFERENCE`, R$ 30.000,00): com a escala em R$ 300 mil, "abaixo do topo" devolve a
+carteira inteira — 35 de 35, medido —, que é verdade e não informa nada. R$ 30 mil é o corte que
+o usuário pediu em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.
 
 Sem JavaScript o slider continua funcionando: é um campo comum e o formulário o envia igual —
 o que o Stimulus faz é só mostrar o valor antes de aplicar o filtro, no mesmo formato do `brl`

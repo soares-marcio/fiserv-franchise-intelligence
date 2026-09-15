@@ -31,12 +31,14 @@
   </section>
 
   <section class="filter-panel">
+    <%# Mesma linguagem da barra da listagem do MIC: pílulas com o rótulo dentro. %>
     <%= form_with url: three_months_sub_channel_report_path(id: @sub_channel.uuid), method: :get,
-      class: "flex flex-wrap items-end gap-3", data: { controller: "live-form" } do %>
-      <%= render "reports/date_range_picker", label: "Intervalo da janela",
+      class: "filter-bar", data: { controller: "live-form" } do %>
+      <%= render "reports/date_range_picker", label: "Janela",
         from_date: @window&.first, to_date: @window&.last,
-        open_on: @available_periods.first %>
-      <%= button_tag icon_label("funnel", "Aplicar"), type: "submit", class: "btn btn-primary btn--field" %>
+        open_on: @available_periods.first, pill: true %>
+      <%= button_tag icon_label("funnel", "Aplicar"), type: "submit",
+        class: "btn btn-primary filter-pill__submit" %>
       <% if @window %>
         <p class="metric-hint self-center">
           Credenciados em <strong><%= l(@window.first, format: "%B de %Y") %></strong>,

@@ -208,6 +208,33 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".note-flag", count: 1, text: /anotado/
   end
 
+  # A barra em pílulas: cada filtro é um controle só, com o rótulo dentro e o valor à vista.
+  # O "Limpar" só existe quando há o que limpar — botão permanente para desfazer o nada é
+  # ruído, e era o que a barra tinha antes.
+  test "a barra em pílulas mostra o recorte dentro dos próprios controles" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    refresh_audit_views
+    mic = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(mic)
+
+    assert_response :success
+    assert_select ".filter-bar .filter-pill", count: 5
+    assert_select ".filter-pill__label", text: "Status"
+    assert_select ".filter-pill__label", text: "Faturamento"
+    # Sem recorte, o valor de cada pílula é convite apagado, e não há o que limpar.
+    assert_select ".filter-pill__value--empty", text: "qualquer"
+    assert_select ".filter-bar__clear", count: 0
+
+    get sub_channel_report_path(mic, status: [ "Active" ], revenue_basis: "atual",
+      max_revenue: 1_000)
+
+    assert_response :success
+    assert_select "[data-revenue-filter-target=summary]",
+      text: /mês atual até R\$\u00A01\.000,00/
+    assert_select ".filter-bar__clear", text: "Limpar"
+  end
+
   # O teto do faturamento virou filtro (decisão do usuário, 15/09/2026): slider na barra,
   # junto dos outros filtros, e o bloco conta dentro da faixa escolhida.
   test "a listagem do MIC tem o slider de faturamento e conta a faixa nas duas competências" do
@@ -218,10 +245,18 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(mic)
 
     assert_response :success
-    # O slider vive junto dos outros filtros e abre no topo da escala: sem teto.
+    # A competência e a alça moram no painel da pílula de faturamento. "Todas" é o estado
+    # desligado, e é assim que a tela abre.
+    assert_select ".filter-pill__panel label[for=revenue_basis]", text: "Competência"
+    assert_select "select[name=revenue_basis] option", count: 3
+    assert_select "select[name=revenue_basis] option[selected]", count: 0
+    assert_select "select[name=revenue_basis] option[value=atual]", text: "Mês atual"
+    assert_select "select[name=revenue_basis] option[value=anterior]", text: "Mês anterior cheio"
     assert_select ".filter-bar input[type=range][name=max_revenue][max=?]",
       EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
-    assert_select ".revenue-range__value", text: /sem teto/
+    assert_select "input[type=range][name=max_revenue][step=?]",
+      EstablishmentListingQuery::LOW_REVENUE_STEP.to_s
+    assert_select "[data-revenue-filter-target=value]", text: /sem filtro/
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
@@ -229,12 +264,34 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".low-revenue__numbers", text: /2\s+mês anterior cheio\s+2\s+mês atual/
     assert_select "[data-tip*=?]", "incluindo o próprio valor"
 
+    # Teto sem base é o estado desligado: a tabela não filtra e o bloco volta à referência.
     get sub_channel_report_path(mic, max_revenue: 1_000)
 
     assert_response :success
+    assert_select "tbody tr", count: 2
+    assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
+
+    get sub_channel_report_path(mic, max_revenue: 1_000, revenue_basis: "atual")
+
+    assert_response :success
+    # O recorte ativo aparece em chips que se removem sozinhos, e o link de cada um tira só
+    # aquele filtro — é o resumo que a barra não tinha.
+    assert_select "[data-revenue-filter-target=summary]",
+      text: /mês atual até R\$\u00A01\.000,00/
+    assert_select "select[name=revenue_basis] option[selected][value=?]", "atual"
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
     assert_select "input[type=range][name=max_revenue][value=?]", "1000"
-    assert_select ".revenue-range__value", text: /R\$\u00A01\.000,00/
+    assert_select "[data-revenue-filter-target=value]", text: /R\$\u00A01\.000,00/
+
+    # Zero é escolha, e não ausência dela: a alça volta no zero, e não no topo da escala. Os
+    # dois clientes desta planilha venderam no mês atual, então o recorte fica vazio — que é
+    # justamente a prova de que o zero filtrou em vez de ser ignorado.
+    get sub_channel_report_path(mic, max_revenue: 0, revenue_basis: "atual")
+
+    assert_response :success
+    assert_select "input[type=range][name=max_revenue][value=?]", "0"
+    assert_select "[data-revenue-filter-target=value]", text: /R\$\u00A00,00/
+    assert_select "tbody tr", count: 0
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do

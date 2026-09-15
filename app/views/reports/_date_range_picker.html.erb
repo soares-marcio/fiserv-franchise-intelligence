@@ -1,24 +1,34 @@
 <%# Calendário de intervalo, com navegação por mês e por ano. open_on diz em que mês
     abrir quando nada foi escolhido: a tela 3M ancora na competência mais recente. %>
-        <div class="filter-field" data-controller="date-range-picker"
+        <%# `pill: true` põe o rótulo dentro do gatilho, na barra em pílulas da listagem do
+            MIC. As telas 3M seguem com o rótulo em cima, como o resto da barra delas. %>
+        <% pill = local_assigns.fetch(:pill, false) %>
+        <div class="<%= pill ? "filter-pill" : "filter-field" %>" data-controller="date-range-picker"
           data-date-range-picker-from-date-value="<%= from_date %>"
           data-date-range-picker-to-date-value="<%= to_date %>"
           data-date-range-picker-open-on-value="<%= open_on %>">
-          <span class="section-label"><%= label %></span>
+          <% unless pill %>
+            <span class="section-label"><%= label %></span>
+          <% end %>
           <%= hidden_field_tag :from_date, from_date,
             data: { date_range_picker_target: "fromDate" } %>
           <%= hidden_field_tag :to_date, to_date,
             data: { date_range_picker_target: "toDate" } %>
-          <button type="button" id="date_range_trigger" class="date-range"
+          <button type="button" id="date_range_trigger"
+            class="<%= pill ? "filter-pill__trigger" : "date-range" %>"
             data-date-range-picker-target="trigger" aria-haspopup="dialog" aria-expanded="false"
             aria-controls="date_range_panel" data-action="click->date-range-picker#toggle">
+            <% if pill %>
+              <span class="filter-pill__label"><%= label %></span>
+            <% end %>
             <span class="date-range__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                 <rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/>
                 <path d="M8 3.5v3.5M16 3.5v3.5M3.5 10h17"/>
               </svg>
             </span>
-            <span class="date-range__label" data-date-range-picker-target="triggerLabel">
+            <span class="<%= pill ? "filter-pill__value" : "date-range__label" %> <%= "filter-pill__value--empty" if pill && from_date.blank? %>"
+              data-date-range-picker-target="triggerLabel">
               <%= iso_range_label(from_date, to_date) %>
             </span>
             <span class="tag-select__chevron" aria-hidden="true">⌄</span>
