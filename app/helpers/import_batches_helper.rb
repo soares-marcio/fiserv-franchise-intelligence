@@ -41,6 +41,21 @@ module ImportBatchesHelper
     days == 1 ? "1 dia" : "#{days} dias"
   end
 
+  # Os dois rótulos do selo do cabeçalho. Vão em minúscula e curtos porque dividem uma linha
+  # só: "sem arquivo" no lugar de "Nunca", e a data sem o ano, que não muda a leitura.
+  def file_age_label(days)
+    return "sem arquivo" if days.nil?
+    return "hoje" if days.zero?
+
+    "há #{days_label(days)}"
+  end
+
+  def coverage_label(date)
+    return "sem dados" if date.nil?
+
+    "dados de #{date.strftime('%d/%m')}"
+  end
+
   def last_file_headline(days)
     return "Nunca" if days.nil?
     return "Hoje" if days.zero?

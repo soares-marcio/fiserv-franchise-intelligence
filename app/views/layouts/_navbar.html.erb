@@ -1,3 +1,4 @@
+<% freshness = FileFreshness.new %>
 <header class="topbar">
   <div class="topbar-inner">
     <%= link_to root_path, class: "brand-lockup", aria: { label: "Auditoria BIN — início" } do %>
@@ -25,8 +26,9 @@
       <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }) do %>
         <%= icon("upload-simple", css: "nav-icon") %>
         Importar arquivo
-        <%# Badge com dado real: a idade do último arquivo, mesmo cálculo do status do header. %>
-        <% file_days = ImportBatch.days_since_last_file %>
+        <%# Badge com dado real: a idade do último arquivo, do mesmo FileFreshness que o selo
+            do cabeçalho usa — uma consulta por página, e os dois nunca divergem. %>
+        <% file_days = freshness.received_days %>
         <span class="nav-badge"
           data-tone="<%= file_days.nil? || file_days >= ImportBatch::STALE_AFTER_DAYS ? 'rose' : 'green' %>">
           <%= last_file_headline(file_days) %>
@@ -48,7 +50,7 @@
         <span class="sr-only">Buscar EC, CNPJ, nome ou MIC</span>
         <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
       </button>
-      <%= header_file_status %>
+      <%= render "layouts/file_status", freshness: freshness %>
     </div>
   </div>
 </header>

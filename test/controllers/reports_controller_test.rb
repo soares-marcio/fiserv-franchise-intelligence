@@ -345,14 +345,42 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select ".empty-state", text: /Nenhum cliente com oferta pré-aprovada/
   end
 
-  test "cabeçalho mostra há quanto tempo a carteira recebeu arquivo" do
+  # O selo diz duas coisas, e não uma: quando o último arquivo chegou e até que dia o
+  # faturamento dele vai. Tratar um pelo outro enganava — em 16/09/2026 ele dizia "Arquivo há
+  # 2 dias" em verde porque o arquivo mais novo da carteira era o do canal cujos dados param
+  # em agosto. O segundo bloco abaixo é exatamente esse caso.
+  #
+  # As datas são fixadas: a planilha sintética cobre até 10/08/2026, e sem travar o dia o sinal
+  # dos dados envelheceria sozinho — o teste passaria a falhar pelo calendário, não pelo código.
+  test "cabeçalho mostra a idade do arquivo e a dos dados, canal a canal" do
     get reports_path
-    assert_select "a.header-status[data-tone=rose][href=?]", import_batches_path,
-      text: /Sem arquivo importado/
 
-    import_synthetic_workbook
-    get reports_path
-    assert_select "a.header-status[data-tone=green]", text: /Arquivo hoje/
+    assert_select "details.header-status[data-tone=rose]", text: /sem arquivo/
+    assert_select "details.header-status", text: /sem dados/
+
+    travel_to(Date.new(2026, 8, 12)) { import_synthetic_workbook }
+
+    travel_to Date.new(2026, 8, 12) do
+      get reports_path
+
+      assert_select "details.header-status[data-tone=green] .header-status__signal", count: 2
+      assert_select ".header-status__signal[data-tone=green]", text: /hoje/
+      assert_select ".header-status__signal[data-tone=green]", text: %r{dados de 10/08}
+      # O painel quebra por canal, com os dois sinais de cada um.
+      assert_select ".header-status__channel", count: 1
+      assert_select ".header-status__channel .header-status__line", count: 2
+      assert_select ".header-status__panel a[href=?]", import_batches_path
+    end
+
+    # Onze dias depois: o arquivo ainda está dentro da janela, mas os dados dele já passaram
+    # dos 12 dias. O selo antigo ficaria verde; este fica vermelho por causa do sinal certo.
+    travel_to Date.new(2026, 8, 23) do
+      get reports_path
+
+      assert_select "details.header-status[data-tone=rose]"
+      assert_select ".header-status__signal[data-tone=green]", text: /há 11 dias/
+      assert_select ".header-status__signal[data-tone=rose]", text: %r{dados de 10/08}
+    end
   end
 
   test "o menu do header expõe páginas diretas, com badge da idade do arquivo" do
@@ -1236,13 +1264,15 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  # period_coverages é lida para o corte do cabeçalho e para os períodos da janela; a tela e
-  # a exportação reaproveitam as duas leituras em vez de repeti-las a cada chamada do scope.
-  test "a tela do MIC lê period_coverages duas vezes, e a exportação também" do
+  # period_coverages é lida três vezes: o corte do cabeçalho da tabela, os períodos da janela e,
+  # desde 16/09/2026, o selo do topo — que passou a dizer até que dia os dados vão, e não só
+  # quando o arquivo chegou. A tela e a exportação reaproveitam as leituras em vez de repeti-las
+  # a cada chamada do scope; a do selo é uma linha por canal, e roda uma vez por página.
+  test "a tela do MIC lê period_coverages três vezes, e a exportação duas" do
     template = BinImport::Template.register!
     channel, sub_channel = seed_subchannel_revenue(template)
 
-    assert_queries_match(/FROM period_coverages/, count: 2) do
+    assert_queries_match(/FROM period_coverages/, count: 3) do
       get sub_channel_report_path(sub_channel, channel_id: channel.uuid)
     end
     assert_queries_match(/FROM period_coverages/, count: 2) do

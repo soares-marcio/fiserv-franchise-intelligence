@@ -62,6 +62,43 @@ baixe o SVG de `github.com/phosphor-icons/core/assets/regular/` para a pasta e u
 | Variação | trend-up, trend-down e minus, em peso **duotone**, por `ApplicationHelper#phosphor_icon` |
 | Cards da importação | calendar-check, file-arrow-up, cpu |
 
+### O selo do cabeçalho diz duas idades, não uma
+
+O selo do topo, presente em toda página, mostra **dois sinais**: há quanto tempo o último
+arquivo chegou e **até que dia o faturamento dele vai**. Cada um tem a própria bolinha, verde
+ou vermelha pela mesma janela de 12 dias (`ImportBatch::STALE_AFTER_DAYS`).
+
+**Antes ele mostrava só o upload, e isso enganava.** Em 16/09/2026 o selo dizia "Arquivo há 2
+dias" em verde. Medido no banco naquele dia:
+
+| Canal | Último arquivo | Dados até |
+| --- | --- | --- |
+| Ramos e Silva (10 MICs) | 11/09 | 09/09 |
+| Região Goiás (2 MICs) | **14/09** | **26/08** |
+
+Os 2 dias verdes eram do upload da Região Goiás — justamente o canal cujos dados param em
+agosto. O selo usava o arquivo mais novo para dar o sinal mais tranquilizador sobre o canal
+mais atrasado.
+
+Três decisões:
+
+- **O que o selo escreve é o pior de cada sinal**, nunca o mais recente (`FileFreshness`). É a
+  mesma regra do corte de período em `ReportScope#cutoff_day`: o observado não superestima a
+  cobertura.
+- **A quebra por canal mora num painel**, com os canais lado a lado — a pergunta que ele
+  responde é "qual deles está atrasado", e isso se lê comparando. É um `<details>` nativo:
+  abre no clique e no teclado, e funciona sem JavaScript. O link para importar mora dentro
+  dele, já que o selo deixou de ser link.
+- **O badge do menu lateral usa a mesma instância**, então a consulta roda uma vez por página
+  e os dois números nunca divergem (`test/controllers/metabase_controller_test.rb` guarda isso).
+
+Duas armadilhas que o serviço fixa em teste:
+
+- **A data do arquivo sai no fuso do app.** O valor cru da consulta volta em UTC, e sem
+  converter um arquivo recebido às 21h de ontem contava como de hoje — o selo dizia um dia a
+  menos que a tela de importação.
+- **Ausência não é sinal verde:** canal sem arquivo ou sem cobertura conta como atrasado.
+
 ### Busca ao vivo na lista de estabelecimentos
 
 O formulário de busca mira o Turbo Frame `establishments` que envolve a listagem
