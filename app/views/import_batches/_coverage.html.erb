@@ -1,0 +1,46 @@
+<%# A quebra por master mora aqui, e não no selo do cabeçalho (decisão do usuário,
+    16/09/2026): o selo diz que a base está defasada, esta tela diz de quem é a defasagem.
+
+    Os defasados vêm primeiro, porque a pergunta que traz alguém a esta tela é "quem está
+    atrasado", e não "como está cada um". %>
+<% atrasados = file_freshness.stale_entries %>
+<section class="coverage-panel" data-tone="<%= atrasados.any? ? "rose" : "green" %>">
+  <div>
+    <p class="section-label">Cobertura por master</p>
+    <h2 class="table-title">
+      <% if !file_freshness.any_file? %>
+        Nenhum arquivo importado
+      <% elsif atrasados.empty? %>
+        Todos os masters em dia
+      <% else %>
+        <%= pluralize(atrasados.size, "master", "masters") %>
+        com dados desatualizados
+      <% end %>
+    </h2>
+  </div>
+
+  <ul class="coverage-panel__list">
+    <% ordenados = file_freshness.entries.partition { |entry| atrasados.include?(entry) } %>
+    <% ordenados.flatten.each do |entry| %>
+      <li class="coverage-panel__item"
+        data-tone="<%= entry.received_stale? || entry.covered_stale? ? "rose" : "green" %>">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="coverage-panel__name"><%= entry.name %></span>
+        <span class="coverage-panel__facts">
+          <span data-tone="<%= entry.covered_stale? ? "rose" : "green" %>">
+            <%= coverage_label(entry.covered_on).capitalize %><%= " · #{days_label(entry.covered_days)}" if entry.covered_days %>
+          </span>
+          <span data-tone="<%= entry.received_stale? ? "rose" : "green" %>">
+            Arquivo <%= file_age_label(entry.received_days) %>
+          </span>
+        </span>
+      </li>
+    <% end %>
+  </ul>
+
+  <p class="coverage-panel__hint">
+    O alerta começa em <%= ImportBatch::STALE_AFTER_DAYS %> dias, para os dois sinais. A data
+    dos dados é o último dia de faturamento que o arquivo trouxe, e é ela que as telas
+    comparam: um master defasado defasa a leitura da base inteira.
+  </p>
+</section>

@@ -92,6 +92,8 @@
   </article>
 </div>
 
+<%= render "coverage" %>
+
 <% if @last_batch&.status == "failed" && @last_batch.validation_errors.any? %>
   <%= render "failure_report", batch: @last_batch %>
 <% end %>
