@@ -1,16 +1,24 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Pílula do filtro de faturamento: o gatilho resume o recorte e o painel guarda a competência,
-// as duas alças e os dois campos digitáveis. Sem JavaScript o painel fica aberto e as alças
-// continuam funcionando — são campos comuns, e o formulário os envia igual.
+// Pílula do filtro de faturamento: o gatilho resume o recorte e o painel guarda a competência
+// e as duas alças.
+//
+// A alça carrega o **índice da parada**, não o valor. As paradas vêm do servidor
+// (EstablishmentListingQuery::REVENUE_STOPS) e são espaçadas de propósito — R$ 1.000 até
+// 30 mil, R$ 10.000 até 100 mil, R$ 50.000 até 300 mil —, porque a carteira não se distribui
+// pela escala. Quem o formulário envia é o campo escondido, em reais.
 export default class extends Controller {
   static targets = [
-    "trigger", "panel", "basis", "min", "max", "minField", "maxField", "band", "summary"
+    "trigger", "panel", "basis", "min", "max", "minValue", "maxValue", "band", "value", "summary"
   ]
+  static values = { stops: Array }
 
   connect() {
-    // O resumo do gatilho vai sem centavos, como o helper revenue_summary: o passo do slider
-    // é de R$ 1.000, então os centavos são sempre zero e só ocupam a largura que falta.
+    this.formato = new Intl.NumberFormat("pt-BR", {
+      style: "currency", currency: "BRL", minimumFractionDigits: 2
+    })
+    // O resumo do gatilho vai sem centavos, como o helper revenue_summary: as paradas são
+    // redondas, então os centavos são sempre zero e só ocupam a largura que falta.
     this.compacto = new Intl.NumberFormat("pt-BR", {
       style: "currency", currency: "BRL", maximumFractionDigits: 0
     })
@@ -45,45 +53,26 @@ export default class extends Controller {
     if (restoreFocus) this.triggerTarget.focus()
   }
 
-  // Alça movida (ou competência trocada): os campos acompanham.
+  // Quem liga e desliga o filtro é a competência: "Todas" é o estado desligado, e aí as alças
+  // ficam apagadas e o gatilho diz "qualquer" em vez de uma faixa que não vale nada.
   sync(event) {
     this.clamp(event?.target)
-    this.mirrorFields()
-    this.render()
-  }
-
-  // Campo digitado: a alça acompanha, mas o texto fica como o usuário escreveu. Normalizar a
-  // cada tecla brigaria com quem digita — "12000" passa por "1", que o passo arredondaria
-  // para zero antes do segundo algarismo.
-  typed(event) {
-    const campo = event.target
-    const valor = Number(campo.value)
-    if (campo.value === "" || Number.isNaN(valor)) return
-
-    const alca = campo === this.minFieldTarget ? this.minTarget : this.maxTarget
-    alca.value = Math.min(Math.max(valor, 0), Number(alca.max))
-    this.clamp(alca)
-    this.render()
-  }
-
-  // Ao sair do campo ele passa a mostrar o valor que a alça de fato assumiu, preso ao passo.
-  settle() {
-    this.mirrorFields()
-    this.render()
-  }
-
-  // Quem liga e desliga o filtro é a competência: "Todas" é o estado desligado, e aí os
-  // controles ficam apagados e o gatilho diz "qualquer" em vez de uma faixa que não vale nada.
-  render() {
     const base = this.basisTarget
     const ligado = base.value !== ""
-    const piso = Number(this.minTarget.value)
-    const teto = Number(this.maxTarget.value)
+    const piso = this.money(this.minTarget)
+    const teto = this.money(this.maxTarget)
 
-    for (const campo of [this.minTarget, this.maxTarget, this.minFieldTarget, this.maxFieldTarget]) {
-      campo.disabled = !ligado
-    }
-    this.paintBand(piso, teto)
+    this.minTarget.disabled = !ligado
+    this.maxTarget.disabled = !ligado
+    this.minValueTarget.value = piso
+    this.maxValueTarget.value = teto
+    this.paintBand()
+    this.describe(this.minTarget, piso)
+    this.describe(this.maxTarget, teto)
+
+    this.valueTarget.textContent = ligado
+      ? `${this.formato.format(piso)} a ${this.formato.format(teto)}`
+      : "sem filtro"
 
     // Mesma regra do helper revenue_summary: o piso só aparece quando corta, e o segundo
     // "R$" vira um traço — o texto por extenso não cabe no gatilho.
@@ -95,9 +84,13 @@ export default class extends Controller {
     this.summaryTarget.classList.toggle("filter-pill__value--empty", !ligado)
   }
 
-  mirrorFields() {
-    this.minFieldTarget.value = this.minTarget.value
-    this.maxFieldTarget.value = this.maxTarget.value
+  money(alca) {
+    return this.stopsValue[Number(alca.value)] ?? 0
+  }
+
+  // A alça anuncia a posição; o leitor de tela precisa ouvir o dinheiro.
+  describe(alca, valor) {
+    alca.setAttribute("aria-valuetext", this.formato.format(valor))
   }
 
   // As alças não se atravessam: a que está andando para no valor da outra. A que manda é a
@@ -121,8 +114,12 @@ export default class extends Controller {
     this.maxTarget.style.zIndex = topo ? "1" : "2"
   }
 
-  paintBand(piso, teto) {
+  // A faixa acesa acompanha a posição da alça, e não o valor: é o índice que diz onde a alça
+  // está no trilho.
+  paintBand() {
     const escala = Number(this.maxTarget.max) || 1
+    const piso = Number(this.minTarget.value)
+    const teto = Number(this.maxTarget.value)
     this.bandTarget.style.left = `${(piso / escala) * 100}%`
     this.bandTarget.style.width = `${((teto - piso) / escala) * 100}%`
   }

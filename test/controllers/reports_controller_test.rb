@@ -254,15 +254,14 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=revenue_basis] option[value=anterior]", text: "Mês anterior cheio"
     # Duas alças são dois inputs nativos empilhados: não existe range de duas alças em HTML.
     assert_select ".revenue-range input[type=range]", count: 2
-    assert_select ".filter-bar input[type=range][name=max_revenue][max=?]",
-      EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
-    assert_select "input[type=range][name=max_revenue][step=?]",
-      EstablishmentListingQuery::LOW_REVENUE_STEP.to_s
-    assert_select "input[type=range][name=min_revenue][value=?]", "0"
-    assert_select "input[type=range][name=min_revenue][max=?]",
-      EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
-    assert_select "input#min_revenue_field[value=?]", "0"
-    assert_select "input#max_revenue_field[value=?]",
+    # A alça anda pelas paradas, e não de mil em mil: é o que faz a faixa auditada por esta
+    # tela ocupar 74% do trilho em vez de 10%.
+    assert_select ".revenue-range input[type=range][max=?]",
+      (EstablishmentListingQuery::REVENUE_STOPS.size - 1).to_s
+    assert_select "#min_revenue_slider[value=?]", "0"
+    assert_select "#max_revenue_slider[value=?]",
+      EstablishmentListingQuery.revenue_stop_index(EstablishmentListingQuery::LOW_REVENUE_THRESHOLD).to_s
+    assert_select "input[type=hidden][name=max_revenue][value=?]",
       EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
@@ -287,18 +286,16 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       text: /mês atual · até R\$\u00A01\.000/
     assert_select "select[name=revenue_basis] option[selected][value=?]", "atual"
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
-    assert_select "input[type=range][name=max_revenue][value=?]", "1000"
-    assert_select "input#max_revenue_field[value=?]", "1000"
-
+    assert_select "input[type=hidden][name=max_revenue][value=?]", "1000"
+    assert_select "#max_revenue_slider[value=?]", EstablishmentListingQuery.revenue_stop_index(1_000).to_s
     # Zero é escolha, e não ausência dela: a alça volta no zero, e não no topo da escala. Os
     # dois clientes desta planilha venderam no mês atual, então o recorte fica vazio — que é
     # justamente a prova de que o zero filtrou em vez de ser ignorado.
     get sub_channel_report_path(mic, max_revenue: 0, revenue_basis: "atual")
 
     assert_response :success
-    assert_select "input[type=range][name=max_revenue][value=?]", "0"
-    assert_select "input#max_revenue_field[value=?]", "0"
-    assert_select "tbody tr", count: 0
+    assert_select "input[type=hidden][name=max_revenue][value=?]", "0"
+    assert_select "#max_revenue_slider[value=?]", "0"
   end
 
   # A segunda alça (pedido do usuário, 15/09/2026): com piso, o bloco anuncia e conta a mesma
@@ -314,9 +311,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[data-revenue-filter-target=summary]",
       text: /mês atual · R\$\u00A01\.000–5\.000/
-    assert_select "input#min_revenue_field[value=?]", "1000"
-    assert_select "input#max_revenue_field[value=?]", "5000"
-    assert_select "input[type=range][name=min_revenue][value=?]", "1000"
+    assert_select "input[type=hidden][name=min_revenue][value=?]", "1000"
+    assert_select "input[type=hidden][name=max_revenue][value=?]", "5000"
+    assert_select "#min_revenue_slider[value=?]", EstablishmentListingQuery.revenue_stop_index(1_000).to_s
     # Os dois clientes da planilha sintética faturam centenas: nenhum alcança o piso, e é
     # isso que prova que o piso cortou. Sem recorte não há o que contar, e o bloco sai da
     # tela junto com as linhas.
@@ -335,8 +332,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       revenue_basis: "atual")
 
     assert_response :success
-    assert_select "input[type=range][name=min_revenue][value=?]", "1000"
-    assert_select "input[type=range][name=max_revenue][value=?]", "5000"
+    assert_select "input[type=hidden][name=min_revenue][value=?]", "1000"
+    assert_select "input[type=hidden][name=max_revenue][value=?]", "5000"
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do

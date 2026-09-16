@@ -53,6 +53,12 @@ module EstablishmentsHelper
   end
 
 
+  # As duas pontas por extenso, no painel, onde há largura para as duas. O gatilho mostra a
+  # versão compacta; aqui vale a precisão, porque é o número que o filtro vai aplicar.
+  def revenue_range_label(min, max)
+    "#{brl(min || 0)} a #{brl(max || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD)}"
+  end
+
   DATE_KIND_OPTIONS = [
     [ "credenciamento", "Credenciamento" ],
     [ "ativacao", "Ativação" ],
