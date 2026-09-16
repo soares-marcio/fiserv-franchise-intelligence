@@ -31,9 +31,22 @@ class EstablishmentListingQuery
   # competência escolhida — inclusive nas duas pontas, como "de … até" se lê em português. Sem
   # escolha, a escala fica inteira e nada é filtrado: o bloco então conta pela referência.
   LOW_REVENUE_THRESHOLD = 300_000
-  # Passo do slider: R$ 1.000 dá 300 posições na escala. Com passo maior a ponta baixa da
-  # escala — onde mora a pergunta "quem está fraco?" — ficaria com meia dúzia de paradas.
+  # Passo da base da escala. R$ 1.000 é a precisão onde a pergunta desta tela mora.
   LOW_REVENUE_STEP = 1_000
+
+  # Paradas do slider. O passo cresce com o valor porque a carteira não se distribui pela
+  # escala: medido em 16/09/2026, 171 dos 186 clientes com faturamento no mês atual ficam até
+  # R$ 30.000 e nenhum passa de R$ 300.000; no mês anterior cheio são 200 de 263 até R$ 30.000
+  # e 4 acima do topo. Com passo fixo de R$ 1.000 a faixa que esta tela audita ocupava 10% do
+  # trilho e as duas alças se encavalavam; com estas paradas ela ocupa 74% (31 de 42).
+  #
+  # A alça carrega o índice da parada, não o valor: é o que permite espaçar as paradas sem
+  # mentir sobre a posição. Quem viaja na URL e no filtro continua sendo o valor em reais.
+  REVENUE_STOPS = [
+    *(0..30_000).step(LOW_REVENUE_STEP),
+    *(40_000..100_000).step(10_000),
+    *(150_000..300_000).step(50_000)
+  ].freeze
   # Base da faixa: qual competência o filtro olha. "Todas" é o estado desligado — a escolha do
   # usuário (15/09/2026) por um jeito explícito de voltar à tela sem filtro, no lugar da regra
   # implícita que o topo da escala carregava. Lista fechada porque o valor vira nome de coluna.
@@ -108,7 +121,13 @@ class EstablishmentListingQuery
     return if value.blank?
 
     teto = value.to_i.clamp(0, LOW_REVENUE_THRESHOLD)
-    teto - (teto % LOW_REVENUE_STEP)
+    REVENUE_STOPS.reverse_each.find { |parada| parada <= teto }
+  end
+
+  # Posição da alça para um valor já normalizado. Fora das paradas, a de baixo — é a mesma
+  # regra da normalização, e as duas precisam concordar.
+  def self.revenue_stop_index(value)
+    REVENUE_STOPS.rindex { |parada| parada <= value.to_i } || 0
   end
 
   # As duas alças de uma vez: cada uma presa à escala e ao passo, e as duas em ordem. Podem

@@ -352,14 +352,29 @@
     white-space: nowrap;
   }
 
-/* O resumo do faturamento é o mais longo da barra: competência e as duas pontas da faixa.
-   Nos 22rem das demais pílulas ele saía cortado nas reticências justamente no valor do
-   teto — medido: 396px de texto para 219px de caixa. O campo de busca é quem cede a
-   largura, porque é o único que cresce sozinho; o min() existe para o celular, onde 28rem
-   é mais que a tela inteira. */
-.filter-pill--revenue .filter-pill__trigger {
-  max-width: min(28rem, 100%);
-}
+  /* O resumo do faturamento é o mais longo da barra: competência e as duas pontas da faixa.
+     Nos 22rem das demais pílulas ele saía cortado nas reticências justamente no valor do
+     teto — medido: 396px de texto para 219px de caixa.
+
+     A largura é fixa, e não do tamanho do texto: o resumo muda de comprimento enquanto a alça
+     anda, e o painel aberto ficaria mudando de largura junto. O campo de busca é quem cede o
+     espaço, porque é o único que cresce sozinho; o min() existe para o celular, onde 28rem é
+     mais que a tela inteira. */
+  .filter-pill--revenue {
+    width: min(28rem, 100%);
+  }
+
+  .filter-pill--revenue .filter-pill__trigger {
+    width: 100%;
+    max-width: none;
+  }
+
+  /* O painel com a largura do gatilho (pedido do usuário, 16/09/2026): antes ele tinha 19rem
+     fixos e ficava mais estreito que a pílula, desalinhado com ela. De quebra, o trilho passa
+     de 273px para 417px. */
+  .filter-pill--revenue .filter-pill__panel {
+    width: 100%;
+  }
 
   .filter-pill__value {
     display: inline-flex;
@@ -1466,28 +1481,30 @@
     background: var(--color-base-300);
   }
 
-  /* Os dois campos digitáveis, embaixo do trilho: a alça dá a ordem de grandeza e o campo dá
-     o valor exato (pedido do usuário, 16/09/2026). Eles não têm `name` — quem envia o filtro
-     continua sendo a alça, e o Stimulus espelha um no outro. */
-  .revenue-range__fields {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .revenue-range__unit {
-    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
-    font-size: 0.75rem;
-  }
-
-  .revenue-range__field {
-    width: 100%;
-    /* Sem o min-width: 0 o campo numérico recusa encolher e estoura a linha do painel. */
-    min-width: 0;
-    height: 2.1rem;
-    padding: 0 0.4rem;
-    font-size: 0.8rem;
+  /* As marcas embaixo do trilho dizem onde o passo muda. Num trilho de paradas desiguais, sem
+     elas, a alça parece andar mais rápido num trecho do que noutro sem motivo. Cada uma fica
+     na posição real da parada — igualmente espaçadas, elas mentiriam sobre a escala. */
+  .revenue-range__marks {
+    position: relative;
+    height: 1rem;
+    color: color-mix(in oklab, var(--color-base-content) 50%, transparent);
+    font-size: 0.68rem;
     font-variant-numeric: tabular-nums;
+  }
+
+  .revenue-range__marks span {
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  /* As pontas encostam nas bordas do trilho, em vez de sair para fora dele. */
+  .revenue-range__marks span:first-child {
+    transform: none;
+  }
+
+  .revenue-range__marks span:last-child {
+    transform: translateX(-100%);
   }
 
 
@@ -3198,9 +3215,7 @@
    que apareceu no print do usuário em 16/09/2026, e o painel abre com o foco nesse select.
    -------------------------------------------------------------------------------------- */
 .filter-pill__select:focus,
-.filter-pill__select:focus-visible,
-.revenue-range__field:focus,
-.revenue-range__field:focus-visible {
+.filter-pill__select:focus-visible {
   /* A borda entra junto: no foco o daisyUI a leva de 20% de opacidade para a tinta cheia, e
      era ela o retângulo preto por dentro do anel. */
   border-color: var(--color-primary);

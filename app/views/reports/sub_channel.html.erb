@@ -168,7 +168,8 @@
         <%# O faturamento também é uma pílula: a base e as alças moram no painel, e o gatilho
             diz o recorte por extenso. Sem isso ele seria o único controle da barra com dois
             campos à mostra, e a linha voltaria a ter duas alturas. %>
-        <div class="filter-pill filter-pill--revenue" data-controller="revenue-filter">
+        <div class="filter-pill filter-pill--revenue" data-controller="revenue-filter"
+          data-revenue-filter-stops-value="<%= EstablishmentListingQuery::REVENUE_STOPS.to_json %>">
           <button type="button" id="revenue_filter_trigger" class="filter-pill__trigger"
             data-revenue-filter-target="trigger" aria-haspopup="dialog" aria-expanded="false"
             aria-controls="revenue_filter_panel"
@@ -188,54 +189,60 @@
               options_for_select(EstablishmentsHelper::REVENUE_BASIS_OPTIONS, @revenue_basis),
               id: "revenue_basis", class: "select select-bordered filter-pill__select",
               data: { revenue_filter_target: "basis", action: "change->revenue-filter#sync" } %>
-            <span class="filter-pill__panel-label">Faixa</span>
+            <div class="filter-pill__panel-head">
+              <span class="filter-pill__panel-label">Faixa</span>
+              <output id="revenue_range_value" class="filter-pill__amount"
+                data-revenue-filter-target="value">
+                <%= @revenue_basis ? revenue_range_label(@min_revenue, @max_revenue) : "sem filtro" %>
+              </output>
+            </div>
             <%# Duas alças são dois campos nativos sobrepostos: não existe range de duas alças
-                em HTML. Cada um continua sendo um campo comum — o formulário os envia igual, e
-                o teclado anda neles sem JavaScript. O trilho e a faixa acesa são pintados aqui
-                porque os trilhos nativos ficam transparentes no CSS: dois trilhos empilhados
-                apareceriam como duas linhas. %>
+                em HTML. O trilho e a faixa acesa são pintados aqui porque os trilhos nativos
+                ficam transparentes no CSS: dois trilhos empilhados apareceriam como duas linhas.
+
+                A alça carrega o **índice da parada**, não o valor: as paradas são espaçadas
+                (REVENUE_STOPS) para que a faixa de 0 a R$ 30.000 ocupe 74% do trilho em vez
+                de 10%. Quem viaja no formulário é o campo escondido, em reais — a URL e o
+                contrato com o servidor não mudam. Sem JavaScript a alça deixa de mexer no
+                valor; o campo escondido segue com o que o servidor desenhou. %>
             <div class="revenue-range">
               <span class="revenue-range__track" aria-hidden="true"></span>
               <span class="revenue-range__band" data-revenue-filter-target="band"
                 aria-hidden="true"></span>
-              <%= range_field_tag :min_revenue, @min_revenue || 0,
-                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-                step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "min_revenue",
-                class: "revenue-range__input", aria: { label: "Faturamento mínimo" },
+              <%= tag.input type: "range", id: "min_revenue_slider",
+                value: EstablishmentListingQuery.revenue_stop_index(@min_revenue || 0),
+                min: 0, max: EstablishmentListingQuery::REVENUE_STOPS.size - 1, step: 1,
+                class: "revenue-range__input",
+                aria: { label: "Faturamento mínimo", describedby: "revenue_range_value" },
                 data: { revenue_filter_target: "min", action: "input->revenue-filter#sync" } %>
-              <%= range_field_tag :max_revenue,
-                @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-                step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "max_revenue",
-                class: "revenue-range__input", aria: { label: "Faturamento máximo" },
+              <%= tag.input type: "range", id: "max_revenue_slider",
+                value: EstablishmentListingQuery.revenue_stop_index(
+                  @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+                ),
+                min: 0, max: EstablishmentListingQuery::REVENUE_STOPS.size - 1, step: 1,
+                class: "revenue-range__input",
+                aria: { label: "Faturamento máximo", describedby: "revenue_range_value" },
                 data: { revenue_filter_target: "max", action: "input->revenue-filter#sync" } %>
             </div>
-            <%# Os campos existem porque a alça não tem como ser precisa aqui: a escala vai a
-                R$ 300.000 e 92% da carteira fica nos primeiros 10% do trilho — 23px para a faixa
-                inteira de 0 a 30 mil, medido. A alça dá a ordem de grandeza; o número exato se
-                digita. Eles não têm `name`: quem envia continua sendo a alça, e o Stimulus
-                espelha um no outro. %>
-            <div class="revenue-range__fields">
-              <label class="filter-pill__panel-label" for="min_revenue_field">De</label>
-              <span class="revenue-range__unit">R$</span>
-              <%= tag.input type: "number", id: "min_revenue_field", value: @min_revenue || 0,
-                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-                step: EstablishmentListingQuery::LOW_REVENUE_STEP, inputmode: "numeric",
-                class: "input input-bordered revenue-range__field",
-                data: { revenue_filter_target: "minField",
-                  action: "input->revenue-filter#typed change->revenue-filter#settle" } %>
-              <label class="filter-pill__panel-label" for="max_revenue_field">até</label>
-              <span class="revenue-range__unit">R$</span>
-              <%= tag.input type: "number", id: "max_revenue_field",
-                value: @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-                step: EstablishmentListingQuery::LOW_REVENUE_STEP, inputmode: "numeric",
-                class: "input input-bordered revenue-range__field",
-                data: { revenue_filter_target: "maxField",
-                  action: "input->revenue-filter#typed change->revenue-filter#settle" } %>
+            <%# As marcas dizem onde o passo muda, e ficam na posição real da parada: igualmente
+                espaçadas elas mentiriam, porque R$ 30.000 fica a 73% do trilho e não a 25%. %>
+            <div class="revenue-range__marks" aria-hidden="true">
+              <% [ 0, EstablishmentListingQuery::LOW_REVENUE_REFERENCE,
+                   EstablishmentListingQuery::LOW_REVENUE_THRESHOLD ].each do |parada| %>
+                <% posicao = EstablishmentListingQuery.revenue_stop_index(parada) * 100.0 /
+                  (EstablishmentListingQuery::REVENUE_STOPS.size - 1) %>
+                <span style="left: <%= number_with_precision(posicao, precision: 2) %>%">
+                  <%= brl_round(parada) %>
+                </span>
+              <% end %>
             </div>
+            <%= hidden_field_tag :min_revenue, @min_revenue || 0,
+              data: { revenue_filter_target: "minValue" } %>
+            <%= hidden_field_tag :max_revenue,
+              @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+              data: { revenue_filter_target: "maxValue" } %>
             <p class="filter-pill__hint">
-              "Todas" não filtra. A faixa entra inteira, com as duas pontas: até <%= brl(0) %>
+              "Todas" não filtra. A faixa entra inteira, com as duas pontas: até <%= brl_round(0) %>
               mostra quem não faturou nada.
             </p>
           </div>
@@ -320,10 +327,10 @@
       <% if @total_count.to_i.positive? && baixos.present? %>
         <%# O teto vem da consulta, e não recalculado aqui: as duas pontas já divergiram uma
             vez — o bloco anunciava uma faixa diferente da que as contagens usavam. %>
-        <% corte = brl(baixos[:ceiling]) %>
+        <% corte = brl_round(baixos[:ceiling]) %>
         <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado usa
             espaços diferentes e desalinha a leitura. %>
-        <% piso = brl(baixos[:floor]) %>
+        <% piso = brl_round(baixos[:floor]) %>
         <div class="low-revenue" data-tone="gold">
           <p class="section-label">Entre <%= piso %> e <%= corte %></p>
           <div class="low-revenue__numbers">

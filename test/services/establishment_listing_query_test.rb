@@ -549,6 +549,33 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       "desligado, o bloco volta a contar desde zero"
   end
 
+  # A escala deixou de ser linear (pedido do usuário, 16/09/2026). O passo cresce com o valor
+  # porque a carteira não se distribui pela escala: com passo fixo de R$ 1.000 a faixa que esta
+  # tela audita ocupava 10% do trilho, e as duas alças se encavalavam dentro dela.
+  test "as paradas do slider dão à faixa auditada a maior parte do trilho" do
+    paradas = EstablishmentListingQuery::REVENUE_STOPS
+    baixas = paradas.count { |valor| valor <= EstablishmentListingQuery::LOW_REVENUE_REFERENCE }
+
+    assert_equal 0, paradas.first
+    assert_equal EstablishmentListingQuery::LOW_REVENUE_THRESHOLD, paradas.last
+    assert_equal paradas.sort.uniq, paradas, "as paradas sobem e não se repetem"
+    assert_operator baixas.fdiv(paradas.size), :>, 0.7,
+      "de 0 a R$ 30.000 tem de ocupar a maior parte do trilho"
+    assert_equal EstablishmentListingQuery::LOW_REVENUE_STEP, paradas[2] - paradas[1],
+      "na base da escala o passo continua sendo de R$ 1.000"
+  end
+
+  # A alça mostra a posição de uma parada; o filtro usa o valor. Se as duas regras divergirem,
+  # a tela desenha uma faixa e o servidor recorta outra.
+  test "valor fora das paradas cai na parada de baixo, na alça e no filtro" do
+    assert_equal 40_000, EstablishmentListingQuery.normalize_max_revenue(45_500)
+    assert_equal EstablishmentListingQuery::REVENUE_STOPS.index(40_000),
+      EstablishmentListingQuery.revenue_stop_index(45_500)
+    assert_equal EstablishmentListingQuery::REVENUE_STOPS.index(12_000),
+      EstablishmentListingQuery.revenue_stop_index(12_400)
+    assert_equal 0, EstablishmentListingQuery.revenue_stop_index(-500)
+  end
+
   # Troca o faturamento consolidado do cliente para um valor acima do corte: a planilha
   # sintética trabalha em centenas, e o corte é de dezenas de milhares.
   def acima_do_corte(cnpj, previous:, current:)

@@ -176,8 +176,8 @@ aqui; as telas 3M seguem com o rótulo em cima, como o resto da barra delas.
 ### Filtro por faixa de faturamento
 
 Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de duas alças**
-formam o filtro de faturamento. A escala vai de 0 a R$ 300.000,00 em passos de R$ 1.000
-(`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`); o dropdown diz a que
+formam o filtro de faturamento. A escala vai de 0 a R$ 300.000,00 em paradas de passo
+crescente (`EstablishmentListingQuery::REVENUE_STOPS` — ver adiante); o dropdown diz a que
 competência a faixa se aplica (`REVENUE_BASES`):
 
 | Base | O que filtra |
@@ -237,14 +237,28 @@ input inteiro é transparente ao clique (`pointer-events: none`) e só a alça o
 de baixo. O trilho e a faixa acesa são pintados à parte porque os trilhos nativos ficam
 transparentes: empilhados, apareceriam como duas linhas.
 
-**A alça dá a ordem de grandeza; o número exato se digita.** Dois campos numéricos ficam
-embaixo do trilho (pedido do usuário, 16/09/2026). A razão é medida: a escala vai a R$ 300.000
-num trilho de 273px, e **92% da carteira do mês atual está nos primeiros 10% dele** — a faixa
-de 0 a R$ 30.000 inteira ocupa 23px, menos que as duas alças de 16px somadas, então elas se
-encavalam e a faixa acesa entre as duas some. Os campos não têm `name`: quem envia o filtro
-continua sendo a alça, e o Stimulus espelha um no outro. Enquanto se digita, o campo não é
-normalizado — "12000" passa por "1", que o passo arredondaria para zero antes do segundo
-algarismo; a normalização espera o campo perder o foco.
+**A escala não é linear, e é essa a razão de ela caber.** O passo cresce com o valor —
+R$ 1.000 até 30 mil, R$ 10.000 até 100 mil, R$ 50.000 até 300 mil (`REVENUE_STOPS`, 42
+paradas). A razão é medida: 171 dos 186 clientes com faturamento no mês atual ficam até
+R$ 30.000 e **nenhum** passa de R$ 300.000; no mês anterior cheio são 200 de 263 abaixo de
+30 mil e 4 acima do topo. Com passo fixo de R$ 1.000 a faixa que esta tela audita ocupava
+**10% do trilho** — 23px, menos que as duas alças de 16px somadas, então elas se encavalavam
+e a faixa acesa entre as duas sumia. Com as paradas espaçadas ela ocupa **74%**.
+
+Três consequências de desenho, todas deliberadas:
+
+- **A alça carrega o índice da parada, não o valor.** Quem viaja no formulário é um campo
+  escondido em reais, e por isso a URL e o contrato com o servidor não mudaram. O preço:
+  sem JavaScript a alça deixa de mexer no valor — o campo escondido fica com o que o
+  servidor desenhou.
+- **As marcas ficam na posição real da parada.** Igualmente espaçadas elas mentiriam:
+  R$ 30.000 fica a 73% do trilho, não a 25%.
+- **A faixa acesa acompanha a posição, não o valor.** É o índice que diz onde a alça está.
+
+**O painel tem a largura do gatilho** (pedido do usuário, 16/09/2026), e a pílula tem largura
+fixa de 28rem em vez de acompanhar o texto: o resumo muda de comprimento enquanto a alça
+anda, e o painel aberto ficaria mudando de largura junto. De quebra, o trilho passou de 273px
+para 417px.
 
 Duas armadilhas do empilhamento, ambas no `revenue_filter_controller.js`:
 
