@@ -56,6 +56,21 @@ module ImportBatchesHelper
     "dados de #{date.strftime('%d/%m')}"
   end
 
+  # A dica do selo do cabeçalho. Ela não nomeia master nenhum: o selo é geral, e quem está
+  # defasado se descobre na tela de importação (decisão do usuário, 16/09/2026).
+  def file_status_hint(freshness)
+    return "Importe o primeiro arquivo BIN para começar." unless freshness.any_file?
+
+    atrasados = freshness.stale_entries.size
+    if atrasados.zero?
+      return "Arquivo e dados dentro do esperado. O alerta começa em " \
+        "#{ImportBatch::STALE_AFTER_DAYS} dias."
+    end
+
+    "#{pluralize(atrasados, 'master', 'masters')} com dados desatualizados. " \
+      "Veja quais na tela de importação."
+  end
+
   def last_file_headline(days)
     return "Nunca" if days.nil?
     return "Hoje" if days.zero?

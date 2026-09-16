@@ -48,6 +48,10 @@ class FileFreshness
 
   def any_file? = entries.any? { |entry| entry.received_at.present? }
 
+  # Os masters fora da janela, em qualquer um dos dois sinais. É o que a tela de importação
+  # lista: o selo do topo diz que há defasagem, e aqui se descobre de quem é.
+  def stale_entries = entries.select { |entry| entry.received_stale? || entry.covered_stale? }
+
   private
 
   # O dia coberto é dia do mês; a data sai da competência mais o deslocamento.

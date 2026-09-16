@@ -348,28 +348,30 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   # O selo diz duas coisas, e não uma: quando o último arquivo chegou e até que dia o
   # faturamento dele vai. Tratar um pelo outro enganava — em 16/09/2026 ele dizia "Arquivo há
   # 2 dias" em verde porque o arquivo mais novo da carteira era o do canal cujos dados param
-  # em agosto. O segundo bloco abaixo é exatamente esse caso.
+  # em agosto. O último bloco abaixo é exatamente esse caso.
+  #
+  # Ele é geral de propósito (decisão do usuário, 16/09/2026): não nomeia master, porque um
+  # master defasado defasa a leitura da base inteira. Quem está defasado é assunto da tela de
+  # importação, para onde o selo aponta.
   #
   # As datas são fixadas: a planilha sintética cobre até 10/08/2026, e sem travar o dia o sinal
   # dos dados envelheceria sozinho — o teste passaria a falhar pelo calendário, não pelo código.
-  test "cabeçalho mostra a idade do arquivo e a dos dados, canal a canal" do
+  test "cabeçalho mostra a idade do arquivo e a dos dados, sem nomear master" do
     get reports_path
 
-    assert_select "details.header-status[data-tone=rose]", text: /sem arquivo/
-    assert_select "details.header-status", text: /sem dados/
+    assert_select "a.header-status[data-tone=rose][href=?]", import_batches_path,
+      text: /sem arquivo/
+    assert_select "a.header-status", text: /sem dados/
 
     travel_to(Date.new(2026, 8, 12)) { import_synthetic_workbook }
 
     travel_to Date.new(2026, 8, 12) do
       get reports_path
 
-      assert_select "details.header-status[data-tone=green] .header-status__signal", count: 2
+      assert_select "a.header-status[data-tone=green] .header-status__signal", count: 2
       assert_select ".header-status__signal[data-tone=green]", text: /hoje/
       assert_select ".header-status__signal[data-tone=green]", text: %r{dados de 10/08}
-      # O painel quebra por canal, com os dois sinais de cada um.
-      assert_select ".header-status__channel", count: 1
-      assert_select ".header-status__channel .header-status__line", count: 2
-      assert_select ".header-status__panel a[href=?]", import_batches_path
+      assert_select ".header-status", text: /CANAL TESTE/, count: 0
     end
 
     # Onze dias depois: o arquivo ainda está dentro da janela, mas os dados dele já passaram
@@ -377,7 +379,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     travel_to Date.new(2026, 8, 23) do
       get reports_path
 
-      assert_select "details.header-status[data-tone=rose]"
+      assert_select "a.header-status[data-tone=rose]"
       assert_select ".header-status__signal[data-tone=green]", text: /há 11 dias/
       assert_select ".header-status__signal[data-tone=rose]", text: %r{dados de 10/08}
     end

@@ -85,12 +85,16 @@ Três decisões:
 - **O que o selo escreve é o pior de cada sinal**, nunca o mais recente (`FileFreshness`). É a
   mesma regra do corte de período em `ReportScope#cutoff_day`: o observado não superestima a
   cobertura.
-- **A quebra por canal mora num painel**, com os canais lado a lado — a pergunta que ele
-  responde é "qual deles está atrasado", e isso se lê comparando. É um `<details>` nativo:
-  abre no clique e no teclado, e funciona sem JavaScript. O link para importar mora dentro
-  dele, já que o selo deixou de ser link.
-- **O badge do menu lateral usa a mesma instância**, então a consulta roda uma vez por página
-  e os dois números nunca divergem (`test/controllers/metabase_controller_test.rb` guarda isso).
+- **O selo é geral e não nomeia master** (decisão do usuário, 16/09/2026). Um master defasado
+  defasa a leitura da base inteira, porque as telas comparam os canais entre si — o alerta é
+  da base, não de um nome. O selo segue sendo link para a tela de importação.
+- **A quebra por master mora na tela de importação**, num painel que abre com a manchete
+  ("1 master com dados desatualizados" ou "Todos os masters em dia") e lista os defasados
+  primeiro, com a data dos dados e a idade do arquivo de cada um. É lá que a pergunta "quem
+  está atrasado" é feita.
+- **O badge do menu lateral usa a mesma instância** (`ApplicationController#file_freshness`),
+  então a consulta roda uma vez por requisição e os dois números nunca divergem
+  (`test/controllers/metabase_controller_test.rb` guarda isso).
 
 Duas armadilhas que o serviço fixa em teste:
 

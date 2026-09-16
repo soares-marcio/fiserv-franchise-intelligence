@@ -12,6 +12,32 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     assert_select "td", text: /#{batch.source_filename}/
   end
 
+  # A quebra por master mora aqui, e não no selo do cabeçalho (decisão do usuário,
+  # 16/09/2026). Os defasados vêm primeiro: a pergunta que traz alguém a esta tela é quem
+  # está atrasado.
+  test "diz quais masters estão com dados desatualizados" do
+    travel_to(Date.new(2026, 8, 12)) { import_synthetic_workbook }
+
+    travel_to Date.new(2026, 8, 23) do
+      get import_batches_path
+
+      assert_response :success
+      assert_select ".coverage-panel[data-tone=rose] .table-title",
+        text: /1 master com dados desatualizados/
+      assert_select ".coverage-panel__item[data-tone=rose] .coverage-panel__name",
+        text: "CANAL TESTE"
+      assert_select ".coverage-panel__facts [data-tone=rose]", text: %r{Dados de 10/08}
+      assert_select ".coverage-panel__facts [data-tone=green]", text: /Arquivo há 11 dias/
+    end
+
+    travel_to Date.new(2026, 8, 12) do
+      get import_batches_path
+
+      assert_select ".coverage-panel[data-tone=green] .table-title",
+        text: /Todos os masters em dia/
+    end
+  end
+
   test "mostra um lote pela uuid pública" do
     batch = import_synthetic_workbook
 
