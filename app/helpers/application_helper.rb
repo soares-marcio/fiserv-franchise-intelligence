@@ -107,17 +107,6 @@ module ApplicationHelper
     end
   end
 
-  # Sinal operacional presente em toda página: há quanto tempo a carteira recebeu arquivo.
-  def header_file_status
-    days = ImportBatch.days_since_last_file
-    stale = days.nil? || days >= ImportBatch::STALE_AFTER_DAYS
-    label = days.nil? ? "Sem arquivo importado" : "Arquivo #{last_file_headline(days).downcase}"
-    link_to import_batches_path, class: "header-status", title: last_file_hint(days),
-      data: { tone: stale ? "rose" : "green" } do
-      safe_join([ tag.span(class: "status-dot", aria: { hidden: true }), label ], " ")
-    end
-  end
-
   def render_breadcrumbs
     content_tag(:nav, class: "breadcrumb-wrap", aria: { label: "Trilha de navegação" }) do
       content_tag(:ol, class: "breadcrumb-list") do

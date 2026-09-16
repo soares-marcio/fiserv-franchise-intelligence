@@ -43,10 +43,10 @@ class LayoutFileAgeTest < ActionDispatch::IntegrationTest
   include ActiveRecord::Assertions::QueryAssertions
 
   test "a idade do último arquivo é consultada uma vez por página" do
-    assert_queries_match(/MAX\("import_batches"\."created_at"\)/, count: 1) { get metabase_path }
+    assert_queries_match(/MAX\(batch\.created_at\)/, count: 1) { get metabase_path }
 
     assert_response :success
     assert_select ".nav-badge", text: "Nunca"
-    assert_select ".header-status", text: /Sem arquivo importado/
+    assert_select ".header-status", text: /sem arquivo/
   end
 end

@@ -1,0 +1,50 @@
+<%# Sinal operacional presente em toda página. São dois fatos, e não um: quando o último
+    arquivo chegou e até que dia o faturamento dele vai. Tratar um pelo outro já enganou —
+    em 16/09/2026 o selo dizia "Arquivo há 2 dias" em verde porque o arquivo mais novo era o
+    do canal cujos dados param em 26 de agosto.
+
+    O que o selo escreve é o pior de cada sinal; a quebra por canal mora no painel, que é um
+    <details> nativo: abre no clique e no teclado, e funciona sem JavaScript. %>
+<details class="header-status"
+  data-tone="<%= freshness.received_stale? || freshness.covered_stale? ? "rose" : "green" %>">
+  <summary class="header-status__trigger" aria-label="Idade dos arquivos e dos dados">
+    <span class="header-status__signal"
+      data-tone="<%= freshness.received_stale? ? "rose" : "green" %>">
+      <span class="status-dot" aria-hidden="true"></span>
+      <%= file_age_label(freshness.received_days) %>
+    </span>
+    <span class="header-status__signal"
+      data-tone="<%= freshness.covered_stale? ? "rose" : "green" %>">
+      <span class="status-dot" aria-hidden="true"></span>
+      <%= coverage_label(freshness.covered_on) %>
+    </span>
+    <%= icon("caret-down", css: "header-status__caret") %>
+  </summary>
+  <div class="header-status__panel">
+    <%# Canais lado a lado (pedido do usuário, 16/09/2026): a pergunta que o painel responde é
+        "qual deles está atrasado", e isso se lê comparando, não rolando. %>
+    <% if freshness.entries.empty? %>
+      <p class="header-status__line">Nenhum arquivo importado ainda.</p>
+    <% end %>
+    <div class="header-status__channels">
+      <% freshness.entries.each do |entry| %>
+        <section class="header-status__channel">
+          <p class="header-status__name"><%= entry.name %></p>
+          <p class="header-status__line" data-tone="<%= entry.received_stale? ? "rose" : "green" %>">
+            <span class="status-dot" aria-hidden="true"></span>
+            Arquivo <%= file_age_label(entry.received_days) %>
+          </p>
+          <p class="header-status__line" data-tone="<%= entry.covered_stale? ? "rose" : "green" %>">
+            <span class="status-dot" aria-hidden="true"></span>
+            <%= coverage_label(entry.covered_on).capitalize %>
+          </p>
+        </section>
+      <% end %>
+    </div>
+    <p class="header-status__hint">
+      O alerta começa em <%= ImportBatch::STALE_AFTER_DAYS %> dias, para os dois sinais.
+    </p>
+    <%= link_to icon_label("upload-simple", "Importar arquivo"), import_batches_path,
+      class: "btn btn-sm header-status__action" %>
+  </div>
+</details>
