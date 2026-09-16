@@ -28,6 +28,35 @@ module EstablishmentsHelper
   ].freeze
   REVENUE_BASIS_LABELS = { "atual" => "Mês atual", "anterior" => "Mês anterior cheio" }.freeze
 
+  # O recorte por extenso, no gatilho da pílula. É o texto mais longo da barra, então vai
+  # compacto: sem centavos (o passo do slider é de R$ 1.000 — os centavos são sempre zero e
+  # não informam nada) e com um traço no lugar do segundo "R$". Por extenso e com centavos,
+  # medido, são 396px de texto para uma caixa de 301px: o teto sumia nas reticências.
+  #
+  # O revenue_filter_controller.js repete esta regra para reescrever o texto enquanto a alça
+  # anda. Mudou aqui, muda lá — senão o rótulo troca de forma quando o JavaScript carrega.
+  def revenue_summary(basis, min, max)
+    return "qualquer" if basis.blank?
+
+    rotulo = REVENUE_BASIS_LABELS.fetch(basis).downcase
+    teto = max || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+    return "#{rotulo} · até #{brl_round(teto)}" unless min.to_i.positive?
+
+    "#{rotulo} · #{brl_round(min)}–#{number_with_delimiter(teto, delimiter: ".")}"
+  end
+
+  # Valor redondo, sem centavos: só no resumo da pílula, onde a largura manda. O espaço não
+  # separável é o mesmo do brl, para o valor nunca quebrar em duas linhas.
+  def brl_round(amount)
+    number_to_currency(amount.to_d, unit: "R$", separator: ",", delimiter: ".",
+      precision: 0, format: "%u %n")
+  end
+
+  # As duas pontas no painel, onde há largura para as duas sempre — diferente do gatilho.
+  def revenue_range_label(min, max)
+    "#{brl(min || 0)} a #{brl(max || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD)}"
+  end
+
   DATE_KIND_OPTIONS = [
     [ "credenciamento", "Credenciamento" ],
     [ "ativacao", "Ativação" ],

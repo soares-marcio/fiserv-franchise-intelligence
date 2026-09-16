@@ -26,15 +26,15 @@ class EstablishmentListingQuery
     "suspensao" => "suspended_on"
   }.freeze
   # Topo da escala do filtro de faturamento e referência da contagem (pedido do usuário,
-  # 14/09/2026; virou filtro em 15/09 e foi a R$ 300 mil no mesmo dia). O usuário escolhe um
-  # teto de 0 até aqui e a listagem mostra quem ficou **até** esse valor no **mês atual** —
-  # inclusive, como "até" se lê em português. Sem escolha, a escala fica no topo e nada é
-  # filtrado: o bloco então conta pela referência.
+  # 14/09/2026; virou filtro em 15/09 e ganhou a segunda alça no mesmo dia). O usuário escolhe
+  # um piso e um teto dentro desta escala e a listagem mostra quem ficou **entre** os dois na
+  # competência escolhida — inclusive nas duas pontas, como "de … até" se lê em português. Sem
+  # escolha, a escala fica inteira e nada é filtrado: o bloco então conta pela referência.
   LOW_REVENUE_THRESHOLD = 300_000
   # Passo do slider: R$ 1.000 dá 300 posições na escala. Com passo maior a ponta baixa da
   # escala — onde mora a pergunta "quem está fraco?" — ficaria com meia dúzia de paradas.
   LOW_REVENUE_STEP = 1_000
-  # Base do teto: qual competência o filtro olha. "Todas" é o estado desligado — a escolha do
+  # Base da faixa: qual competência o filtro olha. "Todas" é o estado desligado — a escolha do
   # usuário (15/09/2026) por um jeito explícito de voltar à tela sem filtro, no lugar da regra
   # implícita que o topo da escala carregava. Lista fechada porque o valor vira nome de coluna.
   REVENUE_BASES = {
@@ -42,7 +42,7 @@ class EstablishmentListingQuery
     "anterior" => "previous_full_revenue"
   }.freeze
 
-  # Referência do bloco quando **não** há teto escolhido. Não é o topo da escala: com a escala
+  # Referência do bloco quando **não** há faixa escolhida. Não é o topo da escala: com a escala
   # em R$ 300 mil, contar "quem está abaixo do topo" devolve a carteira inteira — na carteira
   # real, 35 de 35, que é verdade e não informa nada. R$ 30 mil é o corte que o usuário pediu
   # em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.
@@ -80,7 +80,7 @@ class EstablishmentListingQuery
 
   def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
     from_date: nil, to_date: nil, query: nil, variation: nil, sort: nil, direction: nil,
-    max_revenue: nil, revenue_basis: nil, page: 1, per_page: nil)
+    min_revenue: nil, max_revenue: nil, revenue_basis: nil, page: 1, per_page: nil)
     @channel_id = channel_id
     @sub_channel_id = sub_channel_id
     @window = window
@@ -90,7 +90,7 @@ class EstablishmentListingQuery
     @to_date = parse_date(to_date)
     @from_date, @to_date = @to_date, @from_date if inverted_range?
     @query = query.to_s.strip
-    @max_revenue = self.class.normalize_max_revenue(max_revenue)
+    @min_revenue, @max_revenue = self.class.normalize_revenue_bounds(min_revenue, max_revenue)
     @revenue_basis = self.class.normalize_revenue_basis(revenue_basis)
     @variation = variation.to_s.presence_in(VARIATION_CLAUSES.keys)
     @order = self.class.listing_sort(column: sort, direction:)
@@ -111,11 +111,28 @@ class EstablishmentListingQuery
     teto - (teto % LOW_REVENUE_STEP)
   end
 
+  # As duas alças de uma vez: cada uma presa à escala e ao passo, e as duas em ordem. Podem
+  # chegar trocadas — na URL escrita à mão, ou no instante em que uma atravessa a outra —, e
+  # vale a mesma regra do intervalo de datas: troca e segue.
+  #
+  # A tela chama isto para desenhar as alças e a consulta para filtrar. Se só uma das duas
+  # ordenasse, o painel anunciaria uma faixa e a tabela listaria outra.
+  def self.normalize_revenue_bounds(min, max)
+    bounds = [ normalize_max_revenue(min), normalize_max_revenue(max) ]
+    bounds.all? ? bounds.sort : bounds
+  end
+
   # Teto que a contagem do bloco usa: o escolhido quando o filtro está ligado, a referência
   # quando não está. Sai daqui e vai para a tela junto das contagens, em vez de ser recalculado
   # lá — as duas pontas divergiram uma vez, e o bloco anunciava uma faixa que não era a contada.
   def low_revenue_ceiling
     (@revenue_basis && @max_revenue) || LOW_REVENUE_REFERENCE
+  end
+
+  # Piso da mesma contagem. Zero quando não há alça de baixo escolhida, que é o que o bloco já
+  # escrevia no título antes de o piso existir.
+  def low_revenue_floor
+    (@revenue_basis && @min_revenue) || 0
   end
 
   # Base válida ou nada. "Todas", vazio e qualquer coisa fora da lista caem em nada, que é o
@@ -163,7 +180,8 @@ class EstablishmentListingQuery
     @binds ||= begin
       values = @window.to_binds.merge(
         channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses,
-        low_revenue: low_revenue_ceiling, max_revenue: @max_revenue
+        low_revenue: low_revenue_ceiling, low_revenue_floor: low_revenue_floor,
+        min_revenue: @min_revenue, max_revenue: @max_revenue
       )
       values.merge!(from_date: @from_date, to_date: @to_date) if lifecycle_filter?
       values.merge(search_binds)
@@ -211,6 +229,7 @@ class EstablishmentListingQuery
       low_revenue_counts: {
         previous_full: row["previous_low_count"].to_i,
         current: row["current_low_count"].to_i,
+        floor: low_revenue_floor,
         ceiling: low_revenue_ceiling
       },
       overall_totals: @variation && {
@@ -239,6 +258,15 @@ class EstablishmentListingQuery
   # Abas, status e paginação contam a mesma coisa desde que a linha passou a ser o cliente:
   # COUNT(*) sobre a listagem agrupada é o número de CNPJs. Antes eram duas contagens
   # diferentes na mesma consulta — linhas para paginar, CNPJs distintos para rotular.
+  # A faixa que o bloco conta, para uma competência. É a mesma que a tabela lista quando o
+  # filtro está ligado — foi o que o usuário pediu em 15/09/2026, para o bloco não anunciar um
+  # número maior que a tabela ao lado dele. Com o filtro desligado, sobra o teto de referência.
+  def band_predicate(column)
+    conditions = [ "#{column} <= :low_revenue" ]
+    conditions << "#{column} >= :low_revenue_floor" if low_revenue_floor.positive?
+    conditions.join(" AND ")
+  end
+
   def summary_sql
     ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
       SELECT COUNT(*) FILTER (WHERE #{tab_clause}) AS total_count,
@@ -249,10 +277,10 @@ class EstablishmentListingQuery
           WHERE (#{tab_clause}) AND contract_status = 'Active'
         ) AS active_count,
         COUNT(*) FILTER (
-          WHERE (#{tab_clause}) AND previous_full_revenue <= :low_revenue
+          WHERE (#{tab_clause}) AND #{band_predicate('previous_full_revenue')}
         ) AS previous_low_count,
         COUNT(*) FILTER (
-          WHERE (#{tab_clause}) AND current_revenue <= :low_revenue
+          WHERE (#{tab_clause}) AND #{band_predicate('current_revenue')}
         ) AS current_low_count,
         COUNT(*) AS todas,
         COUNT(*) FILTER (WHERE #{VARIATION_CLAUSES['alta']}) AS alta,
@@ -422,7 +450,7 @@ class EstablishmentListingQuery
   # dono dele, e o EC não está mais na tela para ser comparado como agregado.
   def having_clause
     conditions = [ status_condition, lifecycle_condition, search_condition,
-      max_revenue_condition ].compact
+      revenue_condition ].compact
     return "" if conditions.empty?
 
     "HAVING #{conditions.join(' AND ')}"
@@ -432,13 +460,21 @@ class EstablishmentListingQuery
     "#{CLIENT_STATUS} IN (:statuses)" if @statuses.any?
   end
 
-  # Quem manda é a base escolhida na tela: sem ela não há filtro nenhum, com ela o teto vale
+  # Quem manda é a base escolhida na tela: sem ela não há filtro nenhum, com ela a faixa vale
   # para aquela competência. A soma se repete aqui porque HAVING não enxerga o apelido do
   # SELECT, a mesma razão das outras condições desta lista.
-  def max_revenue_condition
-    return if @revenue_basis.nil? || @max_revenue.nil?
+  #
+  # O piso em zero não corta: é o fundo da escala, e "de R$ 0,00" quer dizer "sem piso". Um
+  # `>= 0` literal tiraria da lista quem fechou o mês negativo por estorno — a base real tem
+  # um lançamento de −R$ 15.891,74, e nenhum cliente fecha o mês no negativo hoje, mas pode.
+  def revenue_condition
+    return if @revenue_basis.nil?
 
-    "SUM(#{REVENUE_BASES.fetch(@revenue_basis)}) <= :max_revenue"
+    total = "SUM(#{REVENUE_BASES.fetch(@revenue_basis)})"
+    limits = []
+    limits << "#{total} >= :min_revenue" if @min_revenue&.positive?
+    limits << "#{total} <= :max_revenue" if @max_revenue
+    limits.join(" AND ").presence
   end
 
   def lifecycle_condition

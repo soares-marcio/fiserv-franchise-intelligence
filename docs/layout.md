@@ -161,7 +161,7 @@ O que a barra é agora:
 - **Fileira que quebra sozinha** (`display: flex; flex-wrap: wrap`), no lugar da grade: cada
   pílula tem a largura do próprio conteúdo, e nenhum campo novo pede recálculo de colunas.
 - **O faturamento é pílula com painel** (`revenue_filter_controller.js`): o gatilho resume o
-  recorte e o painel guarda a competência e a alça. Era o único controle com dois campos à
+  recorte e o painel guarda a competência e as duas alças. Era o único controle com dois campos à
   mostra, e era ele que obrigava a barra a ter duas alturas.
 - **O valor marcado é texto, não caixinha** (`.filter-pill__tag`): caixa com borda dentro de
   caixa com borda vira ruído. O `×` de cada valor continua, com alvo de toque de 44px.
@@ -172,24 +172,24 @@ aqui; as telas 3M seguem com o rótulo em cima, como o resto da barra delas.
 
 ### Filtro por faixa de faturamento
 
-Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de uma alça**
-formam o filtro de faturamento. O slider vai de 0 a R$ 300.000,00 em passos de R$ 1.000
+Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de duas alças**
+formam o filtro de faturamento. A escala vai de 0 a R$ 300.000,00 em passos de R$ 1.000
 (`EstablishmentListingQuery::LOW_REVENUE_THRESHOLD` e `LOW_REVENUE_STEP`); o dropdown diz a que
-competência o teto se aplica (`REVENUE_BASES`):
+competência a faixa se aplica (`REVENUE_BASES`):
 
 | Base | O que filtra |
 | --- | --- |
 | **Todas** (padrão) | nada — é o estado desligado |
-| **Mês atual** | `mês atual ≤ teto` |
-| **Mês anterior cheio** | `mês anterior cheio ≤ teto` |
+| **Mês atual** | `piso ≤ mês atual ≤ teto` |
+| **Mês anterior cheio** | `piso ≤ mês anterior cheio ≤ teto` |
 
 **Quem liga e desliga o filtro é a base, não o valor** (decisão do usuário, 15/09/2026). Antes
 o desligado era implícito — o topo da escala significava "sem teto", porque um
 `input[type=range]` sempre envia valor. Com o dropdown o desligado ficou explícito, o topo da
-escala voltou a significar R$ 300.000,00 e nada mais, e a alça fica apagada enquanto a base
-está em "Todas".
+escala voltou a significar R$ 300.000,00 e nada mais, e as alças ficam apagadas enquanto a
+base está em "Todas".
 
-Quatro decisões, cada uma com um porquê:
+Cinco decisões, cada uma com um porquê:
 
 - **Zero é escolha, e não ausência dela.** Teto zero responde "quem não faturou nada", que é
   uma pergunta legítima desta tela; por isso a ausência se testa por `blank?`, e não por
@@ -200,8 +200,11 @@ Quatro decisões, cada uma com um porquê:
   já faturaram no mês em curso mais do que no mês fechado inteiro. Com teto de R$ 12.000 num
   MIC de 35 clientes, "mês atual" devolve 26 e "mês anterior cheio" devolve 9: são perguntas
   diferentes.
-- **"Até" inclui o próprio valor.** A contagem anterior era estritamente abaixo; com o slider,
-  "até R$ 5.000" lê como ≤, e a dica da tela escreve isso.
+- **A faixa inclui as duas pontas.** A contagem anterior era estritamente abaixo; com o
+  slider, "de R$ 1.000 até R$ 5.000" lê como ≥ e ≤, e a dica da tela escreve isso.
+- **O piso em zero não corta.** É o fundo da escala, e "de R$ 0,00" quer dizer "sem piso". Um
+  `>= 0` literal tiraria da lista quem fechasse o mês negativo por estorno — a base real tem um
+  lançamento de −R$ 15.891,74, e nenhum cliente fecha o mês no negativo hoje, mas pode.
 - **O filtro mora no `HAVING`**, como os outros desta tela: no `WHERE` antes do `GROUP BY`, o
   cliente com três ECs em que só um cabe no teto apareceria com a soma de um — faturamento
   errado e calado.
@@ -211,18 +214,38 @@ mês atual). Elas são independentes — o mesmo cliente costuma estar nas duas 
 são somadas. Com o filtro ligado, a contagem da competência escolhida coincide com a da tabela,
 porque é por ela que o recorte acontece; quem informa aí é a outra.
 
-**O teto que o bloco anuncia vem da consulta** (`low_revenue_counts[:ceiling]`), e não é
-recalculado na tela: as duas pontas divergiram uma vez — com o filtro desligado e um teto na
-URL, o bloco anunciava R$ 12.000 enquanto as contagens usavam a referência.
+**O bloco conta a faixa, e não só o teto** (decisão do usuário, 15/09/2026). Medido no MIC
+GOIANIA 4: com teto de R$ 50.000 no mês atual são 137 clientes, e com piso de R$ 10.000 junto
+são 21 — se o bloco ignorasse o piso, estamparia 137 ao lado de uma tabela de 21 linhas.
+
+**As duas pontas que o bloco anuncia vêm da consulta** (`low_revenue_counts[:floor]` e
+`[:ceiling]`), e não são recalculadas na tela: elas divergiram uma vez — com o filtro desligado
+e um teto na URL, o bloco anunciava R$ 12.000 enquanto as contagens usavam a referência.
 
 **Com o filtro desligado o bloco conta pela referência, e não pelo topo da escala**
 (`LOW_REVENUE_REFERENCE`, R$ 30.000,00): com a escala em R$ 300 mil, "abaixo do topo" devolve a
 carteira inteira — 35 de 35, medido —, que é verdade e não informa nada. R$ 30 mil é o corte que
 o usuário pediu em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.
 
-Sem JavaScript o slider continua funcionando: é um campo comum e o formulário o envia igual —
-o que o Stimulus faz é só mostrar o valor antes de aplicar o filtro, no mesmo formato do `brl`
-do servidor.
+**Duas alças são dois `input[type=range]` empilhados** — não existe range de duas alças em
+HTML, e nenhum navegador implementa. Os dois ficam no mesmo lugar (`position: absolute`), o
+input inteiro é transparente ao clique (`pointer-events: none`) e só a alça o recebe de volta
+(`::-webkit-slider-thumb` e `::-moz-range-thumb`); sem isso o input de cima cobriria a alça do
+de baixo. O trilho e a faixa acesa são pintados à parte porque os trilhos nativos ficam
+transparentes: empilhados, apareceriam como duas linhas.
+
+Duas armadilhas do empilhamento, ambas no `revenue_filter_controller.js`:
+
+- **As alças não se atravessam**: a que o usuário move para no valor da outra.
+- **Juntas no mesmo ponto, uma cobre a outra**, e a de cima tem que ser a que ainda tem para
+  onde ir — no topo da escala é o piso, porque o teto já não sobe. Sem essa troca de
+  `z-index` o controle trava no fim da escala.
+
+Sem JavaScript as alças continuam funcionando: são campos comuns e o formulário os envia igual
+— o que o Stimulus faz é mostrar o valor e desenhar a faixa antes de o filtro ser aplicado, no
+mesmo formato do `brl` do servidor. No gatilho o resumo vai compacto (`revenue_summary`): sem
+centavos, que com passo de R$ 1.000 são sempre zero, e com um traço no lugar do segundo "R$" —
+por extenso são 396px de texto para uma caixa de 301px, e o teto sumia nas reticências.
 
 ### Paginação
 

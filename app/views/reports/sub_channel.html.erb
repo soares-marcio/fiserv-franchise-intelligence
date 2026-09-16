@@ -165,10 +165,10 @@
         <%= render "reports/date_range_picker", label: "Período",
           from_date: @from_date, to_date: @to_date, open_on: nil, pill: true %>
 
-        <%# O faturamento também é uma pílula: a base e a alça moram no painel, e o gatilho
+        <%# O faturamento também é uma pílula: a base e as alças moram no painel, e o gatilho
             diz o recorte por extenso. Sem isso ele seria o único controle da barra com dois
             campos à mostra, e a linha voltaria a ter duas alturas. %>
-        <div class="filter-pill" data-controller="revenue-filter">
+        <div class="filter-pill filter-pill--revenue" data-controller="revenue-filter">
           <button type="button" id="revenue_filter_trigger" class="filter-pill__trigger"
             data-revenue-filter-target="trigger" aria-haspopup="dialog" aria-expanded="false"
             aria-controls="revenue_filter_panel"
@@ -176,7 +176,7 @@
             <span class="filter-pill__label">Faturamento</span>
             <span class="filter-pill__value <%= "filter-pill__value--empty" if @revenue_basis.nil? %>"
               data-revenue-filter-target="summary">
-              <%= @revenue_basis ? "#{EstablishmentsHelper::REVENUE_BASIS_LABELS.fetch(@revenue_basis).downcase} até #{brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD)}" : "qualquer" %>
+              <%= revenue_summary(@revenue_basis, @min_revenue, @max_revenue) %>
             </span>
             <%= icon("caret-down", css: "filter-pill__caret") %>
           </button>
@@ -189,21 +189,38 @@
               id: "revenue_basis", class: "select select-bordered filter-pill__select",
               data: { revenue_filter_target: "basis", action: "change->revenue-filter#sync" } %>
             <div class="filter-pill__panel-head">
-              <label class="filter-pill__panel-label" for="max_revenue">Até</label>
-              <output id="max_revenue_value" class="filter-pill__amount"
+              <span class="filter-pill__panel-label">Faixa</span>
+              <output id="revenue_range_value" class="filter-pill__amount"
                 data-revenue-filter-target="value">
-                <%= @revenue_basis ? brl(@max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD) : "sem filtro" %>
+                <%= @revenue_basis ? revenue_range_label(@min_revenue, @max_revenue) : "sem filtro" %>
               </output>
             </div>
-            <%= range_field_tag :max_revenue,
-              @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-              min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
-              step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "max_revenue",
-              class: "revenue-range__input", aria: { describedby: "max_revenue_value" },
-              data: { revenue_filter_target: "input", action: "input->revenue-filter#sync" } %>
+            <%# Duas alças são dois campos nativos sobrepostos: não existe range de duas alças
+                em HTML. Cada um continua sendo um campo comum — o formulário os envia igual, e
+                o teclado anda neles sem JavaScript. O trilho e a faixa acesa são pintados aqui
+                porque os trilhos nativos ficam transparentes no CSS: dois trilhos empilhados
+                apareceriam como duas linhas. %>
+            <div class="revenue-range">
+              <span class="revenue-range__track" aria-hidden="true"></span>
+              <span class="revenue-range__band" data-revenue-filter-target="band"
+                aria-hidden="true"></span>
+              <%= range_field_tag :min_revenue, @min_revenue || 0,
+                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+                step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "min_revenue",
+                class: "revenue-range__input", aria: { label: "Faturamento mínimo",
+                  describedby: "revenue_range_value" },
+                data: { revenue_filter_target: "min", action: "input->revenue-filter#sync" } %>
+              <%= range_field_tag :max_revenue,
+                @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+                step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "max_revenue",
+                class: "revenue-range__input", aria: { label: "Faturamento máximo",
+                  describedby: "revenue_range_value" },
+                data: { revenue_filter_target: "max", action: "input->revenue-filter#sync" } %>
+            </div>
             <p class="filter-pill__hint">
-              "Todas" não filtra. O valor entra inteiro: até <%= brl(0) %> mostra quem não
-              faturou nada.
+              "Todas" não filtra. A faixa entra inteira, com as duas pontas: até <%= brl(0) %>
+              mostra quem não faturou nada.
             </p>
           </div>
         </div>
@@ -274,28 +291,33 @@
         <p class="section-label">Desempenho por estabelecimento</p>
         <h2 class="table-title"><%= @sub_channel.name %></h2>
       </div>
-      <%# Quantos clientes do recorte ficaram abaixo do corte em cada competência, com o
+      <%# Quantos clientes do recorte caíram dentro da faixa em cada competência, com o
           destaque que o usuário pediu: bloco próprio entre o título e a paginação, e não uma
           miudeza na linha de contagens. São duas contagens independentes — o mesmo cliente
           costuma estar nas duas —, e por isso a tela nunca as soma. O mês atual é parcial, e
-          a dica diz isso: no mês em curso o número cai conforme o arquivo avança. %>
+          a dica diz isso: no mês em curso o número cai conforme o arquivo avança.
+
+          A faixa é a mesma que o filtro aplica, piso inclusive (decisão do usuário,
+          15/09/2026): antes o bloco só sabia contar até o teto, e com um piso escolhido ele
+          anunciaria um número maior que o da tabela ao lado. %>
       <% baixos = @listing.low_revenue_counts %>
       <% if @total_count.to_i.positive? && baixos.present? %>
         <%# O teto vem da consulta, e não recalculado aqui: as duas pontas já divergiram uma
             vez — o bloco anunciava uma faixa diferente da que as contagens usavam. %>
         <% corte = brl(baixos[:ceiling]) %>
+        <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado usa
+            espaços diferentes e desalinha a leitura. %>
+        <% piso = brl(baixos[:floor]) %>
         <div class="low-revenue" data-tone="gold">
-          <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado
-              usa espaços diferentes e desalinha a leitura. %>
-          <p class="section-label">Entre <%= brl(0) %> e <%= corte %></p>
+          <p class="section-label">Entre <%= piso %> e <%= corte %></p>
           <div class="low-revenue__numbers">
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Clientes cujo faturamento do mês anterior cheio ficou até <%= corte %>, incluindo o próprio valor. O filtro da barra não olha esta competência: ele recorta pelo mês atual.">
+              data-tip="Clientes cujo faturamento do mês anterior cheio ficou entre <%= piso %> e <%= corte %>, incluindo o próprio valor nas duas pontas.">
               <strong><%= baixos[:previous_full].to_i %></strong>
               <span class="low-revenue__label">mês anterior cheio</span>
             </span>
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número muda conforme o mês avança. É por esta competência que o filtro da barra recorta.">
+              data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número muda conforme o mês avança.">
               <strong><%= baixos[:current].to_i %></strong>
               <span class="low-revenue__label">mês atual</span>
             </span>

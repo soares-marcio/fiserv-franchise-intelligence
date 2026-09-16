@@ -145,9 +145,11 @@ class ReportsController < ApplicationController
     @from_date = parse_filter_date(params[:from_date])
     @to_date = parse_filter_date(params[:to_date])
     @query = params[:q].to_s.strip
-    # O teto do faturamento vem do slider e é normalizado pela própria consulta: a barra
+    # A faixa de faturamento vem das duas alças e é normalizada pela própria consulta: a barra
     # precisa mostrar a mesma coisa que o filtro aplica.
-    @max_revenue = EstablishmentListingQuery.normalize_max_revenue(params[:max_revenue])
+    @min_revenue, @max_revenue = EstablishmentListingQuery.normalize_revenue_bounds(
+      params[:min_revenue], params[:max_revenue]
+    )
     @revenue_basis = EstablishmentListingQuery.normalize_revenue_basis(params[:revenue_basis])
     # A tela precisa saber a ordem efetiva, não só a pedida: sem isso o cabeçalho não marca
     # a coluna que está ordenando quando o usuário não escolheu nenhuma.
@@ -281,7 +283,7 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       query: @query,
-      max_revenue: @max_revenue,
+      min_revenue: @min_revenue, max_revenue: @max_revenue,
       revenue_basis: @revenue_basis,
       sort: @sort,
       direction: @direction,
@@ -378,8 +380,8 @@ class ReportsController < ApplicationController
       statuses: @selected_statuses, period: params[:period],
       from_day: params[:from_day], to_day: params[:to_day],
       date_kinds: @selected_date_kinds, from_date: @from_date, to_date: @to_date, query: @query,
-      max_revenue: @max_revenue, revenue_basis: @revenue_basis, sort: @sort,
-      direction: @direction
+      min_revenue: @min_revenue, max_revenue: @max_revenue,
+      revenue_basis: @revenue_basis, sort: @sort, direction: @direction
     )
     EstablishmentListingExporter.new(rows, sub_channel_name: @sub_channel.name, window: @window)
   end
@@ -408,6 +410,7 @@ class ReportsController < ApplicationController
       from_date: @from_date,
       to_date: @to_date,
       q: @query,
+      min_revenue: @min_revenue,
       max_revenue: @max_revenue,
       revenue_basis: @revenue_basis,
       # A ordem padrão não vai na URL: ela é o estado natural da tela.
