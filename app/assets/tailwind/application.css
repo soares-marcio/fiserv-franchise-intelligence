@@ -631,7 +631,12 @@
     z-index: 40;
     top: calc(100% + 0.4rem);
     left: 0;
-    right: 0;
+    /* A caixa acompanha o conteúdo, e não a largura do gatilho. Com `right: 0` ela ficava
+       do tamanho da pílula — 122px na pílula "Data" — e "Credenciamento" saía 49px para
+       fora dela, medido. O min-width impede que ela fique mais estreita que o gatilho. */
+    min-width: 100%;
+    width: max-content;
+    max-width: 20rem;
     display: grid;
     padding: 0.4rem;
     gap: 0.2rem;
@@ -1459,6 +1464,30 @@
 
   .revenue-range__input:disabled::-moz-range-thumb {
     background: var(--color-base-300);
+  }
+
+  /* Os dois campos digitáveis, embaixo do trilho: a alça dá a ordem de grandeza e o campo dá
+     o valor exato (pedido do usuário, 16/09/2026). Eles não têm `name` — quem envia o filtro
+     continua sendo a alça, e o Stimulus espelha um no outro. */
+  .revenue-range__fields {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .revenue-range__unit {
+    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    font-size: 0.75rem;
+  }
+
+  .revenue-range__field {
+    width: 100%;
+    /* Sem o min-width: 0 o campo numérico recusa encolher e estoura a linha do painel. */
+    min-width: 0;
+    height: 2.1rem;
+    padding: 0 0.4rem;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
   }
 
 
@@ -3159,6 +3188,26 @@
 
    O ícone não tem regra de cor própria: os SVGs do Phosphor são fill: currentColor.
    -------------------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------------------
+   Anel de foco dos controles do painel de filtro — fora de camada, pelo mesmo motivo do
+   botão abaixo: o daisyUI declara o dele sem camada, e estilo sem camada vence estilo em
+   camada seja qual for a especificidade.
+
+   O anel do daisyUI é de 2px em tinta quase preta (oklch(0.25 0.025 50), medido). Num painel
+   creme e laranja ele se lê como uma caixa preta grossa em volta do "Mês atual" — foi assim
+   que apareceu no print do usuário em 16/09/2026, e o painel abre com o foco nesse select.
+   -------------------------------------------------------------------------------------- */
+.filter-pill__select:focus,
+.filter-pill__select:focus-visible,
+.revenue-range__field:focus,
+.revenue-range__field:focus-visible {
+  /* A borda entra junto: no foco o daisyUI a leva de 20% de opacidade para a tinta cheia, e
+     era ela o retângulo preto por dentro do anel. */
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .btn,
 .btn.btn {
   --btn-color: var(--color-primary);

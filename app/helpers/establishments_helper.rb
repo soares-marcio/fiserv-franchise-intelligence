@@ -52,10 +52,6 @@ module EstablishmentsHelper
       precision: 0, format: "%u %n")
   end
 
-  # As duas pontas no painel, onde há largura para as duas sempre — diferente do gatilho.
-  def revenue_range_label(min, max)
-    "#{brl(min || 0)} a #{brl(max || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD)}"
-  end
 
   DATE_KIND_OPTIONS = [
     [ "credenciamento", "Credenciamento" ],

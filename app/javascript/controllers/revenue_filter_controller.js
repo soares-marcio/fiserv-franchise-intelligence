@@ -1,17 +1,14 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Pílula do filtro de faturamento: o gatilho diz o recorte por extenso e o painel guarda a
-// competência e as duas alças. Sem JavaScript o painel fica aberto e os três campos continuam
-// funcionando — são campos comuns, e o formulário os envia igual.
+// Pílula do filtro de faturamento: o gatilho resume o recorte e o painel guarda a competência,
+// as duas alças e os dois campos digitáveis. Sem JavaScript o painel fica aberto e as alças
+// continuam funcionando — são campos comuns, e o formulário os envia igual.
 export default class extends Controller {
-  static targets = ["trigger", "panel", "basis", "min", "max", "band", "value", "summary"]
+  static targets = [
+    "trigger", "panel", "basis", "min", "max", "minField", "maxField", "band", "summary"
+  ]
 
   connect() {
-    // Mesmo formato do helper brl do servidor: sem isso o rótulo troca de cara quando o
-    // JavaScript carrega, de "R$ 5.000,00" para "R$ 5.000".
-    this.formato = new Intl.NumberFormat("pt-BR", {
-      style: "currency", currency: "BRL", minimumFractionDigits: 2
-    })
     // O resumo do gatilho vai sem centavos, como o helper revenue_summary: o passo do slider
     // é de R$ 1.000, então os centavos são sempre zero e só ocupam a largura que falta.
     this.compacto = new Intl.NumberFormat("pt-BR", {
@@ -48,21 +45,45 @@ export default class extends Controller {
     if (restoreFocus) this.triggerTarget.focus()
   }
 
-  // Quem liga e desliga o filtro é a competência: "Todas" é o estado desligado, e aí as alças
-  // ficam apagadas e o gatilho diz "qualquer" em vez de uma faixa que não vale nada.
+  // Alça movida (ou competência trocada): os campos acompanham.
   sync(event) {
     this.clamp(event?.target)
+    this.mirrorFields()
+    this.render()
+  }
+
+  // Campo digitado: a alça acompanha, mas o texto fica como o usuário escreveu. Normalizar a
+  // cada tecla brigaria com quem digita — "12000" passa por "1", que o passo arredondaria
+  // para zero antes do segundo algarismo.
+  typed(event) {
+    const campo = event.target
+    const valor = Number(campo.value)
+    if (campo.value === "" || Number.isNaN(valor)) return
+
+    const alca = campo === this.minFieldTarget ? this.minTarget : this.maxTarget
+    alca.value = Math.min(Math.max(valor, 0), Number(alca.max))
+    this.clamp(alca)
+    this.render()
+  }
+
+  // Ao sair do campo ele passa a mostrar o valor que a alça de fato assumiu, preso ao passo.
+  settle() {
+    this.mirrorFields()
+    this.render()
+  }
+
+  // Quem liga e desliga o filtro é a competência: "Todas" é o estado desligado, e aí os
+  // controles ficam apagados e o gatilho diz "qualquer" em vez de uma faixa que não vale nada.
+  render() {
     const base = this.basisTarget
     const ligado = base.value !== ""
     const piso = Number(this.minTarget.value)
     const teto = Number(this.maxTarget.value)
 
-    this.minTarget.disabled = !ligado
-    this.maxTarget.disabled = !ligado
+    for (const campo of [this.minTarget, this.maxTarget, this.minFieldTarget, this.maxFieldTarget]) {
+      campo.disabled = !ligado
+    }
     this.paintBand(piso, teto)
-    this.valueTarget.textContent = ligado
-      ? `${this.formato.format(piso)} a ${this.formato.format(teto)}`
-      : "sem filtro"
 
     // Mesma regra do helper revenue_summary: o piso só aparece quando corta, e o segundo
     // "R$" vira um traço — o texto por extenso não cabe no gatilho.
@@ -72,6 +93,11 @@ export default class extends Controller {
       : `até ${this.compacto.format(teto)}`
     this.summaryTarget.textContent = ligado ? `${rotulo} · ${faixa}` : "qualquer"
     this.summaryTarget.classList.toggle("filter-pill__value--empty", !ligado)
+  }
+
+  mirrorFields() {
+    this.minFieldTarget.value = this.minTarget.value
+    this.maxFieldTarget.value = this.maxTarget.value
   }
 
   // As alças não se atravessam: a que está andando para no valor da outra. A que manda é a

@@ -163,6 +163,9 @@ O que a barra é agora:
 - **O faturamento é pílula com painel** (`revenue_filter_controller.js`): o gatilho resume o
   recorte e o painel guarda a competência e as duas alças. Era o único controle com dois campos à
   mostra, e era ele que obrigava a barra a ter duas alturas.
+- **A caixa do menu acompanha o texto, não o gatilho.** Com `right: 0` ela tinha a largura
+  da pílula — 122px na pílula "Data" — e "Credenciamento" saía 49px para fora dela (medido,
+  relatado com print em 16/09/2026). Agora é `min-width: 100%` com `width: max-content`.
 - **O valor marcado é texto, não caixinha** (`.filter-pill__tag`): caixa com borda dentro de
   caixa com borda vira ruído. O `×` de cada valor continua, com alvo de toque de 44px.
 - **"Limpar" só existe quando há o que limpar.** Botão permanente para desfazer o nada é ruído.
@@ -233,6 +236,15 @@ input inteiro é transparente ao clique (`pointer-events: none`) e só a alça o
 (`::-webkit-slider-thumb` e `::-moz-range-thumb`); sem isso o input de cima cobriria a alça do
 de baixo. O trilho e a faixa acesa são pintados à parte porque os trilhos nativos ficam
 transparentes: empilhados, apareceriam como duas linhas.
+
+**A alça dá a ordem de grandeza; o número exato se digita.** Dois campos numéricos ficam
+embaixo do trilho (pedido do usuário, 16/09/2026). A razão é medida: a escala vai a R$ 300.000
+num trilho de 273px, e **92% da carteira do mês atual está nos primeiros 10% dele** — a faixa
+de 0 a R$ 30.000 inteira ocupa 23px, menos que as duas alças de 16px somadas, então elas se
+encavalam e a faixa acesa entre as duas some. Os campos não têm `name`: quem envia o filtro
+continua sendo a alça, e o Stimulus espelha um no outro. Enquanto se digita, o campo não é
+normalizado — "12000" passa por "1", que o passo arredondaria para zero antes do segundo
+algarismo; a normalização espera o campo perder o foco.
 
 Duas armadilhas do empilhamento, ambas no `revenue_filter_controller.js`:
 
