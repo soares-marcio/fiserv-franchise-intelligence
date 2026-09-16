@@ -318,6 +318,47 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert_not_equal alta, queda, "alta e queda precisam ter fundos diferentes no hover"
   end
 
+  # As duas alças do faturamento são dois inputs nativos empilhados — não existe range de duas
+  # alças em HTML. O que se prova aqui é o que o empilhamento pode quebrar: a faixa acesa, o
+  # rótulo, o limite de uma alça na outra e a saída do ponto em que as duas se encontram.
+  test "as duas alças do faturamento recortam a faixa e não se atravessam" do
+    visit sub_channel_report_path(@sub_channel)
+
+    find("#revenue_filter_trigger").click
+    assert_selector "#revenue_filter_panel", visible: true
+    select "Mês atual", from: "revenue_basis"
+    mover("min_revenue", 100_000)
+
+    # normalize_ws porque o Intl escreve espaço não separável entre "R$" e o número, igual ao
+    # helper brl do servidor: sem isso a asserção procura um texto que a tela não escreve.
+    assert_selector "[data-revenue-filter-target=summary]", normalize_ws: true,
+      text: "mês atual · R$ 100.000–300.000"
+    assert_equal "33.3333%", faixa["left"], "a faixa acesa começa onde o piso está"
+
+    # O piso para no teto em vez de passar por ele.
+    mover("max_revenue", 200_000)
+    mover("min_revenue", 260_000)
+
+    assert_equal "200000", find("#min_revenue", visible: :all).value
+    assert_selector "[data-revenue-filter-target=summary]", normalize_ws: true,
+      text: "mês atual · R$ 200.000–200.000"
+
+    # Juntas no topo da escala, a alça de cima tem que ser a que ainda tem para onde ir: o
+    # teto já não sobe, então quem recebe o clique é o piso. Sem isso o controle trava.
+    mover("max_revenue", 300_000)
+    mover("min_revenue", 300_000)
+
+    assert_operator z_index("min_revenue"), :>, z_index("max_revenue"),
+      "no topo da escala o piso fica por cima, senão não há como voltar"
+
+    mover("min_revenue", 50_000)
+    click_on "Filtrar"
+
+    assert_current_path(/min_revenue=50000/)
+    assert_current_path(/max_revenue=300000/)
+    assert_current_path(/revenue_basis=atual/)
+  end
+
   private
 
   # As ações da linha ficam num menu fechado; devolve a linha com ele aberto. A linha é
@@ -326,5 +367,23 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     linha = find("tr.daily-row", text: cnpj)
     linha.find("summary.actions-menu__trigger").click
     linha
+  end
+
+  # A alça é input[type=range]: arrastar por pixel é frágil, e o que interessa é o que o
+  # controller faz quando o valor muda. O evento vai à mão porque set() não o dispara.
+  def mover(id, valor)
+    page.execute_script(<<~JS, find("##{id}", visible: :all))
+      arguments[0].value = #{valor}
+      arguments[0].dispatchEvent(new Event("input", { bubbles: true }))
+    JS
+  end
+
+  def faixa
+    estilo = find("[data-revenue-filter-target=band]", visible: :all)[:style].to_s
+    estilo.scan(/([\w-]+):\s*([^;]+)/).to_h { |chave, valor| [ chave, valor.strip ] }
+  end
+
+  def z_index(id)
+    page.evaluate_script("getComputedStyle(document.getElementById('#{id}')).zIndex").to_i
   end
 end

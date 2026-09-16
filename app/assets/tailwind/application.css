@@ -352,6 +352,15 @@
     white-space: nowrap;
   }
 
+/* O resumo do faturamento é o mais longo da barra: competência e as duas pontas da faixa.
+   Nos 22rem das demais pílulas ele saía cortado nas reticências justamente no valor do
+   teto — medido: 396px de texto para 219px de caixa. O campo de busca é quem cede a
+   largura, porque é o único que cresce sozinho; o min() existe para o celular, onde 28rem
+   é mais que a tela inteira. */
+.filter-pill--revenue .filter-pill__trigger {
+  max-width: min(28rem, 100%);
+}
+
   .filter-pill__value {
     display: inline-flex;
     align-items: center;
@@ -1346,13 +1355,110 @@
     border-bottom: 1px solid var(--color-base-300);
   }
 
-  /* Slider do teto de faturamento, na barra de filtros. A alça é o input nativo: ele já vem
-     acessível pelo teclado e continua funcionando sem JavaScript — o que o Stimulus faz é só
-     mostrar o valor antes de aplicar o filtro. */
+  /* Slider da faixa de faturamento, no painel da pílula. As alças são inputs nativos: já vêm
+     acessíveis pelo teclado e continuam funcionando sem JavaScript — o que o Stimulus faz é
+     mostrar o valor e desenhar a faixa antes de o filtro ser aplicado.
+
+     Não existe range de duas alças em HTML, então são dois inputs empilhados no mesmo lugar.
+     O que faz isso funcionar é o pointer-events: o input inteiro é transparente ao clique e
+     só a alça o recebe de volta — sem isso, o input de cima cobriria a alça do de baixo. */
+  .revenue-range {
+    position: relative;
+    height: 1.5rem;
+  }
+
+  .revenue-range__track,
+  .revenue-range__band {
+    position: absolute;
+    top: 50%;
+    height: 0.3rem;
+    transform: translateY(-50%);
+    border-radius: 999px;
+  }
+
+  .revenue-range__track {
+    right: 0;
+    left: 0;
+    background: var(--color-base-300);
+  }
+
+  /* A faixa acesa entre as duas alças, posicionada pelo Stimulus em porcentagem. */
+  .revenue-range__band {
+    background: var(--color-primary);
+  }
+
   .revenue-range__input {
-    flex: 1 1 auto;
-    min-width: 6rem;
-    accent-color: var(--color-primary);
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    height: 1.5rem;
+    margin: 0;
+    background: none;
+    pointer-events: none;
+    appearance: none;
+  }
+
+  /* Os trilhos nativos saem de cena: com dois inputs empilhados, apareceriam como duas
+     linhas cinzas por cima da que o .revenue-range__track já pinta. */
+  .revenue-range__input::-webkit-slider-runnable-track {
+    height: 0.3rem;
+    border: 0;
+    background: none;
+  }
+
+  .revenue-range__input::-moz-range-track {
+    height: 0.3rem;
+    border: 0;
+    background: none;
+  }
+
+  /* O accent-color deixa de valer quando a alça é desenhada aqui, então a cor vem explícita.
+     Os dois seletores não podem entrar na mesma regra: navegador que não entende um dos
+     pseudo-elementos descarta a regra inteira. */
+  .revenue-range__input::-webkit-slider-thumb {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--color-base-100);
+    border-radius: 999px;
+    background: var(--color-primary);
+    box-shadow: 0 1px 3px rgb(31 45 61 / 35%);
+    pointer-events: auto;
+    appearance: none;
+  }
+
+  .revenue-range__input::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--color-base-100);
+    border-radius: 999px;
+    background: var(--color-primary);
+    box-shadow: 0 1px 3px rgb(31 45 61 / 35%);
+    pointer-events: auto;
+    appearance: none;
+  }
+
+  .revenue-range__input:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .revenue-range__input:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .revenue-range:has(.revenue-range__input:disabled) .revenue-range__band {
+    background: var(--color-base-300);
+  }
+
+  .revenue-range__input:disabled::-webkit-slider-thumb {
+    background: var(--color-base-300);
+  }
+
+  .revenue-range__input:disabled::-moz-range-thumb {
+    background: var(--color-base-300);
   }
 
 

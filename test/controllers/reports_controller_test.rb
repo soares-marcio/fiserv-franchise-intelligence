@@ -231,7 +231,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "[data-revenue-filter-target=summary]",
-      text: /mês atual até R\$\u00A01\.000,00/
+      text: /mês atual · até R\$\u00A01\.000/
     assert_select ".filter-bar__clear", text: "Limpar"
   end
 
@@ -252,10 +252,15 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=revenue_basis] option[selected]", count: 0
     assert_select "select[name=revenue_basis] option[value=atual]", text: "Mês atual"
     assert_select "select[name=revenue_basis] option[value=anterior]", text: "Mês anterior cheio"
+    # Duas alças são dois inputs nativos empilhados: não existe range de duas alças em HTML.
+    assert_select ".revenue-range input[type=range]", count: 2
     assert_select ".filter-bar input[type=range][name=max_revenue][max=?]",
       EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
     assert_select "input[type=range][name=max_revenue][step=?]",
       EstablishmentListingQuery::LOW_REVENUE_STEP.to_s
+    assert_select "input[type=range][name=min_revenue][value=?]", "0"
+    assert_select "input[type=range][name=min_revenue][max=?]",
+      EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
     assert_select "[data-revenue-filter-target=value]", text: /sem filtro/
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
@@ -277,7 +282,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # O recorte ativo aparece em chips que se removem sozinhos, e o link de cada um tira só
     # aquele filtro — é o resumo que a barra não tinha.
     assert_select "[data-revenue-filter-target=summary]",
-      text: /mês atual até R\$\u00A01\.000,00/
+      text: /mês atual · até R\$\u00A01\.000/
     assert_select "select[name=revenue_basis] option[selected][value=?]", "atual"
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
     assert_select "input[type=range][name=max_revenue][value=?]", "1000"
@@ -292,6 +297,44 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=range][name=max_revenue][value=?]", "0"
     assert_select "[data-revenue-filter-target=value]", text: /R\$\u00A00,00/
     assert_select "tbody tr", count: 0
+  end
+
+  # A segunda alça (pedido do usuário, 15/09/2026): com piso, o bloco anuncia e conta a mesma
+  # faixa que a tabela lista — era o risco de ele dizer um número maior que o da tabela.
+  test "a faixa com piso aparece no gatilho, no painel e no bloco" do
+    import_synthetic_workbook(lojas: lojas_com_oferta)
+    refresh_audit_views
+    mic = SubChannel.find_by!(name: "MIC ALFA")
+
+    get sub_channel_report_path(mic, min_revenue: 1_000, max_revenue: 5_000,
+      revenue_basis: "atual")
+
+    assert_response :success
+    assert_select "[data-revenue-filter-target=summary]",
+      text: /mês atual · R\$\u00A01\.000–5\.000/
+    assert_select "[data-revenue-filter-target=value]",
+      text: /R\$\u00A01\.000,00 a R\$\u00A05\.000,00/
+    assert_select "input[type=range][name=min_revenue][value=?]", "1000"
+    # Os dois clientes da planilha sintética faturam centenas: nenhum alcança o piso, e é
+    # isso que prova que o piso cortou. Sem recorte não há o que contar, e o bloco sai da
+    # tela junto com as linhas.
+    assert_select "tbody tr", count: 0
+    assert_select ".low-revenue", count: 0
+
+    # Piso sem base escolhida não filtra nem entra no título do bloco, como o teto.
+    get sub_channel_report_path(mic, min_revenue: 1_000, max_revenue: 5_000)
+
+    assert_response :success
+    assert_select "tbody tr", count: 2
+    assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
+
+    # Alças trocadas na URL entram em ordem, e a tela desenha a faixa ordenada.
+    get sub_channel_report_path(mic, min_revenue: 5_000, max_revenue: 1_000,
+      revenue_basis: "atual")
+
+    assert_response :success
+    assert_select "input[type=range][name=min_revenue][value=?]", "1000"
+    assert_select "input[type=range][name=max_revenue][value=?]", "5000"
   end
 
   test "sem oferta no arquivo, Clover Capital diz que não há" do

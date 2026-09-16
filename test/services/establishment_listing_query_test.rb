@@ -483,6 +483,72 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
       sem_filtro.low_revenue_counts[:ceiling]
   end
 
+  # A segunda alça (pedido do usuário, 15/09/2026): a faixa corta pelas duas pontas, e quem
+  # fica abaixo do piso sai da lista tanto quanto quem passa do teto.
+  test "a faixa filtra pelas duas pontas" do
+    acima_do_corte("11222333000181", previous: 1_000, current: 3_000)
+    acima_do_corte("22333444000105", previous: 1_000, current: 12_000)
+    acima_do_corte("33444555000130", previous: 1_000, current: 30_000)
+
+    page = listing(min_revenue: 10_000, max_revenue: 20_000, revenue_basis: "atual")
+
+    assert_equal [ "22333444000105" ], page.rows.map { |row| row["cnpj"] },
+      "3.000 fica abaixo do piso e 30.000 passa do teto; só o 12.000 está na faixa"
+    assert_equal 1, page.total_count
+    assert_equal 4, listing(max_revenue: 20_000, revenue_basis: "atual").total_count,
+      "sem piso, quem fatura pouco volta para a lista"
+  end
+
+  # Alças trocadas entram em ordem, como o intervalo de datas já fazia. A tela e a consulta
+  # chamam a mesma normalização de propósito: se só uma delas ordenasse, o painel anunciaria
+  # uma faixa e a tabela listaria outra.
+  test "as alças trocadas entram em ordem" do
+    assert_equal [ 1_000, 5_000 ], EstablishmentListingQuery.normalize_revenue_bounds(5_000, 1_000)
+    assert_equal [ 1_000, 5_000 ], EstablishmentListingQuery.normalize_revenue_bounds(1_000, 5_000)
+    assert_equal [ nil, 5_000 ], EstablishmentListingQuery.normalize_revenue_bounds("", 5_000)
+    assert_equal [ 0, 5_000 ], EstablishmentListingQuery.normalize_revenue_bounds(0, 5_000),
+      "zero é piso escolhido, e não ausência de piso"
+
+    acima_do_corte("11222333000181", previous: 1_000, current: 12_000)
+
+    invertida = listing(min_revenue: 20_000, max_revenue: 10_000, revenue_basis: "atual")
+
+    assert_equal [ "11222333000181" ], invertida.rows.map { |row| row["cnpj"] },
+      "a faixa invertida na URL lista o mesmo que a faixa na ordem certa"
+  end
+
+  # O piso em zero é o fundo da escala e não corta: "de R$ 0,00" quer dizer "sem piso". Um
+  # `>= 0` literal tiraria da lista quem fechou o mês negativo por estorno.
+  test "o piso em zero não corta" do
+    acima_do_corte("11222333000181", previous: -5_000, current: -5_000)
+
+    cnpjs = listing(min_revenue: 0, max_revenue: 5_000, revenue_basis: "atual")
+      .rows.map { |row| row["cnpj"] }
+
+    assert_includes cnpjs, "11222333000181",
+      "quem fechou negativo continua abaixo do teto e dentro da faixa"
+  end
+
+  # O bloco conta a mesma faixa que a tabela lista (decisão do usuário, 15/09/2026). Antes ele
+  # só sabia contar até o teto e, com um piso escolhido, anunciaria um número maior que o da
+  # tabela ao lado dele.
+  test "as contagens do bloco respeitam o piso" do
+    acima_do_corte("11222333000181", previous: 12_000, current: 12_000)
+    acima_do_corte("22333444000105", previous: 2_000, current: 2_000)
+
+    page = listing(min_revenue: 10_000, max_revenue: 20_000, revenue_basis: "atual")
+
+    assert_equal [ 10_000, 20_000 ],
+      [ page.low_revenue_counts[:floor], page.low_revenue_counts[:ceiling] ]
+    assert_equal 1, page.total_count
+    assert_equal 1, page.low_revenue_counts[:current],
+      "o bloco conta o mesmo cliente que a tabela lista"
+    assert_equal 1, page.low_revenue_counts[:previous_full]
+
+    assert_equal 0, listing(min_revenue: 10_000, max_revenue: 20_000).low_revenue_counts[:floor],
+      "desligado, o bloco volta a contar desde zero"
+  end
+
   # Troca o faturamento consolidado do cliente para um valor acima do corte: a planilha
   # sintética trabalha em centenas, e o corte é de dezenas de milhares.
   def acima_do_corte(cnpj, previous:, current:)
