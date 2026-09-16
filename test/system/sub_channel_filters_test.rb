@@ -335,7 +335,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     # normalize_ws porque o Intl escreve espaço não separável entre "R$" e o número, igual ao
     # helper brl do servidor: sem isso a asserção procura um texto que a tela não escreve.
     assert_selector "[data-revenue-filter-target=value]", normalize_ws: true,
-      text: "R$ 10.000,00 a R$ 300.000,00"
+      text: "R$ 10.000 a R$ 300.000"
     assert_selector "[data-revenue-filter-target=summary]", normalize_ws: true,
       text: "mês atual · R$ 10.000–300.000"
     assert_equal "10000", find("#min_revenue", visible: :all).value,
@@ -350,7 +350,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
 
     assert_equal "20", find("#min_revenue_slider", visible: :all).value
     assert_selector "[data-revenue-filter-target=value]", normalize_ws: true,
-      text: "R$ 20.000,00 a R$ 20.000,00"
+      text: "R$ 20.000 a R$ 20.000"
 
     # Juntas no topo da escala, a alça de cima tem que ser a que ainda tem para onde ir: o
     # teto já não sobe, então quem recebe o clique é o piso. Sem isso o controle trava.

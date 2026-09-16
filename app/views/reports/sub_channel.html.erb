@@ -242,7 +242,7 @@
               @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
               data: { revenue_filter_target: "maxValue" } %>
             <p class="filter-pill__hint">
-              "Todas" não filtra. A faixa entra inteira, com as duas pontas: até <%= brl(0) %>
+              "Todas" não filtra. A faixa entra inteira, com as duas pontas: até <%= brl_round(0) %>
               mostra quem não faturou nada.
             </p>
           </div>
@@ -327,10 +327,10 @@
       <% if @total_count.to_i.positive? && baixos.present? %>
         <%# O teto vem da consulta, e não recalculado aqui: as duas pontas já divergiram uma
             vez — o bloco anunciava uma faixa diferente da que as contagens usavam. %>
-        <% corte = brl(baixos[:ceiling]) %>
+        <% corte = brl_round(baixos[:ceiling]) %>
         <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado usa
             espaços diferentes e desalinha a leitura. %>
-        <% piso = brl(baixos[:floor]) %>
+        <% piso = brl_round(baixos[:floor]) %>
         <div class="low-revenue" data-tone="gold">
           <p class="section-label">Entre <%= piso %> e <%= corte %></p>
           <div class="low-revenue__numbers">

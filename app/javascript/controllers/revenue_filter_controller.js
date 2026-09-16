@@ -14,11 +14,9 @@ export default class extends Controller {
   static values = { stops: Array }
 
   connect() {
-    this.formato = new Intl.NumberFormat("pt-BR", {
-      style: "currency", currency: "BRL", minimumFractionDigits: 2
-    })
-    // O resumo do gatilho vai sem centavos, como o helper revenue_summary: as paradas são
-    // redondas, então os centavos são sempre zero e só ocupam a largura que falta.
+    // Tudo o que o filtro escreve vai sem centavos: as paradas são redondas, então os
+    // centavos são sempre zero e só ocupam largura. Vale para o gatilho, para o painel e
+    // para o que o leitor de tela anuncia — a mesma regra do brl_round do servidor.
     this.compacto = new Intl.NumberFormat("pt-BR", {
       style: "currency", currency: "BRL", maximumFractionDigits: 0
     })
@@ -71,7 +69,7 @@ export default class extends Controller {
     this.describe(this.maxTarget, teto)
 
     this.valueTarget.textContent = ligado
-      ? `${this.formato.format(piso)} a ${this.formato.format(teto)}`
+      ? `${this.compacto.format(piso)} a ${this.compacto.format(teto)}`
       : "sem filtro"
 
     // Mesma regra do helper revenue_summary: o piso só aparece quando corta, e o segundo
@@ -90,7 +88,7 @@ export default class extends Controller {
 
   // A alça anuncia a posição; o leitor de tela precisa ouvir o dinheiro.
   describe(alca, valor) {
-    alca.setAttribute("aria-valuetext", this.formato.format(valor))
+    alca.setAttribute("aria-valuetext", this.compacto.format(valor))
   }
 
   // As alças não se atravessam: a que está andando para no valor da outra. A que manda é a
