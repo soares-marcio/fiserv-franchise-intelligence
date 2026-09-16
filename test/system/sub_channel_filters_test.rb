@@ -351,6 +351,14 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert_operator z_index("min_revenue"), :>, z_index("max_revenue"),
       "no topo da escala o piso fica por cima, senão não há como voltar"
 
+    # O campo digitável é quem dá precisão: o trilho tem 273px para 300 posições, e a faixa
+    # que esta tela audita — de 0 a R$ 30.000 — ocupa 23px dele. Digitar move a alça.
+    fill_in "min_revenue_field", with: "7000"
+
+    assert_equal "7000", find("#min_revenue", visible: :all).value
+    assert_selector "[data-revenue-filter-target=summary]", normalize_ws: true,
+      text: "mês atual · R$ 7.000–300.000"
+
     mover("min_revenue", 50_000)
     click_on "Filtrar"
 

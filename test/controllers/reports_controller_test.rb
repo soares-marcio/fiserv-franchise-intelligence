@@ -261,7 +261,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[type=range][name=min_revenue][value=?]", "0"
     assert_select "input[type=range][name=min_revenue][max=?]",
       EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
-    assert_select "[data-revenue-filter-target=value]", text: /sem filtro/
+    assert_select "input#min_revenue_field[value=?]", "0"
+    assert_select "input#max_revenue_field[value=?]",
+      EstablishmentListingQuery::LOW_REVENUE_THRESHOLD.to_s
     # O brl usa espaço não separável entre "R$" e o número: o regex precisa do \u00A0, senão
     # procura um texto que a tela não escreve.
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A030\.000,00/
@@ -286,7 +288,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "select[name=revenue_basis] option[selected][value=?]", "atual"
     assert_select ".low-revenue .section-label", text: /Entre R\$\u00A00,00 e R\$\u00A01\.000,00/
     assert_select "input[type=range][name=max_revenue][value=?]", "1000"
-    assert_select "[data-revenue-filter-target=value]", text: /R\$\u00A01\.000,00/
+    assert_select "input#max_revenue_field[value=?]", "1000"
 
     # Zero é escolha, e não ausência dela: a alça volta no zero, e não no topo da escala. Os
     # dois clientes desta planilha venderam no mês atual, então o recorte fica vazio — que é
@@ -295,7 +297,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "input[type=range][name=max_revenue][value=?]", "0"
-    assert_select "[data-revenue-filter-target=value]", text: /R\$\u00A00,00/
+    assert_select "input#max_revenue_field[value=?]", "0"
     assert_select "tbody tr", count: 0
   end
 
@@ -312,8 +314,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "[data-revenue-filter-target=summary]",
       text: /mês atual · R\$\u00A01\.000–5\.000/
-    assert_select "[data-revenue-filter-target=value]",
-      text: /R\$\u00A01\.000,00 a R\$\u00A05\.000,00/
+    assert_select "input#min_revenue_field[value=?]", "1000"
+    assert_select "input#max_revenue_field[value=?]", "5000"
     assert_select "input[type=range][name=min_revenue][value=?]", "1000"
     # Os dois clientes da planilha sintética faturam centenas: nenhum alcança o piso, e é
     # isso que prova que o piso cortou. Sem recorte não há o que contar, e o bloco sai da

@@ -188,13 +188,7 @@
               options_for_select(EstablishmentsHelper::REVENUE_BASIS_OPTIONS, @revenue_basis),
               id: "revenue_basis", class: "select select-bordered filter-pill__select",
               data: { revenue_filter_target: "basis", action: "change->revenue-filter#sync" } %>
-            <div class="filter-pill__panel-head">
-              <span class="filter-pill__panel-label">Faixa</span>
-              <output id="revenue_range_value" class="filter-pill__amount"
-                data-revenue-filter-target="value">
-                <%= @revenue_basis ? revenue_range_label(@min_revenue, @max_revenue) : "sem filtro" %>
-              </output>
-            </div>
+            <span class="filter-pill__panel-label">Faixa</span>
             <%# Duas alças são dois campos nativos sobrepostos: não existe range de duas alças
                 em HTML. Cada um continua sendo um campo comum — o formulário os envia igual, e
                 o teclado anda neles sem JavaScript. O trilho e a faixa acesa são pintados aqui
@@ -207,16 +201,38 @@
               <%= range_field_tag :min_revenue, @min_revenue || 0,
                 min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
                 step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "min_revenue",
-                class: "revenue-range__input", aria: { label: "Faturamento mínimo",
-                  describedby: "revenue_range_value" },
+                class: "revenue-range__input", aria: { label: "Faturamento mínimo" },
                 data: { revenue_filter_target: "min", action: "input->revenue-filter#sync" } %>
               <%= range_field_tag :max_revenue,
                 @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
                 min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
                 step: EstablishmentListingQuery::LOW_REVENUE_STEP, id: "max_revenue",
-                class: "revenue-range__input", aria: { label: "Faturamento máximo",
-                  describedby: "revenue_range_value" },
+                class: "revenue-range__input", aria: { label: "Faturamento máximo" },
                 data: { revenue_filter_target: "max", action: "input->revenue-filter#sync" } %>
+            </div>
+            <%# Os campos existem porque a alça não tem como ser precisa aqui: a escala vai a
+                R$ 300.000 e 92% da carteira fica nos primeiros 10% do trilho — 23px para a faixa
+                inteira de 0 a 30 mil, medido. A alça dá a ordem de grandeza; o número exato se
+                digita. Eles não têm `name`: quem envia continua sendo a alça, e o Stimulus
+                espelha um no outro. %>
+            <div class="revenue-range__fields">
+              <label class="filter-pill__panel-label" for="min_revenue_field">De</label>
+              <span class="revenue-range__unit">R$</span>
+              <%= tag.input type: "number", id: "min_revenue_field", value: @min_revenue || 0,
+                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+                step: EstablishmentListingQuery::LOW_REVENUE_STEP, inputmode: "numeric",
+                class: "input input-bordered revenue-range__field",
+                data: { revenue_filter_target: "minField",
+                  action: "input->revenue-filter#typed change->revenue-filter#settle" } %>
+              <label class="filter-pill__panel-label" for="max_revenue_field">até</label>
+              <span class="revenue-range__unit">R$</span>
+              <%= tag.input type: "number", id: "max_revenue_field",
+                value: @max_revenue || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+                min: 0, max: EstablishmentListingQuery::LOW_REVENUE_THRESHOLD,
+                step: EstablishmentListingQuery::LOW_REVENUE_STEP, inputmode: "numeric",
+                class: "input input-bordered revenue-range__field",
+                data: { revenue_filter_target: "maxField",
+                  action: "input->revenue-filter#typed change->revenue-filter#settle" } %>
             </div>
             <p class="filter-pill__hint">
               "Todas" não filtra. A faixa entra inteira, com as duas pontas: até <%= brl(0) %>
