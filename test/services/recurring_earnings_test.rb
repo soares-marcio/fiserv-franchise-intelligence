@@ -37,10 +37,16 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     assert_in_delta gama[:months].sum { |m| m[:recurring] }, gama[:recurring_total], 0.001
   end
 
+  # Competência aberta fica de fora: um mês pela metade parece queda por não ter terminado, e
+  # o contrato compara mês contra mês, não mês contra meio mês.
   test "acelerador e redutor seguem as transições da série, nunca juntos no mesmo mês" do
     delta = @reports.find { |row| row[:name] == "MIC DELTA" }
+    comparadas = 0
 
     delta[:months].each_cons(2) do |previous, current|
+      next if current[:partial]
+
+      comparadas += 1
       growth = (current[:total] - previous[:total]) / previous[:total]
       if growth >= 0.20
         assert_operator current[:accelerator], :>, 0, "acelerador em #{current[:period]}"
@@ -51,6 +57,18 @@ class RecurringEarningsTest < ActiveSupport::TestCase
         assert_in_delta expected, current[:reducer], 0.001, "redutor em #{current[:period]}"
         assert_equal 0.0, current[:accelerator]
       end
+    end
+
+    assert_operator comparadas, :>, 0, "sem transição fechada o teste passaria por vacuidade"
+  end
+
+  test "competência aberta não recebe acelerador nem redutor" do
+    abertas = @reports.flat_map { |row| row[:months] }.select { |month| month[:partial] }
+
+    assert_predicate abertas, :any?, "o fixture precisa de uma competência aberta"
+    abertas.each do |month|
+      assert_equal 0.0, month[:accelerator], "acelerador em #{month[:period]}"
+      assert_equal 0.0, month[:reducer], "redutor em #{month[:period]}"
     end
   end
 
@@ -72,6 +90,11 @@ class RecurringEarningsTest < ActiveSupport::TestCase
       "UPDATE monthly_volumes_consolidated SET amount = 55000 " \
       "WHERE establishment_id = #{delta_ec.id} AND metric = 'total' AND period = DATE '2026-08-01'"
     )
+    # A queda da DELTA está em agosto, que o fixture entrega aberta — e competência aberta
+    # não recebe ajuste. Fechar a competência é o que põe o redutor em jogo.
+    ApplicationRecord.connection.execute(
+      "UPDATE period_coverages SET closed = true WHERE period = DATE '2026-08-01'"
+    )
     refresh_audit_views
     delta = RecurringEarningsQuery.new.by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
 
@@ -92,6 +115,31 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     assert_operator current[:reducer], :>,
       current[:recurring] * SubChannelCompensationRules.reducer_rate(growth),
       "com a parcela na base, o redutor é maior do que era pela regra antiga"
+  end
+
+  # "Mês contra mês" é competência de calendário. Com um buraco na série, comparar a linha
+  # anterior faria agosto medir-se contra junho e inventar uma variação que não existe. Hoje
+  # nenhuma série da base real tem buraco (medido: 0 saltos em 58 comparações) — isto é
+  # prevenção, e é a razão de o teste construir o buraco à mão.
+  test "competência sem a anterior de calendário fica sem base de comparação" do
+    delta_ec = Establishment.find_by!(ec: "50000003")
+    ApplicationRecord.connection.execute(
+      "DELETE FROM monthly_volumes_consolidated " \
+      "WHERE establishment_id = #{delta_ec.id} AND period = DATE '2026-07-01'"
+    )
+    ApplicationRecord.connection.execute(
+      "UPDATE period_coverages SET closed = true WHERE period = DATE '2026-08-01'"
+    )
+    refresh_audit_views
+
+    delta = RecurringEarningsQuery.new.by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
+    agosto = delta[:months].find { |month| month[:period] == Date.new(2026, 8, 1) }
+
+    assert_not_includes delta[:months].map { |m| m[:period] }, Date.new(2026, 7, 1),
+      "o buraco precisa existir, senão o teste é vácuo"
+    assert_nil agosto[:growth], "sem julho, agosto não tem contra o que comparar"
+    assert_equal 0.0, agosto[:accelerator]
+    assert_equal 0.0, agosto[:reducer]
   end
 
   test "primeiro mês da série não tem base de comparação nem ajuste" do

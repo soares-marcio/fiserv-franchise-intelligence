@@ -87,8 +87,13 @@ class RecurringEarningsQuery
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
+  # O contrato compara "mês contra mês" (Anexo C, 1.1.3), e isso é competência de calendário,
+  # não linha anterior da série: com um buraco de competência, comparar linhas faria junho
+  # medir-se contra abril. E competência **aberta** não recebe ajuste — um mês pela metade
+  # parece queda por não ter terminado, e o redutor incidiria sobre dado incompleto.
   def build_months(sub_rows, open_periods, accreditation)
-    previous_total = nil
+    by_period = sub_rows.index_by { |row| row["period"].to_date }
+
     sub_rows.sort_by { |r| r["period"] }.map do |row|
       period = row["period"].to_date
       debit = row["debit"].to_f
@@ -100,14 +105,15 @@ class RecurringEarningsQuery
       # A parcela de credenciamento que cai nesta competência entra na base do ajuste: o
       # contrato manda o redutor incidir sobre a Participação, não só sobre a recorrência.
       parcel = accreditation.fetch([ row["sub_channel_id"], period ], 0.0)
+      partial = open_periods.include?([ row["channel_id"], period ])
+      previous = by_period[period.prev_month]
+      previous_total = previous && !partial ? previous["debit"].to_f + previous["credit"].to_f : nil
       adjustment = SubChannelCompensationRules.performance_adjustment(
         previous: previous_total, current: total, participation: recurring + parcel
       )
-      previous_total = total
 
       { period:, debit:, credit:, total:, net_mdr:, rates:, recurring:, accreditation: parcel,
-        partial: open_periods.include?([ row["channel_id"], period ]),
-        mdr_fallback: row["mdr_fallback"] }.merge(adjustment)
+        partial:, mdr_fallback: row["mdr_fallback"] }.merge(adjustment)
     end
   end
 
