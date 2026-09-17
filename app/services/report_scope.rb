@@ -11,6 +11,12 @@ class ReportScope
     "name" => "MIC"
   }.freeze
 
+  # Os indicadores também são cards; o retrato de cada um é o último mês fechado.
+  INDICATOR_SORT_COLUMNS = {
+    "risk" => "Indicadores em risco",
+    "name" => "MIC"
+  }.freeze
+
   SUB_CHANNEL_SORT_COLUMNS = {
     "previous_full_revenue" => "Mês anterior cheio",
     "previous_revenue" => "Mês anterior comparável",
@@ -139,6 +145,10 @@ class ReportScope
 
   def recurring_earnings
     RecurringEarningsQuery.new(channel_id: @channel_id).by_sub_channel
+  end
+
+  def sub_channel_indicators
+    SubChannelIndicatorsQuery.new(channel_id: @channel_id).by_sub_channel
   end
 
   def three_month_earnings(periods:)

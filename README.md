@@ -408,6 +408,47 @@ primeira, que fecha no centavo nos três meses. As duas simulações estão em
   que é, com grande probabilidade, os R$ 30 de digitalização: não uma faixa permanente da
   tabela, e sim a campanha sobrevivente, já dentro da base.
 
+### Indicadores do Anexo B
+
+O **Anexo B – Indicadores** do Contrato de Micro Franquia (p. 35) fixa sete indicadores
+mensais, cada um com três leituras — Adequado, Atenção e Risco. Eles condicionam a
+Participação (Definição 26: paga "mediante o cumprimento dos Indicadores") e, mantidos em
+descumprimento por 60 dias ou mais, dão à Franqueadora o direito de rescindir (cláusula
+12.2, xx). As faixas vivem só em `SubChannelIndicatorRules`; a apuração em
+`SubChannelIndicatorsQuery`; a tela em `/reports/indicators`, um card por MIC.
+
+| Indicador | Numerador | Base | Adequado · Atenção · Risco |
+| --- | --- | --- | --- |
+| Qualidade das indicações | propostas `Credit Declined` | propostas do mês pela `DATA DA PROPOSTA`, no status mais recente de cada `NR DA PROPOSTA`; pendentes (`Pending QC`) contam na base | ≤ 10% · 10,01–25% · ≥ 25,01% |
+| Credenciamentos | ECs com `DATA DE CREDENCIAMENTO` no mês, no último Mapa (= "ECs no M0" da tela 3M) | — | ≥ 10 · 5–9 · ≤ 4 |
+| Volume transacional | ECs com débito + crédito do mês acima de R$ 10.000 | base do mês | ≥ 92% · 88,01–91,99% · ≤ 88% |
+| Descredenciamento | ECs com `DATA DE SUSPENSÃO` no mês | base do mês | ≤ 2% · 2,01–5% · ≥ 5,01% |
+| ECs sem transação | ECs com `ATIVO NO MÊS ATUAL?` = não | base do mês | ≤ 5% · 5,01–10% · ≥ 10,01% |
+| Índice de reclamações | — | — | **não apurável**: o arquivo não traz reclamações |
+| Ordens canceladas | — | — | **não apurável**: sem coluna, e as faixas do anexo se sobrepõem |
+
+Leituras que o texto do anexo obriga a declarar:
+
+- **A base do mês** são os ECs do Mapa daquela competência (`current_period` igual ao mês;
+  o último lote, se houve vários) que não estavam suspensos antes de ela começar. Sem Mapa
+  da competência, os três indicadores que dependem dela ficam **sem leitura** — não se
+  empresta a base de outro mês, cujo `ATIVO NO MÊS ATUAL?` descreve outro mês. Com os
+  arquivos semanais o histórico se constrói sozinho. Medido em 17/09/2026, MIC GOIANIA 4 em
+  agosto: 227 ECs no arquivo, 210 na base.
+- **"Atividade dos Estabelecimentos" está escrito invertido**: "percentual com pelo menos
+  uma transação", com Adequado ≤ 5%. Ao pé da letra, uma carteira toda ativa seria Risco. O
+  portal lê a fração **sem** transação, e a coluna se chama assim na tela.
+- **Qualidade é "percentual de pedidos rejeitados"**: recusadas sobre os pedidos do mês, com
+  as pendentes na base — um pedido pendente é pedido, e ainda pode ser recusado. A leitura
+  sobre decididas daria mais alto; a fração e as pendentes ficam no title da célula.
+- **Competência aberta mostra o valor e não a leitura**: um mês pela metade credencia e
+  transaciona menos por não ter terminado.
+- **A sequência em Risco** conta, do último mês fechado com leitura para trás, os meses
+  fechados seguidos em Risco; dois alcançam os 60 dias. O anexo não define "descumprir" —
+  o portal conta só o Risco, nunca a Atenção. Mês sem leitura interrompe a contagem.
+- **`ATIVO NO MÊS ATUAL?` é a declaração da própria Fiserv** e concorda com o volume do mês
+  em 567 de 567 ECs no lote de setembro (medido em 17/09/2026).
+
 ## Metabase
 
 

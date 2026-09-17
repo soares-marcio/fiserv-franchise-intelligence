@@ -20,6 +20,8 @@
         class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
       <%= link_to icon_label("chart-bar", "Recorrente", css: "nav-icon"), recurring_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[recurring] }) %>
+      <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
+        class: nav_link_class({ controller: :reports, actions: %w[indicators] }) %>
       <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
         class: nav_link_class({ controller: :establishments }) %>
       <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }) do %>

@@ -96,6 +96,13 @@ class ReportsController < ApplicationController
     end
   end
 
+  # Indicadores do Anexo B: um card por MIC, com a leitura de cada competência.
+  def indicators
+    @order = ListingSort.new(columns: ReportScope::INDICATOR_SORT_COLUMNS, default: "risk",
+      column: params[:sort], direction: params[:direction])
+    @reports = @order.sort_rows(@scope.sub_channel_indicators) { |row| indicator_sort_value(row) }
+  end
+
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
@@ -246,6 +253,10 @@ class ReportsController < ApplicationController
         fechado[:reducer] : 0
     else row[:recurring_total] + row[:accreditation_total] + row[:adjustment_total]
     end
+  end
+
+  def indicator_sort_value(row)
+    @order.column == "name" ? row[:name] : row[:risk_count]
   end
 
   # A linha da tela 3M é o subcanal, e cada mês da janela é uma coluna: ordenar por M0, M1

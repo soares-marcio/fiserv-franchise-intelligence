@@ -468,9 +468,29 @@ O **Anexo C** da Circular de Oferta de Franquia mudou o que as duas telas mostra
   antecipação existe no contrato e não é calculável com o arquivo atual. Omitir daria a
   entender que o número na tela é o fator inteiro.
 
+**Indicadores do Anexo B** (`/reports/indicators`) usa a mesma anatomia de card do
+recorrente: o MIC nomeia o card, o bloco do topo é o retrato (quantos indicadores estão em
+Risco no último mês fechado, e quais) e a série de competências fica na tabela interna, em
+ordem cronológica — é ela que dá sentido à contagem de meses seguidos em Risco.
+
+- **Valor e leitura na mesma célula.** O percentual em cima e a palavra (Adequado, Atenção,
+  Risco) embaixo, em cor; a fração por trás do percentual ("9 de 35 · 2 pendentes") fica no
+  `title`, para a conta ser conferível sem alargar a tabela de seis colunas.
+- **Célula sem leitura é travessão, e o `title` diz por quê** — "Sem Mapa importado desta
+  competência" ou "Nenhuma proposta com data neste mês". Zero seria uma afirmação.
+- **Competência aberta mostra o valor sem a palavra**, com "parcial" sob o mês, como no
+  recorrente.
+- **O alerta dos 60 dias só aparece quando alcança**: dois meses fechados seguidos em
+  Risco, citando a cláusula 12.2 (xx). É a única linha em vermelho fora das células.
+- **A ordem padrão traz o risco ao topo** — "Indicadores em risco", do maior para o menor;
+  a alternativa é o nome do MIC.
+- **A tela declara as duas leituras que o anexo obriga** (a base do mês e a inversão de
+  "Atividade") e os dois indicadores que não apura, no mesmo `metric-hint` que o recorrente
+  usa para a antecipação. Ver `README.md`, "Indicadores do Anexo B".
+
 ### Exportações
 
-**Toda tela de relatório exporta CSV e XLSX, menos uma.** `TabularExporter` faz a mecânica —
+**Toda tela de relatório exporta CSV e XLSX, menos duas.** `TabularExporter` faz a mecânica —
 CSV e planilha a partir das mesmas linhas — e cada tela declara só colunas, nome da aba e a
 nota do cabeçalho. Um exportador por tela, nenhum herdando de outro: o que elas compartilham
 é a mecânica, não o formato.
@@ -503,7 +523,9 @@ Quatro regras valem para todos:
 
 **A auditoria de faturamento (`/reports`) é a exceção**: exportava e deixou de exportar em
 10/09/2026, a pedido do usuário. Saíram os botões, o endpoint e o `ReportsExporter` — botão
-escondido com a rota de pé é meia remoção, e `/reports.csv` responde 406.
+escondido com a rota de pé é meia remoção, e `/reports.csv` responde 406. **Os Indicadores
+do Anexo B** nasceram sem exportação em 17/09/2026: a tela é leitura, e ninguém pediu o
+arquivo ainda.
 
 O link do **modal do dia** leva `data-turbo="false"`: ele vive dentro de um turbo_frame, e sem
 isso o Turbo tentaria encaixar o arquivo no frame em vez de baixá-lo.
