@@ -18,7 +18,10 @@
   </header>
 
   <% prize = report[:prize] %>
-  <% intervalo = prize[:addon_without_auto] != prize[:addon_with_auto] %>
+  <%# O intervalo deixou de ser a regra: a modalidade contratada (SOLUÇÕES FINANCEIRAS) escolhe
+      a coluna do adicional, e o valor é um só. Ele sobrevive para o caso em que a origem não
+      declara a modalidade — aí a apuração não elege coluna nenhuma, e a tela diz isso. %>
+  <% intervalo = prize[:undefined_modality].positive? %>
   <div class="earnings-card__total">
     <p class="metric-label">Prêmio de entrada</p>
     <p class="metric-value <%= "metric-value--range" if intervalo %>">
@@ -28,7 +31,7 @@
         <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %> –
         <%= brl(prize[:digitalization] + prize[:addon_with_auto]) %>
       <% else %>
-        <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %>
+        <%= brl(prize[:digitalization] + prize[:addon_amount]) %>
       <% end %>
     </p>
     <%# A composição é o que explica o prêmio: as duas parcelas somam o número de cima, e a
@@ -46,13 +49,19 @@
       <div>
         <dt>Adicional por faturamento</dt>
         <dd>
-          <%= brl(prize[:addon_without_auto]) %><% if intervalo %> –
-            <%= brl(prize[:addon_with_auto]) %><% end %>
+          <% if intervalo %>
+            <%= brl(prize[:addon_without_auto]) %> – <%= brl(prize[:addon_with_auto]) %>
+          <% else %>
+            <%= brl(prize[:addon_amount]) %>
+          <% end %>
         </dd>
       </div>
     </dl>
     <% if intervalo %>
-      <p class="earnings-card__breakdown">Intervalo pendente da definição de antecipação</p>
+      <p class="earnings-card__breakdown">
+        <%= pluralize(prize[:undefined_modality], "EC sem modalidade declarada",
+          "ECs sem modalidade declarada") %>: o adicional deles fica em intervalo
+      </p>
     <% end %>
   </div>
 

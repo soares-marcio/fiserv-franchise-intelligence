@@ -116,20 +116,23 @@ um dia de faturamento basta. Isolado, o teste que ignorava isso falhava em 6 de 
 ## Modelo de remuneração
 
 **`STATUS ANTECIP AUTO NO BOARDING` não diz se o EC tem antecipação.** Na planilha real a
-coluna só aparece com `0` ou vazia — nenhum valor positivo —, então qualquer regra baseada
-nela classifica todo mundo como "sem" ou "indefinido" e nunca "com". A classificação foi
-removida da apuração até a fonte correta ser definida; a tela apresenta as duas hipóteses.
-Candidatas em avaliação: `SOLUÇÕES FINANCEIRAS` (valores `Auto`, `Flex`, `Combo`, `NÃO` —
-vocabulário idêntico ao do slide) e o volume de antecipação realizado
-(`monthly_volumes.metric = 'antecipacao'`). As duas divergem entre si: 502 ECs se declaram
-`Auto`, mas só 248 antecipam de fato.
+coluna só aparece com `0` ou vazia — nenhum valor positivo. Quem diz é **`SOLUÇÕES
+FINANCEIRAS`** (`Auto`, `Flex`, `Combo`, `NÃO`), e o Anexo C da Circular de Oferta de Franquia
+confirma: a coluna "C" da tabela de credenciamento é "com auto/flex", ou seja, **modalidade
+contratada**. A antecipação **realizada** (`monthly_volumes.metric = 'antecipacao'`) é outra
+coisa — base de uma remuneração separada (1.1.2-B) —, e foi tratar uma pela outra que fez a
+classificação parecer impossível até 09/2026. As duas divergem, e é esperado que divirjam:
+502 ECs se declaram `Auto` e 251 antecipam de fato; 13 dos 61 `NÃO` antecipam mesmo assim.
 
 As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensationRules`.
 Quem alterar alíquota mexe lá e em nenhum outro lugar — e, como a view
 `audit_accreditation_earnings` congela esses `CASE WHEN` no banco, a mudança exige migração
-recriando a view e regeneração do `structure.sql`. Não derive classificação de antecipação das
-colunas atuais. Quando os valores com e sem antecipação divergem, apresente o intervalo e deixe
-a definição pendente até existir uma fonte confiável.
+recriando a view e regeneração do `structure.sql`. A fonte das faixas é o **Anexo C** da
+Circular de Oferta de Franquia (contrato assinado), que prevalece sobre os slides de onde o
+modelo saiu — as faixas conferem valor a valor entre os dois.
+
+EC sem modalidade na origem continua indefinido: a apuração devolve `NULL`, não zero, e a tela
+volta a mostrar o intervalo só para ele. Nunca eleja uma coluna em silêncio.
 
 ## Schema, `structure.sql` e produção
 

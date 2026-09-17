@@ -44,6 +44,18 @@
     <% end %>
   </section>
 
+  <%# O contrato tem duas linhas de recorrência (Anexo C, 1.1.2) e o portal apura só a
+      primeira. Declarar a que falta é melhor que omiti-la: quem confere o repasse com a
+      Fiserv precisa saber que este número não é o total do fator. %>
+  <p class="metric-hint mt-3">
+    O Anexo C prevê ainda um <strong>repasse sobre a receita bruta de antecipação</strong>
+    (11% em auto+flex, 7% em eventual e 7% em agenda externa). Ele <strong>não é apurado
+    aqui</strong>: a fórmula pede a média das taxas de antecipação da carteira, que a
+    planilha não traz, e a separação por modalidade — agenda externa é antecipação em outras
+    adquirentes, que o arquivo BIN não teria. O volume antecipado existe no arquivo; a taxa,
+    não.
+  </p>
+
   <% if @reports.any? %>
     <% last_closed = @reports.flat_map { |r| r[:months].reject { |m| m[:partial] } }.map { |m| m[:period] }.max %>
     <p class="section-label">

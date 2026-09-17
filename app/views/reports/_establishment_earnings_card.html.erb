@@ -36,23 +36,32 @@
         <% fee = accreditation["digitalization_amount"].to_f %>
         <% without_auto = accreditation["addon_without_auto"].to_f %>
         <% with_auto = accreditation["addon_with_auto"].to_f %>
-        <%# O adicional por faturamento é a única parte que depende de o EC ter
-            antecipação. Nas faixas em que as duas colunas coincidem — e na faixa mais
-            baixa ambas são zero — não há o que decidir, e o prêmio sai como número
-            único. Só quando divergem é que a pendência aparece, com o intervalo. %>
-        <% if without_auto == with_auto %>
-          <p class="metric-value text-base"><%= brl(fee + without_auto) %></p>
-          <p class="metric-hint">
-            <%= accreditation["months_observed"].to_i %> de 3 meses apurados
-            <%= "· R$ 30,00 de digitalização (app em M0)" if fee.positive? %>
-          </p>
-        <% else %>
+        <%# A coluna do adicional sai da modalidade contratada (SOLUÇÕES FINANCEIRAS): o valor
+            é um só. O intervalo sobrevive para o EC cuja origem não declara modalidade — aí a
+            apuração não elege coluna nenhuma, e a tela diz isso em vez de escolher. %>
+        <% if accreditation["auto_flex"].nil? && without_auto != with_auto %>
           <p class="metric-value text-base"><%= brl(fee) %> <span class="metric-hint">+ adicional</span></p>
           <p class="metric-hint">
             <%= accreditation["months_observed"].to_i %> de 3 meses apurados
             <%= "· R$ 30,00 de digitalização (app em M0)" if fee.positive? %>
             · adicional por faturamento entre <%= brl(without_auto) %> e <%= brl(with_auto) %>,
-            pendente da definição de antecipação
+            porque o arquivo não declara a modalidade deste EC
+          </p>
+        <% else %>
+          <% addon = accreditation["addon_amount"]&.to_f || without_auto %>
+          <p class="metric-value text-base"><%= brl(fee + addon) %></p>
+          <p class="metric-hint">
+            <%= accreditation["months_observed"].to_i %> de 3 meses apurados
+            <%= "· R$ 30,00 de digitalização (app em M0)" if fee.positive? %>
+            <%# As parcelas dizem em qual mês o prêmio cai — é a apuração sequencial do
+                contrato, e é ela que alimenta a base do redutor na tela do recorrente. %>
+            <% parcelas = [ "m0", "m1", "m2" ].each_with_index.filter_map do |mes, indice|
+                 valor = accreditation["#{mes}_addon_amount"].to_f
+                 "M#{indice} #{brl(valor)}" if valor.positive?
+               end %>
+            <% if parcelas.size > 1 %>
+              · por mês: <%= parcelas.join(" · ") %>
+            <% end %>
           </p>
         <% end %>
       <% end %>

@@ -1,6 +1,14 @@
 # Regras do modelo de remuneração da Fiserv, num lugar só. Quem alterar alíquota mexe aqui
-# e em nenhum outro lugar. Origem: apresentação de franquias BIN (p. 9-14) e slides
-# "Modelo de remuneração" (p. 15-16).
+# e em nenhum outro lugar.
+#
+# Origem: **Anexo C – Participação do Franqueado**, da Circular de Oferta de Franquia
+# (v1.2023, vigência 01/08/2023) — contrato assinado, que prevalece sobre os slides de onde
+# o modelo saiu (apresentação de franquias BIN p. 9-14 e "Modelo de remuneração" p. 15-16).
+# As faixas dos slides conferiram valor a valor com as do contrato; o que o contrato
+# acrescentou está anotado em cada regra.
+#
+# A Participação tem quatro fatores (Anexo C, item 1): credenciamento, recorrência, deduções
+# de performance e campanhas. Os dois últimos não existem aqui — ver README.
 class SubChannelCompensationRules
   # Prêmios de entrada, por faixa de faturamento mensal do EC. A apuração é de marca
   # d'água nos três primeiros meses (M0 = competência inteira do credenciamento): paga-se

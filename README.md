@@ -18,9 +18,9 @@ em períodos de mesma duração.
 | **Base comparável** | Faturamento do M-1 recortado no mesmo dia de corte do mês atual. |
 | **Variação alinhada** | Mês atual ÷ base comparável. Comparar com o mês cheio subestima a carteira. |
 | **M0/M1/M2 (credenciamento)** | Os três primeiros meses de um EC, contados de `accredited_on`. M0 é a competência inteira do credenciamento ("fração de mês é mês cheio"). |
-| **Prêmio de entrada** | Remuneração por credenciamento, por faixa de faturamento mensal do EC, apurada por **marca d'água**: paga-se em M0 o valor da faixa e, em M1/M2, só a diferença quando a faixa do mês supera o já pago. Mais R$ 30 de digitalização, uma única vez em M0, para EC com acesso ao app. |
-| **Repasse recorrente** | Alíquota (débito e crédito, escolhidas pela faixa de **Net MDR da carteira**) × volume da modalidade. Vitalício, desde a primeira transação. |
-| **Acelerador / redutor** | Mutuamente exclusivos, mês contra mês ("MxM"): crescimento ≥ 20% remunera um % do faturamento **incremental**; queda aplica um % de redução sobre a **remuneração**. Entre 0% e 19,99% de crescimento não há ajuste. |
+| **Prêmio de entrada** | Remuneração por credenciamento, por faixa de faturamento mensal do EC, apurada por **marca d'água**: paga-se em M0 o valor da faixa e, em M1/M2, só a diferença quando a faixa do mês supera o já pago. A coluna da tabela sai da modalidade contratada (`SOLUÇÕES FINANCEIRAS`). Mais R$ 30 de digitalização, uma única vez em M0, para EC com acesso ao app. |
+| **Repasse recorrente** | Alíquota (débito e crédito, escolhidas pela faixa de **Net MDR da carteira, sem os ECs Flex**) × volume da modalidade. Vitalício, desde a primeira transação. |
+| **Acelerador / redutor** | Mutuamente exclusivos, mês contra mês ("MxM"): crescimento ≥ 20% remunera um % do faturamento **incremental**; queda aplica um % de redução sobre a **Participação do mês** — recorrência mais a parcela do credenciamento. Entre 0% e 19,99% de crescimento não há ajuste, e competência aberta não recebe ajuste nenhum. |
 | **Página 3M** | Janela de 3 meses de calendário à escolha do usuário, com débito/crédito por competência (`monthly_volumes`) e o modelo de remuneração aplicado por sub-canal e por EC. |
 | **Cliente parado** | Empresa (CNPJ) cuja última venda está a `AuditViews::STALLED_THRESHOLD` dias ou mais do dia de corte — hoje 7. Quem nunca vendeu no mês conta o corte inteiro. Vive só em `audit_stalled_companies`: a tela que o mostrava deu lugar ao Clover Capital. |
 | **Oferta pré-aprovada** | Proposta de capital ao cliente, do Clover Capital: volume, prazo e taxa vindos da aba Mapa de Clientes BIN (`VOLUME_PRE_APROVADO`, `PRAZO_PRE_APROVADO`, `TAXA_PRE_APROVADA`). É do CNPJ, não do EC — todos os ECs de um cliente trazem a mesma. `PARCELA_PRE_APROVADA` existe no arquivo e nunca trouxe valor. |
@@ -361,15 +361,54 @@ dentro, porque o Postgres recusa o concorrente em transação). Nunca chame dent
 
 ## Modelo de remuneração
 
-As faixas e alíquotas do modelo da Fiserv vivem **só** em `SubChannelCompensationRules` —
-constantes Ruby que geram os `CASE WHEN` da view `audit_accreditation_earnings` (prêmio de
-entrada por EC, atualizada no refresh do import) e alimentam o cálculo ao vivo da página 3M
-(`ThreeMonthEarningsQuery`, sobre `monthly_volumes_consolidated`). Quem alterar alíquota mexe
-lá, cria migração recriando a view e regenera o `structure.sql`. A fonte atual não permite
-classificar antecipação automática com segurança. Quando as duas hipóteses divergem, a tela
-mostra o intervalo possível sem escolher uma delas.
+A fonte é o **Anexo C – Participação do Franqueado**, da Circular de Oferta de Franquia
+(v1.2023, vigência 01/08/2023). Ele compõe a Participação de quatro fatores: credenciamento,
+recorrência, deduções de performance e campanhas.
+
+As faixas e alíquotas vivem **só** em `SubChannelCompensationRules` — constantes Ruby que
+geram os `CASE WHEN` da view `audit_accreditation_earnings` e alimentam o cálculo ao vivo da
+página 3M (`ThreeMonthEarningsQuery`) e do recorrente (`RecurringEarningsQuery`). Quem alterar
+alíquota mexe lá, cria migração recriando a view e regenera o `structure.sql`.
+
+**A modalidade de antecipação é `SOLUÇÕES FINANCEIRAS`.** O contrato chama a coluna "C" de
+"com auto/flex" — modalidade **contratada** — e trata a antecipação **realizada** como base de
+outra remuneração (1.1.2-B). São fatos diferentes, e foi tratar um pelo outro que tornou a
+classificação impossível até 09/2026. `Auto`, `Flex` e `Combo` usam a coluna C; `NÃO` usa a B;
+ausente fica indefinido e a tela volta a mostrar o intervalo. Medido em 16/09/2026: 567 ECs
+classificados, nenhum vazio — Auto 502, NÃO 61, Flex 2, Combo 2. Fica registrado o risco: se a
+Fiserv apurar pela antecipação realizada, 251 dos 502 "Auto" mudariam de coluna.
+
+**O redutor incide sobre a Participação do mês**, não só sobre a linha recorrente (1.1.3) —
+por isso o prêmio é apurado mês a mês e despivotado para a competência de calendário. A base
+ainda não é a Participação inteira do contrato, porque deduções e campanhas não existem no
+modelo: é aproximação declarada.
+
+**A fronteira de R$ 20.000 está resolvida pelo próprio contrato.** As duas simulações do Anexo
+C discordam entre si: a Simulação 1 lê R$ 20.000 na faixa 20.000–24.999,99 (C = R$ 300, a
+tabela literal) e a Simulação 2 lê na faixa de baixo (B = R$ 50). A tabela concorda com a
+primeira, que fecha no centavo nos três meses. As duas simulações estão em
+`sub_channel_compensation_rules_test.rb` como gabarito.
+
+### O que o contrato prevê e o portal não apura
+
+- **Repasse sobre antecipação (1.1.2-B):** 11% sobre auto+flex, 7% sobre eventual e 7% sobre
+  agenda externa, aplicados à *receita bruta* de antecipação — que é `faturamento bruto
+  antecipado × média das taxas de antecipação da carteira`. A planilha traz o **volume**
+  (`VOLUME DE ANTECIPAÇÃO`, R$ 3,6 a 3,9 milhões por mês, ~44% do faturamento) e **não traz a
+  taxa**; também não distingue *eventual* de *agenda externa* — esta última é antecipação em
+  outras adquirentes, que o arquivo BIN não teria. Para apurar, seria preciso pedir à Fiserv:
+  a taxa média de antecipação por EC ou por carteira, e a separação do volume por modalidade.
+- **Recredenciamento em 12 meses (1.1):** um EC que sai da base só volta a ser credenciamento
+  novo depois de 12 meses. O portal paga sempre que `DATA DE CREDENCIAMENTO` cai na janela.
+  Medido em 16/09/2026: nenhum EC teve `accredited_on` alterado entre lotes, então a regra não
+  tem ocorrência — mas 113 dos 567 ECs têm data de suspensão, e pode ocorrer.
+- **Deduções de performance e campanhas** como fatores próprios da Participação. O que existe
+  é o acelerador/redutor (1.1.3). Das campanhas, o contrato revoga todas menos a do **APP
+  BIN** — que é, com grande probabilidade, os R$ 30 de digitalização: não uma faixa permanente
+  da tabela, e sim a campanha sobrevivente.
 
 ## Metabase
+
 
 `MetabaseRole.ensure!` cria o papel somente-leitura `metabase_ro` com `SELECT` restrito às
 views de auditoria e redefine a senha toda vez que roda. O papel é do cluster, compartilhado
