@@ -65,6 +65,8 @@
       Totais do recorte — soma dos <%= @reports.size %> MICs listados
     </p>
     <% digitalization = @reports.sum { |r| r[:prize][:digitalization] } %>
+    <% addon = @reports.sum { |r| r[:prize][:addon_amount] } %>
+    <% sem_modalidade = @reports.sum { |r| r[:prize][:undefined_modality] } %>
     <% addon_without = @reports.sum { |r| r[:prize][:addon_without_auto] } %>
     <% addon_with = @reports.sum { |r| r[:prize][:addon_with_auto] } %>
     <section class="metric-grid">
@@ -78,18 +80,24 @@
         <p class="metric-value"><%= brl_metric(digitalization) %></p>
         <p class="metric-hint">R$ 30,00 por EC com app, uma vez em M0</p>
       </article>
+      <%# A coluna do adicional sai da modalidade contratada (SOLUÇÕES FINANCEIRAS): o valor é um
+          só. O intervalo sobrevive para o caso em que algum EC do recorte não declara a
+          modalidade — aí o resumo diz quantos são, em vez de eleger uma coluna por eles. %>
       <article class="metric-card" data-tone="green">
         <p class="metric-label">Adicional por faturamento</p>
-        <p class="metric-value <%= "metric-value--range" if addon_without != addon_with %>">
-          <% if addon_without == addon_with %>
-            <%= brl_metric(addon_without) %>
-          <% else %>
+        <p class="metric-value <%= "metric-value--range" if sem_modalidade.positive? %>">
+          <% if sem_modalidade.positive? %>
             <%= brl(addon_without) %> – <%= brl(addon_with) %>
+          <% else %>
+            <%= brl_metric(addon) %>
           <% end %>
         </p>
         <p class="metric-hint">
-          <%= addon_without == addon_with ? "Igual nas duas hipóteses de antecipação" :
-            "Intervalo pendente da definição de antecipação" %>
+          <% if sem_modalidade.positive? %>
+            <%= pluralize(sem_modalidade, "EC sem modalidade declarada", "ECs sem modalidade declarada") %>
+          <% else %>
+            Pela modalidade contratada de cada EC (Anexo C, colunas B e C)
+          <% end %>
         </p>
       </article>
     </section>

@@ -2,11 +2,12 @@
 # a matriz de três meses por três modalidades embaixo; o arquivo põe tudo na mesma linha, com
 # os meses rotulados M0/M1/M2 e a janela escrita na nota do cabeçalho.
 class ThreeMonthEarningsExporter
-  # As duas colunas de adicional existem porque a fonte da antecipação não está definida: o
-  # projeto apresenta o intervalo em vez de escolher uma hipótese. Ver CLAUDE.md.
+  # O adicional sai da modalidade contratada (SOLUÇÕES FINANCEIRAS, Anexo C colunas B e C).
+  # As duas hipóteses seguem no fim do arquivo, como na view: é contra elas que o valor
+  # resolvido se confere. "ECs sem modalidade" diz quantos ficaram fora da soma resolvida.
   IDENTITY_HEADERS = [
-    "MIC", "ECs no M0", "Digitalização", "Adicional sem antecipação",
-    "Adicional com antecipação", "Prêmio mínimo", "Prêmio máximo"
+    "MIC", "ECs no M0", "Digitalização", "Adicional por faturamento", "Prêmio de entrada",
+    "ECs sem modalidade", "Adicional sem auto/flex", "Adicional com auto/flex"
   ].freeze
   MONTH_HEADERS = %w[Débito Crédito Total].freeze
 
@@ -42,9 +43,9 @@ class ThreeMonthEarningsExporter
     digitalizacao = prize[:digitalization].to_d
     [
       report[:name], prize[:accredited].to_i, digitalizacao,
+      prize[:addon_amount].to_d, digitalizacao + prize[:addon_amount].to_d,
+      prize[:undefined_modality].to_i,
       prize[:addon_without_auto].to_d, prize[:addon_with_auto].to_d,
-      digitalizacao + prize[:addon_without_auto].to_d,
-      digitalizacao + prize[:addon_with_auto].to_d,
       *report[:months].flat_map { |month| month_cells(month) }
     ]
   end

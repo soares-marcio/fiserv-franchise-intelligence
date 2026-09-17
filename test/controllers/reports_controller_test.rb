@@ -707,17 +707,28 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   # O segundo seletor só oferece os dois meses seguintes ao M0, e escolher o primeiro
   # deles fecha a janela em dois meses — a tabela perde a coluna M2.
-  # O intervalo das duas hipóteses de antecipação não cabe numa linha, e .metric-value corta
-  # com reticências: sem o modificador, o card mostrava "R$ 6.54…" em vez do número.
-  test "o adicional em intervalo ganha a classe que deixa o valor quebrar linha" do
+  # O intervalo virou exceção: só existe quando algum EC do recorte não declara a modalidade.
+  # Nesse caso ele não cabe numa linha, e .metric-value corta com reticências — sem o
+  # modificador, o card mostrava "R$ 6.54…" em vez do número.
+  test "o adicional sai resolvido, e vira intervalo só com EC sem modalidade declarada" do
     import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
     refresh_audit_views
 
-    # M0 de julho é a safra do EC credenciado na fixture; é a janela em que as duas
-    # hipóteses de antecipação divergem e o card vira intervalo.
+    # M0 de julho é a safra do EC credenciado na fixture, que declara a modalidade.
+    get three_months_reports_path(start_period: "2026-07")
+
+    assert_select "p.metric-value.metric-value--range", count: 0
+    assert_select ".metric-hint", text: /Pela modalidade contratada/
+
+    ApplicationRecord.connection.execute(
+      "UPDATE map_snapshots SET financial_solutions = NULL " \
+      "WHERE establishment_id = (SELECT id FROM establishments WHERE ec = '50000001')"
+    )
+    refresh_audit_views
     get three_months_reports_path(start_period: "2026-07")
 
     assert_select "p.metric-value.metric-value--range", text: /–/
+    assert_select ".metric-hint", text: /1 EC sem modalidade declarada/
   end
 
   # O calendário abre na competência mais recente importada: abrir no mês do relógio

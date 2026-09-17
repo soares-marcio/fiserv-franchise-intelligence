@@ -2,10 +2,15 @@
 # meses em M0/M1/M2 e a janela na nota —, mais o que só existe aqui: a data de credenciamento
 # e quantos dos três meses da janela do EC já têm volume.
 class ThreeMonthEstablishmentsExporter
+  # A modalidade vem de SOLUÇÕES FINANCEIRAS e escolhe a coluna do adicional; as parcelas
+  # dizem em qual mês da janela o prêmio cai (Anexo C, 1.1.1). As duas hipóteses ficam no
+  # fim, para conferência.
   IDENTITY_HEADERS = [
-    "EC", "Nome", "Credenciado em", "Meses apurados", "Digitalização",
-    "Adicional sem antecipação", "Adicional com antecipação"
+    "EC", "Nome", "Credenciado em", "Meses apurados", "Modalidade", "Digitalização",
+    "Adicional por faturamento", "Adicional M0", "Adicional M1", "Adicional M2",
+    "Adicional sem auto/flex", "Adicional com auto/flex"
   ].freeze
+  MODALITY_LABELS = { true => "com auto/flex", false => "sem auto/flex" }.freeze
   MONTH_HEADERS = %w[Débito Crédito Total].freeze
 
   def initialize(reports, window:, sub_channel_name:)
@@ -41,7 +46,12 @@ class ThreeMonthEstablishmentsExporter
       report[:trade_name] || report[:legal_name],
       date(credenciamento["accredited_on"]),
       credenciamento["months_observed"]&.to_i,
+      MODALITY_LABELS[credenciamento["auto_flex"]],
       credenciamento["digitalization_amount"]&.to_d,
+      credenciamento["addon_amount"]&.to_d,
+      credenciamento["m0_addon_amount"]&.to_d,
+      credenciamento["m1_addon_amount"]&.to_d,
+      credenciamento["m2_addon_amount"]&.to_d,
       credenciamento["addon_without_auto"]&.to_d,
       credenciamento["addon_with_auto"]&.to_d,
       *report[:months].flat_map { |month| month_cells(month) }

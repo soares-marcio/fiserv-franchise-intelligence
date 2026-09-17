@@ -8,7 +8,7 @@ class ThreeMonthEarningsExporterTest < ActiveSupport::TestCase
     @reports = [
       { name: "MIC ALFA",
         prize: { accredited: 3, digitalization: 90.to_d, addon_without_auto: 150.to_d,
-                 addon_with_auto: 260.to_d },
+                 addon_with_auto: 260.to_d, addon_amount: 260.to_d, undefined_modality: 0 },
         months: [
           { period: @window[0], debit: 1000.to_d, credit: 2000.to_d, total: 3000.to_d,
             covered: true, partial: false },
@@ -24,7 +24,9 @@ class ThreeMonthEarningsExporterTest < ActiveSupport::TestCase
     tabela = CSV.parse(exporter.to_csv, headers: true)
 
     assert_equal "MIC", tabela.headers.first
-    assert_equal %w[M0\ Débito M0\ Crédito M0\ Total], tabela.headers[7, 3]
+    inicio = tabela.headers.index("M0 Débito")
+    assert_equal %w[M0\ Débito M0\ Crédito M0\ Total], tabela.headers[inicio, 3],
+      "os três meses saem em colunas consecutivas, rotuladas pelo índice na janela"
     assert_equal 1, tabela.size
     assert_equal "3000.0", tabela[0]["M0 Total"]
   end
@@ -39,17 +41,18 @@ class ThreeMonthEarningsExporterTest < ActiveSupport::TestCase
     assert_equal "1200.0", linha["M2 Total"]
   end
 
-  # O prêmio tem duas hipóteses enquanto a fonte da antecipação não estiver definida. O
-  # arquivo leva as duas, como a tela: escolher uma seria afirmar o que não se sabe.
-  test "o prêmio sai como intervalo, com as duas parcelas que o compõem" do
+  # O adicional sai resolvido pela modalidade contratada (Anexo C). As duas hipóteses seguem
+  # no fim do arquivo, como na view: é contra elas que o valor resolvido se confere.
+  test "o prêmio sai resolvido, com as duas hipóteses no fim para conferência" do
     linha = CSV.parse(exporter.to_csv, headers: true).first
 
     assert_equal "3", linha["ECs no M0"]
     assert_equal "90.0", linha["Digitalização"]
-    assert_equal "150.0", linha["Adicional sem antecipação"]
-    assert_equal "260.0", linha["Adicional com antecipação"]
-    assert_equal "240.0", linha["Prêmio mínimo"]
-    assert_equal "350.0", linha["Prêmio máximo"]
+    assert_equal "260.0", linha["Adicional por faturamento"]
+    assert_equal "350.0", linha["Prêmio de entrada"], "digitalização mais o adicional resolvido"
+    assert_equal "0", linha["ECs sem modalidade"]
+    assert_equal "150.0", linha["Adicional sem auto/flex"]
+    assert_equal "260.0", linha["Adicional com auto/flex"]
   end
 
   test "a janela fica escrita na nota do xlsx: M0 sozinho não diz de quando é o arquivo" do

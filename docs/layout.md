@@ -483,8 +483,8 @@ nota do cabeçalho. Um exportador por tela, nenhum herdando de outro: o que elas
 | Ritmo do mês | `WeeklyRevenueExporter` | dia coberto pelo arquivo |
 | Modal do dia | `DayCompaniesExporter` | cliente que vendeu naquele dia |
 | Recorrente | `RecurringEarningsExporter` | MIC × competência |
-| Ganhos 3M | `ThreeMonthEarningsExporter` | MIC, com M0/M1/M2 em colunas |
-| Ganhos 3M de um MIC | `ThreeMonthEstablishmentsExporter` | EC, com M0/M1/M2 em colunas |
+| Ganhos 3M | `ThreeMonthEarningsExporter` | MIC, com o adicional resolvido pela modalidade, a contagem de ECs sem modalidade e as duas hipóteses no fim para conferência; M0/M1/M2 em colunas |
+| Ganhos 3M de um MIC | `ThreeMonthEstablishmentsExporter` | EC, com modalidade, adicional resolvido e a parcela de cada mês (M0/M1/M2); as duas hipóteses no fim |
 
 Quatro regras valem para todos:
 
