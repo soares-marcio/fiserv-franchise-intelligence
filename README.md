@@ -380,8 +380,9 @@ Fiserv apurar pela antecipação realizada, 251 dos 502 "Auto" mudariam de colun
 
 **O redutor incide sobre a Participação do mês**, não só sobre a linha recorrente (1.1.3) —
 por isso o prêmio é apurado mês a mês e despivotado para a competência de calendário. A base
-ainda não é a Participação inteira do contrato, porque deduções e campanhas não existem no
-modelo: é aproximação declarada.
+é credenciamento (parcela do mês mais digitalização) + recorrência, e cobre a Participação
+do contrato: o fator "deduções de performance" é o próprio redutor (1.1.3), e a única
+campanha viva é a do APP BIN — com grande probabilidade, os R$ 30 já dentro da base.
 
 **A fronteira de R$ 20.000 está resolvida pelo próprio contrato.** As duas simulações do Anexo
 C discordam entre si: a Simulação 1 lê R$ 20.000 na faixa 20.000–24.999,99 (C = R$ 300, a
@@ -402,10 +403,10 @@ primeira, que fecha no centavo nos três meses. As duas simulações estão em
   novo depois de 12 meses. O portal paga sempre que `DATA DE CREDENCIAMENTO` cai na janela.
   Medido em 16/09/2026: nenhum EC teve `accredited_on` alterado entre lotes, então a regra não
   tem ocorrência — mas 113 dos 567 ECs têm data de suspensão, e pode ocorrer.
-- **Deduções de performance e campanhas** como fatores próprios da Participação. O que existe
-  é o acelerador/redutor (1.1.3). Das campanhas, o contrato revoga todas menos a do **APP
-  BIN** — que é, com grande probabilidade, os R$ 30 de digitalização: não uma faixa permanente
-  da tabela, e sim a campanha sobrevivente.
+- **Campanhas futuras** (1.1.4): provisórias e com regulamento próprio, não têm como ser
+  apuradas antes de existirem. Das atuais, o contrato revoga todas menos a do **APP BIN** —
+  que é, com grande probabilidade, os R$ 30 de digitalização: não uma faixa permanente da
+  tabela, e sim a campanha sobrevivente, já dentro da base.
 
 ## Metabase
 
