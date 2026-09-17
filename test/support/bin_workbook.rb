@@ -19,6 +19,7 @@ module BinWorkbook
     :accredited_on, :net_mdr, :app_access_at, :auto_boarding, :financial_solutions,
     :debitos, :creditos,
     :preapproved_volume, :preapproved_term, :preapproved_rate,
+    :suspended_on, :proposal_status, :proposed_on,
     keyword_init: true
   ) do
     def total_m1 = dias_m1.values.sum
@@ -106,6 +107,9 @@ module BinWorkbook
       "CEP" => "74000000", "TELEFONE DO TRABALHO" => "6230000000",
       "DATA DE CREDENCIAMENTO" => loja.accredited_on || "01/02/2026",
       "DATA DE ATIVAÇÃO" => "05/02/2026",
+      "DATA DE SUSPENSÃO" => loja.suspended_on,
+      # A planilha real marca quem transacionou no mês; aqui é o que os dias declarados dizem.
+      "ATIVO NO MÊS ATUAL?" => loja.dias_atual.any? ? "SIM" : "NÃO",
       "NET MDR" => loja.net_mdr, "ULTIMO ACESSO NO APP" => loja.app_access_at,
       "STATUS ANTECIP AUTO NO BOARDING" => loja.auto_boarding,
       "SOLUÇÕES FINANCEIRAS" => loja.financial_solutions,
@@ -138,10 +142,12 @@ module BinWorkbook
   def self.ativacao_row(loja, canal: CANAL)
     {
       "HIERARQUIA" => canal, "CANAL" => canal, "SUB-CANAL" => loja.sub_channel_name,
-      "NR DA PROPOSTA" => "P#{loja.ec}", "DATA DA PROPOSTA" => "2026-01-10",
+      "NR DA PROPOSTA" => "P#{loja.ec}", "DATA DA PROPOSTA" => loja.proposed_on || "2026-01-10",
       "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "RAZÃO SOCIAL" => loja.trade_name, "NOME FANTASIA" => loja.legal_name,
-      "STATUS DA PROPOSTA" => "Aprovada", "DATA DE ATIVAÇÃO" => "2026-02-05",
+      # Vocabulário real da coluna: "Boarded to BWA", "Credit Declined" e "Pending QC".
+      "STATUS DA PROPOSTA" => loja.proposal_status || "Boarded to BWA",
+      "DATA DE ATIVAÇÃO" => "2026-02-05",
       "TICKET MÉDIO" => 120, "FATURAMENTO ANUAL PREVISTO" => 90_000
     }
   end
@@ -202,5 +208,41 @@ module BinWorkbook
         creditos: { "202606" => 5_000, "202607" => 10_000, "202608" => 2_000 }
       )
     ]
+  end
+
+  # Lojas para os Indicadores do Anexo B, em duas carteiras: KAPPA reprova em tudo no mês
+  # atual e SIGMA cumpre tudo. Os percentuais esperados saem destas declarações.
+  def self.indicator_lojas
+    kappa = [
+      # Três credenciadas no mês atual (menos de 5: Risco). Só a primeira passa de R$ 10.000
+      # em débito + crédito; a terceira não vende. Uma proposta de cada status.
+      loja_indicador("61000001", "MIC KAPPA", accredited_on: Date.new(2026, 8, 3),
+        dias_atual: { 4 => 6_000 }, debitos: { "202608" => 6_000 }, creditos: { "202608" => 5_000 }),
+      loja_indicador("61000002", "MIC KAPPA", accredited_on: Date.new(2026, 8, 12),
+        dias_atual: { 2 => 300 }, proposal_status: "Credit Declined"),
+      loja_indicador("61000003", "MIC KAPPA", accredited_on: Date.new(2026, 8, 20),
+        dias_atual: {}, proposal_status: "Pending QC"),
+      # Credenciada em junho e suspensa no mês atual: fica na base e conta como descredenciada.
+      loja_indicador("61000004", "MIC KAPPA", accredited_on: Date.new(2026, 6, 15),
+        suspended_on: Date.new(2026, 8, 20), dias_atual: {}, proposed_on: Date.new(2026, 6, 1)),
+      # Suspensa no mês anterior: fora da base do mês atual.
+      loja_indicador("61000005", "MIC KAPPA", accredited_on: Date.new(2026, 5, 2),
+        suspended_on: Date.new(2026, 7, 5), dias_atual: {}, proposta: false)
+    ]
+    sigma = (1..10).map do |n|
+      loja_indicador(format("62%06d", n), "MIC SIGMA", accredited_on: Date.new(2026, 8, n),
+        dias_atual: { n => 12_000 }, debitos: { "202608" => 7_000 }, creditos: { "202608" => 5_000 })
+    end
+    kappa + sigma
+  end
+
+  def self.loja_indicador(ec, sub_channel_name, dias_atual:, proposta: true,
+    proposed_on: Date.new(2026, 8, 1), **atributos)
+    Loja.new(
+      ec:, cnpj: "#{ec}000199", sub_channel_name:,
+      legal_name: "LOJA #{ec} LTDA", trade_name: "LOJA #{ec}",
+      contract_status: "Active", dias_m1: {}, dias_atual:, melhor_conversa: nil, proposta:,
+      proposed_on:, **atributos
+    )
   end
 end

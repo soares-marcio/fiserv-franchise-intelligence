@@ -1,0 +1,71 @@
+<%# Card de um MIC nos Indicadores do Anexo B, na anatomia do card do recorrente: o retrato
+    no topo é o último mês fechado de cada indicador, e a série de competências fica dentro,
+    em ordem cronológica — é ela que dá sentido à contagem de meses seguidos em Risco. %>
+<article class="earnings-card indicator-card">
+  <header class="earnings-card__head">
+    <p class="section-label">MIC</p>
+    <h3 class="earnings-card__name">
+      <%= link_to report[:name], sub_channel_report_path(id: report[:uuid]), class: "link" %>
+    </h3>
+  </header>
+
+  <div class="earnings-card__total">
+    <p class="metric-label">Indicadores em risco no último mês fechado</p>
+    <p class="metric-value">
+      <%= report[:risk_count] %><span class="metric-value__cents"> de <%= SubChannelIndicatorRules::INDICATORS.size %> apurados</span>
+    </p>
+    <% em_risco = report[:latest].select { |_, reading| reading && reading[:verdict] == :risk } %>
+    <p class="earnings-card__breakdown">
+      <% if em_risco.any? %>
+        <%= em_risco.map { |indicator, reading| "#{indicator_label(indicator)} (#{l(reading[:period], format: '%b/%Y')})" }.join(" · ") %>
+      <% else %>
+        Nenhum indicador em risco no último mês fechado com leitura.
+      <% end %>
+    </p>
+    <%# A cláusula 12.2 (xx) fala em 60 dias; com apuração mensal, dois meses fechados
+        seguidos em Risco alcançam o prazo. Só aparece quando alcança. %>
+    <% alertas = report[:risk_streaks].select { |_, meses| meses >= SubChannelIndicatorRules::TERMINATION_MONTHS } %>
+    <% if alertas.any? %>
+      <p class="indicator-card__alert">
+        <%= alertas.map { |indicator, meses| "#{indicator_label(indicator)} em risco há #{meses} meses fechados seguidos" }.to_sentence %>
+        — alcança os 60 dias da cláusula 12.2 (xx) do contrato.
+      </p>
+    <% end %>
+  </div>
+
+  <div class="table-scroll" role="region" tabindex="0"
+    aria-label="Indicadores mês a mês de <%= report[:name] %>">
+    <table class="table earnings-card__table indicator-table">
+      <caption class="sr-only">Indicadores do Anexo B de <%= report[:name] %>, mês a mês</caption>
+      <thead>
+        <tr>
+          <th scope="col">Mês</th>
+          <% SubChannelIndicatorRules::INDICATORS.each_value do |rule| %>
+            <th scope="col" class="text-right"><%= rule[:label] %></th>
+          <% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% report[:months].each do |month| %>
+          <tr>
+            <th scope="row" class="font-normal">
+              <%= l(month[:period], format: "%b/%Y") %>
+              <% if month[:partial] %>
+                <span class="block normal-case tracking-normal opacity-60">parcial</span>
+              <% end %>
+            </th>
+            <% month[:readings].each do |indicator, reading| %>
+              <td class="text-right tabular-nums indicator-cell" data-verdict="<%= reading[:verdict] %>"
+                title="<%= indicator_detail(indicator, reading) %>">
+                <span class="indicator-cell__value"><%= indicator_value(indicator, reading) %></span>
+                <% if reading[:verdict] %>
+                  <span class="indicator-cell__verdict"><%= verdict_label(reading[:verdict]) %></span>
+                <% end %>
+              </td>
+            <% end %>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</article>

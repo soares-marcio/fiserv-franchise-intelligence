@@ -389,8 +389,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get reports_path
 
     assert_select "nav.primary-nav details", count: 0
-    assert_select "nav.primary-nav a.nav-link", count: 8
+    assert_select "nav.primary-nav a.nav-link", count: 9
     assert_select "nav.primary-nav a.nav-link.is-active", text: /Faturamento/
+    assert_select "nav.primary-nav a", text: /Indicadores/
     assert_select "nav.primary-nav a", text: /Clover Capital/
     assert_select "nav.primary-nav a", text: /Importar arquivo/
     assert_select "button.nav-toggle[aria-controls='primary_nav']"
@@ -563,6 +564,50 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select ".metric-hint", text: /Competência não importada/
+  end
+
+  test "indicadores abrem vazios, e com dados mostram um card por MIC com a leitura de cada mês" do
+    get indicators_reports_path
+    assert_response :success
+    assert_select ".empty-state", text: /Sem Mapa importado/
+
+    import_synthetic_workbook(lojas: BinWorkbook.indicator_lojas)
+    ApplicationRecord.connection.execute(
+      "UPDATE period_coverages SET closed = true WHERE period = DATE '#{BinWorkbook::CURRENT_PERIOD}'"
+    )
+    get indicators_reports_path
+    assert_response :success
+    assert_select "h1", text: "Indicadores do Anexo B por MIC"
+    # KAPPA reprova em tudo e SIGMA cumpre tudo: a ordem padrão traz o risco ao topo.
+    nomes = css_select("article.earnings-card .earnings-card__name").map { |node| node.text.strip }
+    assert_equal [ "MIC KAPPA", "MIC SIGMA" ], nomes
+    assert_select ".sort-sentence", text: /Ordenado por Indicadores em risco, do maior para o menor/
+    assert_select "article.earnings-card thead th[scope=col]", text: "ECs sem transação"
+    assert_select "td.indicator-cell[data-verdict=risk] .indicator-cell__verdict", text: "Risco", minimum: 5
+    assert_select "td.indicator-cell[data-verdict=adequate] .indicator-cell__verdict", text: "Adequado", minimum: 5
+    # A fração fica no title da célula, para a conta ser conferível sem alargar a tabela.
+    assert_select "td.indicator-cell[title=?]", "1 de 3 · 1 pendente"
+    # Dois meses fechados seguidos em Risco alcançam os 60 dias da cláusula 12.2 (xx).
+    assert_select ".indicator-card__alert", text: /Credenciamentos em risco há \d+ meses fechados seguidos/
+    assert_select ".metric-hint", text: /Não apurados:.*reclamações.*ordens canceladas/i
+    assert_select "nav.breadcrumb-wrap span[aria-current=page]", text: "Indicadores"
+    assert_no_match(/translation missing/i, response.body)
+  end
+
+  test "os indicadores aceitam ordenar por nome do MIC e filtrar por Master" do
+    import_synthetic_workbook(lojas: BinWorkbook.indicator_lojas)
+    channel = Channel.find_by!(name: BinWorkbook::CANAL)
+
+    get indicators_reports_path(sort: "name", direction: "asc", channel_id: channel.uuid)
+
+    assert_response :success
+    assert_select ".sort-sentence", text: /Ordenado por MIC, do menor para o maior/
+    assert_select "a.sort-reset[href*=?]", "channel_id=#{channel.uuid}"
+    nomes = css_select("article.earnings-card .earnings-card__name").map { |node| node.text.strip }
+    assert_equal nomes.sort_by(&:downcase), nomes
+    # Competência aberta: o valor aparece, a leitura não.
+    assert_select "article.earnings-card tbody th[scope=row]", text: /ago\/2026\s+parcial/
+    assert_select "td.indicator-cell[data-verdict=''] .indicator-cell__verdict", count: 0
   end
 
   test "ganho recorrente abre vazio, e com dados mostra a série mensal" do

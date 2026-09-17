@@ -1326,6 +1326,43 @@
     white-space: nowrap;
   }
 
+/* Indicadores do Anexo B: valor e leitura na mesma célula, a leitura em cor. Verde e
+   vermelho já significam bom e ruim no portal; Atenção usa o âmbar do warning. */
+.indicator-table {
+  min-width: 40rem;
+}
+
+.indicator-cell__value {
+  display: block;
+}
+
+.indicator-cell__verdict {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.indicator-cell[data-verdict="adequate"] .indicator-cell__verdict {
+  color: var(--color-success);
+}
+
+.indicator-cell[data-verdict="attention"] .indicator-cell__verdict {
+  color: var(--color-warning);
+}
+
+.indicator-cell[data-verdict="risk"] .indicator-cell__verdict {
+  color: var(--color-error);
+}
+
+.indicator-card__alert {
+  margin-top: 0.45rem;
+  color: var(--color-error);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
   .earnings-card-bar {
     display: flex;
     flex-wrap: wrap;

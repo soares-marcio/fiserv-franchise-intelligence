@@ -16,8 +16,8 @@ class TableAccessibilityTest < ActionDispatch::IntegrationTest
   def paths
     [
       reports_path, stalled_reports_path, weekly_reports_path, recurring_reports_path,
-      three_months_reports_path, establishments_path, import_batches_path,
-      sub_channel_report_path(@sub_channel)
+      three_months_reports_path, indicators_reports_path, establishments_path,
+      import_batches_path, sub_channel_report_path(@sub_channel)
     ]
   end
 

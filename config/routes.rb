@@ -8,6 +8,7 @@ Rails.application.routes.draw do
       get :weekly
       get :three_months
       get :recurring
+      get :indicators
     end
   end
   get "reports/sub_channels/:id", to: "reports#sub_channel", as: :sub_channel_report
