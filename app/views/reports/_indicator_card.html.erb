@@ -55,13 +55,14 @@
               <% end %>
             </th>
             <% month[:readings].each do |indicator, reading| %>
-              <td class="text-right tabular-nums indicator-cell" data-verdict="<%= reading[:verdict] %>"
-                title="<%= indicator_detail(indicator, reading) %>">
+              <%# tag.td omite title e data-verdict nulos: atributo vazio é ruído para o leitor de tela. %>
+              <%= tag.td class: "text-right tabular-nums indicator-cell",
+                data: { verdict: reading[:verdict] }, title: indicator_detail(indicator, reading) do %>
                 <span class="indicator-cell__value"><%= indicator_value(indicator, reading) %></span>
                 <% if reading[:verdict] %>
                   <span class="indicator-cell__verdict"><%= verdict_label(reading[:verdict]) %></span>
                 <% end %>
-              </td>
+              <% end %>
             <% end %>
           </tr>
         <% end %>

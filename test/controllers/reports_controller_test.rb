@@ -607,7 +607,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_equal nomes.sort_by(&:downcase), nomes
     # Competência aberta: o valor aparece, a leitura não.
     assert_select "article.earnings-card tbody th[scope=row]", text: /ago\/2026\s+parcial/
-    assert_select "td.indicator-cell[data-verdict=''] .indicator-cell__verdict", count: 0
+    assert_select "article.earnings-card tbody tr:last-child td[data-verdict]", count: 0
+    assert_select "article.earnings-card tbody tr:last-child td[title='']", count: 0
   end
 
   test "ganho recorrente abre vazio, e com dados mostra a série mensal" do
