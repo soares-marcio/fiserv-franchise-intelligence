@@ -454,7 +454,11 @@ Leituras que o texto do anexo obriga a declarar:
 Conferido com o extrato de agosto/2026 do MIC GOIANIA 4 (`NETO – MIC … .xlsx`, 9 abas),
 cruzado com o banco por CNPJ em 17/09/2026. O `Consolidado` soma as abas —
 `MDR + Antecipação + MDR Flex + Faturamento 3M + Pix + Clover Capital + Campanha APP
-± Redutor/Acelerador` — mais a diferença de apurações anteriores.
+± Redutor/Acelerador` — mais a diferença de apurações anteriores. O extrato é de uma
+**competência** (Base MDR com `Período = 2026-08` e o faturamento de agosto; um EC com
+boarding em 04/08 já entra como M0) e é **pago no mês seguinte**: quando se diz que a
+campanha APP "é feita no M0 e paga no M1", M1 é o caixa, não a competência — vocabulário
+alinhado com o usuário em 17/09/2026.
 
 | Aba | Como a Fiserv calcula | Portal |
 | --- | --- | --- |
