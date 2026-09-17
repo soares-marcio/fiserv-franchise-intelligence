@@ -101,16 +101,21 @@ class SubChannelCompensationRules
       band ? band[:rate] : 0.0
     end
 
+    # O redutor incide sobre a **Participação do Franqueado** (Anexo C, 1.1.3), que o contrato
+    # compõe de credenciamento, recorrência, deduções e campanhas — não só sobre a linha
+    # recorrente. Aqui a base é credenciamento + recorrência: mais perto do contrato do que
+    # antes, e ainda não a Participação inteira, porque deduções e campanhas não existem no
+    # modelo. Aproximação declarada, não pretensão de exatidão.
     # Acelerador OU redutor, nunca os dois: acelerador sobre o incremento, redutor sobre
     # a remuneração. Sem mês anterior positivo não há base de comparação — nenhum ajuste.
-    def performance_adjustment(previous:, current:, recurring:)
+    def performance_adjustment(previous:, current:, participation:)
       return { growth: nil, accelerator: 0.0, reducer: 0.0 } if previous.to_f <= 0
 
       growth = (current.to_f - previous.to_f) / previous.to_f
       if growth >= ACCELERATOR_BANDS.last[:floor]
         { growth:, accelerator: (current.to_f - previous.to_f) * accelerator_rate(growth), reducer: 0.0 }
       elsif growth.negative?
-        { growth:, accelerator: 0.0, reducer: recurring.to_f * reducer_rate(growth) }
+        { growth:, accelerator: 0.0, reducer: participation.to_f * reducer_rate(growth) }
       else
         { growth:, accelerator: 0.0, reducer: 0.0 }
       end

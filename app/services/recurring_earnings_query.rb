@@ -22,16 +22,18 @@ class RecurringEarningsQuery
 
   def compute_by_sub_channel
     rows = monthly_rows
+    accreditation = accreditation_by_period
     sub_channels = SubChannel.where(id: rows.map { |r| r["sub_channel_id"] }.uniq).index_by(&:id)
     open_periods = open_periods_by_channel
 
     rows.group_by { |r| r["sub_channel_id"] }.map do |sub_channel_id, sub_rows|
       sub_channel = sub_channels.fetch(sub_channel_id)
-      months = build_months(sub_rows, open_periods)
+      months = build_months(sub_rows, open_periods, accreditation)
       {
         sub_channel_id:, uuid: sub_channel.uuid, name: sub_channel.name,
         channel_id: sub_rows.first["channel_id"], months:,
         recurring_total: months.sum { |m| m[:recurring] },
+        accreditation_total: months.sum { |m| m[:accreditation] },
         adjustment_total: months.sum { |m| m[:accelerator] - m[:reducer] }
       }
     end.sort_by { |row| row[:name] }
@@ -85,7 +87,7 @@ class RecurringEarningsQuery
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
-  def build_months(sub_rows, open_periods)
+  def build_months(sub_rows, open_periods, accreditation)
     previous_total = nil
     sub_rows.sort_by { |r| r["period"] }.map do |row|
       period = row["period"].to_date
@@ -95,14 +97,46 @@ class RecurringEarningsQuery
       net_mdr = row["weighted_net_mdr"]&.to_f
       rates = SubChannelCompensationRules.mdr_rates(net_mdr)
       recurring = rates ? debit * rates[:debit] + credit * rates[:credit] : 0.0
+      # A parcela de credenciamento que cai nesta competência entra na base do ajuste: o
+      # contrato manda o redutor incidir sobre a Participação, não só sobre a recorrência.
+      parcel = accreditation.fetch([ row["sub_channel_id"], period ], 0.0)
       adjustment = SubChannelCompensationRules.performance_adjustment(
-        previous: previous_total, current: total, recurring: recurring
+        previous: previous_total, current: total, participation: recurring + parcel
       )
       previous_total = total
 
-      { period:, debit:, credit:, total:, net_mdr:, rates:, recurring:,
+      { period:, debit:, credit:, total:, net_mdr:, rates:, recurring:, accreditation: parcel,
         partial: open_periods.include?([ row["channel_id"], period ]),
         mdr_fallback: row["mdr_fallback"] }.merge(adjustment)
+    end
+  end
+
+  # As parcelas do prêmio por subcanal e **competência de calendário**. A view as guarda
+  # indexadas pela janela do EC (m0_period), então cada uma é deslocada para o mês em que é
+  # paga: M0 e a digitalização no próprio m0_period, M1 no mês seguinte, M2 no subsequente.
+  def accreditation_by_period
+    return {} unless AuditViews.populated?("audit_accreditation_earnings")
+
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+      SELECT sub_channel_id, period, SUM(amount) AS amount
+      FROM (
+        SELECT channel_id, sub_channel_id, m0_period AS period,
+          COALESCE(digitalization_amount, 0) + COALESCE(m0_addon_amount, 0) AS amount
+        FROM audit_accreditation_earnings
+        UNION ALL
+        SELECT channel_id, sub_channel_id, (m0_period + INTERVAL '1 month')::date,
+          COALESCE(m1_addon_amount, 0)
+        FROM audit_accreditation_earnings
+        UNION ALL
+        SELECT channel_id, sub_channel_id, (m0_period + INTERVAL '2 months')::date,
+          COALESCE(m2_addon_amount, 0)
+        FROM audit_accreditation_earnings
+      ) parcels
+      WHERE (:channel_id IS NULL OR channel_id = :channel_id)
+      GROUP BY sub_channel_id, period
+    SQL
+    ApplicationRecord.connection.exec_query(sql).to_a.to_h do |row|
+      [ [ row["sub_channel_id"], row["period"].to_date ], row["amount"].to_f ]
     end
   end
 

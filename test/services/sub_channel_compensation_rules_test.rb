@@ -73,21 +73,21 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
   end
 
   test "acelerador e redutor nunca coexistem" do
-    up = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 250, recurring: 10)
+    up = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 250, participation: 10)
     assert_operator up[:accelerator], :>, 0
     assert_equal 0.0, up[:reducer]
 
-    down = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 40, recurring: 10)
+    down = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 40, participation: 10)
     assert_equal 0.0, down[:accelerator]
     assert_in_delta 10 * 0.20, down[:reducer], 0.0001
 
-    flat = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 110, recurring: 10)
+    flat = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 110, participation: 10)
     assert_equal 0.0, flat[:accelerator]
     assert_equal 0.0, flat[:reducer]
   end
 
   test "sem mês anterior positivo não há base de comparação nem ajuste" do
-    result = SubChannelCompensationRules.performance_adjustment(previous: 0, current: 500, recurring: 10)
+    result = SubChannelCompensationRules.performance_adjustment(previous: 0, current: 500, participation: 10)
     assert_nil result[:growth]
     assert_equal 0.0, result[:accelerator]
     assert_equal 0.0, result[:reducer]

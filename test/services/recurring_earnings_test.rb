@@ -46,11 +46,52 @@ class RecurringEarningsTest < ActiveSupport::TestCase
         assert_operator current[:accelerator], :>, 0, "acelerador em #{current[:period]}"
         assert_equal 0.0, current[:reducer]
       elsif growth.negative?
-        expected = current[:recurring] * SubChannelCompensationRules.reducer_rate(growth)
+        base = current[:recurring] + current[:accreditation]
+        expected = base * SubChannelCompensationRules.reducer_rate(growth)
         assert_in_delta expected, current[:reducer], 0.001, "redutor em #{current[:period]}"
         assert_equal 0.0, current[:accelerator]
       end
     end
+  end
+
+  # Anexo C, 1.1.3: o redutor incide sobre a Participação do Franqueado, não só sobre a linha
+  # recorrente. Com a janela do EC dentro da série, a parcela do credenciamento cai no mesmo
+  # mês da queda e tem de entrar na base — é a diferença entre esta regra e a anterior.
+  test "o redutor incide sobre a recorrência mais a parcela do credenciamento" do
+    delta_ec = Establishment.find_by!(ec: "50000003")
+    # Janela do EC trazida para jun/jul/ago, e o volume de agosto elevado acima do piso das
+    # faixas: assim a parcela de M2 cai exatamente no mês em que a carteira DELTA despenca.
+    # Sem isso a parcela seria zero — as faixas começam em R$ 15.000 — e o teste não provaria
+    # nada. Mexe só no volume 'total' (base da faixa), não em débito/crédito, para a queda da
+    # série recorrente continuar sendo a mesma.
+    ApplicationRecord.connection.execute(
+      "UPDATE map_snapshots SET accredited_on = DATE '2026-06-10' " \
+      "WHERE establishment_id = #{delta_ec.id}"
+    )
+    ApplicationRecord.connection.execute(
+      "UPDATE monthly_volumes_consolidated SET amount = 55000 " \
+      "WHERE establishment_id = #{delta_ec.id} AND metric = 'total' AND period = DATE '2026-08-01'"
+    )
+    refresh_audit_views
+    delta = RecurringEarningsQuery.new.by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
+
+    com_parcela = delta[:months].select { |month| month[:accreditation].positive? }
+    assert_predicate com_parcela, :any?, "a janela do EC tem de cruzar a série, senão o teste é vácuo"
+
+    em_queda = delta[:months].each_cons(2).find do |previous, current|
+      current[:total] < previous[:total] && current[:accreditation].positive?
+    end
+    assert em_queda, "o fixture precisa de um mês com queda e parcela ao mesmo tempo"
+
+    previous, current = em_queda
+    growth = (current[:total] - previous[:total]) / previous[:total]
+    base = current[:recurring] + current[:accreditation]
+
+    assert_in_delta base * SubChannelCompensationRules.reducer_rate(growth),
+      current[:reducer], 0.001
+    assert_operator current[:reducer], :>,
+      current[:recurring] * SubChannelCompensationRules.reducer_rate(growth),
+      "com a parcela na base, o redutor é maior do que era pela regra antiga"
   end
 
   test "primeiro mês da série não tem base de comparação nem ajuste" do

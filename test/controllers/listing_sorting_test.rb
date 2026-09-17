@@ -74,11 +74,11 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "article.earnings-card"
-    assert_select "article.earnings-card .metric-label", text: /Ganho na janela/
+    assert_select "article.earnings-card .metric-label", text: /Participação na janela/
     # O total da janela vive na primeira dobra, junto dos números do último mês fechado.
-    assert_select "section.metric-grid .metric-card .metric-label", text: "Ganho na janela"
+    assert_select "section.metric-grid .metric-card .metric-label", text: "Participação na janela"
     assert_select "section.metric-grid .metric-hint", text: /Cada competência é apurada sozinha/
-    assert_select ".sort-sentence", text: /Ordenado por Ganho na janela, do maior para o menor/
+    assert_select ".sort-sentence", text: /Ordenado por Participação na janela, do maior para o menor/
     # A série do subcanal continua dentro do card, em ordem cronológica.
     assert_select "article.earnings-card tbody th[scope=row]", minimum: 1
   end

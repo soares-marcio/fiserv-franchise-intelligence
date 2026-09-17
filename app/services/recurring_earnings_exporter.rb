@@ -4,7 +4,8 @@
 class RecurringEarningsExporter
   HEADERS = [
     "MIC", "Competência", "Competência parcial", "Débito", "Crédito", "Net MDR %",
-    "Net MDR de arquivo anterior", "Repasse", "Ajuste", "Ganho do mês"
+    "Net MDR de arquivo anterior", "Repasse", "Credenciamento", "Ajuste",
+    "Participação do mês"
   ].freeze
 
   def initialize(reports, channel_name: nil)
@@ -43,8 +44,9 @@ class RecurringEarningsExporter
       month[:net_mdr]&.to_d,
       ("sim" if month[:mdr_fallback]),
       month[:recurring].to_d,
+      (month[:accreditation].to_d unless month[:accreditation].zero?),
       (ajuste.to_d unless ajuste.zero?),
-      (month[:recurring] + ajuste).to_d
+      (month[:recurring] + month[:accreditation] + ajuste).to_d
     ]
   end
 
@@ -53,7 +55,8 @@ class RecurringEarningsExporter
     ajuste = meses.sum { |month| month[:accelerator] - month[:reducer] }
     [ "TOTAL", nil, nil, meses.sum { |month| month[:debit].to_d },
       meses.sum { |month| month[:credit].to_d }, nil, nil,
-      meses.sum { |month| month[:recurring].to_d }, ajuste.to_d,
-      meses.sum { |month| month[:recurring].to_d } + ajuste.to_d ]
+      meses.sum { |month| month[:recurring].to_d },
+      meses.sum { |month| month[:accreditation].to_d }, ajuste.to_d,
+      meses.sum { |month| month[:recurring].to_d + month[:accreditation].to_d } + ajuste.to_d ]
   end
 end

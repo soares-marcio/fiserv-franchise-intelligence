@@ -242,8 +242,9 @@ class ReportsController < ApplicationController
     when "name" then row[:name]
     when "last_month"
       fechado = row[:months].reject { |month| month[:partial] }.max_by { |month| month[:period] }
-      fechado ? fechado[:recurring] + fechado[:accelerator] - fechado[:reducer] : 0
-    else row[:recurring_total] + row[:adjustment_total]
+      fechado ? fechado[:recurring] + fechado[:accreditation] + fechado[:accelerator] -
+        fechado[:reducer] : 0
+    else row[:recurring_total] + row[:accreditation_total] + row[:adjustment_total]
     end
   end
 
