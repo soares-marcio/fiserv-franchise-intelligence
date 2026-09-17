@@ -6,8 +6,10 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
     assert_equal 0, SubChannelCompensationRules.accreditation_bracket_value(14_999.99, with_auto: false)
     assert_equal 50, SubChannelCompensationRules.accreditation_bracket_value(15_000.00, with_auto: false)
     assert_equal 250, SubChannelCompensationRules.accreditation_bracket_value(15_000.00, with_auto: true)
-    # Leitura literal da tabela ("de" inclusivo); a simulação oficial diverge exatamente
-    # neste degrau e a dúvida está registrada no plano para confirmação com a Fiserv.
+    # Leitura literal da tabela ("de" inclusivo). As duas simulações do Anexo C discordam
+    # entre si neste degrau: a Simulação 1 lê R$ 20.000 na faixa 20.000–24.999,99 (C = 300,
+    # a tabela) e a Simulação 2 lê na faixa de baixo (B = 50). A tabela concorda com a
+    # primeira, que fecha no centavo no teste abaixo — a Simulação 2 escorrega um degrau.
     assert_equal 55, SubChannelCompensationRules.accreditation_bracket_value(20_000.00, with_auto: false)
     assert_equal 174, SubChannelCompensationRules.accreditation_bracket_value(12_000_000, with_auto: false)
     assert_equal 2_200, SubChannelCompensationRules.accreditation_bracket_value(12_000_000, with_auto: true)
@@ -54,6 +56,27 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
       pago, "a janela tem que fechar na faixa do mês de pico"
   end
 
+  # Simulação 1 do Anexo C, com antecipação automática: janeiro R$ 20.000 paga R$ 300,
+  # fevereiro R$ 75.000 paga R$ 490 e março R$ 250.000 paga R$ 1.410. É o gabarito que
+  # exercita a marca d'água nos três meses, com mudança de faixa em cada um — e o que
+  # confirma a leitura literal da tabela na fronteira de R$ 20.000.
+  test "gabarito oficial de credenciamento com auto/flex fecha nos três meses" do
+    meses = [ 20_000, 75_000, 250_000 ]
+    pago = 0
+
+    parcelas = meses.map do |revenue|
+      faixa = SubChannelCompensationRules.accreditation_bracket_value(revenue, with_auto: true)
+      diferenca = [ faixa - pago, 0 ].max
+      pago += diferenca
+      diferenca
+    end
+
+    assert_equal [ 300, 490, 1_410 ], parcelas
+    assert_equal 2_200, pago
+    assert_equal SubChannelCompensationRules.accreditation_bracket_value(meses.max, with_auto: true),
+      pago, "a janela fecha na faixa do mês de pico"
+  end
+
   test "acelerador só a partir de 20% e com a faixa superior em 100% exato" do
     assert_equal 0.0, SubChannelCompensationRules.accelerator_rate(0.1999)
     assert_equal 0.0004, SubChannelCompensationRules.accelerator_rate(0.20)
@@ -73,21 +96,21 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
   end
 
   test "acelerador e redutor nunca coexistem" do
-    up = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 250, recurring: 10)
+    up = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 250, participation: 10)
     assert_operator up[:accelerator], :>, 0
     assert_equal 0.0, up[:reducer]
 
-    down = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 40, recurring: 10)
+    down = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 40, participation: 10)
     assert_equal 0.0, down[:accelerator]
     assert_in_delta 10 * 0.20, down[:reducer], 0.0001
 
-    flat = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 110, recurring: 10)
+    flat = SubChannelCompensationRules.performance_adjustment(previous: 100, current: 110, participation: 10)
     assert_equal 0.0, flat[:accelerator]
     assert_equal 0.0, flat[:reducer]
   end
 
   test "sem mês anterior positivo não há base de comparação nem ajuste" do
-    result = SubChannelCompensationRules.performance_adjustment(previous: 0, current: 500, recurring: 10)
+    result = SubChannelCompensationRules.performance_adjustment(previous: 0, current: 500, participation: 10)
     assert_nil result[:growth]
     assert_equal 0.0, result[:accelerator]
     assert_equal 0.0, result[:reducer]

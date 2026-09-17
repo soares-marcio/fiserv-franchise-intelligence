@@ -14,11 +14,14 @@
   <%# Rótulo, valor e composição num bloco só, na mesma anatomia dos cards do topo da página.
       Espalhados pela largura do card, os três números não se liam como um conjunto. %>
   <div class="earnings-card__total">
-    <p class="metric-label">Ganho na janela</p>
-    <p class="metric-value"><%= brl_metric(report[:recurring_total] + report[:adjustment_total]) %></p>
+    <p class="metric-label">Participação na janela</p>
+    <p class="metric-value"><%= brl_metric(report[:recurring_total] + report[:accreditation_total] + report[:adjustment_total]) %></p>
     <p class="earnings-card__breakdown">
       <%= pluralize(report[:months].size, "competência apurada", "competências apuradas") %>
       · repasse <%= brl(report[:recurring_total]) %>
+      <% unless report[:accreditation_total].zero? %>
+        · credenciamento <%= brl(report[:accreditation_total]) %>
+      <% end %>
       <% unless report[:adjustment_total].zero? %>
         · ajuste <%= brl(report[:adjustment_total]) %>
       <% end %>
@@ -36,8 +39,9 @@
           <th scope="col" class="text-right">Crédito</th>
           <th scope="col" class="text-right">Net MDR</th>
           <th scope="col" class="text-right">Repasse</th>
+          <th scope="col" class="text-right">Credenciamento</th>
           <th scope="col" class="text-right">Ajuste</th>
-          <th scope="col" class="text-right">Ganho do mês</th>
+          <th scope="col" class="text-right">Participação do mês</th>
         </tr>
       </thead>
       <tbody>
@@ -60,6 +64,13 @@
               <% end %>
             </td>
             <td class="text-right tabular-nums"><%= brl(month[:recurring]) %></td>
+            <%# A parcela do prêmio que cai nesta competência. Ela aparece aqui porque
+                entra na base do ajuste (Anexo C, 1.1.3): sem mostrá-la, o redutor não
+                seria conferível a partir do que a linha exibe. É o mesmo dinheiro que a
+                tela 3M mostra por safra — ali por janela do EC, aqui por mês de calendário. %>
+            <td class="text-right tabular-nums">
+              <%= month[:accreditation].positive? ? brl(month[:accreditation]) : "—" %>
+            </td>
             <td class="text-right tabular-nums">
               <% adjustment = month[:accelerator] - month[:reducer] %>
               <% if adjustment.zero? %>
@@ -69,7 +80,7 @@
               <% end %>
             </td>
             <td class="text-right tabular-nums font-semibold">
-              <%= brl(month[:recurring] + month[:accelerator] - month[:reducer]) %>
+              <%= brl(month[:recurring] + month[:accreditation] + month[:accelerator] - month[:reducer]) %>
             </td>
           </tr>
         <% end %>

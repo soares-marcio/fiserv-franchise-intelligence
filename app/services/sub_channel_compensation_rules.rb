@@ -1,6 +1,16 @@
 # Regras do modelo de remuneração da Fiserv, num lugar só. Quem alterar alíquota mexe aqui
-# e em nenhum outro lugar. Origem: apresentação de franquias BIN (p. 9-14) e slides
-# "Modelo de remuneração" (p. 15-16).
+# e em nenhum outro lugar.
+#
+# Origem: **Anexo C – Participação do Franqueado**, da Circular de Oferta de Franquia
+# (v1.2023, vigência 01/08/2023) — contrato assinado, que prevalece sobre os slides de onde
+# o modelo saiu (apresentação de franquias BIN p. 9-14 e "Modelo de remuneração" p. 15-16).
+# As faixas dos slides conferiram valor a valor com as do contrato; o que o contrato
+# acrescentou está anotado em cada regra.
+#
+# A Participação tem quatro fatores (Anexo C, item 1): credenciamento, recorrência, deduções
+# de performance e campanhas. As deduções são a seção 1.1.3 — o redutor abaixo, com o
+# acelerador como contraparte. Só as campanhas não existem aqui: o contrato revoga todas
+# menos a do APP BIN, que é, com grande probabilidade, os R$ 30 de digitalização.
 class SubChannelCompensationRules
   # Prêmios de entrada, por faixa de faturamento mensal do EC. A apuração é de marca
   # d'água nos três primeiros meses (M0 = competência inteira do credenciamento): paga-se
@@ -26,6 +36,18 @@ class SubChannelCompensationRules
 
   # Pago uma única vez, em M0, para EC com acesso ao app.
   DIGITALIZATION_FEE = 30.00
+
+  # Modalidade contratada de antecipação, que decide qual coluna do adicional por faturamento
+  # vale. O Anexo C nomeia a coluna "C" como "com auto/flex" e a "B" como "sem auto/Flex", e a
+  # planilha entrega esse mesmo vocabulário em SOLUÇÕES FINANCEIRAS — medido em 16/09/2026,
+  # 567 ECs classificados e nenhum vazio: Auto 502, NÃO 61, Flex 2, Combo 2.
+  #
+  # Não confundir com antecipação **realizada** (monthly_volumes.metric = 'antecipacao'). O
+  # contrato as trata como coisas diferentes: a modalidade escolhe a coluna do prêmio, e o
+  # volume antecipado é base de outra remuneração (1.1.2-B). Foi tratar uma pela outra que
+  # tornou a classificação impossível — das duas fontes, 251 dos 502 "Auto" antecipam de fato.
+  AUTO_FLEX_VALUES = [ "Auto", "Flex", "Combo" ].freeze
+  WITHOUT_AUTO_FLEX_VALUES = [ "NÃO" ].freeze
 
   # A planilha entrega NET MDR em pontos percentuais (0.42 = 0,42%), confirmado por
   # agregados da base real: mediana ~0,30, compatível com MDR típico — como fração seria
@@ -89,19 +111,38 @@ class SubChannelCompensationRules
       band ? band[:rate] : 0.0
     end
 
+    # O redutor incide sobre a **Participação do Franqueado** (Anexo C, 1.1.3), e não só sobre
+    # a linha recorrente. A base é credenciamento (parcela do mês mais digitalização) +
+    # recorrência. Isso cobre os fatores (i), (ii) e — se o R$ 30 for a campanha do APP BIN
+    # que o contrato manteve — o (iv); o fator (iii) é este próprio ajuste. Só uma campanha
+    # futura, com regulamento próprio, ficaria de fora.
     # Acelerador OU redutor, nunca os dois: acelerador sobre o incremento, redutor sobre
     # a remuneração. Sem mês anterior positivo não há base de comparação — nenhum ajuste.
-    def performance_adjustment(previous:, current:, recurring:)
+    def performance_adjustment(previous:, current:, participation:)
       return { growth: nil, accelerator: 0.0, reducer: 0.0 } if previous.to_f <= 0
 
       growth = (current.to_f - previous.to_f) / previous.to_f
       if growth >= ACCELERATOR_BANDS.last[:floor]
         { growth:, accelerator: (current.to_f - previous.to_f) * accelerator_rate(growth), reducer: 0.0 }
       elsif growth.negative?
-        { growth:, accelerator: 0.0, reducer: recurring.to_f * reducer_rate(growth) }
+        { growth:, accelerator: 0.0, reducer: participation.to_f * reducer_rate(growth) }
       else
         { growth:, accelerator: 0.0, reducer: 0.0 }
       end
+    end
+
+    # Modalidade em SQL, para a view. Três estados de propósito: valor conhecido da lista vira
+    # TRUE ou FALSE, e qualquer outra coisa (inclusive vazio) fica NULL — indefinido, que a
+    # tela mostra como intervalo em vez de eleger uma coluna em silêncio.
+    def auto_flex_case_sql(expr)
+      com = AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
+      sem = WITHOUT_AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
+      <<~SQL.strip
+        CASE
+          WHEN BTRIM(#{expr}) IN (#{com}) THEN TRUE
+          WHEN BTRIM(#{expr}) IN (#{sem}) THEN FALSE
+        END
+      SQL
     end
 
     # CASE WHEN para uso em materialized view (que não aceita bind): NULL vira zero para

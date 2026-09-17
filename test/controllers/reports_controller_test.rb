@@ -767,11 +767,12 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get three_months_sub_channel_report_path(id: sub_channel.uuid, start_period: "2026-07")
     assert_response :success
     assert_select ".metric-label", text: "EC 50000001"
-    # Enquanto a classificação de antecipação está em definição, a tela não oferece
-    # "com/sem": mostra o que é determinado e nomeia o intervalo do que não é.
+    # A modalidade contratada resolve a coluna, então o prêmio sai como número único — e as
+    # parcelas dizem em qual mês ele cai, que é a apuração sequencial do contrato.
     assert_select "body" do |body|
+      assert_no_match(/pendente da definição de antecipação/, body.to_s)
       assert_no_match(/Sem antecipação/, body.to_s)
-      assert_match(/pendente da definição de antecipação/, body.to_s)
+      assert_match(/por mês: M0 /, body.to_s)
     end
   end
 

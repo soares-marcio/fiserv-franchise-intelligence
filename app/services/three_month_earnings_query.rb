@@ -184,7 +184,11 @@ class ThreeMonthEarningsQuery
       SELECT sub_channel_id, COUNT(*) AS accredited,
         SUM(digitalization_amount) AS digitalization,
         SUM(addon_without_auto) AS addon_without_auto,
-        SUM(addon_with_auto) AS addon_with_auto
+        SUM(addon_with_auto) AS addon_with_auto,
+        -- Resolvido pela modalidade contratada. SUM ignora NULL, então os ECs sem modalidade
+        -- sairiam da soma em silêncio: a contagem ao lado é o que impede isso.
+        SUM(addon_amount) AS addon_amount,
+        COUNT(*) FILTER (WHERE auto_flex IS NULL) AS undefined_modality
       FROM audit_accreditation_earnings
       WHERE m0_period = :m0 AND (:channel_id IS NULL OR channel_id = :channel_id)
       GROUP BY sub_channel_id
@@ -194,7 +198,9 @@ class ThreeMonthEarningsQuery
         accredited: row["accredited"].to_i,
         digitalization: row["digitalization"].to_f,
         addon_without_auto: row["addon_without_auto"].to_f,
-        addon_with_auto: row["addon_with_auto"].to_f
+        addon_with_auto: row["addon_with_auto"].to_f,
+        addon_amount: row["addon_amount"].to_f,
+        undefined_modality: row["undefined_modality"].to_i
       } ]
     end
   end
@@ -223,7 +229,8 @@ class ThreeMonthEarningsQuery
   end
 
   EMPTY_PRIZE = { accredited: 0, digitalization: 0.0,
-    addon_without_auto: 0.0, addon_with_auto: 0.0 }.freeze
+    addon_without_auto: 0.0, addon_with_auto: 0.0, addon_amount: 0.0,
+    undefined_modality: 0 }.freeze
 
   # Monta a linha final: um mês por período (mesmo sem volume), com débito, crédito e
   # total. Repasse e ajuste de performance são regra do ganho recorrente e vivem na tela

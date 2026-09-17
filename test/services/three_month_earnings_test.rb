@@ -88,16 +88,83 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal 0, row["digitalization_amount"].to_f
   end
 
-  test "a view não classifica antecipação: as duas hipóteses saem sempre" do
-    row = ApplicationRecord.connection.exec_query(
-      "SELECT * FROM audit_accreditation_earnings LIMIT 1"
-    ).to_a.sole
+  # O Anexo C nomeia a coluna "C" como "com auto/flex" — modalidade **contratada** — e trata a
+  # antecipação **realizada** como base de outra remuneração (1.1.2-B). São fatos diferentes, e
+  # foi tratar um pelo outro que tornou a classificação impossível em 09/2026. SOLUÇÕES
+  # FINANCEIRAS entrega a modalidade, e classifica 567 de 567 ECs no arquivo real.
+  test "a modalidade contratada escolhe a coluna do adicional" do
+    com_auto = view_row("50000001")
+    sem_auto = view_row("50000003")
 
-    # O campo do boarding não carrega esse sinal na origem, então nenhuma coluna de
-    # classificação existe — só os dois valores, para a tela apresentar como hipótese.
-    assert_not row.key?("auto_classified")
-    assert row.key?("addon_without_auto")
-    assert row.key?("addon_with_auto")
+    assert_equal true, com_auto["auto_flex"]
+    assert_in_delta com_auto["addon_with_auto"].to_f, com_auto["addon_amount"].to_f, 0.001
+
+    assert_equal false, sem_auto["auto_flex"]
+    assert_in_delta sem_auto["addon_without_auto"].to_f, sem_auto["addon_amount"].to_f, 0.001
+
+    # As duas hipóteses continuam saindo: é contra elas que a resolução se confere.
+    assert com_auto.key?("addon_without_auto")
+    assert com_auto.key?("addon_with_auto")
+  end
+
+  # Sem modalidade na origem, nada é eleito: indefinido é NULL, e não zero. É a mesma distinção
+  # que months_observed faz entre "faturou zero" e "não apurável".
+  test "EC sem modalidade declarada fica indefinido, e não vira coluna B" do
+    row = view_row("50000002")
+
+    assert_nil row["auto_flex"]
+    assert_nil row["addon_amount"]
+    assert_nil row["m0_addon_amount"]
+  end
+
+  # A regra do contrato é sequencial: M0 paga a faixa, M1 paga a diferença se subiu de faixa,
+  # M2 paga a faixa de M2 menos a maior já paga. O esperado é o mesmo laço em Ruby, sobre os
+  # totais declarados na planilha — nada fixado à mão.
+  test "as parcelas seguem a marca d'água mês a mês" do
+    gama = @lojas.find { |loja| loja.ec == "50000001" }
+    row = view_row("50000001")
+    esperado = marca_dagua([ gama.total_m1, gama.total_atual, nil ], with_auto: true)
+
+    assert_equal esperado, [ row["m0_addon_amount"], row["m1_addon_amount"],
+      row["m2_addon_amount"] ].map { |v| v.to_f.round(2) }
+    assert_in_delta esperado.sum, row["addon_amount"].to_f, 0.001,
+      "a soma das parcelas fecha no total da janela"
+  end
+
+  # O caso em que a janela inteira é paga no último mês: sem M0 e M1 cobertos, a faixa de M2
+  # carrega tudo. Prova que a parcela não nasce colada no M0.
+  test "prêmio inteiro no M2 quando só o último mês da janela tem volume" do
+    delta = ApplicationRecord.connection.quote(
+      Establishment.find_by!(ec: "50000003").id
+    )
+    ApplicationRecord.connection.execute(
+      "UPDATE monthly_volumes_consolidated SET amount = 55000 " \
+      "WHERE establishment_id = #{delta} AND metric = 'total' AND period = DATE '2026-04-01'"
+    )
+    refresh_audit_views
+
+    row = view_row("50000003")
+    faixa = SubChannelCompensationRules.accreditation_bracket_value(55_000, with_auto: false)
+
+    assert_equal [ 0.0, 0.0, faixa.to_f ], [ row["m0_addon_amount"], row["m1_addon_amount"],
+      row["m2_addon_amount"] ].map { |v| v.to_f.round(2) }
+    assert_in_delta faixa, row["addon_amount"].to_f, 0.001
+  end
+
+  # O invariante que autoriza trocar o total pelo detalhe: a soma das três parcelas é o total,
+  # e o total é a coluna que a modalidade escolheu. Tudo é numeric, então a igualdade se testa
+  # com <> e não com delta.
+  test "as parcelas e a coluna resolvida fecham com as hipóteses, na view inteira" do
+    divergentes = ApplicationRecord.connection.exec_query(<<~SQL).first
+      SELECT COUNT(*) AS total FROM audit_accreditation_earnings
+      WHERE m0_addon_amount + m1_addon_amount + m2_addon_amount <> addon_amount
+         OR addon_amount <> CASE WHEN auto_flex THEN addon_with_auto ELSE addon_without_auto END
+    SQL
+
+    assert_equal 0, divergentes["total"]
+    assert_operator ApplicationRecord.connection
+      .select_value("SELECT COUNT(*) FROM audit_accreditation_earnings WHERE auto_flex IS NOT NULL"),
+      :>, 0, "o invariante seria vácuo se nenhum EC estivesse classificado"
   end
 
   test "EC sem nenhum mês da janela coberto fica marcado como não apurável" do
@@ -181,5 +248,24 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     end
   ensure
     Rails.cache = original_store
+  end
+  private
+
+  def view_row(ec)
+    ApplicationRecord.connection.exec_query(
+      "SELECT * FROM audit_accreditation_earnings WHERE establishment_id = " \
+      "(SELECT id FROM establishments WHERE ec = '#{ec}')"
+    ).to_a.sole
+  end
+
+  # O laço do contrato, em Ruby: a referência contra a qual o SQL da view é conferido.
+  def marca_dagua(totais, with_auto:)
+    pago = 0
+    totais.map do |total|
+      faixa = total.nil? ? 0 : SubChannelCompensationRules.accreditation_bracket_value(total, with_auto:)
+      parcela = [ faixa - pago, 0 ].max
+      pago += parcela
+      parcela.to_f.round(2)
+    end
   end
 end

@@ -446,6 +446,28 @@ arquivo: é texto livre com anexos, e célula de planilha não é onde se lê is
 entram volume e contagem de ECs — somar prazo ou taxa de clientes diferentes não descreve
 oferta nenhuma, e a média tampouco.
 
+### As telas do modelo de remuneração
+
+O **Anexo C** da Circular de Oferta de Franquia mudou o que as duas telas mostram.
+
+- **Ganhos 3M: o intervalo virou exceção.** O adicional por faturamento tinha duas colunas na
+  tela ("entre R$ X e R$ Y") porque a modalidade de antecipação não era classificável. O
+  contrato mostrou que a coluna sai da **modalidade contratada** (`SOLUÇÕES FINANCEIRAS`), e
+  a tela passa a mostrar um valor. O intervalo sobrevive só para o EC cuja origem não declara
+  a modalidade, e o card diz quantos são.
+- **O card do EC mostra as parcelas por mês** quando mais de uma tem valor — "por mês: M0
+  R$ 250,00 · M1 R$ 300,00". É a apuração sequencial do contrato, e é ela que alimenta a base
+  do redutor na tela do recorrente.
+- **O recorrente ganhou a coluna "Credenciamento"**, e a última coluna virou "Participação do
+  mês". A parcela aparece porque **entra na base do ajuste**: sem mostrá-la, o redutor não
+  seria conferível a partir do que a linha exibe. É o mesmo dinheiro da tela 3M — ali por
+  safra do EC, aqui por competência de calendário.
+- **Competência aberta não mostra ajuste.** Um mês pela metade parece queda por não ter
+  terminado; o redutor incidiria sobre dado incompleto.
+- **A tela do recorrente declara a linha que não apura**: o repasse sobre a receita bruta de
+  antecipação existe no contrato e não é calculável com o arquivo atual. Omitir daria a
+  entender que o número na tela é o fator inteiro.
+
 ### Exportações
 
 **Toda tela de relatório exporta CSV e XLSX, menos uma.** `TabularExporter` faz a mecânica —

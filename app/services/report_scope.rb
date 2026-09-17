@@ -6,7 +6,7 @@ class ReportScope
   # Por isso as opções são valores da janela inteira, e não de um mês — "ordenar por débito"
   # não teria resposta única com seis competências por subcanal.
   RECURRING_SORT_COLUMNS = {
-    "earnings" => "Ganho na janela",
+    "earnings" => "Participação na janela",
     "last_month" => "Último mês fechado",
     "name" => "MIC"
   }.freeze

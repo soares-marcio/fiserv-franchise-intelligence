@@ -37,20 +37,109 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     assert_in_delta gama[:months].sum { |m| m[:recurring] }, gama[:recurring_total], 0.001
   end
 
+  # Competência aberta fica de fora: um mês pela metade parece queda por não ter terminado, e
+  # o contrato compara mês contra mês, não mês contra meio mês.
   test "acelerador e redutor seguem as transições da série, nunca juntos no mesmo mês" do
     delta = @reports.find { |row| row[:name] == "MIC DELTA" }
+    comparadas = 0
 
     delta[:months].each_cons(2) do |previous, current|
+      next if current[:partial]
+
+      comparadas += 1
       growth = (current[:total] - previous[:total]) / previous[:total]
       if growth >= 0.20
         assert_operator current[:accelerator], :>, 0, "acelerador em #{current[:period]}"
         assert_equal 0.0, current[:reducer]
       elsif growth.negative?
-        expected = current[:recurring] * SubChannelCompensationRules.reducer_rate(growth)
+        base = current[:recurring] + current[:accreditation]
+        expected = base * SubChannelCompensationRules.reducer_rate(growth)
         assert_in_delta expected, current[:reducer], 0.001, "redutor em #{current[:period]}"
         assert_equal 0.0, current[:accelerator]
       end
     end
+
+    assert_operator comparadas, :>, 0, "sem transição fechada o teste passaria por vacuidade"
+  end
+
+  test "competência aberta não recebe acelerador nem redutor" do
+    abertas = @reports.flat_map { |row| row[:months] }.select { |month| month[:partial] }
+
+    assert_predicate abertas, :any?, "o fixture precisa de uma competência aberta"
+    abertas.each do |month|
+      assert_equal 0.0, month[:accelerator], "acelerador em #{month[:period]}"
+      assert_equal 0.0, month[:reducer], "redutor em #{month[:period]}"
+    end
+  end
+
+  # Anexo C, 1.1.3: o redutor incide sobre a Participação do Franqueado, não só sobre a linha
+  # recorrente. Com a janela do EC dentro da série, a parcela do credenciamento cai no mesmo
+  # mês da queda e tem de entrar na base — é a diferença entre esta regra e a anterior.
+  test "o redutor incide sobre a recorrência mais a parcela do credenciamento" do
+    delta_ec = Establishment.find_by!(ec: "50000003")
+    # Janela do EC trazida para jun/jul/ago, e o volume de agosto elevado acima do piso das
+    # faixas: assim a parcela de M2 cai exatamente no mês em que a carteira DELTA despenca.
+    # Sem isso a parcela seria zero — as faixas começam em R$ 15.000 — e o teste não provaria
+    # nada. Mexe só no volume 'total' (base da faixa), não em débito/crédito, para a queda da
+    # série recorrente continuar sendo a mesma.
+    ApplicationRecord.connection.execute(
+      "UPDATE map_snapshots SET accredited_on = DATE '2026-06-10' " \
+      "WHERE establishment_id = #{delta_ec.id}"
+    )
+    ApplicationRecord.connection.execute(
+      "UPDATE monthly_volumes_consolidated SET amount = 55000 " \
+      "WHERE establishment_id = #{delta_ec.id} AND metric = 'total' AND period = DATE '2026-08-01'"
+    )
+    # A queda da DELTA está em agosto, que o fixture entrega aberta — e competência aberta
+    # não recebe ajuste. Fechar a competência é o que põe o redutor em jogo.
+    ApplicationRecord.connection.execute(
+      "UPDATE period_coverages SET closed = true WHERE period = DATE '2026-08-01'"
+    )
+    refresh_audit_views
+    delta = RecurringEarningsQuery.new.by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
+
+    com_parcela = delta[:months].select { |month| month[:accreditation].positive? }
+    assert_predicate com_parcela, :any?, "a janela do EC tem de cruzar a série, senão o teste é vácuo"
+
+    em_queda = delta[:months].each_cons(2).find do |previous, current|
+      current[:total] < previous[:total] && current[:accreditation].positive?
+    end
+    assert em_queda, "o fixture precisa de um mês com queda e parcela ao mesmo tempo"
+
+    previous, current = em_queda
+    growth = (current[:total] - previous[:total]) / previous[:total]
+    base = current[:recurring] + current[:accreditation]
+
+    assert_in_delta base * SubChannelCompensationRules.reducer_rate(growth),
+      current[:reducer], 0.001
+    assert_operator current[:reducer], :>,
+      current[:recurring] * SubChannelCompensationRules.reducer_rate(growth),
+      "com a parcela na base, o redutor é maior do que era pela regra antiga"
+  end
+
+  # "Mês contra mês" é competência de calendário. Com um buraco na série, comparar a linha
+  # anterior faria agosto medir-se contra junho e inventar uma variação que não existe. Hoje
+  # nenhuma série da base real tem buraco (medido: 0 saltos em 58 comparações) — isto é
+  # prevenção, e é a razão de o teste construir o buraco à mão.
+  test "competência sem a anterior de calendário fica sem base de comparação" do
+    delta_ec = Establishment.find_by!(ec: "50000003")
+    ApplicationRecord.connection.execute(
+      "DELETE FROM monthly_volumes_consolidated " \
+      "WHERE establishment_id = #{delta_ec.id} AND period = DATE '2026-07-01'"
+    )
+    ApplicationRecord.connection.execute(
+      "UPDATE period_coverages SET closed = true WHERE period = DATE '2026-08-01'"
+    )
+    refresh_audit_views
+
+    delta = RecurringEarningsQuery.new.by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
+    agosto = delta[:months].find { |month| month[:period] == Date.new(2026, 8, 1) }
+
+    assert_not_includes delta[:months].map { |m| m[:period] }, Date.new(2026, 7, 1),
+      "o buraco precisa existir, senão o teste é vácuo"
+    assert_nil agosto[:growth], "sem julho, agosto não tem contra o que comparar"
+    assert_equal 0.0, agosto[:accelerator]
+    assert_equal 0.0, agosto[:reducer]
   end
 
   test "primeiro mês da série não tem base de comparação nem ajuste" do
@@ -77,6 +166,26 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     gama[:months].each do |month|
       assert_in_delta with_mdr.net_mdr, month[:net_mdr], 0.0001, "MDR de #{month[:period]}"
     end
+  end
+
+  # "Net MDR da carteira (sem Flex)" é o cabeçalho da tabela de recorrência do Anexo C. O EC
+  # da modalidade Flex sai da média que escolhe a faixa — o volume dele continua na base sobre
+  # a qual a alíquota é aplicada, que é o que o contrato manda.
+  test "EC da modalidade Flex fica fora da média ponderada do Net MDR" do
+    flex_ec = Establishment.find_by!(ec: "50000001")
+    antes = @reports.find { |row| row[:name] == "MIC GAMA" }[:months].first[:net_mdr]
+
+    ApplicationRecord.connection.execute(
+      "UPDATE map_snapshots SET financial_solutions = 'Flex' WHERE establishment_id = #{flex_ec.id}"
+    )
+    refresh_audit_views
+    depois = RecurringEarningsQuery.new.by_sub_channel
+      .find { |row| row[:name] == "MIC GAMA" }[:months].first
+
+    assert_not_nil antes, "o EC precisa ter MDR, senão o teste é vácuo"
+    # Era o único EC da GAMA com MDR; virando Flex, não sobra ninguém para a média.
+    assert_nil depois[:net_mdr]
+    assert_equal 0.0, depois[:recurring], "sem faixa de MDR não há alíquota, e o repasse é zero"
   end
 
   test "mês aberto aparece como parcial" do
