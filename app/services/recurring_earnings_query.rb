@@ -144,16 +144,20 @@ class RecurringEarningsQuery
 
   # As parcelas do prêmio por subcanal e **competência de calendário**. A view as guarda
   # indexadas pela janela do EC (m0_period), então cada uma é deslocada para o mês em que é
-  # paga: M0 e a digitalização no próprio m0_period, M1 no mês seguinte, M2 no subsequente.
+  # paga: M0 no próprio m0_period, M1 no mês seguinte, M2 no subsequente — e a digitalização
+  # no mês do primeiro acesso ao app (digitalization_period), como no extrato da Fiserv.
   def accreditation_by_period
     return {} unless AuditViews.populated?("audit_accreditation_earnings")
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
       SELECT sub_channel_id, period, SUM(amount) AS amount
       FROM (
-        SELECT channel_id, sub_channel_id, m0_period AS period,
-          COALESCE(digitalization_amount, 0) + COALESCE(m0_addon_amount, 0) AS amount
+        SELECT channel_id, sub_channel_id, m0_period AS period, COALESCE(m0_addon_amount, 0) AS amount
         FROM audit_accreditation_earnings
+        UNION ALL
+        SELECT channel_id, sub_channel_id, digitalization_period, digitalization_amount
+        FROM audit_accreditation_earnings
+        WHERE digitalization_amount > 0
         UNION ALL
         SELECT channel_id, sub_channel_id, (m0_period + INTERVAL '1 month')::date,
           COALESCE(m1_addon_amount, 0)

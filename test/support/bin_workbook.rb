@@ -210,6 +210,45 @@ module BinWorkbook
     ]
   end
 
+  # Lojas para a campanha APP (digitalização): por CNPJ, no mês do primeiro acesso ao app,
+  # dentro de M0–M2. O primeiro arquivo (acessos: false) mostra os CNPJs ainda sem acesso e o
+  # segundo traz o acesso — é essa transição que prova o mês do primeiro acesso. O último
+  # CNPJ já acessa no primeiro arquivo: sem transição, a campanha cai em M0.
+  def self.app_campaign_lojas(acessos: true)
+    acesso = ->(data) { data if acessos }
+    [
+      # CNPJ com dois ECs credenciados em julho e acesso em agosto (M1): paga uma vez, no
+      # EC credenciado primeiro.
+      loja_app("72000001", "71111222000100", accredited_on: Date.new(2026, 7, 10),
+        app_access_at: acesso.("2026-08-05 09:00")),
+      loja_app("72000002", "71111222000100", accredited_on: Date.new(2026, 7, 20),
+        app_access_at: acesso.("2026-08-05 09:00")),
+      # Credenciado em abril, acesso em agosto (M4): fora da janela, não paga.
+      loja_app("72000003", "72222333000100", accredited_on: Date.new(2026, 4, 2),
+        app_access_at: acesso.("2026-08-01 10:00")),
+      # Credenciado em agosto, sem acesso ao app: não paga.
+      loja_app("72000004", "73333444000100", accredited_on: Date.new(2026, 8, 3)),
+      # Credenciado em junho, acesso em agosto (M2): paga em agosto.
+      loja_app("72000005", "74444555000100", accredited_on: Date.new(2026, 6, 15),
+        app_access_at: acesso.("2026-08-20 15:00")),
+      # Credenciado em julho, já com acesso no primeiro arquivo: o primeiro acesso pode ser
+      # anterior a tudo que foi importado, e a campanha cai em M0.
+      loja_app("72000006", "75555666000100", accredited_on: Date.new(2026, 7, 5),
+        app_access_at: "2026-08-03 11:00")
+    ]
+  end
+
+  def self.loja_app(ec, cnpj, accredited_on:, app_access_at: nil)
+    Loja.new(
+      ec:, cnpj:, sub_channel_name: "MIC THETA", legal_name: "LOJA #{ec} LTDA",
+      # Totais distintos entre os dois meses: iguais, o importador não descobre qual coluna
+      # de volume é a do mês atual.
+      trade_name: "LOJA #{ec}", contract_status: "Active", dias_m1: { 1 => 100 },
+      dias_atual: { 1 => 200 }, melhor_conversa: nil, proposta: false,
+      accredited_on:, app_access_at:, financial_solutions: "NÃO"
+    )
+  end
+
   # Lojas para os Indicadores do Anexo B, em duas carteiras: KAPPA reprova em tudo no mês
   # atual e SIGMA cumpre tudo. Os percentuais esperados saem destas declarações.
   def self.indicator_lojas
