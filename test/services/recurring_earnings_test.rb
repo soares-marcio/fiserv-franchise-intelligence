@@ -151,12 +151,44 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     end
   end
 
-  test "competências anteriores ao primeiro arquivo ficam marcadas como fallback de MDR" do
+  # O lote sintético tem current_period = agosto. Julho ancora nele (é o arquivo do mês
+  # seguinte); agosto só tem o próprio arquivo e fica provisório; abril a junho caem no lote
+  # mais antigo.
+  test "cada competência ancora o Net MDR no arquivo do mês seguinte, ou declara a origem" do
     gama = @reports.find { |row| row[:name] == "MIC GAMA" }
-    # O lote sintético tem current_period = agosto: todo mês anterior usa o fallback.
-    fallback_months, era_months = gama[:months].partition { |m| m[:mdr_fallback] }
-    assert_equal [ Date.new(2026, 8, 1) ], era_months.map { |m| m[:period] }
-    assert_equal 4, fallback_months.size
+    origem = gama[:months].to_h { |m| [ m[:period], m[:mdr_source] ] }
+
+    assert_equal "closed", origem[Date.new(2026, 7, 1)]
+    assert_equal "provisional", origem[Date.new(2026, 8, 1)]
+    assert_equal %w[fallback fallback fallback], [ 4, 5, 6 ].map { |mes| origem[Date.new(2026, mes, 1)] }
+  end
+
+  # O NET MDR do Mapa é o realizado do mês anterior ao do arquivo (provado contra o extrato
+  # de agosto/2026 do MIC GOIANIA 4). Com o arquivo de setembro importado, agosto deixa de ser
+  # provisório e passa a usar o MDR desse arquivo — e julho continua com o do arquivo de agosto.
+  test "o arquivo do mês seguinte fecha o Net MDR da competência" do
+    agosto_antes = gama_month(@reports, Date.new(2026, 8, 1))
+    # A planilha sintética tem competência fixa (agosto). O segundo import muda o conteúdo —
+    # senão é recusado como duplicado — e o lote é datado de setembro à mão, que é o que a
+    # consulta lê para saber de que mês é o arquivo.
+    lojas = @lojas.map do |loja|
+      loja.net_mdr.is_a?(Numeric) ? loja.dup.tap { |copia| copia.net_mdr = loja.net_mdr + 0.10 } : loja
+    end
+    setembro = import_synthetic_workbook(lojas:, filename: "BIN_TESTE_20260908.xlsx")
+    setembro.update_columns(current_period: Date.new(2026, 9, 1))
+    refresh_audit_views
+
+    reports = RecurringEarningsQuery.new.by_sub_channel
+    agosto = gama_month(reports, Date.new(2026, 8, 1))
+    julho = gama_month(reports, Date.new(2026, 7, 1))
+
+    assert_equal "closed", agosto[:mdr_source]
+    assert_in_delta agosto_antes[:net_mdr] + 0.10, agosto[:net_mdr], 0.0001
+    assert_in_delta agosto_antes[:net_mdr], julho[:net_mdr], 0.0001, "julho segue no arquivo de agosto"
+  end
+
+  def gama_month(reports, period)
+    reports.find { |row| row[:name] == "MIC GAMA" }[:months].find { |m| m[:period] == period }
   end
 
   test "EC com MDR Inativo fica fora da média ponderada do mês" do

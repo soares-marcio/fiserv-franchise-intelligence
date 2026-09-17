@@ -9,10 +9,12 @@
         <p class="page-description">
           Cada competência é apurada sozinha: alíquota da faixa de Net MDR <strong>daquele
           mês</strong> × faturamento de débito e crédito <strong>daquele mês</strong>, mais o
-          acelerador ou redutor da variação contra o mês anterior. O Net MDR de cada mês vem do
-          último arquivo importado daquele mês; meses anteriores ao primeiro arquivo usam o mais
-          antigo disponível e ficam marcados com <strong>†</strong> na coluna Net MDR — com os
-          arquivos semanais, cada mês novo fica ancorado no MDR da própria época.
+          acelerador ou redutor da variação contra o mês anterior. O Net MDR de cada mês é o
+          <strong>realizado</strong>, que a Fiserv publica no arquivo do <strong>mês
+          seguinte</strong> — o NET MDR do Mapa é o MDR líquido do mês anterior ao do arquivo.
+          Enquanto esse arquivo não chega, o mês usa o próprio arquivo e fica marcado com
+          <strong>‡</strong> (provisório); meses anteriores ao primeiro arquivo usam o mais
+          antigo disponível e ficam com <strong>†</strong>.
         </p>
       </div>
       <%# O arquivo sai com o recorte da tela: os mesmos parâmetros que o link carrega,

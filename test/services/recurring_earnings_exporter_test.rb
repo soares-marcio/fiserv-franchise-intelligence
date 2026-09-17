@@ -6,10 +6,10 @@ class RecurringEarningsExporterTest < ActiveSupport::TestCase
     @reports = [
       { name: "MIC ALFA", months: [
         { period: Date.new(2026, 7, 1), debit: 1000.to_d, credit: 2000.to_d, net_mdr: 1.5,
-          mdr_fallback: false, partial: false, recurring: 30.to_d, accreditation: 0.to_d,
+          mdr_source: "closed", partial: false, recurring: 30.to_d, accreditation: 0.to_d,
           accelerator: 0.to_d, reducer: 0.to_d },
         { period: Date.new(2026, 8, 1), debit: 500.to_d, credit: 500.to_d, net_mdr: nil,
-          mdr_fallback: true, partial: true, recurring: 10.to_d, accreditation: 89.to_d,
+          mdr_source: "fallback", partial: true, recurring: 10.to_d, accreditation: 89.to_d,
           accelerator: 5.to_d, reducer: 0.to_d }
       ] }
     ]
@@ -24,15 +24,15 @@ class RecurringEarningsExporterTest < ActiveSupport::TestCase
   end
 
   # A tela mostra travessão onde não há ajuste e † onde o Net MDR veio de outro arquivo. O
-  # arquivo diz as duas coisas sem inventar número: célula vazia e uma marca em texto.
+  # arquivo diz as duas coisas sem inventar número: célula vazia e a origem em texto.
   test "ajuste zerado e Net MDR ausente saem vazios, com a origem marcada" do
     tabela = CSV.parse(exporter.to_csv, headers: true)
 
     assert_nil tabela[0]["Ajuste"]
     assert_equal "1.5", tabela[0]["Net MDR %"]
-    assert_nil tabela[0]["Net MDR de arquivo anterior"]
+    assert_nil tabela[0]["Origem do Net MDR"]
     assert_nil tabela[1]["Net MDR %"]
-    assert_equal "sim", tabela[1]["Net MDR de arquivo anterior"]
+    assert_equal "arquivo anterior", tabela[1]["Origem do Net MDR"]
     assert_equal "sim", tabela[1]["Competência parcial"]
   end
 
