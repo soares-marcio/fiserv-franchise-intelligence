@@ -16,7 +16,8 @@ module BinWorkbook
   Loja = Struct.new(
     :ec, :cnpj, :sub_channel_name, :legal_name, :trade_name, :contract_status,
     :dias_m1, :dias_atual, :melhor_conversa, :proposta,
-    :accredited_on, :net_mdr, :app_access_at, :auto_boarding, :debitos, :creditos,
+    :accredited_on, :net_mdr, :app_access_at, :auto_boarding, :financial_solutions,
+    :debitos, :creditos,
     :preapproved_volume, :preapproved_term, :preapproved_rate,
     keyword_init: true
   ) do
@@ -107,6 +108,7 @@ module BinWorkbook
       "DATA DE ATIVAÇÃO" => "05/02/2026",
       "NET MDR" => loja.net_mdr, "ULTIMO ACESSO NO APP" => loja.app_access_at,
       "STATUS ANTECIP AUTO NO BOARDING" => loja.auto_boarding,
+      "SOLUÇÕES FINANCEIRAS" => loja.financial_solutions,
       # A oferta pré-aprovada do Clover Capital. PARCELA_PRE_APROVADA fica de fora de
       # propósito: no arquivo real ela é a única das quatro que nunca traz valor, e a
       # planilha sintética existe para reproduzir o arquivo, não para melhorá-lo.
@@ -173,6 +175,7 @@ module BinWorkbook
         melhor_conversa: nil, proposta: false,
         accredited_on: Date.new(2026, 7, 10), net_mdr: 0.42,
         app_access_at: "2026-07-15 10:00", auto_boarding: "SIM",
+        financial_solutions: "Auto",
         debitos: { "202606" => 1_000, "202607" => 4_000, "202608" => 9_000 },
         creditos: { "202606" => 1_000, "202607" => 6_000, "202608" => 12_000 }
       ),
@@ -194,6 +197,7 @@ module BinWorkbook
         contract_status: "Active", dias_m1: { 1 => 9_000 }, dias_atual: { 1 => 2_000 },
         melhor_conversa: nil, proposta: false,
         accredited_on: Date.new(2026, 2, 1), net_mdr: 0.31,
+        financial_solutions: "NÃO",
         debitos: { "202606" => 5_000, "202607" => 10_000, "202608" => 2_000 },
         creditos: { "202606" => 5_000, "202607" => 10_000, "202608" => 2_000 }
       )

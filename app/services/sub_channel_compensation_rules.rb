@@ -27,6 +27,18 @@ class SubChannelCompensationRules
   # Pago uma única vez, em M0, para EC com acesso ao app.
   DIGITALIZATION_FEE = 30.00
 
+  # Modalidade contratada de antecipação, que decide qual coluna do adicional por faturamento
+  # vale. O Anexo C nomeia a coluna "C" como "com auto/flex" e a "B" como "sem auto/Flex", e a
+  # planilha entrega esse mesmo vocabulário em SOLUÇÕES FINANCEIRAS — medido em 16/09/2026,
+  # 567 ECs classificados e nenhum vazio: Auto 502, NÃO 61, Flex 2, Combo 2.
+  #
+  # Não confundir com antecipação **realizada** (monthly_volumes.metric = 'antecipacao'). O
+  # contrato as trata como coisas diferentes: a modalidade escolhe a coluna do prêmio, e o
+  # volume antecipado é base de outra remuneração (1.1.2-B). Foi tratar uma pela outra que
+  # tornou a classificação impossível — das duas fontes, 251 dos 502 "Auto" antecipam de fato.
+  AUTO_FLEX_VALUES = [ "Auto", "Flex", "Combo" ].freeze
+  WITHOUT_AUTO_FLEX_VALUES = [ "NÃO" ].freeze
+
   # A planilha entrega NET MDR em pontos percentuais (0.42 = 0,42%), confirmado por
   # agregados da base real: mediana ~0,30, compatível com MDR típico — como fração seria
   # 30%, absurdo. Se a origem mudar de escala um dia, este é o único ponto de ajuste.
@@ -102,6 +114,20 @@ class SubChannelCompensationRules
       else
         { growth:, accelerator: 0.0, reducer: 0.0 }
       end
+    end
+
+    # Modalidade em SQL, para a view. Três estados de propósito: valor conhecido da lista vira
+    # TRUE ou FALSE, e qualquer outra coisa (inclusive vazio) fica NULL — indefinido, que a
+    # tela mostra como intervalo em vez de eleger uma coluna em silêncio.
+    def auto_flex_case_sql(expr)
+      com = AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
+      sem = WITHOUT_AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
+      <<~SQL.strip
+        CASE
+          WHEN BTRIM(#{expr}) IN (#{com}) THEN TRUE
+          WHEN BTRIM(#{expr}) IN (#{sem}) THEN FALSE
+        END
+      SQL
     end
 
     # CASE WHEN para uso em materialized view (que não aceita bind): NULL vira zero para

@@ -852,7 +852,12 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             snapshot.establishment_id,
             snapshot.accredited_on,
             (date_trunc('month'::text, (snapshot.accredited_on)::timestamp with time zone))::date AS m0_period,
-            (snapshot.last_app_access_at IS NOT NULL) AS has_app_access
+            (snapshot.last_app_access_at IS NOT NULL) AS has_app_access,
+                CASE
+                    WHEN (btrim((snapshot.financial_solutions)::text) = ANY (ARRAY['Auto'::text, 'Flex'::text, 'Combo'::text])) THEN true
+                    WHEN (btrim((snapshot.financial_solutions)::text) = 'NÃO'::text) THEN false
+                    ELSE NULL::boolean
+                END AS auto_flex
            FROM (public.map_snapshots snapshot
              JOIN latest_map_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
           WHERE (snapshot.accredited_on IS NOT NULL)
@@ -863,13 +868,69 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             a.accredited_on,
             a.m0_period,
             a.has_app_access,
+            a.auto_flex,
             months.month_index,
             months.period,
             (volume.amount IS NOT NULL) AS month_covered,
-            COALESCE(volume.amount, (0)::numeric) AS month_total
+            COALESCE(volume.amount, (0)::numeric) AS month_total,
+            volume.amount AS observed_total
            FROM ((accredited a
              CROSS JOIN LATERAL ( VALUES (a.m0_period,0), (((a.m0_period + '1 mon'::interval))::date,1), (((a.m0_period + '2 mons'::interval))::date,2)) months(period, month_index))
              LEFT JOIN public.monthly_volumes_consolidated volume ON (((volume.channel_id = a.channel_id) AND (volume.establishment_id = a.establishment_id) AND (volume.period = months.period) AND ((volume.metric)::text = 'total'::text))))
+        ), month_bracket AS (
+         SELECT month_revenue.channel_id,
+            month_revenue.sub_channel_id,
+            month_revenue.establishment_id,
+            month_revenue.accredited_on,
+            month_revenue.m0_period,
+            month_revenue.has_app_access,
+            month_revenue.auto_flex,
+            month_revenue.month_index,
+            month_revenue.month_covered,
+            month_revenue.month_total,
+                CASE
+                    WHEN month_revenue.auto_flex THEN
+                    CASE
+                        WHEN (month_revenue.observed_total IS NULL) THEN (0)::numeric
+                        WHEN (month_revenue.observed_total <= 14999.99) THEN 0.00
+                        WHEN (month_revenue.observed_total <= 19999.99) THEN 250.00
+                        WHEN (month_revenue.observed_total <= 24999.99) THEN 300.00
+                        WHEN (month_revenue.observed_total <= 29999.99) THEN 350.00
+                        WHEN (month_revenue.observed_total <= 34999.99) THEN 400.00
+                        WHEN (month_revenue.observed_total <= 39999.99) THEN 450.00
+                        WHEN (month_revenue.observed_total <= 49999.99) THEN 500.00
+                        WHEN (month_revenue.observed_total <= 59999.99) THEN 550.00
+                        WHEN (month_revenue.observed_total <= 69999.99) THEN 690.00
+                        WHEN (month_revenue.observed_total <= 79999.99) THEN 790.00
+                        WHEN (month_revenue.observed_total <= 89999.99) THEN 880.00
+                        WHEN (month_revenue.observed_total <= 99999.99) THEN 950.00
+                        WHEN (month_revenue.observed_total <= 149999.99) THEN 1300.00
+                        WHEN (month_revenue.observed_total <= 199999.99) THEN 1800.00
+                        WHEN (month_revenue.observed_total <= 9999999.00) THEN 2200.00
+                        ELSE 2200.00
+                    END
+                    ELSE
+                    CASE
+                        WHEN (month_revenue.observed_total IS NULL) THEN (0)::numeric
+                        WHEN (month_revenue.observed_total <= 14999.99) THEN 0.00
+                        WHEN (month_revenue.observed_total <= 19999.99) THEN 50.00
+                        WHEN (month_revenue.observed_total <= 24999.99) THEN 55.00
+                        WHEN (month_revenue.observed_total <= 29999.99) THEN 61.00
+                        WHEN (month_revenue.observed_total <= 34999.99) THEN 67.00
+                        WHEN (month_revenue.observed_total <= 39999.99) THEN 74.00
+                        WHEN (month_revenue.observed_total <= 49999.99) THEN 81.00
+                        WHEN (month_revenue.observed_total <= 59999.99) THEN 89.00
+                        WHEN (month_revenue.observed_total <= 69999.99) THEN 98.00
+                        WHEN (month_revenue.observed_total <= 79999.99) THEN 108.00
+                        WHEN (month_revenue.observed_total <= 89999.99) THEN 119.00
+                        WHEN (month_revenue.observed_total <= 99999.99) THEN 131.00
+                        WHEN (month_revenue.observed_total <= 149999.99) THEN 144.00
+                        WHEN (month_revenue.observed_total <= 199999.99) THEN 158.00
+                        WHEN (month_revenue.observed_total <= 9999999.00) THEN 174.00
+                        ELSE 174.00
+                    END
+                END AS bracket_amount
+           FROM month_revenue
         )
  SELECT channel_id,
     sub_channel_id,
@@ -877,6 +938,7 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
     accredited_on,
     m0_period,
     has_app_access,
+    auto_flex,
     count(*) FILTER (WHERE month_covered) AS months_observed,
     max(month_total) FILTER (WHERE month_covered) AS peak_month_revenue,
         CASE
@@ -920,9 +982,64 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             WHEN (max(month_total) FILTER (WHERE month_covered) <= 199999.99) THEN 1800.00
             WHEN (max(month_total) FILTER (WHERE month_covered) <= 9999999.00) THEN 2200.00
             ELSE 2200.00
-        END AS addon_with_auto
-   FROM month_revenue
-  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access
+        END AS addon_with_auto,
+        CASE
+            WHEN auto_flex THEN
+            CASE
+                WHEN (max(month_total) FILTER (WHERE month_covered) IS NULL) THEN (0)::numeric
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 14999.99) THEN 0.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 19999.99) THEN 250.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 24999.99) THEN 300.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 29999.99) THEN 350.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 34999.99) THEN 400.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 39999.99) THEN 450.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 49999.99) THEN 500.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 59999.99) THEN 550.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 69999.99) THEN 690.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 79999.99) THEN 790.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 89999.99) THEN 880.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 99999.99) THEN 950.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 149999.99) THEN 1300.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 199999.99) THEN 1800.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 9999999.00) THEN 2200.00
+                ELSE 2200.00
+            END
+            WHEN (NOT auto_flex) THEN
+            CASE
+                WHEN (max(month_total) FILTER (WHERE month_covered) IS NULL) THEN (0)::numeric
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 14999.99) THEN 0.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 19999.99) THEN 50.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 24999.99) THEN 55.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 29999.99) THEN 61.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 34999.99) THEN 67.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 39999.99) THEN 74.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 49999.99) THEN 81.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 59999.99) THEN 89.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 69999.99) THEN 98.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 79999.99) THEN 108.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 89999.99) THEN 119.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 99999.99) THEN 131.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 149999.99) THEN 144.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 199999.99) THEN 158.00
+                WHEN (max(month_total) FILTER (WHERE month_covered) <= 9999999.00) THEN 174.00
+                ELSE 174.00
+            END
+            ELSE NULL::numeric
+        END AS addon_amount,
+        CASE
+            WHEN (auto_flex IS NULL) THEN NULL::numeric
+            ELSE COALESCE(max(bracket_amount) FILTER (WHERE (month_index = 0)), (0)::numeric)
+        END AS m0_addon_amount,
+        CASE
+            WHEN (auto_flex IS NULL) THEN NULL::numeric
+            ELSE GREATEST((COALESCE(max(bracket_amount) FILTER (WHERE (month_index = 1)), (0)::numeric) - COALESCE(max(bracket_amount) FILTER (WHERE (month_index < 1)), (0)::numeric)), (0)::numeric)
+        END AS m1_addon_amount,
+        CASE
+            WHEN (auto_flex IS NULL) THEN NULL::numeric
+            ELSE GREATEST((COALESCE(max(bracket_amount) FILTER (WHERE (month_index = 2)), (0)::numeric) - COALESCE(max(bracket_amount) FILTER (WHERE (month_index < 2)), (0)::numeric)), (0)::numeric)
+        END AS m2_addon_amount
+   FROM month_bracket
+  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access, auto_flex
   WITH NO DATA;
 
 
@@ -4593,6 +4710,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260916120000'),
 ('20260909220000'),
 ('20260909215851'),
 ('20260907170000'),
