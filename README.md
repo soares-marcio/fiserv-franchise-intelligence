@@ -392,21 +392,21 @@ primeira, que fecha no centavo nos três meses. As duas simulações estão em
 
 ### O que o contrato prevê e o portal não apura
 
-- **Repasse sobre antecipação (1.1.2-B):** 11% sobre auto+flex, 7% sobre eventual e 7% sobre
-  agenda externa, aplicados à *receita bruta* de antecipação — que é `faturamento bruto
-  antecipado × média das taxas de antecipação da carteira`. A planilha traz o **volume**
-  (`VOLUME DE ANTECIPAÇÃO`, R$ 3,6 a 3,9 milhões por mês, ~44% do faturamento) e **não traz a
-  taxa**; também não distingue *eventual* de *agenda externa* — esta última é antecipação em
-  outras adquirentes, que o arquivo BIN não teria. Para apurar, seria preciso pedir à Fiserv:
-  a taxa média de antecipação por EC ou por carteira, e a separação do volume por modalidade.
+- **Repasse sobre antecipação (1.1.2-B):** no extrato, 11% (automática) ou 7% (eventual)
+  sobre o *spread* — valor antecipado menos valor líquido creditado (ver "Como a Fiserv
+  compõe o extrato mensal"). A planilha traz o **volume** (`VOLUME DE ANTECIPAÇÃO`, que bate
+  no centavo com o extrato) e **não traz o líquido, a taxa nem o prazo** de cada operação.
+  Para apurar, seria preciso pedir à Fiserv o valor líquido (ou taxa e prazo) por EC e mês.
 - **Recredenciamento em 12 meses (1.1):** um EC que sai da base só volta a ser credenciamento
   novo depois de 12 meses. O portal paga sempre que `DATA DE CREDENCIAMENTO` cai na janela.
   Medido em 16/09/2026: nenhum EC teve `accredited_on` alterado entre lotes, então a regra não
   tem ocorrência — mas 113 dos 567 ECs têm data de suspensão, e pode ocorrer.
 - **Campanhas futuras** (1.1.4): provisórias e com regulamento próprio, não têm como ser
   apuradas antes de existirem. Das atuais, o contrato revoga todas menos a do **APP BIN** —
-  que é, com grande probabilidade, os R$ 30 de digitalização: não uma faixa permanente da
-  tabela, e sim a campanha sobrevivente, já dentro da base.
+  confirmada no extrato como a aba "Campanha APP", R$ 30 por CNPJ: os R$ 30 de digitalização
+  não são uma faixa permanente da tabela, e sim a campanha sobrevivente, já dentro da base.
+- **Pix, MDR Flex e Clover Capital** aparecem no extrato e não no Anexo C nem no arquivo —
+  fórmulas e lacunas na seção seguinte.
 
 ### Indicadores do Anexo B
 
@@ -448,6 +448,51 @@ Leituras que o texto do anexo obriga a declarar:
   o portal conta só o Risco, nunca a Atenção. Mês sem leitura interrompe a contagem.
 - **`ATIVO NO MÊS ATUAL?` é a declaração da própria Fiserv** e concorda com o volume do mês
   em 567 de 567 ECs no lote de setembro (medido em 17/09/2026).
+
+### Como a Fiserv compõe o extrato mensal
+
+Conferido com o extrato de agosto/2026 do MIC GOIANIA 4 (`NETO – MIC … .xlsx`, 9 abas),
+cruzado com o banco por CNPJ em 17/09/2026. O `Consolidado` soma as abas —
+`MDR + Antecipação + MDR Flex + Faturamento 3M + Pix + Clover Capital + Campanha APP
+± Redutor/Acelerador` — mais a diferença de apurações anteriores. O extrato é de uma
+**competência** (Base MDR com `Período = 2026-08` e o faturamento de agosto; um EC com
+boarding em 04/08 já entra como M0) e é **pago no mês seguinte**: quando se diz que a
+campanha APP "é feita no M0 e paga no M1", M1 é o caixa, não a competência — vocabulário
+alinhado com o usuário em 17/09/2026.
+
+| Aba | Como a Fiserv calcula | Portal |
+| --- | --- | --- |
+| Base MDR · Repasse MDR | `MDR líquido = MDR STD − interchange`, por EC e produto; `% net MDR da carteira = Σ MDR líquido ÷ Σ faturamento` escolhe a faixa; repasse = faturamento crédito × alíquota crédito + faturamento débito × alíquota débito | igual, desde que o Net MDR venha do **arquivo do mês seguinte** (abaixo). Agosto/2026: R$ 359,81 contra R$ 359,78 |
+| Faturamento 3M | `diferença a receber = valor da faixa do mês − valor já recebido` (marca d'água), coluna B ou C pela modalidade; só ECs com parcela > 0 no mês | igual: 13 de 13 CNPJs, R$ 5.106 |
+| Campanha APP | R$ 30 **por CNPJ**, no mês do primeiro acesso ao app — pagou M1 também | por CNPJ, no mês do primeiro acesso observado, dentro de M0–M2; sem transição observada, M0 (abaixo) |
+| Antecipação | `spread = valor antecipado − valor líquido creditado`; repasse = spread × 11% (tipo 2, automática) ou 7% (tipo 1, eventual) | não apurável: o arquivo traz o volume (bate no centavo em 100 CNPJs), não o líquido, a taxa nem o prazo |
+| Pix | 15% da receita Pix do mês + R$ 30 por CNPJ com conta aberta no mês | não apurável: sem coluna de Pix |
+| MDR Flex · Clover Capital | abas vazias em agosto/2026 | alíquota desconhecida |
+| Δ Faturamento | mês ÷ mês anterior − 1, sobre o faturamento do extrato | igual (9,21%) |
+
+**O NET MDR do Mapa é o MDR líquido realizado do mês anterior ao do arquivo.** O arquivo de
+setembro reproduz o realizado de agosto do extrato em 110 de 112 CNPJs (|Δ| < 0,01 pp); os
+de agosto, idênticos entre si, **não** são o realizado de agosto (0,04 pp de mediana) — que
+carregam julho é inferência da regra, a confirmar com o extrato de julho; ECs sem mês
+anterior fechado vêm sem a coluna. O primeiro arquivo do mês ainda assenta (97 de 112 em
+03/09); do segundo em diante está fechado — o portal usa o último arquivo do mês, e nos
+primeiros dias após a virada o "fechado" pode estar ligeiramente adiantado, corrigindo-se
+no arquivo seguinte. Por isso o recorrente ancora a competência P no **último arquivo de
+P + 1** — sem ele, usa o próprio arquivo e marca ‡ (provisório); antes do primeiro arquivo,
+o mais antigo, com †. Ancorar no arquivo de P custou um repasse zerado em agosto/2026:
+0,2489% (arquivo de agosto) contra 0,2947% (realizado), com o degrau da faixa em 0,25%.
+
+**A campanha APP no portal.** A coluna `ULTIMO ACESSO NO APP` sobrescreve; o primeiro
+acesso só é conhecido quando um lote mostrou o CNPJ sem acesso antes. Sem essa transição —
+CNPJs anteriores ao primeiro arquivo importado —, a campanha cai em M0: sem isso a view
+pagaria 39 CNPJs em agosto/2026 no GOIANIA 4, e 20 deles a Fiserv já tinha pago antes.
+Resultado em agosto: 12 dos 21 CNPJs do extrato; 7 caem em julho (indistinguíveis dos 20) e
+2 em setembro (a coluna atrasa ~3 dias na virada do mês). Com os arquivos semanais a
+transição passa a ser vista, e a regra se corrige sozinha. A transição é lida na ordem dos
+lotes (`import_batch_id`): um arquivo antigo importado depois não conta como "visto sem
+acesso", e a campanha fica em M0 — o lado seguro. A digitalização também deixou de exigir
+volume em M0: a aba "Campanha APP" não tem coluna de faturamento, e a Fiserv pagou os 21
+CNPJs sem olhar o volume.
 
 ## Metabase
 

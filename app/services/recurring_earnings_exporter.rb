@@ -4,9 +4,13 @@
 class RecurringEarningsExporter
   HEADERS = [
     "MIC", "Competência", "Competência parcial", "Débito", "Crédito", "Net MDR %",
-    "Net MDR de arquivo anterior", "Repasse", "Credenciamento", "Ajuste",
+    "Origem do Net MDR", "Repasse", "Credenciamento", "Ajuste",
     "Participação do mês"
   ].freeze
+
+  # Vazio quando o MDR é o realizado (arquivo do mês seguinte); os outros dois estados são
+  # as marcas ‡ e † da tela, em texto.
+  MDR_SOURCE_LABELS = { "provisional" => "provisório", "fallback" => "arquivo anterior" }.freeze
 
   def initialize(reports, channel_name: nil)
     @reports = reports
@@ -42,7 +46,7 @@ class RecurringEarningsExporter
       month[:debit].to_d,
       month[:credit].to_d,
       month[:net_mdr]&.to_d,
-      ("sim" if month[:mdr_fallback]),
+      MDR_SOURCE_LABELS[month[:mdr_source]],
       month[:recurring].to_d,
       (month[:accreditation].to_d unless month[:accreditation].zero?),
       (ajuste.to_d unless ajuste.zero?),

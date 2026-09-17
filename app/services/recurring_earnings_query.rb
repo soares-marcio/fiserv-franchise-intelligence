@@ -2,9 +2,19 @@
 # alíquota da faixa de Net MDR daquele mês × faturamento daquele mês. Nunca se soma
 # faturamento de meses para aplicar alíquota sobre o montante.
 #
-# O Net MDR de cada competência vem do último lote importado daquele mês; competências
-# anteriores ao primeiro arquivo caem no lote mais antigo (mdr_fallback), rotuladas na
-# tela. Com os arquivos semanais, o histórico de MDR se constrói sozinho.
+# O Net MDR de cada competência é o **realizado**, e a Fiserv o publica no arquivo do mês
+# seguinte: o NET MDR do Mapa é o MDR líquido (MDR − interchange, sobre o faturamento) do
+# mês anterior ao do arquivo. Provado contra o extrato de agosto/2026 do MIC GOIANIA 4: o
+# arquivo de setembro reproduz o realizado de agosto em 110 de 112 CNPJs (|Δ| < 0,01 pp), e
+# os arquivos de agosto, idênticos entre si, não são o realizado de agosto — que carregam
+# julho é inferência da regra, a confirmar com o extrato de julho. O primeiro arquivo do mês
+# ainda assenta (97 de 112 em 03/09); do segundo em diante está fechado — daí o último lote.
+#
+# Por isso a competência P ancora no último lote com current_period = P + 1 mês (closed).
+# Enquanto ele não chega, P usa o próprio arquivo — que traz o MDR de P − 1 — e fica marcada
+# como provisional; competências anteriores ao primeiro arquivo caem no lote mais antigo
+# (fallback). Ancorar no arquivo de P custou um repasse zerado: agosto/2026 do GOIANIA 4
+# saía a 0,2489%, abaixo do degrau de 0,25%, quando o realizado era 0,2947%.
 class RecurringEarningsQuery
   def initialize(channel_id: nil)
     @channel_id = channel_id
@@ -40,8 +50,9 @@ class RecurringEarningsQuery
   end
 
   # Uma linha por subcanal × competência, com o MDR ponderado pelo volume do próprio mês
-  # e ancorado no lote da época. O vínculo EC → subcanal também vem do lote da época:
-  # se um EC trocar de subcanal, cada mês fica com o dono que tinha na ocasião.
+  # e ancorado no lote do mês seguinte, que é onde o realizado do mês aparece. O vínculo
+  # EC → subcanal vem do mesmo lote: ele já traz os ECs credenciados no mês, e se um EC
+  # trocar de subcanal, cada mês fica com o dono que tinha na ocasião.
   def monthly_rows
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
       WITH map_batches AS (
@@ -55,12 +66,20 @@ class RecurringEarningsQuery
         FROM map_batches GROUP BY channel_id
       ), period_batches AS (
         SELECT periods.channel_id, periods.period,
-          COALESCE(era.import_batch_id, fallback.import_batch_id) AS import_batch_id,
-          (era.import_batch_id IS NULL) AS mdr_fallback
+          COALESCE(closed.import_batch_id, own.import_batch_id, fallback.import_batch_id)
+            AS import_batch_id,
+          CASE
+            WHEN closed.import_batch_id IS NOT NULL THEN 'closed'
+            WHEN own.import_batch_id IS NOT NULL THEN 'provisional'
+            ELSE 'fallback'
+          END AS mdr_source
         FROM (SELECT DISTINCT channel_id, period FROM monthly_volumes_consolidated) periods
         JOIN fallback_batches fallback ON fallback.channel_id = periods.channel_id
-        LEFT JOIN map_batches era
-          ON era.channel_id = periods.channel_id AND era.current_period = periods.period
+        LEFT JOIN map_batches closed
+          ON closed.channel_id = periods.channel_id
+          AND closed.current_period = (periods.period + INTERVAL '1 month')::date
+        LEFT JOIN map_batches own
+          ON own.channel_id = periods.channel_id AND own.current_period = periods.period
       ), volumes AS (
         SELECT v.channel_id, v.establishment_id, v.period,
           COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'debito'), 0) AS debit,
@@ -70,7 +89,7 @@ class RecurringEarningsQuery
           AND v.metric IN ('debito', 'credito')
         GROUP BY v.channel_id, v.establishment_id, v.period
       )
-      SELECT map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_fallback,
+      SELECT map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_source,
         SUM(vol.debit) AS debit, SUM(vol.credit) AS credit,
         -- "Net MDR da carteira (sem Flex)" é o cabeçalho da tabela de recorrência do Anexo C.
         -- A leitura adotada: fora da média os ECs da modalidade Flex, e não "sem a parcela
@@ -88,7 +107,7 @@ class RecurringEarningsQuery
       JOIN map_snapshots map
         ON map.import_batch_id = batch.import_batch_id
         AND map.establishment_id = vol.establishment_id
-      GROUP BY map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_fallback
+      GROUP BY map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_source
       ORDER BY vol.period
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a
@@ -120,22 +139,26 @@ class RecurringEarningsQuery
       )
 
       { period:, debit:, credit:, total:, net_mdr:, rates:, recurring:, accreditation: parcel,
-        partial:, mdr_fallback: row["mdr_fallback"] }.merge(adjustment)
+        partial:, mdr_source: row["mdr_source"] }.merge(adjustment)
     end
   end
 
   # As parcelas do prêmio por subcanal e **competência de calendário**. A view as guarda
   # indexadas pela janela do EC (m0_period), então cada uma é deslocada para o mês em que é
-  # paga: M0 e a digitalização no próprio m0_period, M1 no mês seguinte, M2 no subsequente.
+  # paga: M0 no próprio m0_period, M1 no mês seguinte, M2 no subsequente — e a digitalização
+  # no mês do primeiro acesso ao app (digitalization_period), como no extrato da Fiserv.
   def accreditation_by_period
     return {} unless AuditViews.populated?("audit_accreditation_earnings")
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
       SELECT sub_channel_id, period, SUM(amount) AS amount
       FROM (
-        SELECT channel_id, sub_channel_id, m0_period AS period,
-          COALESCE(digitalization_amount, 0) + COALESCE(m0_addon_amount, 0) AS amount
+        SELECT channel_id, sub_channel_id, m0_period AS period, COALESCE(m0_addon_amount, 0) AS amount
         FROM audit_accreditation_earnings
+        UNION ALL
+        SELECT channel_id, sub_channel_id, digitalization_period, digitalization_amount
+        FROM audit_accreditation_earnings
+        WHERE digitalization_amount > 0
         UNION ALL
         SELECT channel_id, sub_channel_id, (m0_period + INTERVAL '1 month')::date,
           COALESCE(m1_addon_amount, 0)

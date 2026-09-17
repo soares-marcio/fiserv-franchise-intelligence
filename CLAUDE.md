@@ -134,6 +134,14 @@ modelo saiu — as faixas conferem valor a valor entre os dois.
 EC sem modalidade na origem continua indefinido: a apuração devolve `NULL`, não zero, e a tela
 volta a mostrar o intervalo só para ele. Nunca eleja uma coluna em silêncio.
 
+**`NET MDR` é o MDR líquido realizado do mês anterior ao do arquivo**, não o do mês do
+arquivo — provado contra o extrato da Fiserv de agosto/2026 (o arquivo de setembro reproduz
+o realizado de agosto em 110 de 112 CNPJs). A recorrência ancora a competência P no último
+arquivo de P + 1; ancorar no arquivo de P usa o MDR de P − 1 e já zerou um repasse que a
+Fiserv pagou. A campanha APP (R$ 30) é **por CNPJ, no mês do primeiro acesso** — e o arquivo
+só traz o "último acesso", então sem um lote anterior sem acesso a view cai em M0. As
+fórmulas do extrato, aba a aba, estão no `README.md` ("Como a Fiserv compõe o extrato").
+
 ## Schema, `structure.sql` e produção
 
 O projeto ainda está em construção: **não há deploy de produção**, o schema continua mudando

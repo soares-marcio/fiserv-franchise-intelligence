@@ -338,6 +338,26 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: establishments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.establishments (
+    id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    ec character varying(8) NOT NULL,
+    company_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    primary_establishment_id bigint,
+    duplicate_reason character varying,
+    duplicate_confirmed_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
+    CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
+);
+
+
+--
 -- Name: import_batches; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -846,21 +866,55 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
                    FROM public.map_snapshots m
                   WHERE (m.import_batch_id = ib.id))))
           GROUP BY ib.channel_id
+        ), first_app_access AS (
+         SELECT e.company_id,
+            min(m.last_app_access_at) AS first_app_access_at,
+            (min(m.import_batch_id) FILTER (WHERE (m.last_app_access_at IS NOT NULL)) > min(m.import_batch_id)) AS transition_observed
+           FROM (public.map_snapshots m
+             JOIN public.establishments e ON ((e.id = m.establishment_id)))
+          GROUP BY e.company_id
+         HAVING bool_or((m.last_app_access_at IS NOT NULL))
         ), accredited AS (
          SELECT snapshot.channel_id,
             snapshot.sub_channel_id,
             snapshot.establishment_id,
+            e.company_id,
             snapshot.accredited_on,
             (date_trunc('month'::text, (snapshot.accredited_on)::timestamp with time zone))::date AS m0_period,
-            (snapshot.last_app_access_at IS NOT NULL) AS has_app_access,
+            (access.company_id IS NOT NULL) AS has_app_access,
+                CASE
+                    WHEN (access.company_id IS NULL) THEN NULL::date
+                    WHEN access.transition_observed THEN (date_trunc('month'::text, access.first_app_access_at))::date
+                    ELSE (date_trunc('month'::text, (snapshot.accredited_on)::timestamp with time zone))::date
+                END AS digitalization_period,
                 CASE
                     WHEN (btrim((snapshot.financial_solutions)::text) = ANY (ARRAY['Auto'::text, 'Flex'::text, 'Combo'::text])) THEN true
                     WHEN (btrim((snapshot.financial_solutions)::text) = 'NÃO'::text) THEN false
                     ELSE NULL::boolean
                 END AS auto_flex
-           FROM (public.map_snapshots snapshot
+           FROM (((public.map_snapshots snapshot
              JOIN latest_map_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
+             JOIN public.establishments e ON ((e.id = snapshot.establishment_id)))
+             LEFT JOIN first_app_access access ON ((access.company_id = e.company_id)))
           WHERE (snapshot.accredited_on IS NOT NULL)
+        ), campaign_payer AS (
+         SELECT DISTINCT ON (accredited.company_id) accredited.company_id,
+            accredited.establishment_id
+           FROM accredited
+          ORDER BY accredited.company_id, accredited.accredited_on, accredited.establishment_id
+        ), campaign AS (
+         SELECT a.channel_id,
+            a.sub_channel_id,
+            a.establishment_id,
+            a.company_id,
+            a.accredited_on,
+            a.m0_period,
+            a.has_app_access,
+            a.digitalization_period,
+            a.auto_flex,
+            COALESCE(((payer.establishment_id = a.establishment_id) AND ((a.digitalization_period >= a.m0_period) AND (a.digitalization_period <= ((a.m0_period + '2 mons'::interval))::date))), false) AS pays_campaign
+           FROM (accredited a
+             LEFT JOIN campaign_payer payer ON ((payer.company_id = a.company_id)))
         ), month_revenue AS (
          SELECT a.channel_id,
             a.sub_channel_id,
@@ -869,12 +923,14 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             a.m0_period,
             a.has_app_access,
             a.auto_flex,
+            a.digitalization_period,
+            a.pays_campaign,
             months.month_index,
             months.period,
             (volume.amount IS NOT NULL) AS month_covered,
             COALESCE(volume.amount, (0)::numeric) AS month_total,
             volume.amount AS observed_total
-           FROM ((accredited a
+           FROM ((campaign a
              CROSS JOIN LATERAL ( VALUES (a.m0_period,0), (((a.m0_period + '1 mon'::interval))::date,1), (((a.m0_period + '2 mons'::interval))::date,2)) months(period, month_index))
              LEFT JOIN public.monthly_volumes_consolidated volume ON (((volume.channel_id = a.channel_id) AND (volume.establishment_id = a.establishment_id) AND (volume.period = months.period) AND ((volume.metric)::text = 'total'::text))))
         ), month_bracket AS (
@@ -885,6 +941,8 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             month_revenue.m0_period,
             month_revenue.has_app_access,
             month_revenue.auto_flex,
+            month_revenue.digitalization_period,
+            month_revenue.pays_campaign,
             month_revenue.month_index,
             month_revenue.month_covered,
             month_revenue.month_total,
@@ -939,10 +997,11 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
     m0_period,
     has_app_access,
     auto_flex,
+    digitalization_period,
     count(*) FILTER (WHERE month_covered) AS months_observed,
     max(month_total) FILTER (WHERE month_covered) AS peak_month_revenue,
         CASE
-            WHEN (bool_or((month_covered AND (month_index = 0))) AND has_app_access) THEN 30.00
+            WHEN pays_campaign THEN 30.00
             ELSE (0)::numeric
         END AS digitalization_amount,
         CASE
@@ -1039,7 +1098,7 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
             ELSE GREATEST((COALESCE(max(bracket_amount) FILTER (WHERE (month_index = 2)), (0)::numeric) - COALESCE(max(bracket_amount) FILTER (WHERE (month_index < 2)), (0)::numeric)), (0)::numeric)
         END AS m2_addon_amount
    FROM month_bracket
-  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access, auto_flex
+  GROUP BY channel_id, sub_channel_id, establishment_id, accredited_on, m0_period, has_app_access, auto_flex, digitalization_period, pays_campaign
   WITH NO DATA;
 
 
@@ -1058,26 +1117,6 @@ CREATE TABLE public.daily_revenues_consolidated (
     revised_count integer DEFAULT 0 NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: establishments; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.establishments (
-    id bigint NOT NULL,
-    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
-    ec character varying(8) NOT NULL,
-    company_id bigint NOT NULL,
-    channel_id bigint NOT NULL,
-    primary_establishment_id bigint,
-    duplicate_reason character varying,
-    duplicate_confirmed_at timestamp(6) without time zone,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
-    CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
 );
 
 
@@ -4710,6 +4749,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260917120000'),
 ('20260916120000'),
 ('20260909220000'),
 ('20260909215851'),

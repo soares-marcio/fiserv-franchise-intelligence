@@ -34,7 +34,10 @@ class SubChannelCompensationRules
     { upto: 9_999_999.00, without_auto: 174, with_auto: 2_200 }
   ].freeze
 
-  # Pago uma única vez, em M0, para EC com acesso ao app.
+  # Campanha APP BIN: R$ 30 por CNPJ, uma vez, no mês do primeiro acesso ao app, dentro da
+  # janela do credenciamento (M0–M2). O Anexo C escreve "pago uma única vez, em M0"; o
+  # extrato de agosto/2026 pagou também a CNPJs credenciados em julho que acessaram o app em
+  # agosto — a prática da Fiserv é o mês do primeiro acesso, e a view a segue.
   DIGITALIZATION_FEE = 30.00
 
   # Modalidade contratada de antecipação, que decide qual coluna do adicional por faturamento
