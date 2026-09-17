@@ -468,9 +468,12 @@ cruzado com o banco por CNPJ em 17/09/2026. O `Consolidado` soma as abas —
 
 **O NET MDR do Mapa é o MDR líquido realizado do mês anterior ao do arquivo.** O arquivo de
 setembro reproduz o realizado de agosto do extrato em 110 de 112 CNPJs (|Δ| < 0,01 pp); os
-de agosto carregam julho e ficam a 0,04 pp de mediana; ECs sem mês anterior fechado vêm sem
-a coluna. O primeiro arquivo do mês ainda assenta (97 de 112 em 03/09); do segundo em
-diante está fechado. Por isso o recorrente ancora a competência P no **último arquivo de
+de agosto, idênticos entre si, **não** são o realizado de agosto (0,04 pp de mediana) — que
+carregam julho é inferência da regra, a confirmar com o extrato de julho; ECs sem mês
+anterior fechado vêm sem a coluna. O primeiro arquivo do mês ainda assenta (97 de 112 em
+03/09); do segundo em diante está fechado — o portal usa o último arquivo do mês, e nos
+primeiros dias após a virada o "fechado" pode estar ligeiramente adiantado, corrigindo-se
+no arquivo seguinte. Por isso o recorrente ancora a competência P no **último arquivo de
 P + 1** — sem ele, usa o próprio arquivo e marca ‡ (provisório); antes do primeiro arquivo,
 o mais antigo, com †. Ancorar no arquivo de P custou um repasse zerado em agosto/2026:
 0,2489% (arquivo de agosto) contra 0,2947% (realizado), com o degrau da faixa em 0,25%.
@@ -481,7 +484,11 @@ CNPJs anteriores ao primeiro arquivo importado —, a campanha cai em M0: sem is
 pagaria 39 CNPJs em agosto/2026 no GOIANIA 4, e 20 deles a Fiserv já tinha pago antes.
 Resultado em agosto: 12 dos 21 CNPJs do extrato; 7 caem em julho (indistinguíveis dos 20) e
 2 em setembro (a coluna atrasa ~3 dias na virada do mês). Com os arquivos semanais a
-transição passa a ser vista, e a regra se corrige sozinha.
+transição passa a ser vista, e a regra se corrige sozinha. A transição é lida na ordem dos
+lotes (`import_batch_id`): um arquivo antigo importado depois não conta como "visto sem
+acesso", e a campanha fica em M0 — o lado seguro. A digitalização também deixou de exigir
+volume em M0: a aba "Campanha APP" não tem coluna de faturamento, e a Fiserv pagou os 21
+CNPJs sem olhar o volume.
 
 ## Metabase
 

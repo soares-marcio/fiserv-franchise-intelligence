@@ -6,8 +6,9 @@
 # seguinte: o NET MDR do Mapa é o MDR líquido (MDR − interchange, sobre o faturamento) do
 # mês anterior ao do arquivo. Provado contra o extrato de agosto/2026 do MIC GOIANIA 4: o
 # arquivo de setembro reproduz o realizado de agosto em 110 de 112 CNPJs (|Δ| < 0,01 pp), e
-# os arquivos de agosto, idênticos entre si, carregam julho. O primeiro arquivo do mês ainda
-# assenta (97 de 112 em 03/09); do segundo em diante está fechado — daí o último lote do mês.
+# os arquivos de agosto, idênticos entre si, não são o realizado de agosto — que carregam
+# julho é inferência da regra, a confirmar com o extrato de julho. O primeiro arquivo do mês
+# ainda assenta (97 de 112 em 03/09); do segundo em diante está fechado — daí o último lote.
 #
 # Por isso a competência P ancora no último lote com current_period = P + 1 mês (closed).
 # Enquanto ele não chega, P usa o próprio arquivo — que traz o MDR de P − 1 — e fica marcada
