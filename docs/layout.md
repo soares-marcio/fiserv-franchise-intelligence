@@ -464,9 +464,14 @@ O **Anexo C** da Circular de Oferta de Franquia mudou o que as duas telas mostra
   safra do EC, aqui por competência de calendário.
 - **Competência aberta não mostra ajuste.** Um mês pela metade parece queda por não ter
   terminado; o redutor incidiria sobre dado incompleto.
-- **A tela do recorrente declara a linha que não apura**: o repasse sobre a receita bruta de
-  antecipação existe no contrato e não é calculável com o arquivo atual. Omitir daria a
-  entender que o número na tela é o fator inteiro.
+- **A tela do recorrente declara o que o extrato paga e o portal não apura** — antecipação,
+  Pix, MDR Flex e Clover Capital —, com a fórmula do extrato e o insumo que falta no arquivo.
+  Omitir daria a entender que o número na tela é o fator inteiro.
+- **O recorrente marca a origem do Net MDR**: sem marca é o realizado, que chega no arquivo
+  do mês seguinte; ‡ quando o mês ainda usa o próprio arquivo (provisório); † quando usa o
+  mais antigo disponível. O `title` diz o porquê, e o CSV escreve a origem em texto.
+- **O card do EC diz em que mês a campanha APP caiu** ("app em ago/2026"), porque desde o
+  extrato ela é paga no mês do primeiro acesso, não em M0.
 
 **Indicadores do Anexo B** (`/reports/indicators`) usa a mesma anatomia de card do
 recorrente: o MIC nomeia o card, o bloco do topo é o retrato (quantos indicadores estão em

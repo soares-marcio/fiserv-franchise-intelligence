@@ -46,16 +46,18 @@
     <% end %>
   </section>
 
-  <%# O contrato tem duas linhas de recorrência (Anexo C, 1.1.2) e o portal apura só a
-      primeira. Declarar a que falta é melhor que omiti-la: quem confere o repasse com a
-      Fiserv precisa saber que este número não é o total do fator. %>
+  <%# O extrato mensal da Fiserv (conferido com o de agosto/2026 do MIC GOIANIA 4) traz linhas
+      que o arquivo BIN não permite apurar. Declarar a fórmula e o insumo que falta é melhor
+      que omitir: quem confere o repasse precisa saber que este número não é o total. %>
   <p class="metric-hint mt-3">
-    O Anexo C prevê ainda um <strong>repasse sobre a receita bruta de antecipação</strong>
-    (11% em auto+flex, 7% em eventual e 7% em agenda externa). Ele <strong>não é apurado
-    aqui</strong>: a fórmula pede a média das taxas de antecipação da carteira, que a
-    planilha não traz, e a separação por modalidade — agenda externa é antecipação em outras
-    adquirentes, que o arquivo BIN não teria. O volume antecipado existe no arquivo; a taxa,
-    não.
+    <strong>O que o extrato da Fiserv paga e o portal não apura</strong> — as fórmulas são as
+    do extrato mensal do MIC, aba a aba. <strong>Antecipação</strong>: 11% (automática) ou 7%
+    (eventual) sobre o <em>spread</em>, o valor antecipado menos o valor líquido creditado; o
+    arquivo BIN traz o volume antecipado, não o líquido nem a taxa e o prazo de cada operação.
+    <strong>Pix</strong>: 15% da receita Pix do mês, mais R$ 30 por CNPJ com conta Pix aberta
+    no mês; não há coluna de Pix no arquivo. <strong>MDR Flex</strong> e <strong>Clover
+    Capital</strong>: abas vazias no extrato de agosto/2026, alíquota desconhecida. O MDR, o
+    3M e a campanha APP conferem com o extrato e estão nesta tela e na de Ganhos 3M.
   </p>
 
   <% if @reports.any? %>
