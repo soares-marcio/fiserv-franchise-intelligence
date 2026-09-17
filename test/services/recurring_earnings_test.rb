@@ -168,6 +168,26 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     end
   end
 
+  # "Net MDR da carteira (sem Flex)" é o cabeçalho da tabela de recorrência do Anexo C. O EC
+  # da modalidade Flex sai da média que escolhe a faixa — o volume dele continua na base sobre
+  # a qual a alíquota é aplicada, que é o que o contrato manda.
+  test "EC da modalidade Flex fica fora da média ponderada do Net MDR" do
+    flex_ec = Establishment.find_by!(ec: "50000001")
+    antes = @reports.find { |row| row[:name] == "MIC GAMA" }[:months].first[:net_mdr]
+
+    ApplicationRecord.connection.execute(
+      "UPDATE map_snapshots SET financial_solutions = 'Flex' WHERE establishment_id = #{flex_ec.id}"
+    )
+    refresh_audit_views
+    depois = RecurringEarningsQuery.new.by_sub_channel
+      .find { |row| row[:name] == "MIC GAMA" }[:months].first
+
+    assert_not_nil antes, "o EC precisa ter MDR, senão o teste é vácuo"
+    # Era o único EC da GAMA com MDR; virando Flex, não sobra ninguém para a média.
+    assert_nil depois[:net_mdr]
+    assert_equal 0.0, depois[:recurring], "sem faixa de MDR não há alíquota, e o repasse é zero"
+  end
+
   test "mês aberto aparece como parcial" do
     gama = @reports.find { |row| row[:name] == "MIC GAMA" }
     partials = gama[:months].select { |m| m[:partial] }.map { |m| m[:period] }

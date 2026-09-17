@@ -72,8 +72,15 @@ class RecurringEarningsQuery
       )
       SELECT map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_fallback,
         SUM(vol.debit) AS debit, SUM(vol.credit) AS credit,
-        SUM(map.net_mdr * (vol.debit + vol.credit)) FILTER (WHERE map.net_mdr IS NOT NULL)
-          / NULLIF(SUM(vol.debit + vol.credit) FILTER (WHERE map.net_mdr IS NOT NULL), 0)
+        -- "Net MDR da carteira (sem Flex)" é o cabeçalho da tabela de recorrência do Anexo C.
+        -- A leitura adotada: fora da média os ECs da modalidade Flex, e não "sem a parcela
+        -- Flex das transações" — o contrato não desambigua, e o arquivo não separa transação
+        -- por modalidade. São 2 ECs na base real, efeito numérico desprezível; o que vale é a
+        -- regra estar escrita onde ela age.
+        SUM(map.net_mdr * (vol.debit + vol.credit))
+          FILTER (WHERE map.net_mdr IS NOT NULL AND BTRIM(map.financial_solutions) IS DISTINCT FROM 'Flex')
+          / NULLIF(SUM(vol.debit + vol.credit)
+            FILTER (WHERE map.net_mdr IS NOT NULL AND BTRIM(map.financial_solutions) IS DISTINCT FROM 'Flex'), 0)
           AS weighted_net_mdr
       FROM volumes vol
       JOIN period_batches batch
