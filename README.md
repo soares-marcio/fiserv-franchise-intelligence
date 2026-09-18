@@ -103,12 +103,35 @@ internet.
 
 ### Acesso pela rede
 
-Na LAN o portal é servido por um Caddy em outra máquina, que faz proxy de `http://fiserv.bin`
-para `web` e de `http://fiserv-metabase.bin` para `metabase`; o DNS local resolve os dois
-nomes. Para isso o Compose publica `3000` e `3001` no IP da LAN (`APP_BIND_IP` no `.env`) e
-o Postgres só em `127.0.0.1`. Em produção o app aceita apenas `Host: fiserv.bin` e
-`localhost` (`RAILS_HOSTS` acrescenta outros); `force_ssl` fica desligado enquanto o Caddy
-servir HTTP puro — liga-se quando ele passar a terminar TLS.
+**O portal roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) a partir do corte
+descrito em "Levar o sistema para outra máquina" (a data fica lá); o Mac é só
+desenvolvimento. Na LAN ele é servido pelo Caddy da mesma máquina (projeto
+`~/Composes/fiserv-proxy`, container `fiserv-caddy`), que faz proxy de `http://fiserv.bin`
+para `fiserv-web:3000` **pela rede do Compose** (`fiserv-proxy_default`): nenhuma porta do
+portal é publicada no host, nem a do Postgres. Isso vem de `docker-compose.berry.yml`,
+ativado pelo `COMPOSE_FILE` do `.env` de lá — o `docker-compose.yml` continua o do
+desenvolvimento, que publica `3000`/`3001` em `APP_BIND_IP` (padrão `127.0.0.1`) e o Postgres
+em `127.0.0.1:5432`. O DNS local (Pi-hole, no próprio berry) resolve `fiserv.bin` para ele.
+Em produção o app aceita apenas `Host: fiserv.bin` e `localhost` (`RAILS_HOSTS` acrescenta
+outros); `force_ssl` fica desligado enquanto o Caddy servir HTTP puro — liga-se quando ele
+passar a terminar TLS.
+
+O clone fica em `/home/soares/repos/franchise-intelligence`, ao lado dos outros projetos do
+berry; dados reais (backups, logs) em `/home/soares/fiserv-storage/`, fora do clone. O
+berry divide a máquina com o `lottery-app` — redes, volumes e portas são por projeto, e só
+o Caddy é compartilhado.
+
+**Cadeia de deploy**, depois do merge na `main`:
+
+```bash
+ssh berry ~/repos/franchise-intelligence/bin/deploy
+```
+
+O `bin/deploy` faz `git pull --ff-only`, `bin/db-backup`, `docker compose up -d --build web
+worker` e confere `http://fiserv.bin/up` pelo próprio berry. A migração corre no
+`db:prepare` do entrypoint quando o `web` sobe — por isso o backup vem antes. Não há
+rollback automático: as imagens anteriores ficam, e voltar é `git checkout <sha>` seguido de
+`docker compose up -d --build web worker`.
 
 A imagem traz o Thruster como `CMD` (`./bin/thrust ./bin/rails server`), mas o Compose
 **sobrescreve** com `bin/rails server -b 0.0.0.0`: na stack quem atende a porta 3000 é o Puma,
@@ -247,10 +270,32 @@ Grava três arquivos com o mesmo carimbo de data em `BACKUP_DIR` (padrão
 | `fiserv_<data>_metabase.tar.gz` | volume `metabase_data` — perguntas e dashboards |
 
 O Metabase para pelos segundos do `tar`: o H2 é um arquivo aberto pelo processo e a cópia a
-quente sairia inconsistente. Arquivos com mais de `BACKUP_KEEP_DAYS` dias (padrão 14) são
+quente sairia inconsistente. Onde o volume `metabase_data` não existe (o berry, enquanto o
+Metabase estiver desligado), o script avisa e pula esse arquivo em vez de criar um volume
+vazio para arquivá-lo. Arquivos com mais de `BACKUP_KEEP_DAYS` dias (padrão 14) são
 apagados ao fim de cada execução. `BACKUP_DIR`, `BACKUP_KEEP_DAYS` e `BACKUP_DB_NAME` (o
 banco do dump, padrão `fiserv_franchise_intelligence_development`) saem do `.env`, que o
 script lê sozinho.
+
+**Onde roda, desde a migração para o berry:** no cron do `soares`, às 3h30, gravando em
+`/home/soares/fiserv-storage/backups` (o `DOCKER_HOST` do Docker rootless já está definido
+no topo do crontab):
+
+```
+30 3 * * * cd /home/soares/repos/franchise-intelligence && bin/db-backup >> /home/soares/fiserv-storage/logs/db-backup.log 2>&1
+```
+
+E o Mac **puxa uma cópia** às 4h00 pelo `launchd`
+(`~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.backup-sync.plist`, não versionado
+porque leva caminhos absolutos):
+
+```bash
+rsync -a --delete -e "ssh -o BatchMode=yes" berry:fiserv-storage/backups/ \
+  /Volumes/macOs/Developer/Sites/GitHub/fiserv/franchise-storage/backups/berry/
+```
+
+É espelho: a retenção é a do berry. Com isso o backup passa a viver em duas máquinas — o
+risco aceito em 07/09/2026 (backup no mesmo disco do banco) deixa de valer.
 
 **Os três arquivos contêm dados reais de cliente.** Ficam fora do repositório e nunca podem
 ser versionados, anexados ou enviados para fora da máquina.
@@ -296,30 +341,48 @@ Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ
 `company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
 sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 
-Agendamento diário às 3h30 pelo `launchd`, no arquivo
-`~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist` (não versionado
-porque leva caminhos absolutos desta máquina). Carregar é ação manual:
+**Roteiro da migração Mac → berry** (executado em: _pendente — preenchido no dia do corte_):
+
+1. No berry, sem tocar no que está no ar: `git clone` em `~/repos/franchise-intelligence`,
+   `.env` com o **mesmo** `SECRET_KEY_BASE` e `METABASE_RO_PASSWORD` (copiados por `scp`,
+   nunca por chat ou log), `COMPOSE_FILE=docker-compose.yml:docker-compose.berry.yml`,
+   `BACKUP_DIR=/home/soares/fiserv-storage/backups`; `docker compose config` sem nenhuma
+   `ports:`; `docker compose build web worker`.
+2. No Mac: `docker compose stop web worker`, `bin/db-backup`, contagens de referência
+   (`establishments`, `companies`, `map_snapshots`, `revenue_snapshots`, `daily_revenues` e
+   a soma de `amount`, `import_batches`, `company_notes`, `active_storage_blobs`,
+   `period_coverages`).
+3. `scp` do dump e do `_storage.tar.gz` para `berry:~/fiserv-storage/backups/`.
+4. No berry: `docker compose up -d db` → `pg_restore` no banco que o `POSTGRES_DB` criou →
+   `docker compose run --rm web bin/rails db:seed` (o dump não traz o papel `metabase_ro`, e
+   `db:prepare` num banco povoado não roda o seed) → `tar -xzf` do `storage` no volume →
+   `docker compose up -d`.
+5. Conferir no berry: contagens iguais, 5 views populadas, `metabase_ro` lendo a view de
+   credenciamento, `/up` de dentro do container.
+6. Caddyfile: `fiserv.bin → fiserv-web:3000`; `caddy reload` sem derrubar.
+7. Conferir pela rede e do Mac; no Mac, `docker compose down` (volumes ficam 14 dias),
+   `APP_BIND_IP` fora do `.env`, `launchd` trocado pelo `backup-sync`.
+
+**Enquanto a stack roda no Mac** (até o corte para o berry), o agendamento é pelo
+`launchd` (`bin.fiserv.franchise-intelligence.db-backup.plist`, às 3h30). Depois do corte, o
+que fica dele é o `backup-sync` acima, e o que se aprendeu vale para qualquer agente do
+`launchd` que toque este repositório:
 
 ```bash
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.db-backup.plist
-launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup   # roda agora
-launchctl print gui/$(id -u)/bin.fiserv.franchise-intelligence.db-backup | grep "last exit code"
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.backup-sync.plist
+launchctl kickstart -p gui/$(id -u)/bin.fiserv.franchise-intelligence.backup-sync   # roda agora
+launchctl print gui/$(id -u)/bin.fiserv.franchise-intelligence.backup-sync | grep "last exit code"
 ```
 
-**Numa máquina nova, carregar não basta.** Este repositório vive num volume externo
-(`/Volumes/macOs`, `Device Location: External`) e agentes do `launchd` não têm permissão para
-ler arquivos ali: o job sobe, dispara e morre com `Operation not permitted`. A permissão é
-concedida em Ajustes do Sistema → Privacidade e Segurança → **Acesso Total ao Disco**,
-adicionando `/bin/bash` (o seletor esconde `/bin`; use Cmd+Shift+G). Ativo desde 07/09/2026,
-com o `last exit code = 0` acima como prova.
+**Carregar não basta.** Este repositório vive num volume externo (`/Volumes/macOs`,
+`Device Location: External`) e agentes do `launchd` não têm permissão para ler ou gravar
+ali: o job sobe, dispara e morre com `Operation not permitted`. A permissão é concedida em
+Ajustes do Sistema → Privacidade e Segurança → **Acesso Total ao Disco**, adicionando
+`/bin/bash` (o seletor esconde `/bin`; use Cmd+Shift+G). Ativa desde 07/09/2026. A saída
+vai para `~/Library/Logs/fiserv-backup-sync.log`.
 
-O plist executa o `bin/db-backup` **da árvore de trabalho**, não de uma cópia fixa: a branch
-que estiver aberta é a que roda de madrugada.
-
-A saída vai para `~/Library/Logs/fiserv-db-backup.log`.
-
-O Metabase só é reiniciado ao fim se estava de pé quando o backup começou. Parar o serviço é
-decisão de segurança; um backup noturno não pode desfazê-la.
+O Metabase só é reiniciado ao fim do `bin/db-backup` se estava de pé quando o backup
+começou. Parar o serviço é decisão de segurança; um backup noturno não pode desfazê-la.
 
 **Último teste de restauração: 2026-09-07**, já com o schema atual — o de depois da remoção
 das duas views de auditoria e das três colunas sem uso, e nenhuma migração entrou desde
@@ -330,13 +393,11 @@ e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snap
 migrações. O banco temporário foi apagado ao fim. Repetir o teste — e atualizar esta data —
 sempre que o script ou o schema mudarem.
 
-**Risco aceito, por decisão (07/09/2026):** o backup fica no mesmo disco externo do banco.
-Protege contra `db:rebuild`, import errado e corrupção lógica; **não** protege contra perda
-do disco ou da máquina. Cópia para fora foi avaliada e adiada — não há destino configurado
-(nenhum compartilhamento de rede montado, sem Dropbox/Drive/OneDrive), e mandar para fora
-exigiria criptografar antes, porque os três arquivos carregam CNPJ e faturamento reais. Cada
-conjunto ocupa ~3,7 MB, então volume não é o obstáculo: é a escolha do destino. Reavaliar
-antes de o piloto virar operação.
+**Risco aceito em 07/09/2026, encerrado com a migração:** o backup ficava no mesmo disco
+do banco — protegia contra `db:rebuild`, import errado e corrupção lógica, não contra perda
+do disco ou da máquina. Com o banco no berry e o `rsync` diário para o Mac, o backup vive em
+duas máquinas da mesma rede. Continua **dentro** da LAN por decisão: mandar para fora
+exigiria criptografar antes, porque os arquivos carregam CNPJ e faturamento reais.
 
 ## Views de auditoria
 
@@ -503,6 +564,29 @@ por todos os bancos, e por isso `METABASE_RO_PASSWORD` é obrigatória fora do a
 teste: sem ela, o seed falha em vez de trocar a senha que o Metabase está usando pela padrão.
 O `bin/rails` no host não lê o `.env` — exporte a variável antes de `bin/setup`, `db:seed`
 ou `db:rebuild` em development.
+
+### Build futuro: Metabase no berry
+
+O Metabase **não sobe no berry** por decisão de 18/09/2026: ele nunca passou pelo setup
+inicial, o volume dele tinha 7 MB sem pergunta nem dashboard de valor, e é o serviço mais
+pesado da stack (JVM). No `docker-compose.berry.yml` ele está atrás do profile `metabase`;
+a página `/metabase` do portal continua existindo e avisa que o serviço está desligado. O
+papel `metabase_ro` continua sendo criado pelo seed — `METABASE_RO_PASSWORD` segue
+obrigatória — para o dia em que ligar. Para ligar:
+
+1. `docker compose --profile metabase up -d metabase` (o volume `metabase_data` nasce vazio;
+   para trazer o do Mac, restaurar `fiserv_<data>_metabase.tar.gz` nele com o `tar -xzf` da
+   seção de restauração, **antes** de subir).
+2. Caddyfile do `fiserv-proxy`: `http://fiserv-metabase.bin { reverse_proxy fiserv-metabase:3000 }`
+   e `docker exec fiserv-caddy caddy reload --config /etc/caddy/Caddyfile`. O Pi-hole já
+   resolve o nome.
+3. `.env` do berry: `METABASE_URL=http://fiserv-metabase.bin` e `docker compose restart web`
+   (a variável é lida pelo `web`).
+4. Concluir o setup inicial **com senha** antes de deixar o nome na rede — a ressalva de
+   segurança do CLAUDE.md ("Controle de acesso") vale a partir do momento em que ele sobe.
+   Fonte de dados: host `db`, porta `5432`, banco `fiserv_franchise_intelligence_development`,
+   usuário `metabase_ro`.
+5. `bin/db-backup` passa a gerar o terceiro arquivo sozinho, porque o volume existe.
 
 ## Testes
 
