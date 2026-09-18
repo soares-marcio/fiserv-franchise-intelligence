@@ -37,6 +37,20 @@ class MetabaseControllerTest < ActionDispatch::IntegrationTest
   ensure
     ENV["METABASE_URL"] = original if original
   end
+
+  # É o que o docker-compose.berry.yml entrega enquanto o Metabase está fora: a variável existe,
+  # vazia. Antes o aviso só saía com ela ausente, e no container ela nunca está ausente.
+  test "METABASE_URL vazia conta como desligado" do
+    original = ENV["METABASE_URL"]
+    ENV["METABASE_URL"] = ""
+
+    get metabase_path
+
+    assert_select "a[href=?]", "http://localhost:3001", text: /Abrir Metabase/
+    assert_select ".metric-hint", text: /Desligado nesta versão/
+  ensure
+    ENV["METABASE_URL"] = original
+  end
 end
 
 # O layout mostra a idade do último arquivo duas vezes (badge do menu e status do header),

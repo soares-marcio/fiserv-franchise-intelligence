@@ -341,20 +341,24 @@ Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ
 `company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
 sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 
-**Roteiro da migração Mac → berry** (executado em: _pendente — preenchido no dia do corte_):
+**Roteiro da migração Mac → berry** (executado em **18/09/2026**, ~15 min de portal fora):
 
 1. No berry, sem tocar no que está no ar: `git clone` em `~/repos/franchise-intelligence`,
    `.env` com o **mesmo** `SECRET_KEY_BASE` e `METABASE_RO_PASSWORD` (copiados por `scp`,
    nunca por chat ou log), `COMPOSE_FILE=docker-compose.yml:docker-compose.berry.yml`,
    `BACKUP_DIR=/home/soares/fiserv-storage/backups`; `docker compose config` sem nenhuma
-   `ports:`; `docker compose build web worker`.
+   `ports:`; `docker compose build web worker` (211 s no primeiro build; a segunda passagem
+   pelo Dockerfile, do `worker`, é replay de cache e custou só a exportação da imagem).
 2. No Mac: `docker compose stop web worker`, `bin/db-backup`, contagens de referência
    (`establishments`, `companies`, `map_snapshots`, `revenue_snapshots`, `daily_revenues` e
    a soma de `amount`, `import_batches`, `company_notes`, `active_storage_blobs`,
    `period_coverages`).
 3. `scp` do dump e do `_storage.tar.gz` para `berry:~/fiserv-storage/backups/`.
-4. No berry: `docker compose up -d db` → `pg_restore` no banco que o `POSTGRES_DB` criou →
-   `docker compose run --rm web bin/rails db:seed` (o dump não traz o papel `metabase_ro`, e
+4. No berry: `docker compose up -d db` → `CREATE ROLE metabase_ro NOLOGIN` **antes** do
+   `pg_restore` (o dump carrega os `GRANT` ao papel, e com `--exit-on-error` o restore para
+   no primeiro deles; as permissões e o `REFRESH` das views rodam em passadas próprias, depois
+   de tabelas, dados e índices — foi o que sobrou para reaplicar em 18/09) → `pg_restore
+   --no-owner` → `docker compose run --rm web bin/rails db:seed` (dá LOGIN e senha ao papel;
    `db:prepare` num banco povoado não roda o seed) → `tar -xzf` do `storage` no volume →
    `docker compose up -d`.
 5. Conferir no berry: contagens iguais, 5 views populadas, `metabase_ro` lendo a view de
@@ -384,14 +388,14 @@ vai para `~/Library/Logs/fiserv-backup-sync.log`.
 O Metabase só é reiniciado ao fim do `bin/db-backup` se estava de pé quando o backup
 começou. Parar o serviço é decisão de segurança; um backup noturno não pode desfazê-la.
 
-**Último teste de restauração: 2026-09-07**, já com o schema atual — o de depois da remoção
-das duas views de auditoria e das três colunas sem uso, e nenhuma migração entrou desde
-então (as 21 continuam sendo as mesmas). O dump foi restaurado em `fiserv_restore_test`
-e as contagens conferiram com o banco vivo — 556 ECs, 377 empresas, 1.659 snapshots do mapa,
-1.375 de faturamento, 17.809 lançamentos diários (mesma soma de `amount`), 4 partições de
-`daily_revenues` (três mensais e a `default`), as 5 views materializadas populadas e as 21
-migrações. O banco temporário foi apagado ao fim. Repetir o teste — e atualizar esta data —
-sempre que o script ou o schema mudarem.
+**Último teste de restauração: 2026-09-18** — o próprio corte para o berry: dump e volume
+`storage` do Mac restaurados num cluster vazio e conferidos contra as contagens de referência
+(964 ECs, 717 empresas, 3.744 snapshots do mapa, 2.914 de faturamento, 34.794 lançamentos
+diários com a mesma soma de `amount`, 45.779 volumes mensais, 7 lotes, 21 anotações, 7 blobs,
+5 coberturas), as 5 views materializadas populadas, o papel `metabase_ro` lendo a view de
+credenciamento e negado nas tabelas base, e os 8 arquivos do `storage` com dono `1000:1000`.
+O teste anterior (2026-09-07) restaurou em `fiserv_restore_test` no Mac. Repetir o teste — e
+atualizar esta data — sempre que o script ou o schema mudarem.
 
 **Risco aceito em 07/09/2026, encerrado com a migração:** o backup ficava no mesmo disco
 do banco — protegia contra `db:rebuild`, import errado e corrupção lógica, não contra perda
