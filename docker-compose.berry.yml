@@ -16,6 +16,11 @@ services:
     ports: !reset []
   web:
     ports: !reset []
+    # O docker-compose.yml dá um padrão a METABASE_URL (localhost:3001), e com ele o app via a
+    # variável definida: o aviso "desligado" de /metabase nunca aparecia (18/09/2026). Aqui ela
+    # fica vazia até o .env defini-la (build futuro: METABASE_URL=http://fiserv-metabase.bin).
+    environment:
+      METABASE_URL: ${METABASE_URL:-}
     networks:
       default: {}
       proxy:
