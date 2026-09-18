@@ -13,6 +13,13 @@
       É somente leitura: nada feito lá altera os dados daqui. As telas deste portal continuam
       sendo a referência; o Metabase serve para explorar além delas.
     </p>
+    <% if @metabase_off %>
+      <p class="metric-hint mt-3">
+        <strong>Desligado nesta versão.</strong> O Metabase não sobe junto com o portal no
+        berry; ligar é um build futuro (README, "Build futuro: Metabase"). O botão abaixo só
+        responde quando o serviço estiver de pé.
+      </p>
+    <% end %>
     <%= link_to icon_label("arrow-square-out", "Abrir Metabase"), @metabase_url, class: "btn btn-primary relative z-10 mt-6",
       target: "_blank", rel: "noreferrer" %>
   </section>

@@ -45,14 +45,20 @@ archive_volume storage "${PREFIX}_storage.tar.gz"
 # O serviço para pelo tempo do tar e volta mesmo se o comando falhar — mas só volta se estava
 # de pé. Deixá-lo parado é decisão de segurança (ele nunca passou pelo setup inicial, e quem
 # alcança a porta 3001 conclui o setup); um backup noturno não pode desfazê-la.
-echo "Metabase → ${PREFIX}_metabase.tar.gz"
-if docker compose ps --status running --services | grep -qx metabase; then
+#
+# Onde o Metabase nunca subiu (o berry, desde 09/2026), o volume não existe — e o `docker run
+# -v` criaria um vazio só para arquivá-lo. Sem volume, não há o que guardar.
+if ! docker volume inspect "${PROJECT}_metabase_data" > /dev/null 2>&1; then
+  echo "Metabase → sem volume metabase_data nesta máquina; nada a arquivar"
+elif docker compose ps --status running --services | grep -qx metabase; then
+  echo "Metabase → ${PREFIX}_metabase.tar.gz"
   docker compose stop metabase > /dev/null
   trap 'docker compose start metabase > /dev/null' EXIT
   archive_volume metabase_data "${PREFIX}_metabase.tar.gz"
   docker compose start metabase > /dev/null
   trap - EXIT
 else
+  echo "Metabase → ${PREFIX}_metabase.tar.gz"
   archive_volume metabase_data "${PREFIX}_metabase.tar.gz"
 fi
 

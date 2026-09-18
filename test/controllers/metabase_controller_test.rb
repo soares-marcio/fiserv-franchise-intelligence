@@ -20,16 +20,20 @@ class MetabaseControllerTest < ActionDispatch::IntegrationTest
     get metabase_path
 
     assert_select "a[href=?]", "http://fiserv-metabase.bin", text: /Abrir Metabase/
+    assert_select ".metric-hint", text: /Desligado nesta versão/, count: 0
   ensure
     ENV["METABASE_URL"] = original
   end
 
-  test "sem METABASE_URL o link cai em localhost:3001" do
+  # Sem a variável, o serviço está desligado (é o estado do berry): a tela diz isso em vez de
+  # deixar o botão apontar para um endereço que não responde sem explicação.
+  test "sem METABASE_URL o link cai em localhost:3001 e a tela avisa que o serviço está desligado" do
     original = ENV.delete("METABASE_URL")
 
     get metabase_path
 
     assert_select "a[href=?]", "http://localhost:3001", text: /Abrir Metabase/
+    assert_select ".metric-hint", text: /Desligado nesta versão/
   ensure
     ENV["METABASE_URL"] = original if original
   end

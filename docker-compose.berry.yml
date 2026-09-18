@@ -1,0 +1,36 @@
+# Sobreposição para o berry (Raspberry Pi, Docker rootless), onde o portal roda desde
+# 09/2026. Ativada pelo .env de lá — COMPOSE_FILE=docker-compose.yml:docker-compose.berry.yml —,
+# então `docker compose` e `bin/db-backup` a leem sem argumento. O docker-compose.yml fica
+# intacto para o desenvolvimento no Mac.
+#
+# Nenhuma porta no host: o Caddy que serve fiserv.bin roda na mesma máquina, dentro do
+# projeto fiserv-proxy, e alcança o web pela rede dele (fiserv-proxy_default) pelo alias —
+# o mesmo desenho do lottery-app, que divide o berry com o portal. O Postgres deixa de ser
+# alcançável fora do Compose; backup e restore entram por `docker compose exec`.
+#
+# O Metabase fica fora desta versão por decisão de 18/09/2026: atrás de profile, o
+# `docker compose up -d` não o sobe nem cria o volume. Ligar é
+# `docker compose --profile metabase up -d metabase` — ver "Build futuro: Metabase" no README.
+services:
+  db:
+    ports: !reset []
+  web:
+    ports: !reset []
+    networks:
+      default: {}
+      proxy:
+        aliases:
+          - fiserv-web
+  metabase:
+    profiles: [metabase]
+    ports: !reset []
+    networks:
+      default: {}
+      proxy:
+        aliases:
+          - fiserv-metabase
+
+networks:
+  proxy:
+    external: true
+    name: fiserv-proxy_default

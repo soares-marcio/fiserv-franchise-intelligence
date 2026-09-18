@@ -1,0 +1,19 @@
+#!/bin/bash
+# Atualiza o portal no berry: é a cadeia de deploy depois do merge na main, num comando
+# (`ssh berry ~/repos/franchise-intelligence/bin/deploy`).
+#
+# O backup vem antes do build de propósito: a migração corre no db:prepare do entrypoint
+# quando o web sobe, e o dump é o que permite voltar. Não há rollback automático — as
+# imagens anteriores ficam em `docker image ls`, e voltar é `git checkout <sha>` seguido
+# de `docker compose up -d --build web worker`.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+git pull --ff-only
+bin/db-backup
+docker compose up -d --build web worker
+docker compose ps
+
+# Pelo próprio berry, pela rota que a rede usa: Caddy → rede do proxy → web.
+curl -fsS -o /dev/null -w "fiserv.bin/up → %{http_code}\n" http://fiserv.bin/up

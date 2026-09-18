@@ -79,8 +79,9 @@ O banco **deixou de ser inteiramente descartável em 09/09/2026**, quando entrar
 anotações do cliente (`company_notes`). Até ali, tudo no banco vinha de planilha e uma
 reimportação reconstruía o que fosse perdido. A anotação não vem de arquivo nenhum: apagar o
 banco a apaga para sempre, e **nenhuma reimportação a traz de volta**. O que protege é o
-`bin/db-backup` (dump diário às 3h30 pelo launchd, mais o volume `storage` com os anexos) —
-antes de recriar o banco de development, ou se restaura, ou se perde.
+`bin/db-backup` (dump diário às 3h30 pelo cron do berry, mais o volume `storage` com os
+anexos, espelhado no Mac às 4h00) — antes de recriar o banco que serve a LAN, ou se
+restaura, ou se perde.
 
 A anotação foi desenhada para o restore ser possível: ela se liga ao **CNPJ**, não a
 `companies.id`, justamente porque id e uuid são regenerados a cada recriação e o CNPJ vem da
@@ -147,9 +148,17 @@ fórmulas do extrato, aba a aba, estão no `README.md` ("Como a Fiserv compõe o
 O projeto ainda está em construção: **não há deploy de produção**, o schema continua mudando
 e o banco segue descartável por decisão. O que mudou é o custo de descartá-lo. A stack sobe
 `web` e `worker` com `RAILS_ENV=production` apontando para
-`fiserv_franchise_intelligence_development` (`docker-compose.yml:28,62`) — é esse o banco que
-serve a LAN, com os lotes já importados. Recriá-lo custa reimportar as planilhas à mão, e o
-import com o arquivo real é operação do usuário. Por isso:
+`fiserv_franchise_intelligence_development` (`docker-compose.yml:28,62`). **Desde 09/2026 a
+stack que serve a LAN roda no berry** (`ssh berry`, clone em `~/repos/franchise-intelligence`,
+sobreposição `docker-compose.berry.yml` ativada pelo `COMPOSE_FILE` do `.env` de lá) — é o
+banco de lá que tem os lotes importados e as anotações. Recriá-lo custa reimportar as
+planilhas à mão, e o import com o arquivo real é operação do usuário. A cadeia de deploy
+depois do merge é `ssh berry ~/repos/franchise-intelligence/bin/deploy`, que faz o backup
+antes do build porque a migração corre no `db:prepare` do entrypoint. Nada no berry se
+altera por conta própria: `bin/deploy`, Caddyfile e cron são ações combinadas com o usuário.
+
+No Mac, o `_development` voltou a ser só desenvolvimento (uma cópia congelada do dia do
+corte, sem nada que não exista no berry). Mesmo assim:
 
 ```bash
 RAILS_ENV=test bin/rails db:rebuild   # DROP … WITH (FORCE) → create → schema:load → seed
@@ -158,8 +167,8 @@ RAILS_ENV=test bin/rails db:rebuild   # DROP … WITH (FORCE) → create → sch
 **Sem o `RAILS_ENV=test`, o `db:rebuild` derruba também o banco de development**
 (`lib/tasks/db_rebuild.rake:39` acrescenta o banco de teste quando o ambiente é development,
 e o de development é o atual). Recriar o de development é legítimo enquanto o schema não
-estabiliza — só não deve ser acidente: antes, `bin/db-backup`, e depois ou o restore ou uma
-reimportação. No dia a dia, mudança de schema entra por `bin/rails db:migrate`.
+estabiliza — só não deve ser acidente. No dia a dia, mudança de schema entra por
+`bin/rails db:migrate`.
 
 Pode rodar com os containers de pé: o `FORCE` derruba as conexões deles. O `web` reconecta
 na requisição seguinte, mas o `worker` **encerra** — na janela em que o banco não existe o
@@ -243,12 +252,14 @@ alcança a rede de subir arquivo — essa parte entra na mesma conta da autentic
 A anotação também não registra autor, porque não há quem perguntar: fica só a hora da última
 edição, como `establishments.duplicate_confirmed_at`.
 
-**O Metabase nunca passou pelo setup inicial** (`/api/session/properties` responde
-`has-user-setup: false` com `setup-token` presente, verificado em 07/09/2026). Enquanto
-estiver assim, quem alcança a porta 3001 na LAN conclui o setup e vira administrador dele.
+**O Metabase está desligado no berry** (profile `metabase` no `docker-compose.berry.yml`,
+decisão de 18/09/2026; ligar é o "Build futuro: Metabase" do README). A ressalva vale para
+o dia em que subir: ele **nunca passou pelo setup inicial** (`/api/session/properties`
+respondia `has-user-setup: false` com `setup-token` presente, verificado em 07/09/2026), e
+enquanto estiver assim quem alcança o nome na LAN conclui o setup e vira administrador dele.
 O Postgres não está exposto na LAN, mas está na rede do Compose, ao alcance do container —
-e as views de auditoria carregam CNPJ e faturamento reais. Concluir o setup (com senha) ou
-parar o serviço fecha a porta; deixar como está é escolha, não descuido.
+e as views de auditoria carregam CNPJ e faturamento reais. Concluir o setup (com senha)
+antes de publicar o nome no Caddy é o mínimo.
 
 ## Verificação
 
