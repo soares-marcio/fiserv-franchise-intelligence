@@ -79,9 +79,9 @@ O banco **deixou de ser inteiramente descartável em 09/09/2026**, quando entrar
 anotações do cliente (`company_notes`). Até ali, tudo no banco vinha de planilha e uma
 reimportação reconstruía o que fosse perdido. A anotação não vem de arquivo nenhum: apagar o
 banco a apaga para sempre, e **nenhuma reimportação a traz de volta**. O que protege é o
-`bin/db-backup` (dump diário às 3h30 pelo cron do berry, mais o volume `storage` com os
-anexos, espelhado no Mac às 4h00) — antes de recriar o banco que serve a LAN, ou se
-restaura, ou se perde.
+`bin/db-backup` (dump diário às 3h30 — `launchd` no Mac até o corte para o berry; depois,
+cron do berry com espelho no Mac às 4h00 — mais o volume `storage` com os anexos) — antes de
+recriar o banco que serve a LAN, ou se restaura, ou se perde.
 
 A anotação foi desenhada para o restore ser possível: ela se liga ao **CNPJ**, não a
 `companies.id`, justamente porque id e uuid são regenerados a cada recriação e o CNPJ vem da
@@ -148,8 +148,9 @@ fórmulas do extrato, aba a aba, estão no `README.md` ("Como a Fiserv compõe o
 O projeto ainda está em construção: **não há deploy de produção**, o schema continua mudando
 e o banco segue descartável por decisão. O que mudou é o custo de descartá-lo. A stack sobe
 `web` e `worker` com `RAILS_ENV=production` apontando para
-`fiserv_franchise_intelligence_development` (`docker-compose.yml:28,62`). **Desde 09/2026 a
-stack que serve a LAN roda no berry** (`ssh berry`, clone em `~/repos/franchise-intelligence`,
+`fiserv_franchise_intelligence_development` (`docker-compose.yml:28,62`). **A partir do corte de
+09/2026 (data no README, "Levar o sistema para outra máquina"), a stack que serve a LAN roda
+no berry** (`ssh berry`, clone em `~/repos/franchise-intelligence`,
 sobreposição `docker-compose.berry.yml` ativada pelo `COMPOSE_FILE` do `.env` de lá) — é o
 banco de lá que tem os lotes importados e as anotações. Recriá-lo custa reimportar as
 planilhas à mão, e o import com o arquivo real é operação do usuário. A cadeia de deploy

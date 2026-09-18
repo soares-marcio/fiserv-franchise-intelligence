@@ -103,8 +103,9 @@ internet.
 
 ### Acesso pela rede
 
-**O portal roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) desde 09/2026;
-o Mac é só desenvolvimento. Na LAN ele é servido pelo Caddy da mesma máquina (projeto
+**O portal roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) a partir do corte
+descrito em "Levar o sistema para outra máquina" (a data fica lá); o Mac é só
+desenvolvimento. Na LAN ele é servido pelo Caddy da mesma máquina (projeto
 `~/Composes/fiserv-proxy`, container `fiserv-caddy`), que faz proxy de `http://fiserv.bin`
 para `fiserv-web:3000` **pela rede do Compose** (`fiserv-proxy_default`): nenhuma porta do
 portal é publicada no host, nem a do Postgres. Isso vem de `docker-compose.berry.yml`,
@@ -340,7 +341,7 @@ Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ
 `company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
 sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 
-**Roteiro executado na migração Mac → berry** (a data da execução fica no fim desta seção):
+**Roteiro da migração Mac → berry** (executado em: _pendente — preenchido no dia do corte_):
 
 1. No berry, sem tocar no que está no ar: `git clone` em `~/repos/franchise-intelligence`,
    `.env` com o **mesmo** `SECRET_KEY_BASE` e `METABASE_RO_PASSWORD` (copiados por `scp`,
@@ -362,10 +363,10 @@ sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 7. Conferir pela rede e do Mac; no Mac, `docker compose down` (volumes ficam 14 dias),
    `APP_BIND_IP` fora do `.env`, `launchd` trocado pelo `backup-sync`.
 
-**Enquanto a stack rodava no Mac** (até a migração para o berry), o agendamento era pelo
-`launchd` (`bin.fiserv.franchise-intelligence.db-backup.plist`, às 3h30). O que fica dele é o
-`backup-sync` acima, e o que se aprendeu vale para qualquer agente do `launchd` que toque
-este repositório:
+**Enquanto a stack roda no Mac** (até o corte para o berry), o agendamento é pelo
+`launchd` (`bin.fiserv.franchise-intelligence.db-backup.plist`, às 3h30). Depois do corte, o
+que fica dele é o `backup-sync` acima, e o que se aprendeu vale para qualquer agente do
+`launchd` que toque este repositório:
 
 ```bash
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/bin.fiserv.franchise-intelligence.backup-sync.plist
