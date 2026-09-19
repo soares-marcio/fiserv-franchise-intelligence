@@ -23,6 +23,10 @@ DB_NAME="${BACKUP_DB_NAME:-fiserv_franchise_intelligence_development}"
 PROJECT="fiserv-franchise-intelligence"
 PREFIX="fiserv_$(date +%Y%m%d-%H%M%S)"
 
+# Só o dono lê o que sai daqui: é dado real de cliente, e no berry o diretório é de um
+# usuário numa máquina compartilhada com outros projetos. O umask cobre o dump (escrito
+# pelo shell); o tar nasce dentro do container, com o umask de lá, e recebe o chmod.
+umask 077
 mkdir -p "$BACKUP_DIR"
 BACKUP_DIR="$(cd "$BACKUP_DIR" && pwd)"
 
@@ -30,6 +34,7 @@ archive_volume() {
   docker run --rm \
     -v "${PROJECT}_$1:/data:ro" -v "${BACKUP_DIR}:/backup" \
     alpine tar -czf "/backup/$2" -C /data .
+  chmod 600 "${BACKUP_DIR}/$2"
 }
 
 # O dump precisa do container do banco de pé; falhar aqui é melhor que gerar arquivo vazio.
