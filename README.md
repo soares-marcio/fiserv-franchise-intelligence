@@ -297,8 +297,8 @@ rsync -a --delete -e "ssh -o BatchMode=yes" berry:fiserv-storage/backups/ \
 É espelho: a retenção é a do berry. Com isso o backup passa a viver em duas máquinas — o
 risco aceito em 07/09/2026 (backup no mesmo disco do banco) deixa de valer.
 
-**Os três arquivos contêm dados reais de cliente.** Ficam fora do repositório e nunca podem
-ser versionados, anexados ou enviados para fora da máquina.
+**Os três arquivos contêm dados reais de cliente.** Saem com modo 600 (só o dono lê), ficam
+fora do repositório e nunca podem ser versionados, anexados ou enviados para fora da máquina.
 
 Restaurar:
 
