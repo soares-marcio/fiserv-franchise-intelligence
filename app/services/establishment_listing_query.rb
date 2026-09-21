@@ -30,7 +30,7 @@ class EstablishmentListingQuery
   # um piso e um teto dentro desta escala e a listagem mostra quem ficou **entre** os dois na
   # competência escolhida — inclusive nas duas pontas, como "de … até" se lê em português. Sem
   # escolha, a escala fica inteira e nada é filtrado: o bloco então conta pela referência.
-  LOW_REVENUE_THRESHOLD = 300_000
+  LOW_REVENUE_THRESHOLD = 1_000_000
   # Passo da base da escala. R$ 1.000 é a precisão onde a pergunta desta tela mora.
   LOW_REVENUE_STEP = 1_000
 
@@ -38,14 +38,17 @@ class EstablishmentListingQuery
   # escala: medido em 16/09/2026, 171 dos 186 clientes com faturamento no mês atual ficam até
   # R$ 30.000 e nenhum passa de R$ 300.000; no mês anterior cheio são 200 de 263 até R$ 30.000
   # e 4 acima do topo. Com passo fixo de R$ 1.000 a faixa que esta tela audita ocupava 10% do
-  # trilho e as duas alças se encavalavam; com estas paradas ela ocupa 74% (31 de 42).
+  # trilho e as duas alças se encavalavam; com estas paradas ela ocupava 74% (31 de 42). Em
+  # 20/09/2026 o usuário pediu o topo em R$ 1.000.000: entram 7 paradas de R$ 100.000 acima
+  # de 300 mil, e a faixa até 30 mil passa a ocupar 63% (31 de 49) — ainda o grosso do trilho.
   #
   # A alça carrega o índice da parada, não o valor: é o que permite espaçar as paradas sem
   # mentir sobre a posição. Quem viaja na URL e no filtro continua sendo o valor em reais.
   REVENUE_STOPS = [
     *(0..30_000).step(LOW_REVENUE_STEP),
     *(40_000..100_000).step(10_000),
-    *(150_000..300_000).step(50_000)
+    *(150_000..300_000).step(50_000),
+    *(400_000..1_000_000).step(100_000)
   ].freeze
   # Base da faixa: qual competência o filtro olha. "Todas" é o estado desligado — a escolha do
   # usuário (15/09/2026) por um jeito explícito de voltar à tela sem filtro, no lugar da regra
@@ -56,7 +59,7 @@ class EstablishmentListingQuery
   }.freeze
 
   # Referência do bloco quando **não** há faixa escolhida. Não é o topo da escala: com a escala
-  # em R$ 300 mil, contar "quem está abaixo do topo" devolve a carteira inteira — na carteira
+  # em R$ 1 milhão, contar "quem está abaixo do topo" devolve a carteira inteira — na carteira
   # real, 35 de 35, que é verdade e não informa nada. R$ 30 mil é o corte que o usuário pediu
   # em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.
   LOW_REVENUE_REFERENCE = 30_000
@@ -113,7 +116,7 @@ class EstablishmentListingQuery
   end
 
   # Teto escolhido na tela, preso à escala e ao passo do slider. Quem decide se ele filtra é a
-  # base, e não o valor: o topo da escala significa R$ 300.000,00 e nada mais.
+  # base, e não o valor: o topo da escala significa R$ 1.000.000,00 e nada mais.
   #
   # Zero **é** escolha (pedido do usuário, 15/09/2026): teto zero mostra quem não faturou nada,
   # que é uma pergunta legítima desta tela. Por isso a ausência se testa por `blank?`.

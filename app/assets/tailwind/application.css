@@ -1707,6 +1707,17 @@
      fora da área visível — medido na carteira real, janela de 1600px: a tabela pedia 2947px
      num espaço de 1502px, 1445px além. Duas linhas identificam o problema; o texto inteiro
      está a um clique, na ficha do lote, e no `title` ao passar o mouse. */
+  /* Voltou em 20/09/2026 com a carteira real. A regra geral do .table-scroll dá à tabela a
+     largura do conteúdo em linha única (width: max-content), pensada para tabelas que rolam
+     de propósito; aqui, nomes de arquivo de 60 caracteres, o nome do Master e a mensagem
+     somavam mais que o card, o botão saía e a página inteira ganhava rolagem horizontal.
+     Esta tabela é para ser vista inteira: fica na largura do card, com as colunas em
+     proporção fixa e quebra de linha permitida em qualquer ponto — os nomes vêm da Fiserv
+     e do operador, com sublinhados e sem espaço, e nenhum pode alargar a coluna. */
+  .batches-table :where(td, th) {
+    overflow-wrap: anywhere;
+  }
+
   .import-error {
     display: -webkit-box;
     max-width: 20rem;
@@ -2973,6 +2984,15 @@
   .table-scroll > .table {
     width: max-content;
     min-width: 100%;
+  }
+
+  /* A tabela de lotes é a exceção (ver .batches-table na camada de componentes): fica na
+     largura do card com colunas fixas. A regra vive aqui, fora da camada como a de cima —
+     dentro dela perderia para esta em qualquer largura de tela. */
+  .table-scroll > .table.batches-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
   }
 
   .table-frame,

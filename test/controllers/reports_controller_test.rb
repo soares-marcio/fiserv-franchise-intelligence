@@ -255,7 +255,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # Duas alças são dois inputs nativos empilhados: não existe range de duas alças em HTML.
     assert_select ".revenue-range input[type=range]", count: 2
     # A alça anda pelas paradas, e não de mil em mil: é o que faz a faixa auditada por esta
-    # tela ocupar 74% do trilho em vez de 10%.
+    # tela ocupar 63% do trilho em vez de 3%.
     assert_select ".revenue-range input[type=range][max=?]",
       (EstablishmentListingQuery::REVENUE_STOPS.size - 1).to_s
     assert_select "#min_revenue_slider[value=?]", "0"

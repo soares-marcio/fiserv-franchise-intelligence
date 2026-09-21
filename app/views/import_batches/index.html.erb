@@ -107,7 +107,20 @@
   </div>
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Lotes importados, rolável na horizontal">
-      <table class="table">
+      <table class="table batches-table">
+        <%# Proporções da largura do card (table-layout: fixed): o nome do arquivo é o que
+            identifica o lote e leva a maior parte; a mensagem de falha já fica em duas linhas.
+            A coluna de ações é fixa porque o botão não encolhe; as porcentagens somam 88% de
+            propósito (calc com porcentagem não vale em col): a sobra o layout distribui, e a
+            soma nunca passa do card. %>
+        <colgroup>
+          <col style="width: 32%">
+          <col style="width: 21%">
+          <col style="width: 8%">
+          <col style="width: 18%">
+          <col style="width: 9%">
+          <col style="width: 6rem">
+        </colgroup>
         <thead>
           <tr>
             <th scope="col">Arquivo</th>

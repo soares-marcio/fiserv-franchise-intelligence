@@ -76,6 +76,49 @@ class LayoutAndImportTest < ApplicationSystemTestCase
       "o texto inteiro continua acessível no title"
   end
 
+  # Voltou em 20/09/2026 com a carteira real: a mensagem já cabia, mas os nomes de arquivo de
+  # 60 caracteres e o nome do Master, que não quebram linha, somavam mais que a área visível e o
+  # botão de descartar saía do card de novo. O que o usuário vê é a tabela inteira, com o que a
+  # Fiserv e o operador nomeiam do jeito que nomeiam.
+  test "nomes longos de arquivo e de Master não empurram o botão de descartar para fora" do
+    goias = Channel.create!(external_id: "1479", name: "MASTER FRANQUEADO REGIAO GOIAS")
+    ramos = Channel.create!(external_id: "1478", name: "MASTER FRANQUEADO RAMOS E SILVA")
+    ImportBatch.create!(
+      channel: goias, source_filename: "14.09.26 - MCB 17 09.xlsx", file_checksum: "f" * 12,
+      status: "failed", current_month_cutoff_day: 14,
+      validation_errors: [
+        "PG::UniqueViolation: ERROR:  duplicate key value violates unique constraint " \
+        "\"index_map_snapshots_on_import_batch_id_and_establishment_id\"\nDETAIL:  Key " \
+        "(import_batch_id, establishment_id)=(20, 617) already exists."
+      ]
+    )
+    7.times do |i|
+      ImportBatch.create!(
+        channel: ramos, status: "validated", current_month_cutoff_day: 14 - i,
+        source_filename: "14.09.26 - 1478_MASTER FRANQUEADO RAMOS E SILV_2026091#{i}.xlsx",
+        file_checksum: "a#{i}" * 6
+      )
+    end
+
+    visit import_batches_path
+    assert_selector "tbody .import-error"
+
+    medida = page.evaluate_script(<<~JS)
+      (() => {
+        const rolagem = document.querySelector(".table-scroll")
+        const tabela = rolagem.querySelector("table")
+        const botao = document.querySelector("tbody td .btn")
+        return {
+          sobra: Math.round(tabela.scrollWidth - rolagem.clientWidth),
+          botao_dentro: Math.round(botao.getBoundingClientRect().right) <= Math.round(rolagem.getBoundingClientRect().right) + 1
+        }
+      })()
+    JS
+
+    assert_operator medida["sobra"], :<=, 0, "a tabela não pode transbordar por causa dos nomes"
+    assert medida["botao_dentro"], "o botão Descartar precisa caber na área visível"
+  end
+
   # A tabela de sete colunas dentro do card vazava por cima do card vizinho: no desktop o
   # .table-scroll geral é overflow: visible, e o item de grid sem min-width: 0 esticava a
   # coluna inteira. O card tem que conter a própria tabela, rolando por dentro.

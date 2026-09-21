@@ -284,6 +284,17 @@ docker compose run --rm test
 O sinal de que a imagem está velha é o resultado repetir exatamente a contagem de runs de
 antes da mudança, ou uma falha citar marcação que já não existe no repositório.
 
+**Na imagem, `bin/rails test <arquivo>` roda os testes de sistema sem o CSS do app.** O
+`app/assets/builds` fica fora da imagem (`.dockerignore`) e o Tailwind só é compilado pelo
+gancho de `test:prepare`, que `test:all` e `test:system` executam e o comando `test` com
+caminho não. A página então carrega só `application.css` e `actiontext.css`, e qualquer
+medida de layout (largura de tabela, transbordo, posição de botão) sai de uma página sem
+estilo — custou quatro rodadas em 20/09/2026. Para rodar um arquivo de sistema isolado:
+
+```bash
+docker compose run --rm test sh -c "bin/rails tailwindcss:build && bin/rails test test/system/x_test.rb"
+```
+
 ---
 
 # Diretrizes gerais de comportamento
