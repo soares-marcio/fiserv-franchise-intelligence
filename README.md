@@ -178,6 +178,11 @@ código: cada uma diz **o que está errado, onde, e o que fazer** — a aba e a 
 o cabeçalho exato que falta ou sobra, os valores que não fecham. A regra vale para as
 validações de template, de reconciliação entre abas e de competência.
 
+A lista de reconciliação inclui **EC repetido no Mapa** (desde 20/09/2026, quando um arquivo
+real trouxe a mesma linha duas vezes e a tela mostrou o erro do índice único do Postgres):
+a recusa diz o EC, as linhas e se elas são idênticas — aí basta apagar uma — ou em que colunas
+diferem, caso em que a versão certa se confere na origem. Nada é gravado antes dessa checagem.
+
 Na tela de importação o lote que falhou ganha um bloco próprio
 (`app/views/import_batches/_failure_report.html.erb`) com a mensagem, os fatos de
 identificação — lote, arquivo, data do envio, canal e os 12 primeiros caracteres do checksum —
