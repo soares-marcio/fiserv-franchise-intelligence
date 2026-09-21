@@ -5,8 +5,8 @@ import { Controller } from "@hotwired/stimulus"
 //
 // A alça carrega o **índice da parada**, não o valor. As paradas vêm do servidor
 // (EstablishmentListingQuery::REVENUE_STOPS) e são espaçadas de propósito — R$ 1.000 até
-// 30 mil, R$ 10.000 até 100 mil, R$ 50.000 até 300 mil —, porque a carteira não se distribui
-// pela escala. Quem o formulário envia é o campo escondido, em reais.
+// 30 mil, R$ 10.000 até 100 mil, R$ 50.000 até 300 mil, R$ 100.000 até 1 milhão —, porque a
+// carteira não se distribui pela escala. Quem o formulário envia é o campo escondido, em reais.
 export default class extends Controller {
   static targets = [
     "trigger", "panel", "basis", "min", "max", "minValue", "maxValue", "band", "value", "summary"

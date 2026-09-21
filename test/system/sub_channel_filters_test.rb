@@ -335,14 +335,14 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     # normalize_ws porque o Intl escreve espaço não separável entre "R$" e o número, igual ao
     # helper brl do servidor: sem isso a asserção procura um texto que a tela não escreve.
     assert_selector "[data-revenue-filter-target=value]", normalize_ws: true,
-      text: "R$ 10.000 a R$ 300.000"
+      text: "R$ 10.000 a R$ 1.000.000"
     assert_selector "[data-revenue-filter-target=summary]", normalize_ws: true,
-      text: "mês atual · R$ 10.000–300.000"
+      text: "mês atual · R$ 10.000–1.000.000"
     assert_equal "10000", find("#min_revenue", visible: :all).value,
       "o campo escondido leva o valor em reais, e é ele que o formulário envia"
     # A faixa acesa acompanha a posição da alça no trilho, e não o valor: a décima parada de
-    # 41 fica a 24% dele, embora R$ 10.000 sejam 3% da escala em dinheiro.
-    assert_in_delta 24.4, faixa["left"].to_f, 0.1
+    # 48 fica a 21% dele, embora R$ 10.000 sejam 1% da escala em dinheiro.
+    assert_in_delta 20.8, faixa["left"].to_f, 0.1
 
     # O piso para no teto em vez de passar por ele.
     mover("max_revenue_slider", 20)
@@ -365,7 +365,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     click_on "Filtrar"
 
     assert_current_path(/min_revenue=5000/)
-    assert_current_path(/max_revenue=300000/)
+    assert_current_path(/max_revenue=1000000/)
     assert_current_path(/revenue_basis=atual/)
   end
 

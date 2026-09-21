@@ -551,7 +551,8 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   # A escala deixou de ser linear (pedido do usuário, 16/09/2026). O passo cresce com o valor
   # porque a carteira não se distribui pela escala: com passo fixo de R$ 1.000 a faixa que esta
-  # tela audita ocupava 10% do trilho, e as duas alças se encavalavam dentro dela.
+  # tela audita ocupava 10% do trilho, e as duas alças se encavalavam dentro dela. Com o topo
+  # em R$ 1 milhão (20/09/2026) ela ocupa 63%: o piso aqui é o que ainda deixa as alças soltas.
   test "as paradas do slider dão à faixa auditada a maior parte do trilho" do
     paradas = EstablishmentListingQuery::REVENUE_STOPS
     baixas = paradas.count { |valor| valor <= EstablishmentListingQuery::LOW_REVENUE_REFERENCE }
@@ -559,7 +560,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
     assert_equal 0, paradas.first
     assert_equal EstablishmentListingQuery::LOW_REVENUE_THRESHOLD, paradas.last
     assert_equal paradas.sort.uniq, paradas, "as paradas sobem e não se repetem"
-    assert_operator baixas.fdiv(paradas.size), :>, 0.7,
+    assert_operator baixas.fdiv(paradas.size), :>, 0.6,
       "de 0 a R$ 30.000 tem de ocupar a maior parte do trilho"
     assert_equal EstablishmentListingQuery::LOW_REVENUE_STEP, paradas[2] - paradas[1],
       "na base da escala o passo continua sendo de R$ 1.000"

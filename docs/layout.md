@@ -217,8 +217,8 @@ aqui; as telas 3M seguem com o rótulo em cima, como o resto da barra delas.
 ### Filtro por faixa de faturamento
 
 Na barra de filtros da listagem do MIC, um **dropdown de base** e um **slider de duas alças**
-formam o filtro de faturamento. A escala vai de 0 a R$ 300.000,00 em paradas de passo
-crescente (`EstablishmentListingQuery::REVENUE_STOPS` — ver adiante); o dropdown diz a que
+formam o filtro de faturamento. A escala vai de 0 a R$ 1.000.000,00 (topo em R$ 300.000,00 até
+20/09/2026) em paradas de passo crescente (`EstablishmentListingQuery::REVENUE_STOPS` — ver adiante); o dropdown diz a que
 competência a faixa se aplica (`REVENUE_BASES`):
 
 | Base | O que filtra |
@@ -230,7 +230,7 @@ competência a faixa se aplica (`REVENUE_BASES`):
 **Quem liga e desliga o filtro é a base, não o valor** (decisão do usuário, 15/09/2026). Antes
 o desligado era implícito — o topo da escala significava "sem teto", porque um
 `input[type=range]` sempre envia valor. Com o dropdown o desligado ficou explícito, o topo da
-escala voltou a significar R$ 300.000,00 e nada mais, e as alças ficam apagadas enquanto a
+escala voltou a significar o topo (hoje R$ 1.000.000,00) e nada mais, e as alças ficam apagadas enquanto a
 base está em "Todas".
 
 Cinco decisões, cada uma com um porquê:
@@ -267,7 +267,7 @@ são 21 — se o bloco ignorasse o piso, estamparia 137 ao lado de uma tabela de
 e um teto na URL, o bloco anunciava R$ 12.000 enquanto as contagens usavam a referência.
 
 **Com o filtro desligado o bloco conta pela referência, e não pelo topo da escala**
-(`LOW_REVENUE_REFERENCE`, R$ 30.000,00): com a escala em R$ 300 mil, "abaixo do topo" devolve a
+(`LOW_REVENUE_REFERENCE`, R$ 30.000,00): com a escala em R$ 1 milhão, "abaixo do topo" devolve a
 carteira inteira — 35 de 35, medido —, que é verdade e não informa nada. R$ 30 mil é o corte que
 o usuário pediu em 14/09/2026, e é o que a tela mostra enquanto ninguém escolhe faixa.
 
@@ -279,12 +279,13 @@ de baixo. O trilho e a faixa acesa são pintados à parte porque os trilhos nati
 transparentes: empilhados, apareceriam como duas linhas.
 
 **A escala não é linear, e é essa a razão de ela caber.** O passo cresce com o valor —
-R$ 1.000 até 30 mil, R$ 10.000 até 100 mil, R$ 50.000 até 300 mil (`REVENUE_STOPS`, 42
-paradas). A razão é medida: 171 dos 186 clientes com faturamento no mês atual ficam até
+R$ 1.000 até 30 mil, R$ 10.000 até 100 mil, R$ 50.000 até 300 mil, R$ 100.000 até 1 milhão
+(`REVENUE_STOPS`, 49 paradas — 42 até o topo subir para R$ 1 milhão em 20/09/2026). A razão é medida: 171 dos 186 clientes com faturamento no mês atual ficam até
 R$ 30.000 e **nenhum** passa de R$ 300.000; no mês anterior cheio são 200 de 263 abaixo de
 30 mil e 4 acima do topo. Com passo fixo de R$ 1.000 a faixa que esta tela audita ocupava
 **10% do trilho** — 23px, menos que as duas alças de 16px somadas, então elas se encavalavam
-e a faixa acesa entre as duas sumia. Com as paradas espaçadas ela ocupa **74%**.
+e a faixa acesa entre as duas sumia. Com as paradas espaçadas ela ocupava **74%** do trilho de
+R$ 300 mil, e ocupa **63%** do de R$ 1 milhão (contra 3% com passo fixo).
 
 Três consequências de desenho, todas deliberadas:
 
