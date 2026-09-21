@@ -32,6 +32,22 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
   # Do segundo lote em diante quase todo EC e CNPJ já existem: consultar um a um, dentro da
   # transação do import, era um round trip por linha do Mapa. Os conhecidos vêm de uma vez;
   # só o que é novo na planilha ainda gera consulta própria.
+  # A loja duplicada é a mesma linha duas vezes, como no arquivo de 20/09/2026: o Mapa cai no
+  # índice único de map_snapshots, e o import tem que recusar antes de gravar qualquer coisa.
+  test "EC repetido no Mapa é recusado antes de gravar, com a mensagem do validador" do
+    lojas = BinWorkbook.default_lojas
+    lojas = lojas + [ lojas.first ]
+
+    error = assert_raises(ArgumentError) { import_synthetic_workbook(lojas:) }
+
+    assert_match(/O EC 30000001 aparece 2 vezes na aba Mapa de Clientes BIN/, error.message)
+    assert_match(/idênticas/, error.message)
+    assert_equal "failed", ImportBatch.last.status
+    assert_equal [ error.message ], ImportBatch.last.validation_errors
+    assert_equal 0, MapSnapshot.count
+    assert_equal 0, RawImportRow.count
+  end
+
   test "um lote com ECs conhecidos não consulta empresa e EC linha a linha" do
     import_synthetic_workbook(lojas: @lojas)
     @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)

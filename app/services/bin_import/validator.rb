@@ -18,6 +18,7 @@ module BinImport
       validate_single_channel!
       validate_required_values!
       validate_ec_identity!
+      validate_unique_map_ecs!
       validate_revenue_membership!
       validate_daily_totals!
       self
@@ -84,6 +85,27 @@ module BinImport
         raise ArgumentError, "O EC #{changed.first} aparece com mais de um CNPJ dentro deste " \
           "mesmo arquivo. Um EC pertence a um CNPJ só: confira as linhas desse EC nas três abas."
       end
+    end
+
+    # Um EC repetido no Mapa cairia no índice único de map_snapshots já com o lote meio
+    # gravado, e a tela mostrava o erro do Postgres (aconteceu em 20/09/2026). Aqui a recusa
+    # diz o EC, as linhas e se elas são iguais — para quem tem o arquivo na mão saber se basta
+    # apagar uma linha ou se há duas versões do mesmo EC a conferir na origem.
+    def validate_unique_map_ecs!
+      repeated = @map_rows.group_by { |row| Normalizer.ec(row["EC"]) }.find { |_ec, rows| rows.many? }
+      return unless repeated
+
+      ec, rows = repeated
+      numbers = rows.map { |row| row["_row_number"] }.to_sentence
+      differing = rows.first.keys.reject { |key| key == "_row_number" }
+        .select { |key| rows.map { |row| row[key] }.uniq.many? }
+      detail = if differing.empty?
+        "As #{rows.size} linhas são idênticas: deixe uma e apague as outras."
+      else
+        "As linhas diferem em #{differing.to_sentence}: confira na origem qual é a versão certa e deixe só ela."
+      end
+      raise ArgumentError, "O EC #{ec} aparece #{rows.size} vezes na aba Mapa de Clientes BIN " \
+        "(linhas #{numbers} da planilha), e cada EC entra uma vez por arquivo. #{detail}"
     end
 
     def validate_revenue_membership!
