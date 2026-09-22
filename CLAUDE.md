@@ -238,9 +238,28 @@ própria.
 
 ## Controle de acesso
 
-O portal ainda opera sem autenticação por decisão de escopo. Trate-o como ferramenta interna:
-não exponha Rails, PostgreSQL ou Metabase fora de uma máquina ou rede confiável. Antes de qualquer
-publicação externa, autenticação e autorização passam a ser requisito de entrega.
+O portal ainda opera sem autenticação **própria** por decisão de escopo. Na LAN isso significa
+o que sempre significou: quem alcança `http://fiserv.bin` faz tudo. Postgres e Metabase seguem
+sem exposição fora de máquina ou rede confiável.
+
+**Desde 22/09/2026 há um endereço público**, `https://manager.melopay.com.br`, servido por
+Cloudflare Tunnel (README, "Acesso pela internet"). O requisito de autenticação para
+publicação externa é cumprido **fora do app**, pelo Cloudflare Access: a política
+`Autorizados` (Allow → lista de e-mails, código de uso único) barra no edge, e sem sessão
+válida toda rota responde `302` para o login — `/up` inclusive. Três consequências que
+precisam estar na conta de quem mexer nisso:
+
+- **Quem passa pelo gate tem tudo**: ler a carteira inteira, importar planilha e descartar
+  lote (irreversível pela tela). Não há papéis, e a anotação continua sem autor. O controle
+  é a lista de e-mails, e nada mais.
+- **A camada é única**: apagar ou afrouxar a política deixa o portal aberto ao mundo, porque
+  não existe login por trás. Autenticação no Rails segue sendo o caminho para defesa em
+  profundidade — e traria o autor das anotações junto.
+- **O TLS termina na Cloudflare**: CNPJ e faturamento trafegam em claro dentro da
+  infraestrutura deles. É inerente ao túnel; a alternativa seria VPN.
+
+Nada disso muda o app: `force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em
+HTTP puro), e o nome público entra por `RAILS_HOSTS`, não por código.
 
 **São duas portas de upload, não uma.** A planilha (`import_batches#create`) valida extensão,
 tamanho e assinatura ZIP; os anexos da anotação entram por

@@ -141,6 +141,64 @@ sem cache de assets nem compressão do Thruster. Isso não é só preferência �
 portanto, exige também resolver o `db:prepare` no boot; do jeito que está, ele deixaria de
 rodar em silêncio.
 
+### Acesso pela internet (Cloudflare Tunnel + Access)
+
+Desde **22/09/2026** o portal também atende em **https://manager.melopay.com.br**, para uso
+fora da LAN. Quem faz isso é um túnel da Cloudflare — conexão de **saída** do berry, sem
+porta aberta para a internet, sem IP fixo e sem mexer no roteador:
+
+```
+navegador → TLS na Cloudflare → Access (login) → túnel → fiserv-cloudflared
+                                                              ↓ rede fiserv-proxy_default
+                                                        fiserv-web:3000 (Puma)
+LAN:      navegador → fiserv-caddy:80 → fiserv-web:3000        (inalterado, HTTP puro)
+```
+
+**O porteiro é o Cloudflare Access, não o app.** O portal continua sem autenticação própria:
+o que impede um estranho de ler a carteira é a política Zero Trust `Autorizados`, que exige
+login (código de uso único por e-mail) antes de a requisição sair do edge da Cloudflare. Sem
+o cookie de sessão do Access, **qualquer** caminho responde `302` para o login — `/up`
+inclusive. Ver a ressalva em `CLAUDE.md`, "Controle de acesso".
+
+Peças, todas fora deste repositório:
+
+| Onde | O quê |
+| --- | --- |
+| Cloudflare (conta `melopay`, plano Zero Trust Free) | Túnel `fiserv-manager`; aplicação Access `Fiserv Manager` com a política `Autorizados` (Allow → Emails) e sessão de 24 h; CNAME `manager` → `<id>.cfargotunnel.com`, proxied |
+| `~/.cloudflared/` no berry | `cert.pem` da conta e o JSON de credencial do túnel (modo 400, **segredo**; o do túnel antigo ficou como `cert.pem.trazfaz-2026-09-22`) |
+| `~/Composes/fiserv-proxy/` | Serviço `cloudflared` no Compose do proxy e `cloudflared/config.yml` |
+
+O `config.yml` do conector:
+
+```yaml
+tunnel: <id do túnel>          # o id, não o nome: resolver o nome exigiria o cert.pem da
+credentials-file: /etc/cloudflared/creds.json   # conta dentro do container
+ingress:
+  - hostname: manager.melopay.com.br
+    service: http://fiserv-web:3000
+  - service: http_status:404
+```
+
+Três coisas que custaram tentativa e ficam registradas:
+
+1. **O `Host` público chega ao Rails de propósito** — por isso `RAILS_HOSTS=manager.melopay.com.br`
+   no `.env` do berry. Reescrever o `Host` no túnel quebraria o CSRF, o WebSocket do Turbo e a
+   URL de upload direto, que espelham a requisição.
+2. **`tunnel:` recebe o id**, não o nome — com o nome, o conector morre em laço com
+   `error parsing tunnel ID: Error locating origin cert`.
+3. **O serviço roda com `user: "0:0"`**: a credencial é 400 do `soares` e a imagem roda como
+   usuário sem privilégio. Como o Docker do berry é rootless, o `root` do container é o
+   próprio `soares` — preferível a afrouxar a permissão do arquivo de credencial.
+
+**Não ligue `force_ssl` nem `assume_ssl`** (`config/environments/production.rb`): o TLS
+termina na Cloudflare e a LAN continua em HTTP puro; qualquer um dos dois quebra
+`http://fiserv.bin` (cookie `secure` não volta, e o `force_ssl` ainda redireciona).
+
+Verificado no dia: `302` para `melopay.cloudflareaccess.com` antes do login (com o conector
+parado, inclusive); `200` depois de autenticar; `http://fiserv.bin/up` intacto; e o IP real
+do cliente chegando ao Rails — o que mantém os limites de 5 importações/min e 20 anexos/min
+por pessoa, e não somados para todo o túnel.
+
 ## A planilha BIN
 
 O arquivo `.xlsx` precisa trazer estas três abas, com os cabeçalhos declarados em
