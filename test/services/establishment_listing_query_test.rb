@@ -595,7 +595,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
 
   def listing(window: self.window, **options)
     EstablishmentListingQuery.new(
-      channel_id: @batch.channel_id, sub_channel_id: @sub_channel.id, window:, **options
+      scope: escopo_do_canal(@batch.channel_id), sub_channel_id: @sub_channel.id, window:, **options
     ).call
   end
 

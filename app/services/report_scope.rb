@@ -1,4 +1,6 @@
 class ReportScope
+  include ScopedQuery
+
   # Colunas de valor que a tela de faturamento por subcanal deixa ordenar, com o rótulo que
   # levam no cabeçalho. A listagem vem inteira da consulta em cache: a ordem é aplicada na
   # leitura e nunca entra na chave do cache, senão cada clique viraria uma entrada nova.
@@ -28,11 +30,21 @@ class ReportScope
     stalled_companies: "audit_stalled_companies",
     weekly_revenue: "audit_weekly_revenue"
   }.freeze
-  CHANNEL_PREDICATE = "(:channel_id IS NULL OR channel_id = :channel_id)".freeze
+  # A semanal é agregada por canal e não traz o MIC; as demais trazem, e ali o recorte por
+  # MIC é uma comparação de coluna.
+  VIEWS_WITH_SUB_CHANNEL = %w[
+    audit_revenue_by_sub_channel audit_revenue_by_company audit_stalled_companies
+    audit_accreditation_earnings
+  ].freeze
 
-  def initialize(channel_id: nil)
-    @channel_id = channel_id
+  # Antes existia um CHANNEL_PREDICATE em que `nil` significava "todos os canais", e o nil
+  # vinha de params. Agora o recorte vem do ator: não há valor que signifique "tudo" por
+  # omissão, e escopo vazio enxerga nada — não a carteira inteira.
+  def initialize(scope:)
+    @scope = scope
   end
+
+  attr_reader :scope
 
   # As agregações do dashboard só mudam numa consolidação ou num ajuste de corte, e os dois
   # tocam period_coverages: o carimbo dela na chave invalida o cache sozinho, como no
@@ -91,10 +103,10 @@ class ReportScope
   # Memoizado: a janela é montada para a tela e de novo para a listagem, no mesmo scope.
   def available_periods
     @available_periods ||= begin
-      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
         SELECT period, max_known_day, closed
         FROM period_coverages
-        WHERE #{CHANNEL_PREDICATE}
+        WHERE #{channel_predicate}
         ORDER BY period DESC
       SQL
       ApplicationRecord.connection.exec_query(sql).to_a
@@ -144,19 +156,19 @@ class ReportScope
   end
 
   def recurring_earnings
-    RecurringEarningsQuery.new(channel_id: @channel_id).by_sub_channel
+    RecurringEarningsQuery.new(scope: @scope).by_sub_channel
   end
 
   def sub_channel_indicators
-    SubChannelIndicatorsQuery.new(channel_id: @channel_id).by_sub_channel
+    SubChannelIndicatorsQuery.new(scope: @scope).by_sub_channel
   end
 
   def three_month_earnings(periods:)
-    ThreeMonthEarningsQuery.new(periods:, channel_id: @channel_id).by_sub_channel
+    ThreeMonthEarningsQuery.new(periods:, scope: @scope).by_sub_channel
   end
 
   def three_month_establishments(periods:, sub_channel_id:)
-    ThreeMonthEarningsQuery.new(periods:, channel_id: @channel_id).by_establishment(sub_channel_id:)
+    ThreeMonthEarningsQuery.new(periods:, scope: @scope).by_establishment(sub_channel_id:)
   end
 
   def weekly_revenue
@@ -169,13 +181,13 @@ class ReportScope
   # tela o mostra como "sem dado". Zero ali seria afirmar que a carteira não vendeu.
   def daily_calendar(period:, covered_days:)
     calendar_rows(<<~SQL, period:, covered_days:)
-      SELECT dias.day,
+      #{establishments_cte}SELECT dias.day,
         COALESCE(SUM(revenue.amount), 0) AS revenue,
         COUNT(DISTINCT revenue.establishment_id) FILTER (WHERE revenue.amount <> 0) AS establishments
       FROM generate_series(1, :covered_days::int) AS dias(day)
       LEFT JOIN daily_revenues_consolidated revenue
         ON revenue.day = dias.day AND revenue.period = :period
-        AND (:channel_id IS NULL OR revenue.channel_id = :channel_id)
+        AND #{establishment_predicate("revenue")}
       GROUP BY dias.day
       ORDER BY dias.day
     SQL
@@ -186,12 +198,12 @@ class ReportScope
   # vez por dia em que ele vendeu.
   def weekly_calendar(period:, covered_days:)
     calendar_rows(<<~SQL, period:, covered_days:)
-      SELECT ((:period::date + (day - 1)) - EXTRACT(DOW FROM (:period::date + (day - 1)))::int) AS week_start,
+      #{establishments_cte}SELECT ((:period::date + (day - 1)) - EXTRACT(DOW FROM (:period::date + (day - 1)))::int) AS week_start,
         SUM(amount) AS revenue,
         COUNT(DISTINCT establishment_id) FILTER (WHERE amount <> 0) AS establishments
       FROM daily_revenues_consolidated
       WHERE period = :period AND day <= :covered_days::int
-        AND (:channel_id IS NULL OR channel_id = :channel_id)
+        AND #{establishment_predicate("daily_revenues_consolidated")}
       GROUP BY 1
       ORDER BY 1
     SQL
@@ -203,9 +215,9 @@ class ReportScope
   # inventar. Os dois saem em string_agg DISTINCT porque um CNPJ pode ter ECs em MICs
   # diferentes — é anomalia conhecida, detectada no import, e a tela mostra as duas.
   def day_companies(period:, day:)
-    binds = { period:, day:, channel_id: @channel_id }
+    binds = scope_binds.merge(period:, day:)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      SELECT c.cnpj,
+      #{establishments_cte}SELECT c.cnpj,
         MAX(mapa.legal_name) AS legal_name,
         string_agg(DISTINCT sub_channel.name, ' | ') AS sub_channels,
         string_agg(DISTINCT mapa.cnae_code || ' · ' || mapa.cnae_description, ' | ') AS cnaes,
@@ -220,7 +232,7 @@ class ReportScope
       ) mapa ON TRUE
       LEFT JOIN sub_channels sub_channel ON sub_channel.id = mapa.sub_channel_id
       WHERE revenue.period = :period AND revenue.day = :day::int AND revenue.amount <> 0
-        AND (:channel_id IS NULL OR revenue.channel_id = :channel_id)
+        AND #{establishment_predicate("revenue")}
       GROUP BY c.cnpj
       ORDER BY SUM(revenue.amount) DESC, c.cnpj
     SQL
@@ -231,11 +243,11 @@ class ReportScope
   # anterior — é o corte que muda, não a conta.
   def month_totals(period:, up_to_day:)
     calendar_rows(<<~SQL, period:, covered_days: up_to_day).first
-      SELECT COALESCE(SUM(amount), 0) AS revenue,
+      #{establishments_cte}SELECT COALESCE(SUM(amount), 0) AS revenue,
         COUNT(DISTINCT establishment_id) FILTER (WHERE amount <> 0) AS establishments
       FROM daily_revenues_consolidated
       WHERE period = :period AND day <= :covered_days::int
-        AND (:channel_id IS NULL OR channel_id = :channel_id)
+        AND #{establishment_predicate("daily_revenues_consolidated")}
     SQL
   end
 
@@ -260,28 +272,30 @@ class ReportScope
 
   # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
   def latest_validated_batch_id(sub_channel_id)
-    channel_id = @channel_id || SubChannel.find(sub_channel_id).channel_id
+    channel_id = SubChannel.find(sub_channel_id).channel_id
+    return nil unless @scope.everything? || @scope.channel_ids.include?(channel_id)
+
     ImportBatch.where(channel_id:, status: "validated")
       .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)
       .maximum(:id)
   end
 
   def calendar_rows(sql, period:, covered_days:)
-    binds = { period:, covered_days:, channel_id: @channel_id }
+    binds = scope_binds.merge(period:, covered_days:)
     ApplicationRecord.connection.exec_query(ApplicationRecord.sanitize_sql_array([ sql, binds ])).to_a
   end
 
   def cached(name, &block)
-    Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @channel_id, cutoff_day ], &block)
+    Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @scope.cache_key, cutoff_day ], &block)
   end
 
   def aligned_totals(cutoff)
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id, cutoff: cutoff.to_i } ])
-      WITH open_cover AS (
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds.merge(cutoff: cutoff.to_i) ])
+      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""} open_cover AS (
         SELECT channel_id, period, max_known_day,
           (period - INTERVAL '1 month')::date AS previous_period
         FROM period_coverages
-        WHERE NOT closed AND #{CHANNEL_PREDICATE}
+        WHERE NOT closed AND #{channel_predicate}
       )
       SELECT #{AuditViews.aligned_aggregates_sql(
         table: "dr", previous_period: "oc.previous_period", current_period: "oc.period",
@@ -290,6 +304,7 @@ class ReportScope
       FROM daily_revenues_consolidated dr
       JOIN open_cover oc ON oc.channel_id = dr.channel_id
       WHERE dr.period IN (oc.previous_period, oc.period)
+        AND #{establishment_predicate("dr")}
     SQL
     row = ApplicationRecord.connection.exec_query(sql).first || {}
     {
@@ -303,7 +318,7 @@ class ReportScope
     window = establishment_window(period:, from_day:, to_day:)
     return unless window
 
-    EstablishmentListingQuery.new(channel_id: @channel_id, sub_channel_id:, window:, **filters)
+    EstablishmentListingQuery.new(scope: @scope, sub_channel_id:, window:, **filters)
   end
 
   def empty_totals
@@ -315,18 +330,19 @@ class ReportScope
     return [] unless cutoff
 
     sql = ApplicationRecord.sanitize_sql_array([
-      "#{AuditViews.revenue_by_sub_channel_sql(cutoff: ':cutoff', channel_predicate: CHANNEL_PREDICATE)} " \
+      "#{AuditViews.revenue_by_sub_channel_sql(cutoff: ':cutoff', channel_predicate:,
+        snapshot_predicate: sub_channel_predicate("snapshot"))} " \
         "ORDER BY sub_channel.name",
-      { channel_id: @channel_id, cutoff: cutoff.to_i }
+      scope_binds.merge(cutoff: cutoff.to_i)
     ])
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
   def coverages
     @coverages ||= begin
-      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
         SELECT channel_id, max_known_day FROM period_coverages
-        WHERE NOT closed AND #{CHANNEL_PREDICATE}
+        WHERE NOT closed AND #{channel_predicate}
       SQL
       ApplicationRecord.connection.exec_query(sql).to_a
     end
@@ -338,9 +354,15 @@ class ReportScope
     # até o primeiro import o relatório é legitimamente vazio.
     return [] unless AuditViews.populated?(table)
 
-    sql = +"SELECT * FROM #{table}"
-    sql << " WHERE channel_id = #{ApplicationRecord.connection.quote(@channel_id)}" if @channel_id
-    sql << " ORDER BY #{order_by}" if order_by
+    # As views de auditoria trazem sub_channel_id (menos a semanal, que é agregada por
+    # canal): o recorte por MIC é uma coluna, sem precisar do CTE de estabelecimentos.
+    predicado = view_has_sub_channel?(table) ? sub_channel_predicate : channel_predicate
+    sql = ApplicationRecord.sanitize_sql_array([ "SELECT * FROM #{table} WHERE #{predicado}", scope_binds ])
+    sql += " ORDER BY #{order_by}" if order_by
     ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  def view_has_sub_channel?(table)
+    VIEWS_WITH_SUB_CHANNEL.include?(table)
   end
 end

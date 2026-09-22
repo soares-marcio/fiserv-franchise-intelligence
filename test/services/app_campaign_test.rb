@@ -72,7 +72,7 @@ class AppCampaignTest < ActiveSupport::TestCase
   # No recorrente a digitalização cai na competência em que a campanha é paga, que é onde o
   # extrato a traz: dois CNPJs em agosto (M1 e M2) e o de M0 em julho.
   test "a digitalização entra na Participação do mês em que é paga" do
-    theta = RecurringEarningsQuery.new.by_sub_channel.find { |row| row[:name] == "MIC THETA" }
+    theta = RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel.find { |row| row[:name] == "MIC THETA" }
     por_mes = theta[:months].to_h { |month| [ month[:period], month[:accreditation] ] }
 
     assert_in_delta 2 * FEE, por_mes[Date.new(2026, 8, 1)], 0.001

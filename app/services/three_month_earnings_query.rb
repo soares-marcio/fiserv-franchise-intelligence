@@ -4,7 +4,10 @@
 class ThreeMonthEarningsQuery
   # O sub-canal de um EC vive nos snapshots por lote, não em establishments; o lote mais
   # recente validado com revenue_snapshots é o mesmo critério das views de auditoria.
-  LATEST_BATCHES_SQL = <<~SQL.freeze
+  # Deixou de ser constante quando o recorte entrou: a interpolação do predicado precisa do
+  # escopo da instância, e numa constante ela aconteceria no carregamento da classe.
+  def latest_batches_sql
+    <<~SQL
     #{AuditViews.latest_batches_sql.strip},
     latest_map_batches AS (
       SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
@@ -17,21 +20,26 @@ class ThreeMonthEarningsQuery
       SELECT snapshot.channel_id, snapshot.sub_channel_id, snapshot.establishment_id
       FROM revenue_snapshots snapshot
       JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
-      WHERE (:channel_id IS NULL OR snapshot.channel_id = :channel_id)
+      WHERE #{sub_channel_predicate("snapshot")}
     )
-  SQL
+    SQL
+  end
 
-  def initialize(periods:, channel_id: nil)
+  include ScopedQuery
+  public :scope_binds, :channel_predicate
+
+  def initialize(periods:, scope:)
     @periods = periods.sort
-    @channel_id = channel_id
+    @scope = scope
   end
 
   # Meses com volume mensal disponível — a lista real, não a suposta: o seletor oferece
   # exatamente as competências que os arquivos importados trouxeram.
-  def self.available_periods(channel_id: nil)
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: } ])
+  def self.available_periods(scope:)
+    consulta = new(periods: [], scope:)
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, consulta.scope_binds ])
       SELECT DISTINCT period FROM monthly_volumes_consolidated
-      WHERE (:channel_id IS NULL OR channel_id = :channel_id)
+      WHERE #{consulta.channel_predicate}
       ORDER BY period DESC
     SQL
     ApplicationRecord.connection.exec_query(sql).rows.map { |(period)| period.to_date }
@@ -160,7 +168,7 @@ class ThreeMonthEarningsQuery
 
   def volume_rows(group:, sub_channel_id: nil)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, bind_params(sub_channel_id:) ])
-      WITH #{LATEST_BATCHES_SQL}
+      WITH #{latest_batches_sql}
       SELECT m.channel_id, #{group}, v.period,
         COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'debito'), 0) AS debit,
         COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'credito'), 0) AS credit
@@ -180,7 +188,7 @@ class ThreeMonthEarningsQuery
   def accreditation_summaries
     return {} unless AuditViews.populated?("audit_accreditation_earnings")
 
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { m0: @periods.first, channel_id: @channel_id } ])
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds.merge(m0: @periods.first) ])
       SELECT sub_channel_id, COUNT(*) AS accredited,
         SUM(digitalization_amount) AS digitalization,
         SUM(addon_without_auto) AS addon_without_auto,
@@ -190,7 +198,7 @@ class ThreeMonthEarningsQuery
         SUM(addon_amount) AS addon_amount,
         COUNT(*) FILTER (WHERE auto_flex IS NULL) AS undefined_modality
       FROM audit_accreditation_earnings
-      WHERE m0_period = :m0 AND (:channel_id IS NULL OR channel_id = :channel_id)
+      WHERE m0_period = :m0 AND #{sub_channel_predicate}
       GROUP BY sub_channel_id
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a.to_h do |row|
@@ -217,15 +225,14 @@ class ThreeMonthEarningsQuery
   def coverage_by_channel
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, bind_params(sub_channel_id: nil) ])
       SELECT channel_id, period, closed FROM period_coverages
-      WHERE period IN (:p0, :p1, :p2) AND (:channel_id IS NULL OR channel_id = :channel_id)
+      WHERE period IN (:p0, :p1, :p2) AND #{channel_predicate}
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a
       .to_h { |row| [ [ row["channel_id"], row["period"].to_date ], row["closed"] ] }
   end
 
   def bind_params(sub_channel_id:)
-    { channel_id: @channel_id, sub_channel_id:,
-      p0: @periods[0], p1: @periods[1], p2: @periods[2] }
+    scope_binds.merge(sub_channel_id:, p0: @periods[0], p1: @periods[1], p2: @periods[2])
   end
 
   EMPTY_PRIZE = { accredited: 0, digitalization: 0.0,

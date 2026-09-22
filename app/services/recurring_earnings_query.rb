@@ -16,14 +16,16 @@
 # (fallback). Ancorar no arquivo de P custou um repasse zerado: agosto/2026 do GOIANIA 4
 # saía a 0,2489%, abaixo do degrau de 0,25%, quando o realizado era 0,2947%.
 class RecurringEarningsQuery
-  def initialize(channel_id: nil)
-    @channel_id = channel_id
+  include ScopedQuery
+
+  def initialize(scope:)
+    @scope = scope
   end
 
   # Os insumos só mudam numa consolidação; o carimbo dela na chave invalida o cache
   # sozinho, sem ninguém precisar lembrar de expirar.
   def by_sub_channel
-    Rails.cache.fetch([ "recurring", PeriodCoverage.consolidation_stamp, @channel_id ]) do
+    Rails.cache.fetch([ "recurring", PeriodCoverage.consolidation_stamp, @scope.cache_key ]) do
       compute_by_sub_channel
     end
   end
@@ -54,8 +56,8 @@ class RecurringEarningsQuery
   # EC → subcanal vem do mesmo lote: ele já traz os ECs credenciados no mês, e se um EC
   # trocar de subcanal, cada mês fica com o dono que tinha na ocasião.
   def monthly_rows
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
-      WITH map_batches AS (
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
+      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""} map_batches AS (
         SELECT ib.channel_id, ib.current_period, MAX(ib.id) AS import_batch_id
         FROM import_batches ib
         WHERE ib.status = 'validated'
@@ -85,7 +87,7 @@ class RecurringEarningsQuery
           COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'debito'), 0) AS debit,
           COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'credito'), 0) AS credit
         FROM monthly_volumes_consolidated v
-        WHERE (:channel_id IS NULL OR v.channel_id = :channel_id)
+        WHERE #{establishment_predicate("v")}
           AND v.metric IN ('debito', 'credito')
         GROUP BY v.channel_id, v.establishment_id, v.period
       )
@@ -150,7 +152,7 @@ class RecurringEarningsQuery
   def accreditation_by_period
     return {} unless AuditViews.populated?("audit_accreditation_earnings")
 
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, { channel_id: @channel_id } ])
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
       SELECT sub_channel_id, period, SUM(amount) AS amount
       FROM (
         SELECT channel_id, sub_channel_id, m0_period AS period, COALESCE(m0_addon_amount, 0) AS amount
@@ -168,7 +170,7 @@ class RecurringEarningsQuery
           COALESCE(m2_addon_amount, 0)
         FROM audit_accreditation_earnings
       ) parcels
-      WHERE (:channel_id IS NULL OR channel_id = :channel_id)
+      WHERE #{channel_predicate}
       GROUP BY sub_channel_id, period
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a.to_h do |row|

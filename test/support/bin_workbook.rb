@@ -64,9 +64,9 @@ module BinWorkbook
   # volume_months permite simular a virada da planilha (um mês novo por ciclo), que é o
   # regime real de operação; o padrão preserva os totais dos testes existentes.
   def self.write(path, lojas: default_lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS,
-    canal: CANAL)
+    canal: CANAL, report_id: REPORT_ID)
     Axlsx::Package.new do |package|
-      sheet_rows(lojas, volume_months:, canal:).each do |sheet_name, rows|
+      sheet_rows(lojas, volume_months:, canal:, report_id:).each do |sheet_name, rows|
         headers = headers_for(sheet_name, volume_months)
         package.workbook.add_worksheet(name: sheet_name) do |worksheet|
           worksheet.add_row headers
@@ -88,18 +88,20 @@ module BinWorkbook
     ]
   end
 
-  def self.sheet_rows(lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: CANAL)
+  def self.sheet_rows(lojas, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: CANAL,
+    report_id: REPORT_ID)
     {
       "Faturamento" => lojas.map { |loja| faturamento_row(loja, canal:) },
       "Ativacao" => lojas.select(&:proposta).map { |loja| ativacao_row(loja, canal:) },
-      "Mapa de Clientes BIN" => lojas.map { |loja| mapa_row(loja, volume_months:, canal:) }
+      "Mapa de Clientes BIN" => lojas.map { |loja| mapa_row(loja, volume_months:, canal:, report_id:) }
     }
   end
 
   # Mapa vem com os cabeçalhos de nome corretos.
-  def self.mapa_row(loja, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: CANAL)
+  def self.mapa_row(loja, volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: CANAL,
+    report_id: REPORT_ID)
     {
-      "REPORT_ID" => REPORT_ID, "HIERARQUIA" => canal, "CANAL" => canal,
+      "REPORT_ID" => report_id, "HIERARQUIA" => canal, "CANAL" => canal,
       "SUB-CANAL" => loja.sub_channel_name, "EC" => loja.ec, "CNPJ" => loja.cnpj,
       "TIPO DE PESSOA" => "PJ", "RAZÃO SOCIAL" => loja.legal_name,
       "NOME FANTASIA" => loja.trade_name, "STATUS DO CONTRATO" => loja.contract_status,

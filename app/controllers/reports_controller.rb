@@ -14,7 +14,7 @@ class ReportsController < ApplicationController
   # Clover Capital: as ofertas pré-aprovadas da carteira, uma por CNPJ.
   def stalled
     @selected_sub_channel = selected_stalled_sub_channel
-    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id,
+    offers = PreapprovedOffers.new(scope: Current.access_scope.narrow(channel: @selected_channel),
       sub_channel_id: @selected_sub_channel&.id)
     @reports = offers.call
     @sub_channels = offers.sub_channel_options
@@ -109,7 +109,7 @@ class ReportsController < ApplicationController
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
-    @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
+    @available_periods = ThreeMonthEarningsQuery.available_periods(scope: @scope.scope)
     @window = three_month_window
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
     @order = three_month_order
@@ -122,13 +122,13 @@ class ReportsController < ApplicationController
   end
 
   def three_months_sub_channel
-    @sub_channel = SubChannel.find_param!(params[:id])
+    @sub_channel = policy_scope(SubChannel).find_param!(params[:id])
     if @selected_channel && @sub_channel.channel_id != @selected_channel.id
       raise ActiveRecord::RecordNotFound
     end
 
-    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
-    @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(sub_channel: @sub_channel))
+    @available_periods = ThreeMonthEarningsQuery.available_periods(scope: @scope.scope)
     @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
     respond_to do |format|
@@ -145,12 +145,12 @@ class ReportsController < ApplicationController
   end
 
   def sub_channel
-    @sub_channel = SubChannel.find_param!(params[:id])
+    @sub_channel = policy_scope(SubChannel).find_param!(params[:id])
     if @selected_channel && @sub_channel.channel_id != @selected_channel.id
       raise ActiveRecord::RecordNotFound
     end
 
-    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(sub_channel: @sub_channel))
     @selected_variation = params[:variation].to_s.presence_in(EstablishmentListingQuery::VARIATION_CLAUSES.keys)
     @selected_statuses = Array(params[:status]).map(&:to_s).compact_blank.uniq
     @selected_date_kinds = Array(params[:date_kind]).map(&:to_s) & EstablishmentListingQuery::DATE_KINDS.keys
@@ -217,8 +217,8 @@ class ReportsController < ApplicationController
   # O modal soma os ECs do cliente, os mesmos que a linha da listagem soma. Cliente sem EC
   # neste MIC não tem lançamento para mostrar: é 404, como era para um EC de outro canal.
   def sub_channel_daily
-    @sub_channel = SubChannel.find_param!(params[:id])
-    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @sub_channel = policy_scope(SubChannel).find_param!(params[:id])
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(sub_channel: @sub_channel))
     @company = Company.find_param!(params[:company_id])
     @client = @scope.client_in_sub_channel(company_id: @company.id, sub_channel_id: @sub_channel.id)
     raise ActiveRecord::RecordNotFound if @client.establishment_ids.empty?
@@ -316,9 +316,11 @@ class ReportsController < ApplicationController
   end
 
   def load_scope
-    @channels = Channel.order(:name)
-    @selected_channel = Channel.find_param!(params[:channel_id]) if params[:channel_id].present?
-    @scope = ReportScope.new(channel_id: @selected_channel&.id)
+    # O seletor de canal mostra só os Masters do escopo: oferecer um que responderia vazio
+    # seria oferecer um caminho sem volta, e revelaria que ele existe.
+    @channels = policy_scope(Channel).order(:name)
+    @selected_channel = @channels.find_param!(params[:channel_id]) if params[:channel_id].present?
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(channel: @selected_channel))
     @cutoff_day = @scope.cutoff_day
   end
 
@@ -328,7 +330,7 @@ class ReportsController < ApplicationController
   def selected_stalled_sub_channel
     return if params[:sub_channel_id].blank?
 
-    sub_channel = SubChannel.find_param!(params[:sub_channel_id])
+    sub_channel = policy_scope(SubChannel).find_param!(params[:sub_channel_id])
     raise ActiveRecord::RecordNotFound if @selected_channel &&
       sub_channel.channel_id != @selected_channel.id
 

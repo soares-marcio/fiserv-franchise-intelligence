@@ -12,7 +12,7 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     @lojas = BinWorkbook.earnings_lojas
     import_synthetic_workbook(lojas: @lojas)
     refresh_audit_views
-    @query = ThreeMonthEarningsQuery.new(periods: PERIODS)
+    @query = ThreeMonthEarningsQuery.new(periods: PERIODS, scope: AccessScope.everything)
   end
 
   test "volumes de débito e crédito por sub-canal batem com a planilha" do
@@ -36,7 +36,7 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal 0, gama_june[:prize][:accredited]
 
     july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
-    gama = ThreeMonthEarningsQuery.new(periods: july).by_sub_channel
+    gama = ThreeMonthEarningsQuery.new(periods: july, scope: AccessScope.everything).by_sub_channel
       .find { |row| row[:name] == "MIC GAMA" }
     gama_ec = @lojas.find { |loja| loja.ec == "50000001" }
     peak = [ gama_ec.total_m1, gama_ec.total_atual ].max
@@ -190,20 +190,20 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
 
     # M0 = julho: entra o EC credenciado em julho, e a janela dele é jul/ago/set.
     july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
-    rows = ThreeMonthEarningsQuery.new(periods: july).by_establishment(sub_channel_id: sub_channel.id)
+    rows = ThreeMonthEarningsQuery.new(periods: july, scope: AccessScope.everything).by_establishment(sub_channel_id: sub_channel.id)
     assert_equal [ "50000001" ], rows.map { |row| row[:ec] }
     assert_equal 2, rows.sole[:accreditation]["months_observed"]
 
     # M0 = junho: o EC de julho não pertence a este mês de credenciamento, ainda que
     # julho apareça na janela de junho — é o M0 que define a pertinência, não a janela.
     june = [ Date.new(2026, 6, 1), Date.new(2026, 7, 1), Date.new(2026, 8, 1) ]
-    assert_empty ThreeMonthEarningsQuery.new(periods: june).by_establishment(sub_channel_id: sub_channel.id)
+    assert_empty ThreeMonthEarningsQuery.new(periods: june, scope: AccessScope.everything).by_establishment(sub_channel_id: sub_channel.id)
   end
 
   test "sem volume mensal importado a consulta responde vazia, sem erro" do
     ApplicationRecord.connection.execute("DELETE FROM monthly_volumes_consolidated")
-    assert_equal [], ThreeMonthEarningsQuery.new(periods: PERIODS).by_sub_channel
-    assert_equal [], ThreeMonthEarningsQuery.available_periods
+    assert_equal [], ThreeMonthEarningsQuery.new(periods: PERIODS, scope: AccessScope.everything).by_sub_channel
+    assert_equal [], ThreeMonthEarningsQuery.available_periods(scope: AccessScope.everything)
   end
 
   test "o nível 1 fica em cache por janela até a próxima consolidação" do
@@ -217,12 +217,12 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal reports, assert_queries_count(1) { @query.by_sub_channel }
     other_window = [ Date.new(2026, 5, 1), Date.new(2026, 6, 1), Date.new(2026, 7, 1) ]
     assert_queries_match(/monthly_volumes_consolidated/) do
-      ThreeMonthEarningsQuery.new(periods: other_window).by_sub_channel
+      ThreeMonthEarningsQuery.new(periods: other_window, scope: AccessScope.everything).by_sub_channel
     end
 
     @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
     import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
-    assert_queries_match(/monthly_volumes_consolidated/) { ThreeMonthEarningsQuery.new(periods: PERIODS).by_sub_channel }
+    assert_queries_match(/monthly_volumes_consolidated/) { ThreeMonthEarningsQuery.new(periods: PERIODS, scope: AccessScope.everything).by_sub_channel }
   ensure
     Rails.cache = original_store
   end
@@ -234,7 +234,7 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
     july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
-    query = ThreeMonthEarningsQuery.new(periods: july)
+    query = ThreeMonthEarningsQuery.new(periods: july, scope: AccessScope.everything)
     rows = query.by_establishment(sub_channel_id: sub_channel.id)
 
     assert_equal rows, assert_queries_count(1) { query.by_establishment(sub_channel_id: sub_channel.id) }
@@ -244,7 +244,7 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
     import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
     assert_queries_match(/monthly_volumes_consolidated/) do
-      ThreeMonthEarningsQuery.new(periods: july).by_establishment(sub_channel_id: sub_channel.id)
+      ThreeMonthEarningsQuery.new(periods: july, scope: AccessScope.everything).by_establishment(sub_channel_id: sub_channel.id)
     end
   ensure
     Rails.cache = original_store

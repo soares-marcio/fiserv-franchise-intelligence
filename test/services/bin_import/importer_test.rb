@@ -108,7 +108,7 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
 
   test "o mês anterior cheio ignora o corte e o comparável respeita" do
     import_synthetic_workbook(lojas: @lojas)
-    totals = ReportScope.new.totals
+    totals = ReportScope.new(scope: AccessScope.everything).totals
 
     assert_equal soma(@lojas, :dias_m1), totals[:previous_full_revenue]
     assert_equal soma(@lojas, :dias_m1, ate: @cutoff), totals[:previous_revenue]

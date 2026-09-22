@@ -10,7 +10,7 @@ class AuditViewsTest < ActiveSupport::TestCase
 
   test "lista o CNPJ que não vendeu nenhum dia do mês atual" do
     parada = @lojas.find { |loja| loja.dias_atual.empty? }
-    linha = ReportScope.new.stalled_companies.find { |row| row["cnpj"] == parada.cnpj }
+    linha = ReportScope.new(scope: AccessScope.everything).stalled_companies.find { |row| row["cnpj"] == parada.cnpj }
 
     assert linha, "CNPJ sem venda no mês precisa aparecer em clientes parados"
     assert_nil linha["last_sale_day"]
@@ -19,7 +19,7 @@ class AuditViewsTest < ActiveSupport::TestCase
 
   test "não lista quem vendeu até o dia de corte" do
     ativa = @lojas.find { |loja| loja.dias_atual.keys.max == @cutoff }
-    cnpjs = ReportScope.new.stalled_companies.map { |row| row["cnpj"] }
+    cnpjs = ReportScope.new(scope: AccessScope.everything).stalled_companies.map { |row| row["cnpj"] }
 
     assert_not_includes cnpjs, ativa.cnpj
   end
@@ -44,7 +44,7 @@ class AuditViewsTest < ActiveSupport::TestCase
   end
 
   test "a view e o ReportScope chegam ao mesmo total com um canal só" do
-    totals = ReportScope.new.totals
+    totals = ReportScope.new(scope: AccessScope.everything).totals
     linhas = view_rows("audit_revenue_by_sub_channel")
 
     assert_equal linhas.sum { |row| row["previous_full_revenue"].to_d }, totals[:previous_full_revenue]
@@ -99,7 +99,7 @@ class AuditViewsTest < ActiveSupport::TestCase
     end
     ApplicationRecord.connection.execute("REFRESH MATERIALIZED VIEW audit_weekly_revenue WITH NO DATA")
 
-    scope = ReportScope.new
+    scope = ReportScope.new(scope: AccessScope.everything)
     assert_empty scope.stalled_companies
     assert_empty scope.weekly_revenue
   end

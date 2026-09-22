@@ -14,7 +14,7 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
     )
     import_synthetic_workbook(lojas: [ @loja ])
     @establishment = Establishment.find_by!(ec: @loja.ec)
-    @scope = ReportScope.new(channel_id: @establishment.channel_id)
+    @scope = ReportScope.new(scope: escopo_do_canal(@establishment.channel_id))
   end
 
   test "traz um dia por linha, com os dois meses lado a lado" do

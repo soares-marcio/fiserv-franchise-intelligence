@@ -28,9 +28,10 @@ module ActiveSupport
     end
 
     def import_synthetic_workbook(lojas: BinWorkbook.default_lojas, filename: "BIN_TESTE_20260811.xlsx",
-      volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: BinWorkbook::CANAL)
+      volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: BinWorkbook::CANAL,
+      report_id: BinWorkbook::REPORT_ID)
       path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-#{filename}")
-      BinWorkbook.write(path, lojas:, volume_months:, canal:)
+      BinWorkbook.write(path, lojas:, volume_months:, canal:, report_id:)
       BinImport::Importer.new(path, source_filename: filename).call
     ensure
       File.delete(path) if path && File.exist?(path)

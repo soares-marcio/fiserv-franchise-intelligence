@@ -23,13 +23,15 @@ class SubChannelIndicatorsQuery
     GROUP BY ib.channel_id
   SQL
 
-  def initialize(channel_id: nil)
-    @channel_id = channel_id
+  include ScopedQuery
+
+  def initialize(scope:)
+    @scope = scope
   end
 
   # Os insumos só mudam numa consolidação; o carimbo dela na chave invalida o cache sozinho.
   def by_sub_channel
-    Rails.cache.fetch([ "indicators", PeriodCoverage.consolidation_stamp, @channel_id ]) do
+    Rails.cache.fetch([ "indicators", PeriodCoverage.consolidation_stamp, @scope.cache_key ]) do
       compute_by_sub_channel
     end
   end
@@ -112,7 +114,7 @@ class SubChannelIndicatorsQuery
       FROM map_snapshots map
       JOIN (#{LATEST_MAP_BATCHES_SQL.indent(6).strip}) latest ON latest.import_batch_id = map.import_batch_id
       WHERE map.accredited_on IS NOT NULL
-        AND (:channel_id IS NULL OR latest.channel_id = :channel_id)
+        AND #{channel_predicate("latest")}
       GROUP BY map.sub_channel_id, date_trunc('month', map.accredited_on)
     SQL
     rows(sql).to_h { |row| [ key_of(row), row["accredited"].to_i ] }
@@ -131,7 +133,7 @@ class SubChannelIndicatorsQuery
       FROM (
         SELECT DISTINCT ON (proposal_number) sub_channel_id, proposed_on, proposal_status
         FROM activation_proposals
-        WHERE (:channel_id IS NULL OR channel_id = :channel_id)
+        WHERE #{sub_channel_predicate}
         ORDER BY proposal_number, import_batch_id DESC
       ) latest
       WHERE proposed_on IS NOT NULL
@@ -149,9 +151,9 @@ class SubChannelIndicatorsQuery
   # 17/09/2026, concorda em 567 de 567 ECs no lote de setembro. O importador nunca grava
   # NULL nela (Normalizer.boolean); se gravasse, o IS FALSE não contaria o nulo como inativo.
   def bases_by_month
-    binds = { channel_id: @channel_id, threshold: SubChannelIndicatorRules::VOLUME_THRESHOLD }
+    binds = scope_binds.merge(threshold: SubChannelIndicatorRules::VOLUME_THRESHOLD)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      WITH map_batches AS (
+      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""} map_batches AS (
         SELECT ib.channel_id, ib.current_period, MAX(ib.id) AS import_batch_id
         FROM import_batches ib
         WHERE ib.status = 'validated'
@@ -161,7 +163,7 @@ class SubChannelIndicatorsQuery
         SELECT channel_id, establishment_id, period, SUM(amount) AS amount
         FROM monthly_volumes_consolidated
         WHERE metric IN ('debito', 'credito')
-          AND (:channel_id IS NULL OR channel_id = :channel_id)
+          AND #{establishment_predicate("monthly_volumes_consolidated")}
         GROUP BY channel_id, establishment_id, period
       )
       SELECT map.sub_channel_id, batch.current_period AS period,
@@ -176,7 +178,7 @@ class SubChannelIndicatorsQuery
         ON vol.channel_id = batch.channel_id
         AND vol.establishment_id = map.establishment_id
         AND vol.period = batch.current_period
-      WHERE (:channel_id IS NULL OR batch.channel_id = :channel_id)
+      WHERE #{channel_predicate("batch")}
         AND (map.suspended_on IS NULL OR map.suspended_on >= batch.current_period)
       GROUP BY map.sub_channel_id, batch.current_period
     SQL
@@ -190,7 +192,7 @@ class SubChannelIndicatorsQuery
   def periods_by_channel
     sql = sanitize(<<~SQL)
       SELECT DISTINCT channel_id, period FROM monthly_volumes_consolidated
-      WHERE (:channel_id IS NULL OR channel_id = :channel_id)
+      WHERE #{channel_predicate}
       ORDER BY period
     SQL
     rows(sql).group_by { |row| row["channel_id"] }
@@ -207,9 +209,9 @@ class SubChannelIndicatorsQuery
   end
 
   def sanitize(sql)
-    ApplicationRecord.sanitize_sql_array([ sql, { channel_id: @channel_id,
+    ApplicationRecord.sanitize_sql_array([ sql, scope_binds.merge(
       rejected: SubChannelIndicatorRules::REJECTED_STATUS,
-      pending: SubChannelIndicatorRules::PENDING_STATUS } ])
+      pending: SubChannelIndicatorRules::PENDING_STATUS) ])
   end
 
   def rows(sql)

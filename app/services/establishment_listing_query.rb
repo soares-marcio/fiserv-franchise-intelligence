@@ -94,10 +94,12 @@ class EstablishmentListingQuery
       "OR COALESCE(activated_on, accredited_on) < :previous_period))"
   }.freeze
 
-  def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
+  include ScopedQuery
+
+  def initialize(scope:, sub_channel_id:, window:, statuses: [], date_kinds: [],
     from_date: nil, to_date: nil, query: nil, variation: nil, sort: nil, direction: nil,
     min_revenue: nil, max_revenue: nil, revenue_basis: nil, page: 1, per_page: nil)
-    @channel_id = channel_id
+    @scope = scope
     @sub_channel_id = sub_channel_id
     @window = window
     @statuses = Array(statuses).map(&:to_s).compact_blank.uniq
@@ -201,12 +203,12 @@ class EstablishmentListingQuery
   def binds
     @binds ||= begin
       values = @window.to_binds.merge(
-        channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses,
+        sub_channel_id: @sub_channel_id, statuses: @statuses,
         low_revenue: low_revenue_ceiling, low_revenue_floor: low_revenue_floor,
         min_revenue: @min_revenue, max_revenue: @max_revenue
       )
       values.merge!(from_date: @from_date, to_date: @to_date) if lifecycle_filter?
-      values.merge(search_binds)
+      values.merge(search_binds).merge(scope_binds)
     end
   end
 
@@ -400,7 +402,7 @@ class EstablishmentListingQuery
   # carrega filtro nenhum da tela — quem filtra é o HAVING, pelo motivo explicado lá.
   def ec_listing_sql
     <<~SQL
-      WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
+      WITH #{AuditViews.latest_batches_sql(channel_predicate: channel_predicate("ib")).strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.uuid AS establishment_uuid,
         establishment.ec, company.cnpj, company.uuid AS company_uuid,
