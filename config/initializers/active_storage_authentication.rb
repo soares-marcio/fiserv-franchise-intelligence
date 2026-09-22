@@ -8,4 +8,12 @@
 # blobs, representações, disco e upload direto.
 Rails.application.config.to_prepare do
   ActiveStorage::BaseController.include(Authentication)
+
+  # Quem serve arquivo também confere de quem ele é: sessão válida não basta para baixar o
+  # anexo de uma anotação de outro Master.
+  [ ActiveStorage::Blobs::RedirectController, ActiveStorage::Blobs::ProxyController,
+    ActiveStorage::Representations::RedirectController,
+    ActiveStorage::Representations::ProxyController ].each do |controller|
+    controller.include(BlobAuthorization)
+  end
 end

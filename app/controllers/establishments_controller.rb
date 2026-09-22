@@ -25,7 +25,7 @@ class EstablishmentsController < ApplicationController
       .order(:ec).group_by(&:company)
     @companies = page_companies.map { |company| @establishments_by_company.keys.find { |c| c.id == company.id } }
     # Uma consulta para a página inteira, pelo CNPJ: a anotação não tem FK para companies.
-    @notes_by_cnpj = CompanyNote.where(cnpj: @companies.map(&:cnpj)).index_by(&:cnpj)
+    @notes_by_cnpj = policy_scope(CompanyNote).where(cnpj: @companies.map(&:cnpj)).index_by(&:cnpj)
     respond_to do |format|
       format.html
       format.csv { send_data exporter(companies).to_csv, **arquivo("csv") }
@@ -49,7 +49,7 @@ class EstablishmentsController < ApplicationController
     @snapshot = @establishments.first&.current_map_snapshot
     @diverging = diverging_client_fields(@establishments)
     # A anotação se liga pelo CNPJ, não por FK — ver o porquê no CLAUDE.md.
-    @note = CompanyNote.with_rich_text_body.find_by(cnpj: @company.cnpj)
+    @note = policy_scope(CompanyNote).with_rich_text_body.find_by(cnpj: @company.cnpj)
   end
 
   private

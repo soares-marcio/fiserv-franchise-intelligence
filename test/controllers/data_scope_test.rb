@@ -163,6 +163,50 @@ class DataScopeTest < ActionDispatch::IntegrationTest
     assert_not_nil outro_ec.reload
   end
 
+  # A anotação é presa ao CNPJ e não tem canal: a regra tem de vir do domínio — vê quem tem
+  # ao menos um EC daquele CNPJ no próprio escopo.
+  test "anotação de cliente de outro Master não é vista nem editada" do
+    de_fora = Establishment.find_by!(ec: "70000001").company
+    Operations::SaveCompanyNote.call(cnpj: de_fora.cnpj, body: "<div>Segredo do outro Master</div>")
+    # Com a permissão de anotação, mas sem o cliente no escopo: é o recorte que precisa
+    # negar aqui, e não a falta de chave — por isso 404, e não 403.
+    sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ, Permission::NOTES_WRITE ],
+      channel: @canal_a, email: "tem-chave@exemplo.com"))
+
+    get edit_company_note_path(de_fora)
+    assert_response :not_found
+
+    patch company_note_path(de_fora), params: { body: "<div>invasão</div>" }
+    assert_response :not_found
+    assert_match(/Segredo/, CompanyNote.find_by(cnpj: de_fora.cnpj).body.to_plain_text)
+  end
+
+  test "a anotação do próprio escopo continua acessível, e grava quem editou" do
+    company = Establishment.find_by!(ec: "30000001").company
+    user = scoped_user(permissions: [ Permission::NOTES_READ, Permission::NOTES_WRITE ],
+      channel: @canal_a, email: "anota@exemplo.com")
+    sign_in_as(user)
+
+    patch company_note_path(company), params: { body: "<div>Ligar amanhã</div>" }
+
+    nota = CompanyNote.find_by(cnpj: company.cnpj)
+    assert_equal "Ligar amanhã", nota.body.to_plain_text
+    assert_equal user, nota.author, "a anotação passa a saber quem escreveu"
+  end
+
+  # O selo de "tem anotação" aparece em listagem, busca e modal: se ele não fosse recortado,
+  # contaria que o cliente do outro Master tem anotação — e que ele existe.
+  test "o selo de anotação não aparece para cliente fora do escopo" do
+    de_fora = Establishment.find_by!(ec: "70000001").company
+    Operations::SaveCompanyNote.call(cnpj: de_fora.cnpj, body: "<div>Nota alheia</div>")
+    entra_no_canal(@canal_a)
+
+    get establishments_path
+
+    assert_no_match(/Nota alheia/, response.body)
+    assert_no_match(/#{de_fora.cnpj}/, response.body)
+  end
+
   # Cache é a falha mais silenciosa possível: dois escopos com a mesma chave serviriam um ao
   # outro sem erro nenhum.
   test "escopos diferentes não compartilham cache" do

@@ -21,22 +21,31 @@ class CompanyNotesController < ApplicationController
   before_action -> { authorize :company_note, action_name == "edit" ? :show? : :update? }
 
   def edit
-    @company = Company.find_param!(params[:id])
-    @note = CompanyNote.find_or_initialize_by(cnpj: @company.cnpj)
+    @company = company_in_scope
+    @note = policy_scope(CompanyNote).find_by(cnpj: @company.cnpj) ||
+      CompanyNote.new(cnpj: @company.cnpj)
     @snapshot = MapSnapshot.joins(:establishment)
       .where(establishments: { company_id: @company.id })
       .order(id: :desc).first
   end
 
   def update
-    company = Company.find_param!(params[:id])
-    note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body])
+    company = company_in_scope
+    note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body],
+      author: Current.user)
     responder(company, note, notice: note ? "Anotação salva." : "Anotação removida.")
   rescue ArgumentError => error
     responder(company, CompanyNote.find_by(cnpj: company&.cnpj), alert: error.message)
   end
 
   private
+
+  # O cliente precisa estar no escopo do ator: fora dele, 404 — dizer "existe, mas você não
+  # pode" contaria que aquele CNPJ está na carteira de alguém.
+  def company_in_scope
+    Company.where(id: Establishment.in_scope(Current.access_scope).select(:company_id))
+      .find_param!(params[:id])
+  end
 
   # Salvar não recarrega a tela: troca a célula daquele cliente e o aviso, e pronto. O id vem
   # do mesmo helper que a partial usa para escrevê-lo — é o que impede as duas pontas de

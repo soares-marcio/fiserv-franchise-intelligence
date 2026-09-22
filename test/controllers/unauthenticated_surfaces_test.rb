@@ -43,6 +43,44 @@ class UnauthenticatedSurfacesTest < ActionDispatch::IntegrationTest
   end
 end
 
+# Sessão válida não é autorização: o anexo de uma anotação pertence a um cliente, e o
+# cliente pertence a uma carteira.
+class BlobAuthorizationTest < ActionDispatch::IntegrationTest
+  self.skip_default_login = true
+
+  setup do
+    import_synthetic_workbook
+    @company = Establishment.find_by!(ec: "30000001").company
+    @anexo = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("conteúdo"),
+      filename: "recibo.pdf", content_type: "application/pdf")
+    # Como a tela grava: o anexo vem embutido na marcação do corpo, e é o Action Text que
+    # cria o vínculo ao salvar. Anexar pelo `embeds` não persiste nada.
+    @nota = Operations::SaveCompanyNote.call(cnpj: @company.cnpj,
+      body: %(<div>Com anexo</div><action-text-attachment sgid="#{@anexo.attachable_sgid}"></action-text-attachment>))
+    @canal = Channel.find_by!(name: BinWorkbook::CANAL)
+    @outro = Channel.create!(external_id: "7777", name: "MASTER DE FORA")
+  end
+
+  test "quem não alcança o cliente não baixa o anexo da anotação dele" do
+    sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ ], channel: @outro,
+      email: "de-fora@exemplo.com"))
+
+    get rails_blob_path(@anexo, disposition: "attachment")
+
+    assert_response :not_found
+  end
+
+  test "quem alcança o cliente baixa normalmente" do
+    sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ ], channel: @canal,
+      email: "de-dentro@exemplo.com"))
+
+    get rails_blob_path(@anexo, disposition: "attachment")
+
+    assert_response :redirect
+    assert_no_match(/session/, response.location.to_s)
+  end
+end
+
 # O WebSocket não passa por before_action nenhum: quem entra nele recebe os avisos de
 # atualização da tela de importação.
 class CableConnectionTest < ActionCable::Connection::TestCase

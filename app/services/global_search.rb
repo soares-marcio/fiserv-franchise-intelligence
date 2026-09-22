@@ -39,6 +39,7 @@ class GlobalSearch
   # CNPJs dos resultados que já têm anotação. Só a existência: a busca é um índice, não uma
   # leitura — o texto mora na ficha do cliente e no modal.
   def noted_cnpjs
+    # Os ECs já vieram recortados, então os CNPJs também — a consulta aqui é sobre eles.
     @noted_cnpjs ||= CompanyNote.where(cnpj: establishments.map { |e| e.company.cnpj }.uniq)
       .pluck(:cnpj).to_set
   end

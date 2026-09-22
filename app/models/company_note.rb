@@ -3,6 +3,8 @@
 # comentário da migration para o porquê inteiro.
 class CompanyNote < ApplicationRecord
   has_rich_text :body
+  # Nulável de propósito: as anotações anteriores ao login não têm autor.
+  belongs_to :author, class_name: "User", optional: true
 
   validates :cnpj, format: { with: /\A\d{14}\z/ }, uniqueness: true
 

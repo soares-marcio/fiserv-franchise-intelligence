@@ -108,18 +108,24 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "anotação: ler e escrever são chaves diferentes" do
+    # O cliente precisa existir na carteira do ator: desde o recorte por escopo, anotação de
+    # empresa sem EC alcançável responde 404 — e é outro assunto, testado à parte.
+    canal = Channel.create!(external_id: "5555", name: "MASTER DA ANOTACAO")
     company = Company.create!(cnpj: "11222333000181")
-    entra_com([ Permission::NOTES_READ ])
+    Establishment.create!(ec: "55000001", company:, channel: canal)
+
+    entra_com([ Permission::NOTES_READ ], channel: canal)
 
     get edit_company_note_path(company)
     assert_response :success
 
-    patch company_note_path(company), params: { company_note: { body: "<div>Oi</div>" } }
+    patch company_note_path(company), params: { body: "<div>Oi</div>" }
     assert_response :forbidden
 
-    entra_com([ Permission::NOTES_READ, Permission::NOTES_WRITE ], email: "escreve@exemplo.com")
+    entra_com([ Permission::NOTES_READ, Permission::NOTES_WRITE ], email: "escreve@exemplo.com",
+      channel: canal)
 
-    patch company_note_path(company), params: { company_note: { body: "<div>Oi</div>" } }
+    patch company_note_path(company), params: { body: "<div>Oi</div>" }
     assert_response :redirect
   end
 
@@ -150,9 +156,10 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
 
   private
 
-  def entra_com(permissions, email: "ator@exemplo.com", super_admin: false)
+  def entra_com(permissions, email: "ator@exemplo.com", super_admin: false, channel: nil)
     sign_out if Current.session
     user = create_user(email:, permissions:, super_admin:)
+    user.access_grants.create!(channel:) if channel
     sign_in_as(user)
   end
 end
