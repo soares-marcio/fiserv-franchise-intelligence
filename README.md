@@ -130,7 +130,10 @@ ssh berry ~/repos/franchise-intelligence/bin/deploy
 ```
 
 O `bin/deploy` faz `git pull --ff-only`, `bin/db-backup`, `docker compose up -d --build web
-worker` e confere `http://fiserv.bin/up` pelo próprio berry. A migração corre no
+worker` e confere a produção por dois caminhos: o `/up` de dentro do container e o `302` do
+Access no endereço público (200 ali seria portal sem porteiro, e o script falha). **Não use
+`fiserv.bin` para verificar deploy** — esse nome é a homologação, no Mac, e um deploy
+conferido por ele passa verde com a produção quebrada. A migração corre no
 `db:prepare` do entrypoint quando o `web` sobe — por isso o backup vem antes. Não há
 rollback automático: as imagens anteriores ficam, e voltar é `git checkout <sha>` seguido de
 `docker compose up -d --build web worker`.
