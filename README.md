@@ -103,15 +103,17 @@ internet.
 
 ### Acesso pela rede
 
-**O portal roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) a partir do corte
-descrito em "Levar o sistema para outra máquina" (a data fica lá); o Mac é só
-desenvolvimento. Na LAN ele é servido pelo Caddy da mesma máquina (projeto
-`~/Composes/fiserv-proxy`, container `fiserv-caddy`), que faz proxy de `http://fiserv.bin`
-para `fiserv-web:3000` **pela rede do Compose** (`fiserv-proxy_default`): nenhuma porta do
-portal é publicada no host, nem a do Postgres. Isso vem de `docker-compose.berry.yml`,
-ativado pelo `COMPOSE_FILE` do `.env` de lá — o `docker-compose.yml` continua o do
-desenvolvimento, que publica `3000`/`3001` em `APP_BIND_IP` (padrão `127.0.0.1`) e o Postgres
-em `127.0.0.1:5432`. O DNS local (Pi-hole, no próprio berry) resolve `fiserv.bin` para ele.
+**A produção roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) a partir do corte
+descrito em "Levar o sistema para outra máquina" (a data fica lá); o Mac ficou com o
+desenvolvimento e, desde 22/09/2026, com a homologação (seção abaixo). O Caddy da mesma
+máquina (projeto `~/Composes/fiserv-proxy`, container `fiserv-caddy`) serve **`fiserv.bin`
+para a homologação no Mac** (`10.0.0.15:3000`) e o `lottery.bin` do vizinho; a produção não
+tem nome na LAN e atende pelo Cloudflare Tunnel, que alcança `fiserv-web:3000` **pela rede do
+Compose** (`fiserv-proxy_default`): nenhuma porta do portal é publicada no host do berry, nem
+a do Postgres. Isso vem de `docker-compose.berry.yml`, ativado pelo `COMPOSE_FILE` do `.env`
+de lá — o `docker-compose.yml` continua o do Mac, que publica `3000`/`3001` em `APP_BIND_IP`
+(padrão `127.0.0.1`; na homologação, `10.0.0.15`) e o Postgres em `127.0.0.1:5432`. O DNS
+local (Pi-hole, no próprio berry) resolve `fiserv.bin` para o Caddy, que encaminha ao Mac.
 Em produção o app aceita apenas `Host: fiserv.bin` e `localhost` (`RAILS_HOSTS` acrescenta
 outros); `force_ssl` fica desligado enquanto o Caddy servir HTTP puro — liga-se quando ele
 passar a terminar TLS.
@@ -140,6 +142,37 @@ sem cache de assets nem compressão do Thruster. Isso não é só preferência �
 `bin/rails server`, e com o `CMD` da imagem o primeiro é `./bin/thrust`. Voltar ao Thruster,
 portanto, exige também resolver o `db:prepare` no boot; do jeito que está, ele deixaria de
 rodar em silêncio.
+
+### Homologação no Mac (`http://fiserv.bin`)
+
+Desde **22/09/2026** o `fiserv.bin` deixou de apontar para a produção e passa a servir a
+**homologação**, que roda no Mac (`10.0.0.15`, `APP_BIND_IP` no `.env`). A produção não tem
+mais nome na LAN: atende só em `https://manager.melopay.com.br` (seção seguinte). Os dois
+ambientes rodam a mesma imagem, com bancos separados.
+
+**A faixa âmbar no topo de toda tela** ("Homologação — cópia dos dados…") é o que distingue
+um do outro, e sai de `APP_ENVIRONMENT=staging` no `.env` da máquina — o `docker-compose.yml`
+repassa a variável ao container, e `ApplicationHelper#staging?` decide. Sem a variável, nada
+aparece: é por isso que a produção não mostra faixa nenhuma.
+
+**Recarregar os dados** (a homologação envelhece, e tela de competência com dado velho
+engana):
+
+```bash
+bin/staging-restore          # pergunta antes de apagar
+bin/staging-restore --sim    # sem perguntar
+```
+
+Ele pega o **dump mais recente do espelho do berry** (`../franchise-storage/backups/berry/`,
+que o `launchd` puxa às 4h00), recria o banco, restaura o volume `storage`, roda o seed e
+limpa o Solid Cache — que vem dentro do dump, com as chaves da produção. Recusa rodar se o
+`COMPOSE_FILE` tiver a sobreposição do berry, porque é destrutivo por natureza. O papel
+`metabase_ro` é criado **antes** do `pg_restore`: o dump carrega os `GRANT` para ele, e sem o
+papel o restore para no primeiro.
+
+O que isso implica, e vale ter em conta: existem **duas cópias dos dados reais** na rede, e a
+do Mac não tem porteiro nenhum — vale a mesma regra de sempre, rede confiável. O Mac
+desligado ou dormindo derruba o `fiserv.bin`, e só ele; a produção não depende do Mac.
 
 ### Acesso pela internet (Cloudflare Tunnel + Access)
 

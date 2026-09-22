@@ -19,6 +19,11 @@
   <body class="app-body min-h-screen" data-controller="app-layout"
     data-app-layout-search-url-value="<%= search_path %>">
     <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
+    <% if staging? %>
+      <p class="env-banner" role="status">
+        Homologação — cópia dos dados, não é o ambiente de produção
+      </p>
+    <% end %>
     <%= render "layouts/navbar" %>
     <main id="main-content" class="app-main">
       <%= render_breadcrumbs %>

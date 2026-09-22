@@ -1,4 +1,11 @@
 module ApplicationHelper
+  # O staging roda a mesma imagem de produção, com uma cópia dos dados reais: sem marca na
+  # tela, não há como saber em qual dos dois se está olhando — e decidir sobre a carteira
+  # pelo ambiente errado é o erro caro. Ligado pelo .env da máquina de homologação.
+  def staging?
+    ENV["APP_ENVIRONMENT"] == "staging"
+  end
+
   def aligned_variation(previous, current)
     previous = previous.to_d
     current = current.to_d

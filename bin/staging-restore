@@ -1,0 +1,73 @@
+#!/bin/bash -e
+
+# Recarrega a homologação do Mac com a cópia mais recente do backup do berry (o espelho que
+# o launchd puxa às 4h00). Existe porque homologar com dado velho engana: a tela de
+# competência, a recorrência e os indicadores dependem do mês que os lotes cobrem.
+#
+# Destrutivo por natureza — apaga o banco de homologação e o volume storage da máquina onde
+# roda. Por isso recusa rodar onde o Compose está com a sobreposição do berry, e pede
+# confirmação a menos que receba --sim.
+#
+# O que fica de fora: o papel metabase_ro vem do seed, não do dump (é objeto do cluster), e
+# o dump carrega os GRANTs para ele — por isso o papel é criado antes do pg_restore. Sem
+# isso o restore para no primeiro GRANT (aprendido no corte de 18/09/2026).
+
+cd "$(dirname "$0")/.."
+
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
+case "${COMPOSE_FILE:-}" in
+  *docker-compose.berry.yml*)
+    echo "Recusando: esta máquina está com a sobreposição do berry (produção)." >&2
+    echo "O staging-restore só roda na máquina de homologação." >&2
+    exit 1
+    ;;
+esac
+
+MIRROR_DIR="${STAGING_SOURCE_DIR:-../franchise-storage/backups/berry}"
+DB_NAME="${BACKUP_DB_NAME:-fiserv_franchise_intelligence_development}"
+PROJECT="fiserv-franchise-intelligence"
+
+DUMP="$(ls -t "${MIRROR_DIR}"/fiserv_*.dump 2>/dev/null | head -1 || true)"
+[ -n "$DUMP" ] || { echo "Nenhum dump em ${MIRROR_DIR}. O espelho do berry roda às 4h00." >&2; exit 1; }
+STORAGE="${DUMP%.dump}_storage.tar.gz"
+[ -f "$STORAGE" ] || { echo "Falta o ${STORAGE##*/} ao lado do dump." >&2; exit 1; }
+
+echo "Origem: ${DUMP##*/} ($(date -r "$DUMP" '+%d/%m/%Y %H:%M'))"
+if [ "${1:-}" != "--sim" ]; then
+  read -r -p "Isto APAGA o banco e os anexos desta máquina. Continuar? [s/N] " resposta
+  [ "$resposta" = "s" ] || { echo "Nada feito."; exit 1; }
+fi
+
+# O web e o worker seguram conexões; o FORCE do DROP derruba, mas o worker morre junto e só
+# volta pelo restart do Compose. Parar antes deixa a janela previsível.
+docker compose stop web worker > /dev/null
+docker compose up -d db > /dev/null
+until docker compose exec -T db pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
+
+echo "Banco → recriando ${DB_NAME}"
+docker compose exec -T db psql -U postgres -q \
+  -c "DROP DATABASE IF EXISTS ${DB_NAME} WITH (FORCE)" \
+  -c "CREATE DATABASE ${DB_NAME}"
+docker compose exec -T db psql -U postgres -q -d "$DB_NAME" \
+  -c "DO \$\$ BEGIN CREATE ROLE metabase_ro NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$"
+docker compose exec -T db pg_restore -U postgres -d "$DB_NAME" --no-owner --exit-on-error < "$DUMP"
+
+echo "Planilhas importadas → volume storage"
+docker run --rm -v "${PROJECT}_storage:/data" -v "$(cd "$(dirname "$STORAGE")" && pwd):/backup:ro" \
+  alpine sh -c "rm -rf /data/* && tar -xzf /backup/$(basename "$STORAGE") -C /data"
+
+docker compose up -d web worker > /dev/null
+until [ "$(docker compose ps web --format '{{.Health}}')" = "healthy" ]; do sleep 2; done
+
+# O seed dá LOGIN e senha ao metabase_ro; o Solid Cache veio dentro do dump, com as chaves
+# da produção, e precisa sair para a homologação não servir tela montada lá.
+docker compose exec -T web bin/rails db:seed > /dev/null
+docker compose exec -T web bin/rails runner "Rails.cache.clear" > /dev/null
+
+echo "Pronto. Homologação recarregada em $(docker compose exec -T db psql -U postgres -At -d "$DB_NAME" -c 'SELECT count(*) FROM import_batches') lotes."

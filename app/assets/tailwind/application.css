@@ -2005,6 +2005,20 @@
     opacity: 1;
   }
 
+  /* Faixa de homologação, acima da topbar. Fica no fluxo de propósito: a topbar é sticky em
+     top: 0, e uma segunda faixa sticky cobriria o menu ao rolar. Âmbar do warning porque não
+     é erro — é aviso de contexto. */
+  .env-banner {
+    padding: 0.4rem 1rem;
+    background: var(--color-warning);
+    color: var(--color-warning-content);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
   .topbar {
     position: sticky;
     z-index: 30;

@@ -158,8 +158,11 @@ depois do merge é `ssh berry ~/repos/franchise-intelligence/bin/deploy`, que fa
 antes do build porque a migração corre no `db:prepare` do entrypoint. Nada no berry se
 altera por conta própria: `bin/deploy`, Caddyfile e cron são ações combinadas com o usuário.
 
-No Mac, o `_development` voltou a ser só desenvolvimento (uma cópia congelada do dia do
-corte, sem nada que não exista no berry). Mesmo assim:
+No Mac, o `_development` é o banco da **homologação** (`http://fiserv.bin` desde
+22/09/2026): uma cópia da produção, recarregada por `bin/staging-restore` a partir do
+espelho do backup do berry. Descartável por definição — o que se perde lá se recarrega
+em um comando. A faixa âmbar no topo da tela vem de `APP_ENVIRONMENT=staging` e é o
+único sinal de que aquele não é o dado que vale. Mesmo assim:
 
 ```bash
 RAILS_ENV=test bin/rails db:rebuild   # DROP … WITH (FORCE) → create → schema:load → seed
