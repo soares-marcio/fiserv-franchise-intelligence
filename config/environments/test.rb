@@ -4,6 +4,10 @@
 # and recreated between test runs. Don't rely on the data there!
 
 Rails.application.configure do
+  # Um bcrypt de custo real por login custa ~80 ms; a suíte autentica em quase todo teste e
+  # roda em processo único. Com o custo mínimo, o login some do tempo total.
+  ActiveModel::SecurePassword.min_cost = true
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # While tests run files are not watched, reloading is not necessary.

@@ -1,4 +1,27 @@
 pt-BR:
+  # Mensagens de validação do Active Record. O projeto não usa a gem rails-i18n: aqui só
+  # entram as chaves que as telas realmente mostram — sem elas, o formulário exibe
+  # "Translation missing" no lugar do erro.
+  errors:
+    format: "%{attribute} %{message}"
+    messages:
+      blank: "é obrigatório"
+      taken: "já está em uso"
+      invalid: "não é válido"
+      confirmation: "não confere"
+      too_short: "precisa de ao menos %{count} caracteres"
+      too_long: "passa de %{count} caracteres"
+  activerecord:
+    attributes:
+      user:
+        email_address: "E-mail"
+        name: "Nome"
+        password: "Senha"
+        password_confirmation: "Confirmação da senha"
+        permissions: "Permissões"
+      access_grant:
+        channel: "Master"
+        sub_channel: "MIC"
   number:
     currency:
       format:

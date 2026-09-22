@@ -2019,6 +2019,29 @@
     text-transform: uppercase;
   }
 
+  /* Telas de entrada (login, segundo fator, troca de senha): sem navbar, cartão centrado.
+     Vive na camada de componentes como o resto do design. */
+  .auth-shell {
+    display: grid;
+    min-height: 100dvh;
+    place-items: center;
+    padding: var(--space-4, 1rem);
+  }
+
+  .auth-card {
+    width: min(100%, 27rem);
+    padding: 2rem;
+    border: 1px solid var(--color-base-300);
+    border-radius: 1.15rem;
+    background: var(--color-base-100);
+    box-shadow: 0 16px 45px rgb(68 47 34 / 7%);
+  }
+
+  .auth-brand {
+    display: inline-flex;
+    margin-bottom: 1.5rem;
+  }
+
   .topbar {
     position: sticky;
     z-index: 30;

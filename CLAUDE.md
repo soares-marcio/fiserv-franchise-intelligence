@@ -25,7 +25,7 @@ mesma duração. Ver `README.md` para glossário de domínio, setup e formato da
 
 ## Convenção de idioma
 
-**Código em inglês. Comentários em português. Interface em português.**
+**Código em inglês. Comentários em português. Interface em português. Respostas no chat em português.**
 
 | O quê | Idioma | Exemplo |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ mesma duração. Ver `README.md` para glossário de domínio, setup e formato da
 | Comentários no código | português | `# O corte observado nunca superestima a cobertura.` |
 | Textos de tela, rótulos, mensagens de erro ao usuário | português | `"Envie um arquivo .xlsx."` |
 | Nomes de teste | português | `test "recusa EC que muda de CNPJ entre importações"` |
+| Respostas e explicações nesta conversa | português | inclusive mensagens de commit e PR |
 
 Comente o **porquê**, não o quê.
 

@@ -1,4 +1,10 @@
 class ApplicationController < ActionController::Base
+  include Authentication
+  # O portão existe, mas ainda não está fechado: a exigência de login entra numa fase
+  # própria, depois que a suíte inteira souber autenticar. Enquanto esta linha estiver
+  # aqui, o portal segue aberto como sempre foi.
+  allow_unauthenticated_access
+
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
 

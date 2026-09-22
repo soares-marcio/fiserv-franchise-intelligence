@@ -65,11 +65,41 @@ class SchemaIntegrityTest < ActiveSupport::TestCase
       "period_coverages" => "index_period_coverages_on_channel_id_and_period",
       "daily_revenues_consolidated" => "index_daily_revenues_consolidated_primary",
       "monthly_volumes_consolidated" => "index_monthly_volumes_consolidated_primary",
-      "conversation_actions" => "index_conversation_actions_on_text"
+      "conversation_actions" => "index_conversation_actions_on_text",
+      "access_grants" => "index_access_grants_unique"
     }.each do |table, index|
       found = connection.indexes(table).find { |i| i.name == index }
       assert found&.unique, "índice único #{index} ausente em #{table}"
     end
+  end
+
+  # A autenticação não se reconstrói de planilha nenhuma: se uma destas tabelas sumir do
+  # structure.sql, o portal sobe sem usuário, sem escopo e sem trilha — e só se descobre
+  # quando alguém tenta entrar.
+  test "tabelas de autenticação, escopo e trilha existem no schema" do
+    %w[users sessions recovery_codes access_grants batch_grants audit_events].each do |table|
+      assert_includes connection.tables, table, "tabela #{table} ausente no schema"
+    end
+  end
+
+  # A concessão de MIC precisa apontar para um MIC do mesmo Master, e quem garante é o
+  # banco: policy pode ser contornada por console, seed ou job; a FK composta, não.
+  test "concessão de escopo não aceita MIC de outro Master" do
+    assert_includes connection.foreign_keys("access_grants").map(&:name),
+      "access_grants_channel_matches_sub_channel"
+  end
+
+  # O CHECK é o que impede uma permissão inventada entrar pelo console ou por um seed
+  # desatualizado; o catálogo do código sozinho não alcança esses caminhos.
+  test "o banco recusa permissão fora do catálogo" do
+    erro = assert_raises(ActiveRecord::StatementInvalid) do
+      connection.execute(<<~SQL)
+        INSERT INTO users (email_address, name, password_digest, permissions, created_at, updated_at)
+        VALUES ('x@exemplo.com', 'X', 'x', ARRAY['inventada']::character varying[], now(), now())
+      SQL
+    end
+
+    assert_match(/users_permissions_known/, erro.message)
   end
 
   test "o seed cria o papel do Metabase com acesso só de leitura às views" do

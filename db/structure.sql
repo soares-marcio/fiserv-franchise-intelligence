@@ -70,6 +70,40 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: access_grants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.access_grants (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    channel_id bigint NOT NULL,
+    sub_channel_id bigint,
+    created_by_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: access_grants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.access_grants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: access_grants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.access_grants_id_seq OWNED BY public.access_grants.id;
+
+
+--
 -- Name: action_text_rich_texts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -377,9 +411,20 @@ CREATE TABLE public.import_batches (
     validation_errors jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    uploaded_by_id bigint,
+    reviewed_by_id bigint,
+    reviewed_at timestamp(6) without time zone,
+    review_note text,
     CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
     CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text])))
 );
+
+
+--
+-- Name: COLUMN import_batches.review_note; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.import_batches.review_note IS 'Motivo registrado por quem aprovou ou rejeitou o lote';
 
 
 --
@@ -1103,6 +1148,44 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
 
 
 --
+-- Name: audit_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.audit_events (
+    id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id bigint,
+    actor_email character varying NOT NULL,
+    action character varying NOT NULL,
+    record_type character varying,
+    record_id bigint,
+    channel_id bigint,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    ip_address character varying,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: audit_events_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.audit_events_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: audit_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.audit_events_id_seq OWNED BY public.audit_events.id;
+
+
+--
 -- Name: daily_revenues_consolidated; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1439,6 +1522,39 @@ CREATE MATERIALIZED VIEW public.audit_weekly_revenue AS
 
 
 --
+-- Name: batch_grants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.batch_grants (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    import_batch_id bigint NOT NULL,
+    created_by_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: batch_grants_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.batch_grants_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: batch_grants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.batch_grants_id_seq OWNED BY public.batch_grants.id;
+
+
+--
 -- Name: channels; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1506,6 +1622,7 @@ CREATE TABLE public.company_notes (
     cnpj character varying(14) NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    author_id bigint,
     CONSTRAINT company_notes_cnpj_format CHECK (((cnpj)::text ~ '^[0-9]{14}$'::text))
 );
 
@@ -1979,6 +2096,39 @@ ALTER SEQUENCE public.raw_import_rows_id_seq OWNED BY public.raw_import_rows.id;
 
 
 --
+-- Name: recovery_codes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.recovery_codes (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    code_digest character varying NOT NULL,
+    used_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: recovery_codes_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.recovery_codes_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: recovery_codes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.recovery_codes_id_seq OWNED BY public.recovery_codes.id;
+
+
+--
 -- Name: revenue_snapshots_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -2004,6 +2154,40 @@ ALTER SEQUENCE public.revenue_snapshots_id_seq OWNED BY public.revenue_snapshots
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
 );
+
+
+--
+-- Name: sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sessions (
+    id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    ip_address character varying,
+    user_agent character varying,
+    last_active_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sessions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sessions_id_seq OWNED BY public.sessions.id;
 
 
 --
@@ -2534,6 +2718,66 @@ ALTER SEQUENCE public.sub_channels_id_seq OWNED BY public.sub_channels.id;
 
 
 --
+-- Name: users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users (
+    id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    email_address character varying NOT NULL,
+    name character varying NOT NULL,
+    password_digest character varying NOT NULL,
+    super_admin boolean DEFAULT false NOT NULL,
+    permissions character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    must_change_password boolean DEFAULT true NOT NULL,
+    otp_secret text,
+    mfa_enabled_at timestamp(6) without time zone,
+    otp_last_used_at timestamp(6) without time zone,
+    failed_attempts integer DEFAULT 0 NOT NULL,
+    locked_until timestamp(6) without time zone,
+    deactivated_at timestamp(6) without time zone,
+    created_by_id bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT users_email_downcased CHECK (((email_address)::text = lower((email_address)::text))),
+    CONSTRAINT users_permissions_known CHECK ((permissions <@ ARRAY['reports_read'::character varying, 'reports_export'::character varying, 'establishments_read'::character varying, 'notes_read'::character varying, 'notes_write'::character varying, 'batches_read'::character varying, 'batches_upload'::character varying, 'batches_adjust'::character varying, 'batches_discard'::character varying, 'batches_approve'::character varying, 'metabase_read'::character varying, 'users_invite'::character varying]))
+);
+
+
+--
+-- Name: COLUMN users.mfa_enabled_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.mfa_enabled_at IS 'Quando o usuário concluiu a inscrição do TOTP; nulo enquanto pendente';
+
+
+--
+-- Name: COLUMN users.otp_last_used_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.otp_last_used_at IS 'Instante do último código aceito; impede reutilizar o mesmo código na janela';
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
 -- Name: daily_revenues_202607; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
@@ -2552,6 +2796,13 @@ ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_20
 --
 
 ALTER TABLE ONLY public.daily_revenues ATTACH PARTITION public.daily_revenues_default DEFAULT;
+
+
+--
+-- Name: access_grants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants ALTER COLUMN id SET DEFAULT nextval('public.access_grants_id_seq'::regclass);
 
 
 --
@@ -2587,6 +2838,20 @@ ALTER TABLE ONLY public.active_storage_blobs ALTER COLUMN id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.active_storage_variant_records ALTER COLUMN id SET DEFAULT nextval('public.active_storage_variant_records_id_seq'::regclass);
+
+
+--
+-- Name: audit_events id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events ALTER COLUMN id SET DEFAULT nextval('public.audit_events_id_seq'::regclass);
+
+
+--
+-- Name: batch_grants id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.batch_grants ALTER COLUMN id SET DEFAULT nextval('public.batch_grants_id_seq'::regclass);
 
 
 --
@@ -2695,10 +2960,24 @@ ALTER TABLE ONLY public.raw_import_rows ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
+-- Name: recovery_codes id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recovery_codes ALTER COLUMN id SET DEFAULT nextval('public.recovery_codes_id_seq'::regclass);
+
+
+--
 -- Name: revenue_snapshots id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.revenue_snapshots ALTER COLUMN id SET DEFAULT nextval('public.revenue_snapshots_id_seq'::regclass);
+
+
+--
+-- Name: sessions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions ALTER COLUMN id SET DEFAULT nextval('public.sessions_id_seq'::regclass);
 
 
 --
@@ -2814,6 +3093,21 @@ ALTER TABLE ONLY public.sub_channels ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- Name: access_grants access_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT access_grants_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: action_text_rich_texts action_text_rich_texts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2859,6 +3153,22 @@ ALTER TABLE ONLY public.active_storage_variant_records
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: audit_events audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: batch_grants batch_grants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.batch_grants
+    ADD CONSTRAINT batch_grants_pkey PRIMARY KEY (id);
 
 
 --
@@ -2974,6 +3284,14 @@ ALTER TABLE ONLY public.raw_import_rows
 
 
 --
+-- Name: recovery_codes recovery_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recovery_codes
+    ADD CONSTRAINT recovery_codes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: revenue_snapshots revenue_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2987,6 +3305,14 @@ ALTER TABLE ONLY public.revenue_snapshots
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
 
 
 --
@@ -3115,6 +3441,14 @@ ALTER TABLE ONLY public.solid_queue_semaphores
 
 ALTER TABLE ONLY public.sub_channels
     ADD CONSTRAINT sub_channels_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
 
 --
@@ -3279,6 +3613,41 @@ CREATE UNIQUE INDEX idx_on_import_batch_id_proposal_number_cee2420935 ON public.
 
 
 --
+-- Name: index_access_grants_on_channel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_access_grants_on_channel_id ON public.access_grants USING btree (channel_id);
+
+
+--
+-- Name: index_access_grants_on_created_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_access_grants_on_created_by_id ON public.access_grants USING btree (created_by_id);
+
+
+--
+-- Name: index_access_grants_on_sub_channel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_access_grants_on_sub_channel_id ON public.access_grants USING btree (sub_channel_id);
+
+
+--
+-- Name: index_access_grants_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_access_grants_on_user_id ON public.access_grants USING btree (user_id);
+
+
+--
+-- Name: index_access_grants_unique; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_access_grants_unique ON public.access_grants USING btree (user_id, channel_id, sub_channel_id) NULLS NOT DISTINCT;
+
+
+--
 -- Name: index_action_text_rich_texts_uniqueness; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3363,6 +3732,48 @@ CREATE UNIQUE INDEX index_audit_accreditation_earnings ON public.audit_accredita
 
 
 --
+-- Name: index_audit_events_on_action_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_action_and_created_at ON public.audit_events USING btree (action, created_at);
+
+
+--
+-- Name: index_audit_events_on_channel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_channel_id ON public.audit_events USING btree (channel_id);
+
+
+--
+-- Name: index_audit_events_on_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_created_at ON public.audit_events USING btree (created_at);
+
+
+--
+-- Name: index_audit_events_on_record_type_and_record_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_record_type_and_record_id ON public.audit_events USING btree (record_type, record_id);
+
+
+--
+-- Name: index_audit_events_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_user_id ON public.audit_events USING btree (user_id);
+
+
+--
+-- Name: index_audit_events_on_user_id_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_user_id_and_created_at ON public.audit_events USING btree (user_id, created_at);
+
+
+--
 -- Name: index_audit_revenue_by_company; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3388,6 +3799,34 @@ CREATE UNIQUE INDEX index_audit_stalled_companies ON public.audit_stalled_compan
 --
 
 CREATE UNIQUE INDEX index_audit_weekly_revenue ON public.audit_weekly_revenue USING btree (channel_id, period, week);
+
+
+--
+-- Name: index_batch_grants_on_created_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_batch_grants_on_created_by_id ON public.batch_grants USING btree (created_by_id);
+
+
+--
+-- Name: index_batch_grants_on_import_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_batch_grants_on_import_batch_id ON public.batch_grants USING btree (import_batch_id);
+
+
+--
+-- Name: index_batch_grants_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_batch_grants_on_user_id ON public.batch_grants USING btree (user_id);
+
+
+--
+-- Name: index_batch_grants_on_user_id_and_import_batch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_batch_grants_on_user_id_and_import_batch_id ON public.batch_grants USING btree (user_id, import_batch_id);
 
 
 --
@@ -3430,6 +3869,13 @@ CREATE INDEX index_companies_on_cnpj_trgm ON public.companies USING gin (cnpj pu
 --
 
 CREATE UNIQUE INDEX index_companies_on_uuid ON public.companies USING btree (uuid);
+
+
+--
+-- Name: index_company_notes_on_author_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_company_notes_on_author_id ON public.company_notes USING btree (author_id);
 
 
 --
@@ -3612,6 +4058,20 @@ CREATE UNIQUE INDEX index_import_batches_on_file_checksum ON public.import_batch
 --
 
 CREATE INDEX index_import_batches_on_import_template_id ON public.import_batches USING btree (import_template_id);
+
+
+--
+-- Name: index_import_batches_on_reviewed_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_import_batches_on_reviewed_by_id ON public.import_batches USING btree (reviewed_by_id);
+
+
+--
+-- Name: index_import_batches_on_uploaded_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_import_batches_on_uploaded_by_id ON public.import_batches USING btree (uploaded_by_id);
 
 
 --
@@ -3825,6 +4285,13 @@ CREATE UNIQUE INDEX index_raw_import_rows_unique_source_row ON public.raw_import
 
 
 --
+-- Name: index_recovery_codes_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_recovery_codes_on_user_id ON public.recovery_codes USING btree (user_id);
+
+
+--
 -- Name: index_revenue_snapshots_on_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3871,6 +4338,20 @@ CREATE INDEX index_revenue_snapshots_on_sub_channel_id ON public.revenue_snapsho
 --
 
 CREATE INDEX index_revenue_snapshots_on_trade_name ON public.revenue_snapshots USING gin (trade_name public.gin_trgm_ops);
+
+
+--
+-- Name: index_sessions_on_last_active_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sessions_on_last_active_at ON public.sessions USING btree (last_active_at);
+
+
+--
+-- Name: index_sessions_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sessions_on_user_id ON public.sessions USING btree (user_id);
 
 
 --
@@ -4182,6 +4663,27 @@ CREATE UNIQUE INDEX index_template_columns_on_template_sheet_header ON public.im
 
 
 --
+-- Name: index_users_on_created_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_users_on_created_by_id ON public.users USING btree (created_by_id);
+
+
+--
+-- Name: index_users_on_email_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_users_on_email_address ON public.users USING btree (email_address);
+
+
+--
+-- Name: index_users_on_uuid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_users_on_uuid ON public.users USING btree (uuid);
+
+
+--
 -- Name: daily_revenues_202607_channel_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
@@ -4287,6 +4789,14 @@ ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION publ
 
 
 --
+-- Name: access_grants access_grants_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT access_grants_channel_matches_sub_channel FOREIGN KEY (sub_channel_id, channel_id) REFERENCES public.sub_channels(id, channel_id);
+
+
+--
 -- Name: activation_proposals activation_proposals_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4316,6 +4826,22 @@ ALTER TABLE public.daily_revenues
 
 ALTER TABLE public.daily_revenues
     ADD CONSTRAINT daily_revenues_import_batch_id_fkey FOREIGN KEY (import_batch_id) REFERENCES public.import_batches(id);
+
+
+--
+-- Name: batch_grants fk_rails_01fdeebf3c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.batch_grants
+    ADD CONSTRAINT fk_rails_01fdeebf3c FOREIGN KEY (import_batch_id) REFERENCES public.import_batches(id) ON DELETE CASCADE;
+
+
+--
+-- Name: access_grants fk_rails_0e3efc8f98; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT fk_rails_0e3efc8f98 FOREIGN KEY (channel_id) REFERENCES public.channels(id);
 
 
 --
@@ -4383,6 +4909,14 @@ ALTER TABLE ONLY public.import_batches
 
 
 --
+-- Name: import_batches fk_rails_2d87b220b9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_rails_2d87b220b9 FOREIGN KEY (uploaded_by_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: solid_queue_recurring_executions fk_rails_318a5533ed; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4431,6 +4965,14 @@ ALTER TABLE ONLY public.map_snapshot_actions
 
 
 --
+-- Name: users fk_rails_45307c95a3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT fk_rails_45307c95a3 FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
 -- Name: monthly_volumes_consolidated fk_rails_467b521bd7; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4471,6 +5013,30 @@ ALTER TABLE ONLY public.data_anomalies
 
 
 --
+-- Name: access_grants fk_rails_55410f2ab3; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT fk_rails_55410f2ab3 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: access_grants fk_rails_5a9ab0c996; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT fk_rails_5a9ab0c996 FOREIGN KEY (created_by_id) REFERENCES public.users(id);
+
+
+--
+-- Name: company_notes fk_rails_5bebe40769; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_notes
+    ADD CONSTRAINT fk_rails_5bebe40769 FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: data_anomalies fk_rails_5cde571f18; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4495,6 +5061,22 @@ ALTER TABLE ONLY public.activation_proposals
 
 
 --
+-- Name: import_batches fk_rails_6bd10fc855; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_rails_6bd10fc855 FOREIGN KEY (reviewed_by_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: access_grants fk_rails_6ccb2e3995; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT fk_rails_6ccb2e3995 FOREIGN KEY (sub_channel_id) REFERENCES public.sub_channels(id);
+
+
+--
 -- Name: daily_revenues_consolidated fk_rails_6d94f1b4d1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4516,6 +5098,14 @@ ALTER TABLE ONLY public.monthly_volumes
 
 ALTER TABLE ONLY public.daily_revenue_revisions
     ADD CONSTRAINT fk_rails_727a551ec4 FOREIGN KEY (import_batch_id) REFERENCES public.import_batches(id);
+
+
+--
+-- Name: sessions fk_rails_758836b4f0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT fk_rails_758836b4f0 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -4679,6 +5269,14 @@ ALTER TABLE ONLY public.activation_proposals
 
 
 --
+-- Name: audit_events fk_rails_c8a6c4c540; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT fk_rails_c8a6c4c540 FOREIGN KEY (channel_id) REFERENCES public.channels(id);
+
+
+--
 -- Name: period_coverages fk_rails_cd45dcdcc3; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4687,11 +5285,35 @@ ALTER TABLE ONLY public.period_coverages
 
 
 --
+-- Name: recovery_codes fk_rails_cf7d76c04b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.recovery_codes
+    ADD CONSTRAINT fk_rails_cf7d76c04b FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: audit_events fk_rails_d27dff91d1; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT fk_rails_d27dff91d1 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: period_coverages fk_rails_d9919fe216; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.period_coverages
     ADD CONSTRAINT fk_rails_d9919fe216 FOREIGN KEY (channel_id) REFERENCES public.channels(id);
+
+
+--
+-- Name: batch_grants fk_rails_decee7fd62; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.batch_grants
+    ADD CONSTRAINT fk_rails_decee7fd62 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -4716,6 +5338,14 @@ ALTER TABLE ONLY public.establishments
 
 ALTER TABLE ONLY public.daily_revenue_revisions
     ADD CONSTRAINT fk_rails_f294b864d5 FOREIGN KEY (establishment_id) REFERENCES public.establishments(id);
+
+
+--
+-- Name: batch_grants fk_rails_f637e665c9; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.batch_grants
+    ADD CONSTRAINT fk_rails_f637e665c9 FOREIGN KEY (created_by_id) REFERENCES public.users(id);
 
 
 --
@@ -4749,6 +5379,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922190000'),
 ('20260917120000'),
 ('20260916120000'),
 ('20260909220000'),
