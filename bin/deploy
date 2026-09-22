@@ -15,5 +15,20 @@ bin/db-backup
 docker compose up -d --build web worker
 docker compose ps
 
-# Pelo próprio berry, pela rota que a rede usa: Caddy → rede do proxy → web.
-curl -fsS -o /dev/null -w "fiserv.bin/up → %{http_code}\n" http://fiserv.bin/up
+# Duas checagens, porque nenhuma sozinha prova que a produção está no ar.
+#
+# Não use fiserv.bin aqui: desde 22/09/2026 esse nome é a homologação, no Mac. Um deploy
+# verificado por ele passa verde com a produção quebrada — ou até com o berry fora do ar,
+# desde que o Mac esteja ligado. Foi o que aconteceu no primeiro deploy depois da virada.
+docker compose exec -T web curl -fsS -o /dev/null -w "app (dentro do container) → %{http_code}\n" \
+  http://localhost:3000/up
+
+# E a ponta pública: sem sessão o Access responde 302, e isso só acontece se o túnel estiver
+# entregando ao edge. 200 aqui seria mau sinal — significaria o portal sem porteiro.
+codigo="$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://manager.melopay.com.br/)"
+echo "manager.melopay.com.br → ${codigo}"
+case "$codigo" in
+  302) ;;
+  200) echo "ALERTA: respondeu 200 sem login — a política do Access não está ativa." >&2; exit 1 ;;
+  *)   echo "ALERTA: esperado 302 (login do Access); confira o túnel." >&2; exit 1 ;;
+esac
