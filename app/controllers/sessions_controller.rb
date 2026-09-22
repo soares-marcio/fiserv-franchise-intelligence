@@ -1,5 +1,7 @@
 class SessionsController < ApplicationController
-  allow_unauthenticated_access only: %i[ new create ]
+  # raise: false porque enquanto o portal estiver aberto não existe filtro para pular;
+  # quando a exigência de login entrar, esta linha passa a valer sem precisar mudar.
+  allow_unauthenticated_access only: %i[ new create ], raise: false
   # Dois limites de natureza diferente: por IP contém a varredura de uma máquina só, e por
   # e-mail contém a força bruta distribuída contra uma conta. O IP real chega ao Rails
   # mesmo atrás do túnel (X-Forwarded-For honrado), então o balde é por pessoa.
