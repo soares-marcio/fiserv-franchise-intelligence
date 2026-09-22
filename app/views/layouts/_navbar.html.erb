@@ -10,6 +10,9 @@
 
     <nav class="primary-nav" id="primary_nav" aria-label="Navegação principal"
       data-app-layout-target="primaryNav">
+      <%# O menu mostra só o que o ator pode abrir: link para tela que responde 403 é
+          convite para um erro, e revela o que existe a quem não deveria saber. %>
+      <% if policy(:report).index? %>
       <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }) %>
       <%= link_to icon_label("storefront", "Clover Capital", css: "nav-icon"), stalled_reports_path,
@@ -22,8 +25,12 @@
         class: nav_link_class({ controller: :reports, actions: %w[recurring] }) %>
       <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[indicators] }) %>
-      <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
-        class: nav_link_class({ controller: :establishments }) %>
+      <% end %>
+      <% if policy(:establishment).index? %>
+        <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
+          class: nav_link_class({ controller: :establishments }) %>
+      <% end %>
+      <% if policy(:import_batch).index? %>
       <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }) do %>
         <%= icon("upload-simple", css: "nav-icon") %>
         Importar arquivo
@@ -35,8 +42,11 @@
           <%= last_file_headline(file_days) %>
         </span>
       <% end %>
-      <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
-        class: nav_link_class({ controller: :metabase }) %>
+      <% end %>
+      <% if policy(:metabase).show? %>
+        <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
+          class: nav_link_class({ controller: :metabase }) %>
+      <% end %>
     </nav>
 
     <div class="topbar-tools">
@@ -52,6 +62,15 @@
         <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
       </button>
       <%= render "layouts/file_status" %>
+      <%# Quem está logado e a saída. Sem isto, a única forma de trocar de usuário seria
+          apagar cookie na mão — e ninguém sabe em nome de quem está agindo. %>
+      <% if Current.user %>
+        <div class="user-chip">
+          <span class="user-chip__name" title="<%= Current.user.email_address %>"><%= Current.user.name %></span>
+          <%= button_to "Sair", session_path, method: :delete,
+            class: "btn btn-ghost btn-sm", form: { class: "contents" } %>
+        </div>
+      <% end %>
     </div>
   </div>
 </header>

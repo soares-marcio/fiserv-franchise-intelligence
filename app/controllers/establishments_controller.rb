@@ -5,6 +5,7 @@ class EstablishmentsController < ApplicationController
   # A busca ao vivo e a paginação pedem só o frame da listagem; acessada direto, a página
   # ganha a casca.
   layout -> { turbo_frame_request? ? false : "application" }
+  before_action -> { authorize :establishment, :index? }
 
   # Uma linha por CNPJ: o cliente é a empresa; os ECs são o grão técnico e aparecem
   # agrupados. A busca continua por qualquer campo de qualquer EC da empresa.

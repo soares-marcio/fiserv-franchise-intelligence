@@ -4,6 +4,9 @@
 class MfaEnrollmentsController < ApplicationController
   layout "auth"
 
+  # Entrar não é uma ação autorizável: quem chega aqui ainda não tem permissões.
+  skip_after_action :verify_authorized
+
   before_action :require_pending_enrollment
 
   def show

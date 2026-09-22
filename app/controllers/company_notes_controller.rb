@@ -18,6 +18,7 @@ class CompanyNotesController < ApplicationController
   # não pode viajar num data-* do botão: o corpo é HTML com anexos, e vinte linhas de tabela
   # carregariam vinte deles. Chega por Turbo Frame, como o modal do calendário.
   layout -> { turbo_frame_request? ? false : "application" }
+  before_action -> { authorize :company_note, action_name == "edit" ? :show? : :update? }
 
   def edit
     @company = Company.find_param!(params[:id])

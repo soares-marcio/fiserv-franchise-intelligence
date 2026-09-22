@@ -5,6 +5,10 @@ class ImportBatchesController < ApplicationController
   rate_limit to: 5, within: 1.minute, only: :create,
     with: -> { redirect_to import_batches_path, alert: "Muitos envios em sequência. Aguarde um minuto." }
 
+  # Uma chave por ação: ver o histórico, enviar arquivo, mexer num lote e descartá-lo são
+  # decisões diferentes, e quem concede acesso decide cada uma.
+  before_action -> { authorize :import_batch, "#{action_name}?".to_sym }
+
   def index
     @import_batches = ImportBatch.includes(:channel).order(created_at: :desc).limit(50)
     @days_since_last_file = ImportBatch.days_since_last_file

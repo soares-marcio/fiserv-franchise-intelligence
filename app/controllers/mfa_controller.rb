@@ -5,6 +5,9 @@ class MfaController < ApplicationController
   allow_unauthenticated_access
   layout "auth"
 
+  # Entrar não é uma ação autorizável: quem chega aqui ainda não tem permissões.
+  skip_after_action :verify_authorized
+
   # O código tem seis dígitos e vale trinta segundos: sem limite, dá para varrer o espaço
   # inteiro em minutos. O limite por conta vem junto, em User#failed_attempts.
   rate_limit to: 10, within: 5.minutes, only: :create,

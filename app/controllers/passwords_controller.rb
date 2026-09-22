@@ -3,6 +3,9 @@
 class PasswordsController < ApplicationController
   layout "auth"
 
+  # Entrar não é uma ação autorizável: quem chega aqui ainda não tem permissões.
+  skip_after_action :verify_authorized
+
   def edit
   end
 

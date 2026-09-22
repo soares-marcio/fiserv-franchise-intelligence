@@ -1,5 +1,6 @@
 class MetabaseController < ApplicationController
   def show
+    authorize :metabase, :show?
     # Na rede o Metabase é servido pelo Caddy; localhost só vale no host. Sem a variável, o
     # serviço está desligado (é o estado do berry desde 09/2026) e a tela diz isso. Vazia conta
     # como ausente: é assim que o docker-compose.berry.yml a entrega.

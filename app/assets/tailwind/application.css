@@ -2021,6 +2021,24 @@
 
   /* Telas de entrada (login, segundo fator, troca de senha): sem navbar, cartão centrado.
      Vive na camada de componentes como o resto do design. */
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid color-mix(in oklab, white 14%, transparent);
+    color: var(--color-neutral-content);
+  }
+
+  .user-chip__name {
+    max-width: 10rem;
+    overflow: hidden;
+    font-size: 0.8rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .auth-shell {
     display: grid;
     min-height: 100dvh;
