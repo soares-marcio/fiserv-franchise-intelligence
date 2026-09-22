@@ -11,7 +11,8 @@ class EstablishmentsController < ApplicationController
   # agrupados. A busca continua por qualquer campo de qualquer EC da empresa.
   def index
     @query = params[:q].to_s.strip
-    matching = @query.present? ? Establishment.search(@query) : Establishment.all
+    no_escopo = Establishment.in_scope(Current.access_scope)
+    matching = @query.present? ? no_escopo.merge(Establishment.search(@query)) : no_escopo
     companies = Company.joins(:establishments).where(establishments: { id: matching.select(:id) })
     @total_count = companies.distinct.count(:id)
     @total_establishments = matching.except(:includes).distinct.count(:id)
@@ -36,10 +37,12 @@ class EstablishmentsController < ApplicationController
   # Smart POS, link de pagamento. Medido na carteira: 173 dos 187 CNPJs com mais de um EC têm
   # equipamento diferente entre eles, então o equipamento é do EC e o cadastro é do cliente.
   def show
-    @company = Company.find_by(uuid: params[:id])
+    @company = companies_in_scope.find_by(uuid: params[:id])
     return redirect_to_company_of_establishment if @company.nil?
 
-    @establishments = @company.establishments
+    # Só os ECs do escopo: um CNPJ pode ter ECs em mais de um Master, e a ficha não pode
+    # misturar o que é de um com o que é de outro.
+    @establishments = @company.establishments.in_scope(Current.access_scope)
       .includes(current_map_snapshot: :sub_channel).order(:ec)
     # A fonte dos campos do cliente é o EC de menor número, a mesma regra efetiva da listagem:
     # ficha e listagem precisam mostrar o mesmo nome e o mesmo endereço para o mesmo cliente.
@@ -51,10 +54,17 @@ class EstablishmentsController < ApplicationController
 
   private
 
+  # Empresas alcançáveis: as que têm ao menos um EC no escopo do ator.
+  def companies_in_scope
+    Company.where(id: Establishment.in_scope(Current.access_scope).select(:company_id))
+  end
+
   # Link salvo aponta para o uuid do EC: em vez de 404, leva à ficha do cliente, ancorada no
   # bloco daquele EC.
+  # EC fora do escopo responde 404 em vez de redirecionar: o redirecionamento confirmaria
+  # que aquele EC existe, e para qual cliente ele aponta.
   def redirect_to_company_of_establishment
-    establishment = Establishment.find_param!(params[:id])
+    establishment = Establishment.in_scope(Current.access_scope).find_param!(params[:id])
     redirect_to establishment_path(establishment.company, anchor: "ec-#{establishment.ec}")
   end
 

@@ -4,6 +4,6 @@ class SearchController < ApplicationController
   before_action -> { authorize :search, :index? }
 
   def index
-    @search = GlobalSearch.new(params[:q])
+    @search = GlobalSearch.new(params[:q], access: Current.access_scope)
   end
 end

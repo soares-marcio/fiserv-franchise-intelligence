@@ -102,6 +102,67 @@ class DataScopeTest < ActionDispatch::IntegrationTest
     assert_no_match(/OUTRO/, response.body)
   end
 
+  # A listagem de clientes e a busca eram os dois caminhos que ainda atravessavam a carteira
+  # inteira: a busca, em especial, é o atalho mais curto até um dado — digitar um CNPJ
+  # revelaria em que Master ele está e o nome do MIC junto.
+  test "a listagem de clientes mostra só os do escopo, inclusive na contagem" do
+    entra_no_canal(@canal_a)
+
+    get establishments_path
+
+    assert_response :success
+    assert_no_match(/OMEGA/, response.body)
+    assert_no_match(/99888777000166/, response.body)
+  end
+
+  test "a busca não encontra EC de outro Master, nem por CNPJ exato" do
+    entra_no_canal(@canal_a)
+
+    # O termo aparece na mensagem "Nada encontrado para …", então o que se afirma é a
+    # ausência de resultado, e não a ausência do texto.
+    get search_path(q: "70000001")
+    assert_select "a.search-result", count: 0
+
+    get search_path(q: "99888777000166")
+    assert_select "a.search-result", count: 0
+
+    get search_path(q: "MIC OMEGA")
+    assert_no_match(/OMEGA COMERCIO/, response.body)
+  end
+
+  test "a busca continua encontrando o que é do escopo" do
+    entra_no_canal(@canal_a)
+
+    get search_path(q: "30000001")
+
+    assert_match(/30000001/, response.body)
+  end
+
+  # Redirecionar confirmaria que aquele EC existe e a que cliente pertence; 404 não conta
+  # nada. É a mesma escolha do MIC de outro Master.
+  test "EC de outro Master responde 404 em vez de redirecionar para a ficha" do
+    entra_no_canal(@canal_a)
+    de_fora = Establishment.find_by!(ec: "70000001")
+
+    get establishment_path(de_fora)
+
+    assert_response :not_found
+  end
+
+  test "a ficha do cliente não mistura ECs de Masters diferentes" do
+    # O mesmo CNPJ com EC nos dois Masters é o caso que obriga o recorte dentro da ficha.
+    company = Establishment.find_by!(ec: "30000001").company
+    outro_ec = Establishment.create!(ec: "70000009", company:, channel: @canal_b)
+    entra_no_canal(@canal_a)
+
+    get establishment_path(company)
+
+    assert_response :success
+    assert_no_match(/70000009/, response.body)
+    assert_match(/30000001/, response.body)
+    assert_not_nil outro_ec.reload
+  end
+
   # Cache é a falha mais silenciosa possível: dois escopos com a mesma chave serviriam um ao
   # outro sem erro nenhum.
   test "escopos diferentes não compartilham cache" do

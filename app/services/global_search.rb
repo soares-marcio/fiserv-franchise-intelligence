@@ -6,8 +6,11 @@ class GlobalSearch
 
   attr_reader :query
 
-  def initialize(query)
+  # A busca é o caminho mais curto até um dado: sem recorte, digitar um CNPJ qualquer
+  # revelaria em que Master ele está, e o nome do MIC junto.
+  def initialize(query, access:)
     @query = query.to_s.strip
+    @access = access
   end
 
   def searchable?
@@ -16,7 +19,7 @@ class GlobalSearch
 
   def sub_channels
     @sub_channels ||= if searchable?
-      SubChannel.includes(:channel).where("sub_channels.name ILIKE ?", like)
+      sub_channels_in_scope.includes(:channel).where("sub_channels.name ILIKE ?", like)
         .order(:name).limit(LIMITS[:sub_channels]).to_a
     else
       []
@@ -25,7 +28,8 @@ class GlobalSearch
 
   def establishments
     @establishments ||= if searchable?
-      Establishment.search(query).includes(:company, current_map_snapshot: :sub_channel)
+      Establishment.in_scope(@access).merge(Establishment.search(query))
+        .includes(:company, current_map_snapshot: :sub_channel)
         .order(:ec).limit(LIMITS[:establishments]).to_a
     else
       []
@@ -37,6 +41,14 @@ class GlobalSearch
   def noted_cnpjs
     @noted_cnpjs ||= CompanyNote.where(cnpj: establishments.map { |e| e.company.cnpj }.uniq)
       .pluck(:cnpj).to_set
+  end
+
+  # Os MICs que o ator alcança: os do Master inteiro concedido, mais os avulsos.
+  def sub_channels_in_scope
+    return SubChannel.all if @access.everything?
+
+    SubChannel.where(channel_id: @access.full_channel_ids)
+      .or(SubChannel.where(id: @access.sub_channel_ids))
   end
 
   def empty?
