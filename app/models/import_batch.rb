@@ -10,6 +10,11 @@ class ImportBatch < ApplicationRecord
 
   # Canal e template ficam nulos entre o upload e o fim do parse.
   belongs_to :channel, optional: true
+  # Quem enviou e quem revisou. Nuláveis: os lotes anteriores ao login não têm autor, e um
+  # lote só ganha revisor quando passa pela quarentena.
+  belongs_to :uploaded_by, class_name: "User", optional: true
+  belongs_to :reviewed_by, class_name: "User", optional: true
+  has_many :batch_grants, dependent: :destroy
   belongs_to :import_template, optional: true
   has_many :revenue_snapshots, dependent: :restrict_with_exception
   has_many :map_snapshots, dependent: :restrict_with_exception

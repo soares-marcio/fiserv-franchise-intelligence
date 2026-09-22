@@ -28,6 +28,11 @@ module BinImport
       )
       batch.save!
 
+      # O Master do arquivo só se conhece depois do parse, então a checagem de escopo é
+      # aqui — antes de gravar qualquer linha. Sem ela, quem tem permissão de enviar
+      # alimentaria a carteira de qualquer Master, inclusive a de um concorrente.
+      authorize_channel!(batch, channel)
+
       validation = Validator.new(rows).validate!
       validate_existing_establishments!(channel, rows)
       DailyRevenuePartitions.ensure!(validation.previous_period)
@@ -304,6 +309,17 @@ module BinImport
             period:, day:, amount:, provisional:, created_at: Time.current, updated_at: Time.current } if amount.nonzero?
         end
       end
+    end
+
+    # Quem enviou precisa alcançar o Master do arquivo. Sem autor (import por console, seed
+    # ou job antigo) a checagem não se aplica: ali não há ator a limitar.
+    def authorize_channel!(batch, channel)
+      autor = batch.uploaded_by
+      return if autor.nil? || autor.super_admin?
+      return if AccessScope.for(autor).channel_ids.include?(channel.id)
+
+      raise ArgumentError, "Esta planilha é do Master \"#{channel.name}\", que está fora do " \
+        "seu acesso. Confira o arquivo ou peça a liberação desse Master."
     end
 
     def validate_existing_establishments!(channel, rows)

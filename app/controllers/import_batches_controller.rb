@@ -6,11 +6,13 @@ class ImportBatchesController < ApplicationController
     with: -> { redirect_to import_batches_path, alert: "Muitos envios em sequência. Aguarde um minuto." }
 
   # Uma chave por ação: ver o histórico, enviar arquivo, mexer num lote e descartá-lo são
-  # decisões diferentes, e quem concede acesso decide cada uma.
-  before_action -> { authorize :import_batch, "#{action_name}?".to_sym }
+  # decisões diferentes, e quem concede acesso decide cada uma. As ações sobre um lote
+  # específico autorizam o próprio registro, porque a regra também pergunta de quem ele é.
+  before_action :load_batch, only: %i[show destroy update_cutoff reprocess]
+  before_action -> { authorize(@import_batch || :import_batch, "#{action_name}?".to_sym) }
 
   def index
-    @import_batches = ImportBatch.includes(:channel).order(created_at: :desc).limit(50)
+    @import_batches = policy_scope(ImportBatch).includes(:channel).order(created_at: :desc).limit(50)
     @days_since_last_file = ImportBatch.days_since_last_file
     @running_batch = @import_batches.find(&:running?)
     @stuck_batches = @import_batches.select(&:stuck?)
@@ -20,7 +22,6 @@ class ImportBatchesController < ApplicationController
   end
 
   def show
-    @import_batch = ImportBatch.find_param!(params[:id])
   end
 
   def create
@@ -30,7 +31,7 @@ class ImportBatchesController < ApplicationController
       return
     end
 
-    Operations::ImportFile.call(upload)
+    Operations::ImportFile.call(upload, uploaded_by: Current.user)
     redirect_to import_batches_path, notice: "Importação enfileirada."
   rescue ActionController::ParameterMissing
     redirect_to import_batches_path, alert: "Selecione um arquivo."
@@ -39,7 +40,7 @@ class ImportBatchesController < ApplicationController
   end
 
   def destroy
-    batch = ImportBatch.find_param!(params[:id])
+    batch = @import_batch
     unless batch.discardable?
       redirect_to import_batch_path(batch), alert: "Só lotes que falharam antes de gravar dados podem ser descartados."
       return
@@ -50,7 +51,7 @@ class ImportBatchesController < ApplicationController
   end
 
   def update_cutoff
-    batch = ImportBatch.find_param!(params[:id])
+    batch = @import_batch
     Operations::AdjustCutoff.call(batch:, max_known_day: params.require(:max_known_day))
     redirect_to import_batch_path(batch), notice: "Dia de corte atualizado."
   rescue ArgumentError => error
@@ -58,7 +59,7 @@ class ImportBatchesController < ApplicationController
   end
 
   def reprocess
-    batch = ImportBatch.find_param!(params[:id])
+    batch = @import_batch
     Operations::ReprocessBatch.call(batch)
     redirect_to import_batch_path(batch), notice: "Lote reprocessado."
   rescue ArgumentError => error
@@ -66,6 +67,12 @@ class ImportBatchesController < ApplicationController
   end
 
   private
+
+  # Fora do alcance do ator, o lote responde 404 — não 403: dizer "existe, mas não é seu"
+  # conta que aquele arquivo foi enviado, e por alguém.
+  def load_batch
+    @import_batch = policy_scope(ImportBatch).find_param!(params[:id])
+  end
 
   def upload_rejection(upload)
     extensao = File.extname(upload.original_filename.to_s)

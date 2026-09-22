@@ -71,8 +71,11 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # O lote é do próprio ator: assim o que se mede aqui é a falta da chave, e não a falta de
+  # alcance — lote de terceiro responde 404, e isso é assunto do teste de acesso a lotes.
   test "ver lotes não dá direito de enviar, ajustar nem descartar" do
-    entra_com([ Permission::BATCHES_READ ])
+    ator = entra_com([ Permission::BATCHES_READ ])
+    @batch.update!(uploaded_by: ator)
 
     get import_batches_path
     assert_response :success
@@ -93,14 +96,17 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "descartar exige a chave de descarte, que é separada de ajustar" do
-    entra_com([ Permission::BATCHES_READ, Permission::BATCHES_ADJUST ])
+    ator = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_ADJUST ])
+    @batch.update!(uploaded_by: ator)
 
     assert_no_difference -> { ImportBatch.count } do
       delete import_batch_path(@batch)
     end
     assert_response :forbidden
 
-    entra_com([ Permission::BATCHES_READ, Permission::BATCHES_DISCARD ], email: "descarta@exemplo.com")
+    outro = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_DISCARD ],
+      email: "descarta@exemplo.com")
+    @batch.update!(uploaded_by: outro)
 
     assert_difference -> { ImportBatch.count }, -1 do
       delete import_batch_path(@batch)

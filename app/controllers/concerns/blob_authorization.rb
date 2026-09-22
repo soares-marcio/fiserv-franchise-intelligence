@@ -25,9 +25,9 @@ module BlobAuthorization
 
       head :not_found unless note_in_scope?(nota)
     when ImportBatch
-      # A planilha original traz a carteira inteira de um Master; quem pode baixá-la é
-      # definido junto com a visibilidade do lote.
-      head :forbidden unless Current.user&.permitted?(Permission::BATCHES_READ)
+      # A planilha original traz a carteira inteira de um Master num arquivo só: vale a
+      # mesma regra do lote — os próprios envios e os que foram liberados.
+      head :not_found unless ImportBatchPolicy.new(Current.user, dono).download_source_file?
     else
       head :forbidden
     end

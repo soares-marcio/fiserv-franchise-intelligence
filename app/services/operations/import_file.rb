@@ -8,9 +8,9 @@ module Operations
 
     # O lote nasce aqui, antes de o arquivo ser lido: se o job morrer no caminho,
     # a falha tem onde aparecer. A unicidade do checksum fecha uploads concorrentes.
-    def self.call(upload)
+    def self.call(upload, uploaded_by: nil)
       checksum = Digest::SHA256.file(upload.tempfile.path).hexdigest
-      batch = claim_batch(checksum, upload.original_filename)
+      batch = claim_batch(checksum, upload.original_filename, uploaded_by)
       batch.source_file.purge if batch.source_file.attached?
       batch.source_file.attach(
         io: upload, filename: upload.original_filename,
@@ -27,11 +27,12 @@ module Operations
       raise
     end
 
-    def self.claim_batch(checksum, filename)
+    def self.claim_batch(checksum, filename, uploaded_by)
       batch = ImportBatch.find_by(file_checksum: checksum)
       return handle_existing(batch, filename) if batch
 
-      ImportBatch.create!(source_filename: filename, file_checksum: checksum, status: "pending")
+      ImportBatch.create!(source_filename: filename, file_checksum: checksum, status: "pending",
+        uploaded_by:)
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => error
       batch = ImportBatch.find_by(file_checksum: checksum)
       raise error unless batch
