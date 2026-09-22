@@ -1,4 +1,6 @@
 class SessionsController < ApplicationController
+  include PendingAuthentication
+
   # raise: false porque enquanto o portal estiver aberto não existe filtro para pular;
   # quando a exigência de login entrar, esta linha passa a valer sem precisar mudar.
   allow_unauthenticated_access only: %i[ new create ], raise: false
@@ -16,13 +18,30 @@ class SessionsController < ApplicationController
   end
 
   def create
-    user = User.authenticate_by(email_address: params[:email_address].to_s.strip.downcase,
-      password: params[:password].to_s)
+    email = params[:email_address].to_s.strip.downcase
+    user = User.authenticate_by(email_address: email, password: params[:password].to_s)
 
-    return deny unless user&.active?
+    # A senha errada não diz quem errou — authenticate_by devolve nada. Sem procurar a
+    # conta aqui, o contador de tentativas nunca subiria e o bloqueio seria decoração.
+    # A resposta continua a mesma para conta inexistente, senha errada e conta desativada.
+    return handle_failure(email) if user.nil?
+    return locked if user.locked?
+    return handle_failure(email) unless user.active?
 
-    start_new_session_for(user)
-    redirect_to after_authentication_url
+    user.register_successful_attempt!
+
+    # Quem ainda não inscreveu o segundo fator não tem código a apresentar: a sessão nasce
+    # aqui e a inscrição é a primeira tela, imposta pelo ApplicationController.
+    unless user.mfa_enabled?
+      start_new_session_for(user)
+      return redirect_to mfa_enrollment_path
+    end
+
+    # A senha certa ainda não é uma sessão: o segundo fator vem antes, e até ele ser
+    # respondido não existe linha em sessions — não há sessão pela metade para alguém
+    # esquecer de conferir.
+    start_pending_authentication(user)
+    redirect_to mfa_path
   end
 
   def destroy
@@ -34,9 +53,20 @@ class SessionsController < ApplicationController
 
   # Uma mensagem só para e-mail inexistente, senha errada e conta desativada: qualquer
   # diferença entre elas conta a quem tenta se aquele e-mail existe no portal.
+  def handle_failure(email)
+    User.find_by(email_address: email)&.register_failed_attempt!
+    deny
+  end
+
   def deny
     redirect_to new_session_path(email_address: params[:email_address]),
       alert: "E-mail ou senha inválidos."
+  end
+
+  # Mensagem própria de propósito: aqui a conta já provou existir para quem a bloqueou, e
+  # esconder o motivo faria a pessoa tentar de novo até o limite seguinte.
+  def locked
+    redirect_to new_session_path, alert: "Conta bloqueada por tentativas seguidas. Tente mais tarde."
   end
 
   def too_many_attempts

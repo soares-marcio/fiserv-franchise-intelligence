@@ -1,9 +1,11 @@
 class ApplicationController < ActionController::Base
   include Authentication
-  # O portão existe, mas ainda não está fechado: a exigência de login entra numa fase
-  # própria, depois que a suíte inteira souber autenticar. Enquanto esta linha estiver
-  # aqui, o portal segue aberto como sempre foi.
-  allow_unauthenticated_access
+
+  # Duas pendências que valem mais que qualquer tela: senha provisória por trocar e segundo
+  # fator por inscrever. Ficam aqui, na base, porque um controller novo que esqueça de
+  # declará-las nasceria fora da regra.
+  before_action :require_password_change
+  before_action :require_mfa_enrollment
 
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
@@ -17,5 +19,21 @@ class ApplicationController < ActionController::Base
 
   def file_freshness
     @file_freshness ||= FileFreshness.new
+  end
+
+  private
+
+  def require_password_change
+    return unless Current.user&.must_change_password?
+    return if controller_name.in?(%w[passwords sessions])
+
+    redirect_to edit_password_path, alert: "Defina sua senha antes de usar o portal."
+  end
+
+  def require_mfa_enrollment
+    return if Current.user.nil? || Current.user.mfa_enabled?
+    return if controller_name.in?(%w[mfa_enrollments sessions passwords])
+
+    redirect_to mfa_enrollment_path, alert: "Cadastre o segundo fator antes de usar o portal."
   end
 end

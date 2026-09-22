@@ -1,0 +1,29 @@
+<% content_for :title, "Cadastrar o segundo fator" %>
+
+<h1 class="page-title">Segundo fator</h1>
+<p class="page-description mt-2">
+  O portal serve dados reais de clientes, então a senha sozinha não basta. Leia o código
+  abaixo com um aplicativo autenticador — Google Authenticator, Authy, 1Password ou o
+  gerenciador de senhas do seu celular.
+</p>
+
+<div class="mt-6 flex justify-center rounded-xl border border-base-300 bg-base-100 p-4">
+  <%= @qr_code %>
+</div>
+
+<details class="mt-4">
+  <summary class="cursor-pointer text-sm font-semibold">Não consegue ler o código?</summary>
+  <p class="mt-2 text-sm">Cadastre manualmente esta chave no aplicativo:</p>
+  <p class="mt-1 break-all font-mono text-xs"><%= Current.user.otp_secret %></p>
+</details>
+
+<%= form_with url: mfa_enrollment_path, class: "mt-6 grid gap-4" do |form| %>
+  <label class="form-control">
+    <span class="section-label">Código gerado pelo aplicativo</span>
+    <%= form.text_field :code, required: true, autocomplete: "one-time-code",
+      inputmode: "numeric", maxlength: 6,
+      class: "input input-bordered w-full text-center tracking-[0.4em]" %>
+  </label>
+
+  <%= form.submit "Concluir cadastro", class: "btn btn-primary w-full" %>
+<% end %>

@@ -1,0 +1,20 @@
+<% content_for :title, "Códigos de recuperação" %>
+
+<h1 class="page-title">Guarde estes códigos</h1>
+<p class="page-description mt-2">
+  Cada um entra no lugar do aplicativo autenticador, uma vez só. São a sua saída se perder o
+  celular. <strong>Esta tela não volta a aparecer.</strong>
+</p>
+
+<ul class="mt-6 grid grid-cols-2 gap-2">
+  <% @codes.each do |codigo| %>
+    <li class="rounded-lg bg-base-200 px-3 py-2 text-center font-mono text-sm"><%= codigo %></li>
+  <% end %>
+</ul>
+
+<p class="metric-hint mt-4">
+  Copie para o seu gerenciador de senhas ou imprima. Se acabarem, o administrador reinicia
+  seu segundo fator.
+</p>
+
+<%= link_to "Entrar no portal", root_path, class: "btn btn-primary mt-6 w-full" %>

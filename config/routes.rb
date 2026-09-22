@@ -1,5 +1,11 @@
 Rails.application.routes.draw do
-  resource :session
+  resource :session, only: %i[new create destroy]
+  # Telas do caminho de entrada: o desafio do segundo fator, a inscrição dele e a troca da
+  # própria senha (obrigatória no primeiro acesso).
+  get "mfa", to: "mfa#show", as: :mfa
+  post "mfa", to: "mfa#create"
+  resource :mfa_enrollment, only: %i[show create], controller: "mfa_enrollments"
+  resource :password, only: %i[edit update]
   get "up" => "rails/health#show", as: :rails_health_check
 
   root "reports#index"

@@ -1,0 +1,26 @@
+<% content_for :title, "Verificação em duas etapas" %>
+
+<h1 class="page-title">Verificação</h1>
+<p class="page-description mt-2">
+  Abra o aplicativo autenticador e digite o código de seis dígitos.
+</p>
+
+<%= form_with url: mfa_path, class: "mt-6 grid gap-4" do |form| %>
+  <label class="form-control">
+    <span class="section-label">Código</span>
+    <%# inputmode numérico e autocomplete one-time-code: no celular o teclado abre certo e o
+        código chega do SMS/autenticador sem digitação. %>
+    <%= form.text_field :code, required: true, autofocus: true, autocomplete: "one-time-code",
+      inputmode: "numeric", pattern: "[0-9A-Za-z]*", maxlength: 10,
+      class: "input input-bordered w-full text-center tracking-[0.4em]" %>
+  </label>
+
+  <%= form.submit "Verificar", class: "btn btn-primary w-full" %>
+<% end %>
+
+<p class="metric-hint mt-6">
+  Sem o celular? Use um dos códigos de recuperação que você guardou — vale uma vez cada.
+  <% if @recovery_codes_left.zero? %>
+    Você não tem códigos restantes: peça ao administrador para reiniciar seu segundo fator.
+  <% end %>
+</p>

@@ -22,6 +22,12 @@ class User < ApplicationRecord
   validates :password, length: { minimum: 12 }, allow_nil: true
   validate :permissions_must_be_known
 
+  # Dez tentativas erradas (senha ou código) bloqueiam a conta por quinze minutos. O
+  # contador fica no banco, e não no cache, porque o cache do ambiente de teste é
+  # :null_store — um bloqueio que não se consegue testar não existe.
+  MAX_FAILED_ATTEMPTS = 10
+  LOCK_PERIOD = 15.minutes
+
   scope :active, -> { where(deactivated_at: nil) }
 
   def active? = deactivated_at.nil?
@@ -35,6 +41,23 @@ class User < ApplicationRecord
   end
 
   def unused_recovery_codes = recovery_codes.where(used_at: nil)
+
+  # Toda mudança de senha, permissão ou escopo derruba as sessões abertas: sem isso, quem
+  # perdeu acesso continuaria dentro até a sessão expirar sozinha.
+  def revoke_sessions!
+    sessions.destroy_all
+  end
+
+  def register_failed_attempt!
+    increment!(:failed_attempts)
+    return unless failed_attempts >= MAX_FAILED_ATTEMPTS
+
+    update!(locked_until: LOCK_PERIOD.from_now, failed_attempts: 0)
+  end
+
+  def register_successful_attempt!
+    update!(failed_attempts: 0, locked_until: nil)
+  end
 
   private
 
