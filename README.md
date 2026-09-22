@@ -103,15 +103,17 @@ internet.
 
 ### Acesso pela rede
 
-**O portal roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) a partir do corte
-descrito em "Levar o sistema para outra máquina" (a data fica lá); o Mac é só
-desenvolvimento. Na LAN ele é servido pelo Caddy da mesma máquina (projeto
-`~/Composes/fiserv-proxy`, container `fiserv-caddy`), que faz proxy de `http://fiserv.bin`
-para `fiserv-web:3000` **pela rede do Compose** (`fiserv-proxy_default`): nenhuma porta do
-portal é publicada no host, nem a do Postgres. Isso vem de `docker-compose.berry.yml`,
-ativado pelo `COMPOSE_FILE` do `.env` de lá — o `docker-compose.yml` continua o do
-desenvolvimento, que publica `3000`/`3001` em `APP_BIND_IP` (padrão `127.0.0.1`) e o Postgres
-em `127.0.0.1:5432`. O DNS local (Pi-hole, no próprio berry) resolve `fiserv.bin` para ele.
+**A produção roda no berry** (`10.0.0.13`, Raspberry Pi com Docker rootless) a partir do corte
+descrito em "Levar o sistema para outra máquina" (a data fica lá); o Mac ficou com o
+desenvolvimento e, desde 22/09/2026, com a homologação (seção abaixo). O Caddy da mesma
+máquina (projeto `~/Composes/fiserv-proxy`, container `fiserv-caddy`) serve **`fiserv.bin`
+para a homologação no Mac** (`10.0.0.15:3000`) e o `lottery.bin` do vizinho; a produção não
+tem nome na LAN e atende pelo Cloudflare Tunnel, que alcança `fiserv-web:3000` **pela rede do
+Compose** (`fiserv-proxy_default`): nenhuma porta do portal é publicada no host do berry, nem
+a do Postgres. Isso vem de `docker-compose.berry.yml`, ativado pelo `COMPOSE_FILE` do `.env`
+de lá — o `docker-compose.yml` continua o do Mac, que publica `3000`/`3001` em `APP_BIND_IP`
+(padrão `127.0.0.1`; na homologação, `10.0.0.15`) e o Postgres em `127.0.0.1:5432`. O DNS
+local (Pi-hole, no próprio berry) resolve `fiserv.bin` para o Caddy, que encaminha ao Mac.
 Em produção o app aceita apenas `Host: fiserv.bin` e `localhost` (`RAILS_HOSTS` acrescenta
 outros); `force_ssl` fica desligado enquanto o Caddy servir HTTP puro — liga-se quando ele
 passar a terminar TLS.
@@ -140,6 +142,95 @@ sem cache de assets nem compressão do Thruster. Isso não é só preferência �
 `bin/rails server`, e com o `CMD` da imagem o primeiro é `./bin/thrust`. Voltar ao Thruster,
 portanto, exige também resolver o `db:prepare` no boot; do jeito que está, ele deixaria de
 rodar em silêncio.
+
+### Homologação no Mac (`http://fiserv.bin`)
+
+Desde **22/09/2026** o `fiserv.bin` deixou de apontar para a produção e passa a servir a
+**homologação**, que roda no Mac (`10.0.0.15`, `APP_BIND_IP` no `.env`). A produção não tem
+mais nome na LAN: atende só em `https://manager.melopay.com.br` (seção seguinte). Os dois
+ambientes rodam a mesma imagem, com bancos separados.
+
+**A faixa âmbar no topo de toda tela** ("Homologação — cópia dos dados…") é o que distingue
+um do outro, e sai de `APP_ENVIRONMENT=staging` no `.env` da máquina — o `docker-compose.yml`
+repassa a variável ao container, e `ApplicationHelper#staging?` decide. Sem a variável, nada
+aparece: é por isso que a produção não mostra faixa nenhuma.
+
+**Recarregar os dados** (a homologação envelhece, e tela de competência com dado velho
+engana):
+
+```bash
+bin/staging-restore          # pergunta antes de apagar
+bin/staging-restore --sim    # sem perguntar
+```
+
+Ele pega o **dump mais recente do espelho do berry** (`../franchise-storage/backups/berry/`,
+que o `launchd` puxa às 4h00), recria o banco, restaura o volume `storage`, roda o seed e
+limpa o Solid Cache — que vem dentro do dump, com as chaves da produção. Recusa rodar se o
+`COMPOSE_FILE` tiver a sobreposição do berry, porque é destrutivo por natureza. O papel
+`metabase_ro` é criado **antes** do `pg_restore`: o dump carrega os `GRANT` para ele, e sem o
+papel o restore para no primeiro.
+
+O que isso implica, e vale ter em conta: existem **duas cópias dos dados reais** na rede, e a
+do Mac não tem porteiro nenhum — vale a mesma regra de sempre, rede confiável. O Mac
+desligado ou dormindo derruba o `fiserv.bin`, e só ele; a produção não depende do Mac.
+
+### Acesso pela internet (Cloudflare Tunnel + Access)
+
+Desde **22/09/2026** o portal também atende em **https://manager.melopay.com.br**, para uso
+fora da LAN. Quem faz isso é um túnel da Cloudflare — conexão de **saída** do berry, sem
+porta aberta para a internet, sem IP fixo e sem mexer no roteador:
+
+```
+navegador → TLS na Cloudflare → Access (login) → túnel → fiserv-cloudflared
+                                                              ↓ rede fiserv-proxy_default
+                                                        fiserv-web:3000 (Puma)
+LAN:      navegador → fiserv-caddy:80 → fiserv-web:3000        (inalterado, HTTP puro)
+```
+
+**O porteiro é o Cloudflare Access, não o app.** O portal continua sem autenticação própria:
+o que impede um estranho de ler a carteira é a política Zero Trust `Autorizados`, que exige
+login (código de uso único por e-mail) antes de a requisição sair do edge da Cloudflare. Sem
+o cookie de sessão do Access, **qualquer** caminho responde `302` para o login — `/up`
+inclusive. Ver a ressalva em `CLAUDE.md`, "Controle de acesso".
+
+Peças, todas fora deste repositório:
+
+| Onde | O quê |
+| --- | --- |
+| Cloudflare (conta `melopay`, plano Zero Trust Free) | Túnel `fiserv-manager`; aplicação Access `Fiserv Manager` com a política `Autorizados` (Allow → Emails) e sessão de 24 h; CNAME `manager` → `<id>.cfargotunnel.com`, proxied |
+| `~/.cloudflared/` no berry | `cert.pem` da conta e o JSON de credencial do túnel (modo 400, **segredo**; o do túnel antigo ficou como `cert.pem.trazfaz-2026-09-22`) |
+| `~/Composes/fiserv-proxy/` | Serviço `cloudflared` no Compose do proxy e `cloudflared/config.yml` |
+
+O `config.yml` do conector:
+
+```yaml
+tunnel: <id do túnel>          # o id, não o nome: resolver o nome exigiria o cert.pem da
+credentials-file: /etc/cloudflared/creds.json   # conta dentro do container
+ingress:
+  - hostname: manager.melopay.com.br
+    service: http://fiserv-web:3000
+  - service: http_status:404
+```
+
+Três coisas que custaram tentativa e ficam registradas:
+
+1. **O `Host` público chega ao Rails de propósito** — por isso `RAILS_HOSTS=manager.melopay.com.br`
+   no `.env` do berry. Reescrever o `Host` no túnel quebraria o CSRF, o WebSocket do Turbo e a
+   URL de upload direto, que espelham a requisição.
+2. **`tunnel:` recebe o id**, não o nome — com o nome, o conector morre em laço com
+   `error parsing tunnel ID: Error locating origin cert`.
+3. **O serviço roda com `user: "0:0"`**: a credencial é 400 do `soares` e a imagem roda como
+   usuário sem privilégio. Como o Docker do berry é rootless, o `root` do container é o
+   próprio `soares` — preferível a afrouxar a permissão do arquivo de credencial.
+
+**Não ligue `force_ssl` nem `assume_ssl`** (`config/environments/production.rb`): o TLS
+termina na Cloudflare e a LAN continua em HTTP puro; qualquer um dos dois quebra
+`http://fiserv.bin` (cookie `secure` não volta, e o `force_ssl` ainda redireciona).
+
+Verificado no dia: `302` para `melopay.cloudflareaccess.com` antes do login (com o conector
+parado, inclusive); `200` depois de autenticar; `http://fiserv.bin/up` intacto; e o IP real
+do cliente chegando ao Rails — o que mantém os limites de 5 importações/min e 20 anexos/min
+por pessoa, e não somados para todo o túnel.
 
 ## A planilha BIN
 

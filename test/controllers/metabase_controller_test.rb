@@ -53,6 +53,31 @@ class MetabaseControllerTest < ActionDispatch::IntegrationTest
   end
 end
 
+# O staging roda a mesma imagem que a produção, com uma cópia dos dados reais: a faixa é o
+# único sinal na tela de que aquele não é o ambiente verdadeiro.
+class StagingBannerTest < ActionDispatch::IntegrationTest
+  test "a faixa de homologação aparece quando APP_ENVIRONMENT=staging" do
+    original = ENV["APP_ENVIRONMENT"]
+    ENV["APP_ENVIRONMENT"] = "staging"
+
+    get metabase_path
+
+    assert_select ".env-banner", text: /Homologação/
+  ensure
+    ENV["APP_ENVIRONMENT"] = original
+  end
+
+  test "sem a variável a faixa não existe" do
+    original = ENV.delete("APP_ENVIRONMENT")
+
+    get metabase_path
+
+    assert_select ".env-banner", count: 0
+  ensure
+    ENV["APP_ENVIRONMENT"] = original if original
+  end
+end
+
 # O layout mostra a idade do último arquivo duas vezes (badge do menu e status do header),
 # cada uma chamando ImportBatch.days_since_last_file. O banco só é consultado uma vez porque
 # o query cache da requisição absorve a repetição; este teste fixa isso para que ninguém

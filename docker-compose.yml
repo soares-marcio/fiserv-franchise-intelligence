@@ -33,6 +33,8 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       METABASE_URL: ${METABASE_URL:-http://localhost:3001}
       RAILS_HOSTS: ${RAILS_HOSTS:-}
+      # Só a máquina de homologação define: é o que põe a faixa no topo da tela.
+      APP_ENVIRONMENT: ${APP_ENVIRONMENT:-}
     # O Caddy que serve fiserv.bin roda em outra máquina da LAN e faz proxy para este IP,
     # então a porta precisa ficar no endereço da rede — não em 127.0.0.1 nem em 0.0.0.0.
     ports:
