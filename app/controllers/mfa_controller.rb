@@ -25,6 +25,7 @@ class MfaController < ApplicationController
       destino = pending_return_to
       clear_pending_authentication
       start_new_session_for(@user)
+      Audit.record("session.start", user: @user, request:)
       # Depois do reset_session da sessão nova: antes dele, o destino seria apagado.
       session[:return_to_after_authenticating] = destino if destino
       redirect_to after_authentication_url
@@ -55,11 +56,14 @@ class MfaController < ApplicationController
     return false unless codigo
 
     codigo.update!(used_at: Time.current)
+    Audit.record("mfa.recovery_code_used", user: @user, request:,
+      metadata: { restantes: @user.unused_recovery_codes.count })
     flash[:notice] = "Código de recuperação usado. Restam #{@user.unused_recovery_codes.count}."
     true
   end
 
   def register_failure
+    Audit.record("mfa.failed", user: @user, request:)
     @user.increment!(:failed_attempts)
     if @user.failed_attempts >= User::MAX_FAILED_ATTEMPTS
       @user.update!(locked_until: User::LOCK_PERIOD.from_now, failed_attempts: 0)

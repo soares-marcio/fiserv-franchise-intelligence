@@ -1,0 +1,62 @@
+<% content_for :title, "Trilha de auditoria" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Administração</p>
+  <h1 class="page-title">Trilha</h1>
+  <p class="page-description">
+    Quem fez o quê no portal. O registro guarda a ação e o contexto — nunca o conteúdo:
+    nem CNPJ, nem faturamento, nem o texto das anotações.
+  </p>
+</section>
+
+<section class="table-frame mt-5" data-controller="sticky-table">
+  <div class="table-toolbar">
+    <div>
+      <p class="section-label">Últimos eventos</p>
+      <h2 class="table-title">Página <%= @page %></h2>
+    </div>
+  </div>
+  <div class="table-scroll" role="region" tabindex="0" aria-label="Eventos de auditoria">
+    <table class="table batches-table">
+      <colgroup>
+        <col style="width: 16%"><col style="width: 20%"><col style="width: 22%">
+        <col style="width: 20%"><col style="width: 22%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Quando</th>
+          <th scope="col">Quem</th>
+          <th scope="col">O quê</th>
+          <th scope="col">Master</th>
+          <th scope="col">Detalhes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @events.each do |event| %>
+          <tr>
+            <td><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+            <td>
+              <%= event.user&.name || "—" %>
+              <span class="block text-xs opacity-70"><%= event.actor_email %></span>
+            </td>
+            <td><%= audit_action_label(event.action) %></td>
+            <td><%= channel_name(event.channel) || "—" %></td>
+            <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if @events.empty? %>
+      <p class="table-empty">Nenhum evento registrado ainda.</p>
+    <% end %>
+  </div>
+</section>
+
+<nav class="mt-4 flex gap-3" aria-label="Paginação da trilha">
+  <% if @page > 1 %>
+    <%= link_to "← Anteriores", audit_events_path(page: @page - 1), class: "btn btn-outline btn-sm" %>
+  <% end %>
+  <% if @has_more %>
+    <%= link_to "Próximos →", audit_events_path(page: @page + 1), class: "btn btn-outline btn-sm" %>
+  <% end %>
+</nav>

@@ -37,6 +37,7 @@ class SessionsController < ApplicationController
     # aqui e a inscrição é a primeira tela, imposta pelo ApplicationController.
     unless user.mfa_enabled?
       start_new_session_for(user)
+      Audit.record("session.start", user:, request:, metadata: { mfa: "pendente" })
       return redirect_to mfa_enrollment_path
     end
 
@@ -48,6 +49,7 @@ class SessionsController < ApplicationController
   end
 
   def destroy
+    Audit.record("session.end", request:)
     terminate_session
     redirect_to new_session_path, status: :see_other, notice: "Você saiu do portal."
   end
@@ -57,7 +59,12 @@ class SessionsController < ApplicationController
   # Uma mensagem só para e-mail inexistente, senha errada e conta desativada: qualquer
   # diferença entre elas conta a quem tenta se aquele e-mail existe no portal.
   def handle_failure(email)
-    User.find_by(email_address: email)&.register_failed_attempt!
+    alvo = User.find_by(email_address: email)
+    alvo&.register_failed_attempt!
+    # O e-mail tentado entra na trilha mesmo quando não existe conta: é o que permite ver
+    # uma varredura acontecendo.
+    Audit.record("session.failed", user: alvo, request:,
+      metadata: { email_tentado: email, bloqueada: alvo&.locked? || false })
     deny
   end
 

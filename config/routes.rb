@@ -49,4 +49,6 @@ Rails.application.routes.draw do
   post "/rails/active_storage/direct_uploads", to: "note_attachments#create"
   resource :metabase, only: :show, controller: "metabase"
   get "search", to: "search#index", as: :search
+  # Trilha de auditoria: leitura de administração.
+  resources :audit_events, only: :index
 end

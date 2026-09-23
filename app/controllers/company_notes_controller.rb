@@ -33,6 +33,9 @@ class CompanyNotesController < ApplicationController
     company = company_in_scope
     note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body],
       author: Current.user)
+    # Sem o texto e sem o CNPJ: a trilha diz que houve edição, não o que foi escrito.
+    Audit.record(note ? "note.saved" : "note.removed", record: note || company, request:,
+      metadata: { caracteres: params[:body].to_s.length })
     responder(company, note, notice: note ? "Anotação salva." : "Anotação removida.")
   rescue ArgumentError => error
     responder(company, CompanyNote.find_by(cnpj: company&.cnpj), alert: error.message)

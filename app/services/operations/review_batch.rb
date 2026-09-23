@@ -8,11 +8,18 @@ module Operations
     def self.approve(batch:, reviewer:, note: nil)
       raise ArgumentError, "Este lote não está em revisão." unless batch.pending_review?
 
+      review = BatchReview.new(batch)
+      resumo = { saindo: review.leaving.size, entrando: review.entering.size,
+        mudando_de_mic: review.moving.size, motivos: batch.review_reasons }
+
       ApplicationRecord.transaction do
         BinImport::Importer.consolidate_batch!(batch)
         batch.update!(status: "validated", reviewed_by: reviewer, reviewed_at: Time.current,
           review_note: note)
       end
+      # O resumo é do que foi decidido, em contagens: quem aprovou precisa poder responder
+      # depois pelo que saiu da carteira naquele dia.
+      Audit.record("batch.approved", user: reviewer, record: batch, metadata: resumo)
       # Fora da transação: REFRESH CONCURRENTLY não roda dentro de uma.
       AuditViews.refresh!
       batch
@@ -24,6 +31,8 @@ module Operations
 
       batch.update!(status: "rejected", reviewed_by: reviewer, reviewed_at: Time.current,
         review_note: note.to_s.strip)
+      Audit.record("batch.rejected", user: reviewer, record: batch,
+        metadata: { motivo: note.to_s.strip, motivos_da_revisao: batch.review_reasons })
       batch
     end
   end

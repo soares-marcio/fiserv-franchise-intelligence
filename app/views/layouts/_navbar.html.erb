@@ -43,6 +43,10 @@
         </span>
       <% end %>
       <% end %>
+      <% if policy(:audit_event).index? %>
+        <%= link_to icon_label("list-bullets", "Trilha", css: "nav-icon"), audit_events_path,
+          class: nav_link_class({ controller: :audit_events }) %>
+      <% end %>
       <% if policy(:metabase).show? %>
         <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
           class: nav_link_class({ controller: :metabase }) %>

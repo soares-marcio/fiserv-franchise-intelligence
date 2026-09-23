@@ -24,6 +24,7 @@ class MfaEnrollmentsController < ApplicationController
     end
 
     Current.user.update!(mfa_enabled_at: Time.current)
+    Audit.record("mfa.enrolled", request:)
     @codes = RecoveryCode.generate_for(Current.user)
     render :codes
   end

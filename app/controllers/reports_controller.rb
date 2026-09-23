@@ -22,8 +22,8 @@ class ReportsController < ApplicationController
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
     respond_to do |format|
       format.html
-      format.csv { authorize(:report, :export?); send_data stalled_exporter.to_csv, **arquivo(nome_do_clover, "csv") }
-      format.xlsx { authorize(:report, :export?); send_data stalled_exporter.to_xlsx, **arquivo(nome_do_clover, "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data stalled_exporter.to_csv, **arquivo(nome_do_clover, "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data stalled_exporter.to_xlsx, **arquivo(nome_do_clover, "xlsx") }
     end
   end
 
@@ -40,8 +40,8 @@ class ReportsController < ApplicationController
     load_calendar_neighbours
     respond_to do |format|
       format.html
-      format.csv { authorize(:report, :export?); send_data weekly_exporter.to_csv, **arquivo(nome_do_ritmo, "csv") }
-      format.xlsx { authorize(:report, :export?); send_data weekly_exporter.to_xlsx, **arquivo(nome_do_ritmo, "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data weekly_exporter.to_csv, **arquivo(nome_do_ritmo, "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data weekly_exporter.to_xlsx, **arquivo(nome_do_ritmo, "xlsx") }
     end
   end
 
@@ -94,8 +94,8 @@ class ReportsController < ApplicationController
     @reports = @order.sort_rows(@scope.recurring_earnings) { |row| recurring_sort_value(row) }
     respond_to do |format|
       format.html
-      format.csv { authorize(:report, :export?); send_data recurring_exporter.to_csv, **arquivo("ganho-recorrente", "csv") }
-      format.xlsx { authorize(:report, :export?); send_data recurring_exporter.to_xlsx, **arquivo("ganho-recorrente", "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data recurring_exporter.to_csv, **arquivo("ganho-recorrente", "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data recurring_exporter.to_xlsx, **arquivo("ganho-recorrente", "xlsx") }
     end
   end
 
@@ -116,8 +116,8 @@ class ReportsController < ApplicationController
     @reports = @order.sort_rows(@reports) { |row| three_month_value(row) }
     respond_to do |format|
       format.html
-      format.csv { authorize(:report, :export?); send_data three_month_exporter.to_csv, **arquivo("ganhos-3m", "csv") }
-      format.xlsx { authorize(:report, :export?); send_data three_month_exporter.to_xlsx, **arquivo("ganhos-3m", "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data three_month_exporter.to_csv, **arquivo("ganhos-3m", "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data three_month_exporter.to_xlsx, **arquivo("ganhos-3m", "xlsx") }
     end
   end
 
@@ -135,10 +135,12 @@ class ReportsController < ApplicationController
       format.html
       format.csv do
         authorize :report, :export?
+        audit_export
         send_data three_month_establishments_exporter.to_csv, **arquivo(nome_3m_do_mic, "csv")
       end
       format.xlsx do
         authorize :report, :export?
+        audit_export
         send_data three_month_establishments_exporter.to_xlsx, **arquivo(nome_3m_do_mic, "xlsx")
       end
     end
@@ -181,8 +183,8 @@ class ReportsController < ApplicationController
     # A página só existe na tela; a exportação leva o recorte inteiro e não precisa dela.
     respond_to do |format|
       format.html { load_listing }
-      format.csv { authorize(:report, :export?); send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
-      format.xlsx { authorize(:report, :export?); send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
+      format.csv { authorize(:report, :export?); audit_export; send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
     end
   end
 
@@ -207,8 +209,8 @@ class ReportsController < ApplicationController
 
     respond_to do |format|
       format.html { render partial: "reports/day_companies", layout: false }
-      format.csv { authorize(:report, :export?); send_data day_companies_exporter.to_csv, **arquivo(nome_do_dia, "csv") }
-      format.xlsx { authorize(:report, :export?); send_data day_companies_exporter.to_xlsx, **arquivo(nome_do_dia, "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data day_companies_exporter.to_csv, **arquivo(nome_do_dia, "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data day_companies_exporter.to_xlsx, **arquivo(nome_do_dia, "xlsx") }
     end
   end
 
@@ -313,6 +315,16 @@ class ReportsController < ApplicationController
     @per_page = @listing.per_page
     @total_count = @listing.total_count
     @total_pages = @listing.total_pages
+  end
+
+  # Exportar é a operação de maior alcance da tela: larga a paginação e leva o recorte
+  # inteiro. A trilha guarda o que foi pedido, não o que saiu — repetir o conteúdo aqui
+  # faria da própria auditoria um vazamento.
+  def audit_export
+    Audit.record("report.export", request:,
+      channel: @selected_channel,
+      metadata: { tela: action_name, formato: request.format.symbol.to_s,
+        escopo: Current.access_scope.cache_key })
   end
 
   def load_scope

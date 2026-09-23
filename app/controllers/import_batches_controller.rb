@@ -31,7 +31,9 @@ class ImportBatchesController < ApplicationController
       return
     end
 
-    Operations::ImportFile.call(upload, uploaded_by: Current.user)
+    batch = Operations::ImportFile.call(upload, uploaded_by: Current.user)
+    Audit.record("batch.uploaded", record: batch, request:,
+      metadata: { arquivo: upload.original_filename })
     redirect_to import_batches_path, notice: "Importação enfileirada."
   rescue ActionController::ParameterMissing
     redirect_to import_batches_path, alert: "Selecione um arquivo."
@@ -46,6 +48,8 @@ class ImportBatchesController < ApplicationController
       return
     end
 
+    Audit.record("batch.discarded", record: batch, request:,
+      metadata: { arquivo: batch.source_filename })
     batch.destroy!
     redirect_to import_batches_path, notice: "Lote descartado."
   end

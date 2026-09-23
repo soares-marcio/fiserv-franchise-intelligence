@@ -19,6 +19,7 @@ class PasswordsController < ApplicationController
         must_change_password: false)
       # A troca derruba as outras sessões: se alguém estava dentro com a senha antiga, sai.
       # A sessão de quem trocou é recriada logo em seguida, senão ele se derrubaria sozinho.
+      Audit.record("password.changed", request:)
       Current.user.revoke_sessions!
       start_new_session_for(Current.user)
       redirect_to root_path, notice: "Senha alterada."
