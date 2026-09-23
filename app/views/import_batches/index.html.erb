@@ -152,6 +152,11 @@
               </td>
               <td><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></td>
               <td class="text-right">
+                <%# Lote em revisão não espera em silêncio: o caminho para decidir fica na
+                    própria linha, para quem pode decidir. %>
+                <% if batch.pending_review? && policy(batch).review? %>
+                  <%= link_to "Revisar", review_import_batch_path(batch), class: "btn btn-primary btn-sm" %>
+                <% end %>
                 <% if batch.discardable? %>
                   <%= button_to icon_label("trash", "Descartar"), import_batch_path(batch), method: :delete,
                     class: "btn btn-ghost btn-sm",

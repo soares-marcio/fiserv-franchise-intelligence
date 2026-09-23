@@ -30,6 +30,8 @@ class ImportBatchPolicy < ApplicationPolicy
     return true if user&.super_admin?
     return false if record.nil?
 
+    return true if record.pending_review? && review?
+
     own? || BatchGrant.exists?(user_id: user&.id, import_batch_id: record.id)
   end
 
@@ -49,8 +51,13 @@ class ImportBatchPolicy < ApplicationPolicy
     def resolve
       return scope.all if user&.super_admin?
 
-      scope.where(uploaded_by_id: user&.id)
+      alcance = scope.where(uploaded_by_id: user&.id)
         .or(scope.where(id: BatchGrant.where(user_id: user&.id).select(:import_batch_id)))
+      return alcance unless user&.permitted?(Permission::BATCHES_APPROVE)
+
+      # Quem aprova enxerga também o que está esperando decisão nos Masters do seu escopo —
+      # sem isso, revisar exigiria uma liberação para cada arquivo.
+      alcance.or(scope.where(status: "pending_review", channel_id: AccessScope.for(user).channel_ids))
     end
   end
 end

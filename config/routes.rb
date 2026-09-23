@@ -31,6 +31,11 @@ Rails.application.routes.draw do
     member do
       patch :update_cutoff
       post :reprocess
+      # Revisão de lote em quarentena: a tela mostra o que muda antes de a decisão ser
+      # tomada; aprovar é o que consolida.
+      get :review
+      post :approve
+      post :reject
     end
   end
   resources :establishments, only: %i[index show]

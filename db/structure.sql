@@ -415,8 +415,9 @@ CREATE TABLE public.import_batches (
     reviewed_by_id bigint,
     reviewed_at timestamp(6) without time zone,
     review_note text,
+    review_reasons character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
-    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text])))
+    CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text, ('pending_review'::character varying)::text, ('rejected'::character varying)::text])))
 );
 
 
@@ -425,6 +426,13 @@ CREATE TABLE public.import_batches (
 --
 
 COMMENT ON COLUMN public.import_batches.review_note IS 'Motivo registrado por quem aprovou ou rejeitou o lote';
+
+
+--
+-- Name: COLUMN import_batches.review_reasons; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.import_batches.review_reasons IS 'Motivos que levaram o lote à revisão: sem permissão de aprovar, remoção de ECs, troca de MIC, queda de faturamento';
 
 
 --
@@ -5379,6 +5387,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260922230000'),
 ('20260922190000'),
 ('20260917120000'),
 ('20260916120000'),

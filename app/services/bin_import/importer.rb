@@ -3,8 +3,12 @@ require "roo"
 
 module BinImport
   class Importer
-    def initialize(path, source_filename: nil)
+    # skip_workbook existe para a aprovação, que reusa a consolidação sem ter arquivo em
+    # mãos — o lote já está gravado no banco.
+    def initialize(path, source_filename: nil, skip_workbook: false)
       @path = path
+      return if skip_workbook
+
       @source_filename = source_filename || File.basename(path)
       @workbook = Roo::Excelx.new(path)
     end
@@ -44,16 +48,26 @@ module BinImport
       )
       detect_short_cutoff!(batch)
 
+      # Os snapshots são gravados sempre; o que a revisão decide é se eles passam a valer.
+      # Isso é possível porque as telas só enxergam lotes validados: um lote em revisão não
+      # entra em relatório nenhum, e a comparação com a carteira vigente já pode ser feita.
       ApplicationRecord.transaction do
         persist_raw_rows(batch, rows)
         establishments = persist_map_rows(batch, rows.fetch("Mapa de Clientes BIN"))
         persist_revenue_rows(batch, rows.fetch("Faturamento"), establishments)
         persist_activation_rows(batch, rows.fetch("Ativacao"), establishments)
-        consolidate!(batch)
         detect_anomalies!(batch)
+
+        motivos = BatchReview.new(batch).review_reasons(uploader: batch.uploaded_by)
+        if motivos.any?
+          batch.update!(status: "pending_review", review_reasons: motivos.map(&:to_s))
+          next
+        end
+
+        consolidate!(batch)
         batch.update!(status: "validated")
       end
-      refresh_views!(batch)
+      refresh_views!(batch) if batch.validated?
       batch
     rescue StandardError => e
       batch&.update(status: "failed", validation_errors: [ e.message ])
@@ -348,6 +362,12 @@ module BinImport
         }
       end
       ActivationProposal.insert_all!(activation_rows)
+    end
+
+    # Chamado também pela aprovação de um lote em revisão: é o mesmo caminho, e precisa
+    # ser — aprovar tem de produzir exatamente o que a importação direta produziria.
+    def self.consolidate_batch!(batch)
+      new(nil, skip_workbook: true).send(:consolidate!, batch)
     end
 
     def consolidate!(batch)

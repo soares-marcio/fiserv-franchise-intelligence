@@ -8,7 +8,7 @@ class ImportBatchesController < ApplicationController
   # Uma chave por ação: ver o histórico, enviar arquivo, mexer num lote e descartá-lo são
   # decisões diferentes, e quem concede acesso decide cada uma. As ações sobre um lote
   # específico autorizam o próprio registro, porque a regra também pergunta de quem ele é.
-  before_action :load_batch, only: %i[show destroy update_cutoff reprocess]
+  before_action :load_batch, only: %i[show destroy update_cutoff reprocess review approve reject]
   before_action -> { authorize(@import_batch || :import_batch, "#{action_name}?".to_sym) }
 
   def index
@@ -56,6 +56,27 @@ class ImportBatchesController < ApplicationController
     redirect_to import_batch_path(batch), notice: "Dia de corte atualizado."
   rescue ArgumentError => error
     redirect_to import_batch_path(params[:id]), alert: error.message
+  end
+
+  # A tela que mostra o que muda se este lote passar a valer.
+  def review
+    @review = BatchReview.new(@import_batch)
+  end
+
+  def approve
+    Operations::ReviewBatch.approve(batch: @import_batch, reviewer: Current.user,
+      note: params[:review_note])
+    redirect_to import_batch_path(@import_batch), notice: "Lote aprovado e consolidado."
+  rescue ArgumentError => error
+    redirect_to review_import_batch_path(@import_batch), alert: error.message
+  end
+
+  def reject
+    Operations::ReviewBatch.reject(batch: @import_batch, reviewer: Current.user,
+      note: params[:review_note])
+    redirect_to import_batch_path(@import_batch), notice: "Lote recusado."
+  rescue ArgumentError => error
+    redirect_to review_import_batch_path(@import_batch), alert: error.message
   end
 
   def reprocess
