@@ -89,6 +89,14 @@ A anotação foi desenhada para o restore ser possível: ela se liga ao **CNPJ**
 planilha. Dá para recriar o banco, reimportar as planilhas e restaurar só
 `company_notes` + `action_text_rich_texts` + `active_storage_*` que tudo religa sozinho.
 
+**Desde 09/2026 a lista cresceu**: `users`, `sessions`, `recovery_codes`, `access_grants`,
+`batch_grants` e `audit_events` também não vêm de planilha nenhuma. Restaurar sem elas
+significa reconvidar todo mundo e reinscrever o segundo fator de cada um — e perder a
+trilha, que é o registro de quem fez o quê. As FKs de autoria (`company_notes.author_id`,
+`import_batches.uploaded_by_id`) são nuláveis com `ON DELETE SET NULL` justamente para o
+restore parcial continuar possível: sem os usuários, a anotação volta sem autor em vez de
+falhar.
+
 Fora isso, o schema continua mudando e três comportamentos só aparecem em banco recém-criado
 — os três já quebraram o sistema:
 
@@ -242,9 +250,10 @@ própria.
 
 ## Controle de acesso
 
-O portal ainda opera sem autenticação **própria** por decisão de escopo. Na LAN isso significa
-o que sempre significou: quem alcança `http://fiserv.bin` faz tudo. Postgres e Metabase seguem
-sem exposição fora de máquina ou rede confiável.
+**O portal passou a exigir login em 09/2026** — senha, segundo fator (TOTP) e permissões por
+ator. O que era decisão de escopo ("sem autenticação por enquanto") deixou de valer quando o
+acesso passou a ser externo e outras pessoas entraram. Ver `README.md`, "Quem entra e o que
+cada um vê".
 
 **Desde 22/09/2026 há um endereço público**, `https://manager.melopay.com.br`, servido por
 Cloudflare Tunnel (README, "Acesso pela internet"). O requisito de autenticação para
@@ -253,17 +262,36 @@ publicação externa é cumprido **fora do app**, pelo Cloudflare Access: a pol�
 válida toda rota responde `302` para o login — `/up` inclusive. Três consequências que
 precisam estar na conta de quem mexer nisso:
 
-- **Quem passa pelo gate tem tudo**: ler a carteira inteira, importar planilha e descartar
-  lote (irreversível pela tela). Não há papéis, e a anotação continua sem autor. O controle
-  é a lista de e-mails, e nada mais.
-- **A camada é única**: apagar ou afrouxar a política deixa o portal aberto ao mundo, porque
-  não existe login por trás. Autenticação no Rails segue sendo o caminho para defesa em
-  profundidade — e traria o autor das anotações junto.
+- **Quem passa pelo gate não tem mais tudo**: o que cada um vê é o escopo concedido (Masters
+  e/ou MICs) e o que pode fazer são as chaves marcadas no convite. A anotação e o lote agora
+  têm autor, e a trilha registra quem fez o quê.
+- **A camada deixou de ser única**: com o login do app, apagar a política do Access não abre
+  mais o portal — ele responde a tela de entrada. É o que permite aposentar o Access sem
+  deixar a carteira exposta.
 - **O TLS termina na Cloudflare**: CNPJ e faturamento trafegam em claro dentro da
   infraestrutura deles. É inerente ao túnel; a alternativa seria VPN.
 
-Nada disso muda o app: `force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em
-HTTP puro), e o nome público entra por `RAILS_HOSTS`, não por código.
+`force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em HTTP puro), e o nome
+público entra por `RAILS_HOSTS`, não por código. O cookie de sessão é `secure` só quando a
+requisição é HTTPS (`request.ssl?`), justamente porque os dois caminhos convivem.
+
+**Quatro superfícies não passam pelo `ApplicationController`** e precisam ser lembradas em
+qualquer mudança de autenticação: os controllers do Active Storage (downloads, inclusive o da
+planilha original), o `/cable`, o `NoteAttachmentsController` e o `/up`. As três primeiras
+herdam de `ActiveStorage::BaseController` — um `include` cobre todas; o `/up` fica público de
+propósito, porque é o healthcheck do Compose e do `bin/deploy`.
+
+**O recorte de dados tem uma regra só**, em `Establishment.in_scope`, e o SQL cru deriva o CTE
+dela (`AccessScope#establishments_cte`). Duas definições da mesma regra divergiriam na
+primeira correção feita em uma delas, e a divergência apareceria como dado de outro Master
+numa tela. Pela mesma razão, `ReportScope` recebe `scope:` e não `channel_id:` — quem esquecer
+de migrar um ponto quebra no boot, não em produção. **A chave de cache carrega o escopo**:
+predicado novo com chave velha serviria o dado de um recorte a outro, sem erro nenhum.
+
+**Importação pode parar em revisão.** O portal enxerga um lote por Master, então arquivo
+parcial vira a foto oficial e o que não estiver nele some dos relatórios. Lote em
+`pending_review` tem snapshots gravados mas não é lido por tela nenhuma; aprovar é o que
+consolida, pelo mesmo código da importação direta.
 
 **São duas portas de upload, não uma.** A planilha (`import_batches#create`) valida extensão,
 tamanho e assinatura ZIP; os anexos da anotação entram por

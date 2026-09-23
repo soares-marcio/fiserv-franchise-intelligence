@@ -177,6 +177,97 @@ O que isso implica, e vale ter em conta: existem **duas cópias dos dados reais*
 do Mac não tem porteiro nenhum — vale a mesma regra de sempre, rede confiável. O Mac
 desligado ou dormindo derruba o `fiserv.bin`, e só ele; a produção não depende do Mac.
 
+## Quem entra e o que cada um vê
+
+O portal exige login desde 09/2026. Antes disso ele não tinha autenticação nenhuma, e o
+porteiro era o Cloudflare Access, fora do repositório.
+
+### Entrar
+
+Senha **e** segundo fator (TOTP: Google Authenticator, Authy, 1Password ou o gerenciador do
+celular). A senha certa ainda não é uma sessão — até o código ser respondido não existe
+linha em `sessions`, só um cookie cifrado de cinco minutos. Dez tentativas erradas bloqueiam
+a conta por quinze minutos, e o contador fica no banco, não em cache.
+
+No primeiro acesso a pessoa troca a senha e cadastra o autenticador, recebendo **dez códigos
+de recuperação** mostrados uma única vez. Perdeu o celular e os códigos? Quem administra
+reinicia o segundo fator, e ela cadastra de novo.
+
+### As duas dimensões do acesso
+
+Elas são independentes, e é assim que o convite funciona:
+
+| | |
+| --- | --- |
+| **O que enxerga** | Um ou mais **Masters inteiros** e/ou **MICs específicos**. Sem nenhuma concessão, a pessoa entra e não vê carteira alguma |
+| **O que pode fazer** | As chaves de `Permission` marcadas no convite, listadas abaixo |
+
+O recorte vale em toda parte: relatórios, exportações, listagem de clientes, busca, ficha,
+anotação, lotes e download de arquivo. Dado de outro Master responde **404**, não 403 — dizer
+"existe, mas você não pode" já conta o que não precisa ser contado.
+
+Ressalva registrada: o vínculo EC↔MIC vem da planilha e muda a cada importação, então um
+recorte por MIC acompanha essa mudança. Quem precisa de recorte estável recebe o Master
+inteiro, que usa a chave fixa do estabelecimento.
+
+### Permissões
+
+| Chave | O que libera |
+| --- | --- |
+| `reports_read` | Todas as telas de relatório |
+| `reports_export` | Os botões CSV/XLSX — separado de ver, porque o arquivo larga a paginação e leva o recorte inteiro |
+| `establishments_read` | Lista de clientes, ficha e busca |
+| `notes_read` / `notes_write` | Ler / escrever a anotação do cliente e seus anexos |
+| `batches_read` | Ver lotes e **baixar a planilha enviada**, que é a carteira de um Master num arquivo |
+| `batches_upload` | Enviar planilha |
+| `batches_adjust` | Reprocessar lote e ajustar o dia de corte — só nos próprios envios |
+| `batches_discard` | Descartar lote — idem |
+| `batches_approve` | Decidir importação em revisão |
+| `metabase_read` | A tela do Metabase, que mostra host, porta, banco e usuário de conexão |
+| `users_invite` | Convidar e administrar acessos, e ler a trilha |
+
+### Convidar
+
+**Acessos → Convidar usuário.** O sistema gera a senha provisória e a mostra uma vez, para
+você entregar — não há e-mail configurado no portal. Quem convida **só concede o que tem**:
+nem permissão que não possui, nem Master ou MIC fora do próprio escopo, e não edita quem tem
+mais que ele. Mudar permissão ou escopo, e desativar, derrubam as sessões abertas da pessoa
+na hora.
+
+### Importação com revisão
+
+O portal enxerga **um lote por Master** — o de maior id entre os validados. Um arquivo
+parcial, então, não acrescenta: ele vira a foto oficial, e o que não estiver nele some dos
+relatórios. Por isso o envio pode parar em **revisão**:
+
+- quem enviou não tem `batches_approve`;
+- o arquivo **removeria ECs** da carteira;
+- há ECs mudando de MIC;
+- o faturamento cai muito (comparado só entre arquivos da mesma competência e com cobertura
+  igual ou maior — do contrário a queda é aritmética, não suspeita).
+
+Em revisão o lote **não altera relatório nenhum**: os snapshots estão gravados, mas nenhuma
+tela lê lote que não esteja validado. A tela de revisão mostra o que entra, **o que sairia**,
+quem muda de MIC, CNPJ em mais de um MIC e os números comparados. Aprovar consolida; recusar
+guarda o motivo e o arquivo fica no histórico.
+
+### Trilha
+
+**Trilha** registra entrada, saída, tentativa recusada, falha e uso de código de recuperação,
+troca de senha, cada exportação, envio, aprovação, recusa e descarte de lote, edição de
+anotação e toda mudança de acesso — convite, alteração de permissão ou escopo, reinício do
+segundo fator, desativação. Guarda a ação e o contexto, **nunca o conteúdo** — sem CNPJ, sem faturamento, sem o
+texto das anotações: uma trilha que repete o dado protegido vira um segundo vazamento.
+
+### Primeiro acesso de um banco novo
+
+`ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` fazem o seed criar o super admin no primeiro
+`db:prepare`. Sem as duas, o seed não cria ninguém — e o portal sobe sem ninguém para entrar.
+Rodar de novo não duplica nem devolve a senha do arquivo para quem já escolheu a sua.
+
+**As três chaves `AR_ENCRYPTION_*` cifram o segredo do segundo fator.** Perdê-las significa
+que todo mundo reinscreve o autenticador; guarde-as junto do `SECRET_KEY_BASE`.
+
 ### Acesso pela internet (Cloudflare Tunnel + Access)
 
 Desde **22/09/2026** o portal também atende em **https://manager.melopay.com.br**, para uso
@@ -439,6 +530,12 @@ Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ
 `companies.id`. Dá para reimportar as planilhas num banco novo e restaurar só
 `company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
 sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
+
+**Com o login, a lista de tabelas que não se reconstroem cresceu**: `users`, `sessions`,
+`recovery_codes`, `access_grants`, `batch_grants` e `audit_events`. Restaurar sem elas
+significa reconvidar todo mundo, reinscrever o segundo fator de cada um e perder a trilha.
+As colunas de autoria são nuláveis de propósito: sem os usuários, a anotação volta sem autor
+em vez de falhar.
 
 **Roteiro da migração Mac → berry** (executado em **18/09/2026**, ~15 min de portal fora):
 
