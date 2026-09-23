@@ -51,4 +51,12 @@ Rails.application.routes.draw do
   get "search", to: "search#index", as: :search
   # Trilha de auditoria: leitura de administração.
   resources :audit_events, only: :index
+  # Administração de acessos: convite, permissões, escopo e liberação de lotes.
+  resources :users, except: %i[destroy] do
+    member do
+      post :reset_mfa
+      post :deactivate
+      post :reactivate
+    end
+  end
 end

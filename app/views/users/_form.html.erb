@@ -1,0 +1,88 @@
+<%= form_with model: @user, url: form_url, class: "grid gap-5" do |form| %>
+  <% if @user.errors.any? %>
+    <ul class="grid gap-1 text-sm text-error">
+      <% @user.errors.full_messages.each do |mensagem| %><li><%= mensagem %></li><% end %>
+    </ul>
+  <% end %>
+
+  <section class="surface-card p-6">
+    <p class="section-label">Quem é</p>
+    <div class="mt-3 grid gap-4 sm:grid-cols-2">
+      <label class="form-control">
+        <span class="section-label">Nome</span>
+        <%= form.text_field :name, required: true, class: "input input-bordered w-full" %>
+      </label>
+      <label class="form-control">
+        <span class="section-label">E-mail</span>
+        <%= form.email_field :email_address, required: true, class: "input input-bordered w-full" %>
+      </label>
+    </div>
+    <% if @user.new_record? %>
+      <p class="metric-hint mt-3">
+        A senha provisória é gerada pelo sistema e aparece uma vez, depois de salvar. A
+        pessoa troca no primeiro acesso e cadastra o segundo fator.
+      </p>
+    <% end %>
+  </section>
+
+  <section class="surface-card p-6">
+    <p class="section-label">O que pode fazer</p>
+    <p class="metric-hint mt-1">
+      Você só concede o que você mesmo tem.
+    </p>
+    <% Permission::GROUPS.each do |grupo, chaves| %>
+      <% disponiveis = chaves & @permissions %>
+      <% next if disponiveis.empty? %>
+      <fieldset class="mt-4">
+        <legend class="section-label"><%= grupo %></legend>
+        <div class="mt-2 grid gap-2">
+          <% disponiveis.each do |chave| %>
+            <label class="flex items-start gap-2 text-sm">
+              <%= check_box_tag "permissions[]", chave, @user.permissions.include?(chave),
+                id: "permission_#{chave}", class: "checkbox checkbox-sm mt-0.5" %>
+              <span><%= Permission.label(chave) %></span>
+            </label>
+          <% end %>
+        </div>
+      </fieldset>
+    <% end %>
+  </section>
+
+  <section class="surface-card p-6">
+    <p class="section-label">O que pode ver</p>
+    <p class="metric-hint mt-1">
+      Marque um Master inteiro ou MICs específicos dele. Sem nenhuma marcação, a pessoa
+      entra e não enxerga carteira nenhuma.
+    </p>
+    <%# O MIC de um Master já marcado inteiro é redundante e some ao salvar. %>
+    <div class="mt-4 grid gap-4">
+      <% @channels.each_with_index do |channel, indice| %>
+        <fieldset class="rounded-xl border border-base-300 p-4">
+          <legend class="section-label"><%= channel.name %></legend>
+          <label class="flex items-center gap-2 text-sm font-semibold">
+            <%= check_box_tag "grants[#{indice}][channel_id]", channel.id,
+              @user.access_grants.any? { |g| g.channel_id == channel.id && g.sub_channel_id.nil? },
+              class: "checkbox checkbox-sm" %>
+            Master inteiro
+          </label>
+          <div class="mt-3 grid gap-2 pl-6">
+            <% @sub_channels.select { |mic| mic.channel_id == channel.id }.each_with_index do |mic, posicao| %>
+              <label class="flex items-center gap-2 text-sm">
+                <%= check_box_tag "grants[#{indice}_#{posicao}][sub_channel_id]", mic.id,
+                  @user.access_grants.any? { |g| g.sub_channel_id == mic.id },
+                  class: "checkbox checkbox-sm" %>
+                <%= hidden_field_tag "grants[#{indice}_#{posicao}][channel_id]", channel.id %>
+                <%= mic.name %>
+              </label>
+            <% end %>
+          </div>
+        </fieldset>
+      <% end %>
+    </div>
+  </section>
+
+  <div class="flex gap-3">
+    <%= form.submit @user.new_record? ? "Criar acesso" : "Salvar", class: "btn btn-primary" %>
+    <%= link_to "Cancelar", users_path, class: "btn btn-ghost" %>
+  </div>
+<% end %>

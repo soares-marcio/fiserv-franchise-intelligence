@@ -1,0 +1,47 @@
+<% content_for :title, "Acessos" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Administração</p>
+  <h1 class="page-title">Acessos</h1>
+  <p class="page-description">
+    Quem entra no portal, o que cada um enxerga e o que pode fazer.
+  </p>
+  <% if policy(:user).create? %>
+    <%= link_to "Convidar usuário", new_user_path, class: "btn btn-primary relative z-10 mt-6" %>
+  <% end %>
+</section>
+
+<section class="table-frame mt-5" data-controller="sticky-table">
+  <div class="table-toolbar">
+    <div>
+      <p class="section-label">Pessoas</p>
+      <h2 class="table-title"><%= pluralize(@users.size, "acesso", "acessos") %></h2>
+    </div>
+  </div>
+  <div class="table-scroll" role="region" tabindex="0" aria-label="Acessos do portal">
+    <table class="table batches-table">
+      <colgroup><col style="width: 26%"><col style="width: 22%"><col style="width: 30%"><col style="width: 22%"></colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Nome</th>
+          <th scope="col">Situação</th>
+          <th scope="col">Enxerga</th>
+          <th scope="col">Pode</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @users.each do |user| %>
+          <tr>
+            <td>
+              <%= link_to user.name, user_path(user), class: "link" %>
+              <span class="block text-xs opacity-70"><%= user.email_address %></span>
+            </td>
+            <td><%= user_status_badge(user) %></td>
+            <td class="text-xs"><%= user_scope_summary(user) %></td>
+            <td class="text-xs"><%= user_permissions_summary(user) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>

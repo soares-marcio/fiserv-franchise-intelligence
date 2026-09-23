@@ -1,0 +1,67 @@
+<% content_for :title, @user.name %>
+
+<section class="page-hero">
+  <p class="eyebrow">Acesso</p>
+  <h1 class="page-title"><%= @user.name %></h1>
+  <p class="page-description"><%= @user.email_address %> · <%= user_status_badge(@user) %></p>
+
+  <div class="relative z-10 mt-6 flex flex-wrap gap-3">
+    <% if policy(@user).update? %>
+      <%= link_to "Editar acesso", edit_user_path(@user), class: "btn btn-primary" %>
+      <%= button_to "Reiniciar segundo fator", reset_mfa_user_path(@user), class: "btn btn-outline",
+        form: { data: { turbo_confirm: "A pessoa terá de cadastrar o autenticador de novo. Continuar?" } } %>
+    <% end %>
+    <% if policy(@user).deactivate? && @user.active? %>
+      <%= button_to "Desativar", deactivate_user_path(@user), class: "btn btn-outline",
+        form: { data: { turbo_confirm: "Desativar este acesso? As sessões abertas caem agora." } } %>
+    <% elsif policy(@user).update? && !@user.active? %>
+      <%= button_to "Reativar", reactivate_user_path(@user), class: "btn btn-outline" %>
+    <% end %>
+  </div>
+</section>
+
+<div class="mt-5 grid gap-5 lg:grid-cols-2">
+  <section class="surface-card p-6">
+    <p class="section-label">Enxerga</p>
+    <% if @grants.any? %>
+      <ul class="mt-3 grid gap-2 text-sm">
+        <% @grants.each do |grant| %>
+          <li>
+            <strong><%= grant.channel.name %></strong>
+            <%= grant.sub_channel ? "· #{grant.sub_channel.name}" : "· Master inteiro" %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="metric-hint mt-2">Nenhuma carteira. Esta pessoa entra e não vê dado nenhum.</p>
+    <% end %>
+  </section>
+
+  <section class="surface-card p-6">
+    <p class="section-label">Pode fazer</p>
+    <% if @user.super_admin? %>
+      <p class="metric-hint mt-2">Administrador geral: tudo, em qualquer carteira.</p>
+    <% elsif @user.permissions.any? %>
+      <ul class="mt-3 grid gap-1 text-sm">
+        <% @user.permissions.each do |chave| %><li><%= Permission.label(chave) %></li><% end %>
+      </ul>
+    <% else %>
+      <p class="metric-hint mt-2">Nenhuma permissão marcada.</p>
+    <% end %>
+  </section>
+</div>
+
+<% if @batch_grants.any? %>
+  <section class="surface-card mt-5 p-6">
+    <p class="section-label">Arquivos liberados</p>
+    <p class="metric-hint mt-1">
+      Lotes que esta pessoa vê além dos próprios envios.
+    </p>
+    <ul class="mt-3 grid gap-1 text-sm">
+      <% @batch_grants.each do |grant| %>
+        <li><%= grant.import_batch.source_filename %>
+          <span class="opacity-70">· <%= channel_name(grant.import_batch.channel) %></span></li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>

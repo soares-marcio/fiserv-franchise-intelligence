@@ -43,6 +43,10 @@
         </span>
       <% end %>
       <% end %>
+      <% if policy(:user).index? %>
+        <%= link_to icon_label("storefront", "Acessos", css: "nav-icon"), users_path,
+          class: nav_link_class({ controller: :users }) %>
+      <% end %>
       <% if policy(:audit_event).index? %>
         <%= link_to icon_label("list-bullets", "Trilha", css: "nav-icon"), audit_events_path,
           class: nav_link_class({ controller: :audit_events }) %>
