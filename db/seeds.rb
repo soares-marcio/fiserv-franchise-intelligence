@@ -12,13 +12,19 @@ email = ENV["ADMIN_EMAIL"].presence
 password = ENV["ADMIN_PASSWORD"].presence
 
 if email && password
-  User.find_or_create_by!(email_address: email.strip.downcase) do |user|
-    user.name = ENV.fetch("ADMIN_NAME", "Administrador")
-    user.password = password
-    user.super_admin = true
-    # As duas pendências valem no primeiro acesso: a senha do .env passou por arquivo e por
-    # quem o escreveu, e o segundo fator ainda não existe.
-    user.must_change_password = true
+  begin
+    User.find_or_create_by!(email_address: email.strip.downcase) do |user|
+      user.name = ENV.fetch("ADMIN_NAME", "Administrador")
+      user.password = password
+      user.super_admin = true
+      # As duas pendências valem no primeiro acesso: a senha do .env passou por arquivo e por
+      # quem o escreveu, e o segundo fator ainda não existe.
+      user.must_change_password = true
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    # A mensagem padrão sai como "Translation missing" e não diz qual variável está errada.
+    # As mensagens de validação não repetem o valor da senha — só o motivo.
+    abort("[seed] administrador não criado: #{e.record.errors.full_messages.join('; ')}")
   end
   Rails.logger.info("[seed] administrador #{email} disponível para o primeiro acesso")
 end

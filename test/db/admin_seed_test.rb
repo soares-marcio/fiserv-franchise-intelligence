@@ -36,6 +36,19 @@ class AdminSeedTest < ActiveSupport::TestCase
     assert admin.authenticate("senha-do-env-1234")
   end
 
+  # Senha curta no .env aconteceu na homologação de 28/09/2026: o seed morria com
+  # "Translation missing" e não dizia qual variável estava errada.
+  test "senha curta no .env aborta dizendo o motivo, sem repetir a senha" do
+    ENV["ADMIN_EMAIL"] = "chefe@exemplo.com"
+    ENV["ADMIN_PASSWORD"] = "curta123"
+
+    erro = assert_raises(SystemExit) { Rails.application.load_seed }
+
+    assert_match(/12 caracteres/, erro.message)
+    assert_no_match(/curta123/, erro.message)
+    assert_nil User.find_by(email_address: "chefe@exemplo.com")
+  end
+
   # Rodar de novo não pode criar um segundo administrador nem reescrever a senha de quem já
   # trocou — o seed roda em todo db:prepare.
   test "rodar duas vezes não duplica nem reverte a troca de senha" do

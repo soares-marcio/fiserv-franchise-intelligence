@@ -40,6 +40,11 @@ services:
       RAILS_HOSTS: ${RAILS_HOSTS:-}
       # Só a máquina de homologação define: é o que põe a faixa no topo da tela.
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-}
+      # Primeiro administrador, lido pelo seed no db:prepare de um banco novo. Só o web
+      # roda o seed; sem as variáveis o seed não cria ninguém (ver db/seeds.rb).
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-}
     # O Caddy que serve fiserv.bin roda em outra máquina da LAN e faz proxy para este IP,
     # então a porta precisa ficar no endereço da rede — não em 127.0.0.1 nem em 0.0.0.0.
     ports:
