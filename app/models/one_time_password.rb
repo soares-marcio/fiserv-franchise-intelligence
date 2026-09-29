@@ -28,6 +28,12 @@ class OneTimePassword
     true
   end
 
+  # O código deste instante. Só a homologação o mostra na tela (shared/_staging_otp):
+  # em produção quem o vê é o autenticador da pessoa, e mais ninguém.
+  def current_code
+    totp.now
+  end
+
   private
 
   def totp

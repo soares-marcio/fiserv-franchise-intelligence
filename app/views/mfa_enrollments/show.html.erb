@@ -17,6 +17,8 @@
   <p class="mt-1 break-all font-mono text-xs"><%= Current.user.otp_secret %></p>
 </details>
 
+<%= render "shared/staging_otp", user: Current.user %>
+
 <%= form_with url: mfa_enrollment_path, class: "mt-6 grid gap-4" do |form| %>
   <label class="form-control">
     <span class="section-label">Código gerado pelo aplicativo</span>

@@ -5,6 +5,8 @@
   Abra o aplicativo autenticador e digite o código de seis dígitos.
 </p>
 
+<%= render "shared/staging_otp", user: @user %>
+
 <%= form_with url: mfa_path, class: "mt-6 grid gap-4" do |form| %>
   <label class="form-control">
     <span class="section-label">Código</span>
