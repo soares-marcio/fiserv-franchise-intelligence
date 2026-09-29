@@ -62,7 +62,7 @@ class BatchReviewTest < ActiveSupport::TestCase
   end
 
   test "quem não pode aprovar tem o envio retido mesmo sem remover nada" do
-    convidado = User.create!(email_address: "convidado@exemplo.com", name: "Convidado",
+    convidado = User.create!(organization: default_organization, email_address: "convidado@exemplo.com", name: "Convidado",
       password: Accounts::PASSWORD, permissions: [ Permission::BATCHES_UPLOAD ])
     convidado.access_grants.create!(channel: @canal)
 
@@ -73,7 +73,7 @@ class BatchReviewTest < ActiveSupport::TestCase
   end
 
   test "quem pode aprovar e não remove nada consolida direto, como sempre foi" do
-    operador = User.create!(email_address: "operador@exemplo.com", name: "Operador",
+    operador = User.create!(organization: default_organization, email_address: "operador@exemplo.com", name: "Operador",
       password: Accounts::PASSWORD,
       permissions: [ Permission::BATCHES_UPLOAD, Permission::BATCHES_APPROVE ])
     operador.access_grants.create!(channel: @canal)
@@ -131,9 +131,9 @@ class BatchReviewTest < ActiveSupport::TestCase
   def import_como(autor, lojas: BinWorkbook.default_lojas, filename: "BIN_TESTE_20260812.xlsx")
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-#{filename}")
     BinWorkbook.write(path, lojas:)
-    ImportBatch.create!(source_filename: filename, status: "pending", uploaded_by: autor,
+    ImportBatch.create!(organization: default_organization, source_filename: filename, status: "pending", uploaded_by: autor,
       file_checksum: Digest::SHA256.file(path).hexdigest)
-    BinImport::Importer.new(path, source_filename: filename).call
+    BinImport::Importer.new(path, source_filename: filename, organization: default_organization).call
   ensure
     File.delete(path) if path && File.exist?(path)
   end

@@ -10,7 +10,7 @@ class ErrorMessagesTest < ActiveSupport::TestCase
   test "coluna nova na planilha não recusa o arquivo" do
     path = workbook_with_extra_column("ELEGIBILIDADE D0")
 
-    assert_nothing_raised { BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call }
+    assert_nothing_raised { BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx", organization: default_organization).call }
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -19,7 +19,7 @@ class ErrorMessagesTest < ActiveSupport::TestCase
     path = workbook_without_column("STATUS DO CONTRATO")
 
     erro = assert_raises(ArgumentError) do
-      BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+      BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx", organization: default_organization).call
     end
 
     assert_match "Mapa de Clientes BIN", erro.message

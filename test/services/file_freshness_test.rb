@@ -42,7 +42,7 @@ class FileFreshnessTest < ActiveSupport::TestCase
 
   # Canal sem arquivo nenhum não é sinal verde: a ausência conta como atraso.
   test "canal sem arquivo conta como atrasado" do
-    Channel.create!(name: "SEM ARQUIVO", external_id: "EXT-SEM-ARQUIVO")
+    Channel.create!(organization: default_organization, name: "SEM ARQUIVO", external_id: "EXT-SEM-ARQUIVO")
     freshness = FileFreshness.new
 
     assert_nil freshness.entries.first.received_days
@@ -54,7 +54,7 @@ class FileFreshnessTest < ActiveSupport::TestCase
   private
 
   def canal(nome, recebido:, cobertura:)
-    channel = Channel.create!(name: nome, external_id: "EXT-#{nome}")
+    channel = Channel.create!(organization: default_organization, name: nome, external_id: "EXT-#{nome}")
     batch = ImportBatch.create!(channel:, status: "validated", source_filename: "#{nome}.xlsx",
       file_checksum: SecureRandom.hex(8), created_at: recebido)
     PeriodCoverage.create!(channel_id: channel.id, period: cobertura.beginning_of_month,

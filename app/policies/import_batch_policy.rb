@@ -28,8 +28,9 @@ class ImportBatchPolicy < ApplicationPolicy
 
   private
 
+  # O administrador da organização opera qualquer lote dela como se fosse seu.
   def own?
-    user&.platform_admin? || record&.uploaded_by_id == user&.id
+    user&.platform_admin? || organization_admin_of_record? || record&.uploaded_by_id == user&.id
   end
 
   def reachable?
@@ -39,6 +40,10 @@ class ImportBatchPolicy < ApplicationPolicy
     return true if record.pending_review? && review?
 
     own? || BatchGrant.exists?(user_id: user&.id, import_batch_id: record.id)
+  end
+
+  def organization_admin_of_record?
+    user&.organization_admin? && record&.organization_id == user.organization_id
   end
 
   # Aprovar depende do canal do lote, e não de quem o enviou: quem revisa é o operador
@@ -58,14 +63,20 @@ class ImportBatchPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope
     def resolve
       return scope.all if user&.platform_admin?
+      return scope.none if user.nil?
 
-      alcance = scope.where(uploaded_by_id: user&.id)
-        .or(scope.where(id: BatchGrant.where(user_id: user&.id).select(:import_batch_id)))
-      return alcance unless user&.permitted?(Permission::BATCHES_APPROVE)
+      # A organização recorta primeiro, mesmo para o delegado: um lote liberado por engano
+      # a alguém de fora não atravessa.
+      base = scope.where(organization_id: user.organization_id)
+      return base if user.organization_admin?
+
+      alcance = base.where(uploaded_by_id: user.id)
+        .or(base.where(id: BatchGrant.where(user_id: user.id).select(:import_batch_id)))
+      return alcance unless user.permitted?(Permission::BATCHES_APPROVE)
 
       # Quem aprova enxerga também o que está esperando decisão nos Masters que tem
       # inteiros — sem isso, revisar exigiria uma liberação para cada arquivo.
-      alcance.or(scope.where(status: "pending_review", channel_id: AccessScope.for(user).full_channel_ids))
+      alcance.or(base.where(status: "pending_review", channel_id: AccessScope.for(user).full_channel_ids))
     end
   end
 end

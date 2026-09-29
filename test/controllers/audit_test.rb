@@ -7,7 +7,7 @@ class AuditTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @canal = Channel.create!(external_id: "9911", name: "MASTER DA TRILHA")
+    @canal = Channel.create!(organization: default_organization, external_id: "9911", name: "MASTER DA TRILHA")
     @ator = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::REPORTS_EXPORT,
       Permission::NOTES_READ, Permission::NOTES_WRITE ], channel: @canal, email: "ator@exemplo.com")
   end
@@ -105,9 +105,9 @@ class AuditTest < ActionDispatch::IntegrationTest
   def lote_parcial(canal)
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-parcial.xlsx")
     BinWorkbook.write(path, lojas: BinWorkbook.default_lojas.first(1))
-    ImportBatch.create!(source_filename: "parcial.xlsx", status: "pending",
+    ImportBatch.create!(organization: default_organization, source_filename: "parcial.xlsx", status: "pending",
       file_checksum: Digest::SHA256.file(path).hexdigest)
-    BinImport::Importer.new(path, source_filename: "parcial.xlsx").call
+    BinImport::Importer.new(path, source_filename: "parcial.xlsx", organization: default_organization).call
   ensure
     File.delete(path) if path && File.exist?(path)
   end

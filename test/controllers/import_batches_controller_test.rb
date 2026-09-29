@@ -184,7 +184,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "lote sem arquivo anexado marca a falha e mostra o motivo na tela" do
-    batch = ImportBatch.create!(
+    batch = ImportBatch.create!(organization: default_organization,
       source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "pending"
     )
 
@@ -216,7 +216,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "avisa que a importação está em curso e que a tela atualiza sozinha" do
-    ImportBatch.create!(
+    ImportBatch.create!(organization: default_organization,
       source_filename: "em-curso.xlsx", file_checksum: "checksum-em-curso", status: "pending"
     )
 
@@ -228,7 +228,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "avisa quando um lote pendente passou do tempo esperado" do
-    batch = ImportBatch.create!(
+    batch = ImportBatch.create!(organization: default_organization,
       source_filename: "travado.xlsx", file_checksum: "checksum-travado", status: "pending"
     )
     batch.update_column(:created_at, 20.minutes.ago)
@@ -240,7 +240,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "primeira dobra mostra a última importação e o motivo da falha" do
-    batch = ImportBatch.create!(
+    batch = ImportBatch.create!(organization: default_organization,
       source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "failed",
       validation_errors: [ "Abas ausentes: Faturamento" ]
     )
@@ -261,7 +261,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   test "a linha da tabela traz a mensagem limitada, com o texto inteiro no title" do
     inteiro = "A aba \"Mapa de Clientes BIN\" está sem a coluna \"REPORT_ID\". " \
       "No lugar apareceu \"ELEGIBILIDADE\"."
-    ImportBatch.create!(source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado",
+    ImportBatch.create!(organization: default_organization, source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado",
       status: "failed", validation_errors: [ inteiro ])
 
     get import_batches_path
@@ -310,7 +310,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "descarta lote que falhou antes de gravar dados" do
-    batch = ImportBatch.create!(
+    batch = ImportBatch.create!(organization: default_organization,
       source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado", status: "failed",
       validation_errors: [ "Abas ausentes: Faturamento" ]
     )
@@ -347,7 +347,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   # Quando falha, o usuário precisa reportar ao administrador sem inventar: a tela mostra a
   # mensagem inteira e um bloco pronto para copiar, com o que identifica o lote.
   test "a tela de importação traz o relato da falha pronto para copiar" do
-    batch = ImportBatch.create!(
+    batch = ImportBatch.create!(organization: default_organization,
       source_filename: "BIN_TESTE_20260903.xlsx", file_checksum: "abc123def456789",
       status: "failed",
       validation_errors: [ "A aba \"Mapa de Clientes BIN\" está sem a coluna \"CNPJ\"." ]
@@ -366,7 +366,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "lote importado não mostra bloco de falha" do
-    ImportBatch.create!(source_filename: "ok.xlsx", file_checksum: "ok123", status: "validated")
+    ImportBatch.create!(organization: default_organization, source_filename: "ok.xlsx", file_checksum: "ok123", status: "validated")
 
     get import_batches_path
 

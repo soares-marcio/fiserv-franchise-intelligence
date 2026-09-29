@@ -6,7 +6,7 @@ class ImportBinFileJobTest < ActiveJob::TestCase
   setup do
     @path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-BIN_TESTE_20260811.xlsx")
     BinWorkbook.write(@path)
-    @batch = Operations::ImportFile.call(upload)
+    @batch = Operations::ImportFile.call(upload, organization: default_organization)
   end
 
   teardown do

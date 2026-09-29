@@ -8,4 +8,9 @@ class Current < ActiveSupport::CurrentAttributes
   def access_scope
     @access_scope ||= AccessScope.for(user)
   end
+
+  # Nula para a conta da plataforma e para quem não entrou.
+  def organization
+    user&.organization
+  end
 end

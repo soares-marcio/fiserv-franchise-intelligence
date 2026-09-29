@@ -128,10 +128,10 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
   test "recusa a mesma planilha duas vezes pelo checksum" do
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-BIN_TESTE_20260811.xlsx")
     BinWorkbook.write(path, lojas: @lojas)
-    BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+    BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx", organization: default_organization).call
 
     error = assert_raises(ArgumentError) do
-      BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+      BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx", organization: default_organization).call
     end
     assert_match(/já foi importado antes/, error.message)
     assert_match(/exporte de novo da origem/, error.message)
@@ -160,7 +160,7 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
       package.serialize(path.to_s)
     end
 
-    error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
+    error = assert_raises(ArgumentError) { BinImport::Importer.new(path, organization: default_organization).call }
     assert_match(/não tem as abas/, error.message)
     assert_match(/"Faturamento"/, error.message)
     assert_match(/Abas encontradas: "Planilha1"/, error.message)
@@ -185,7 +185,7 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
       package.serialize(path.to_s)
     end
 
-    batch = BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx").call
+    batch = BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx", organization: default_organization).call
 
     assert_equal "validated", batch.status
     assert_equal @lojas.size, MapSnapshot.count
@@ -206,7 +206,7 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
       package.serialize(path.to_s)
     end
 
-    error = assert_raises(ArgumentError) { BinImport::Importer.new(path).call }
+    error = assert_raises(ArgumentError) { BinImport::Importer.new(path, organization: default_organization).call }
     # A mensagem diz a aba, a coluna que falta, a que apareceu no lugar e o que fazer.
     assert_match(/aba "Faturamento"/, error.message)
     assert_match(/"HIERARQUIA"/, error.message)
@@ -246,7 +246,7 @@ class BinImport::ImporterTest < ActiveSupport::TestCase
   test "arquivo de referência da Fiserv, quando presente no disco" do
     skip "planilha de referência não está no disco" unless File.exist?(REFERENCE_FILE)
 
-    batch = BinImport::Importer.new(REFERENCE_FILE).call
+    batch = BinImport::Importer.new(REFERENCE_FILE, organization: default_organization).call
 
     assert_equal "validated", batch.status
     assert_equal Date.new(2026, 7, 1), batch.previous_period

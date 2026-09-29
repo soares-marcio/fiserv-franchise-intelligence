@@ -2,7 +2,7 @@ require "test_helper"
 
 class RecoveryCodeTest < ActiveSupport::TestCase
   setup do
-    @user = User.create!(email_address: "recupera@exemplo.com", name: "R", password: "senha-bem-longa-1")
+    @user = User.create!(organization: default_organization, email_address: "recupera@exemplo.com", name: "R", password: "senha-bem-longa-1")
   end
 
   test "gera dez códigos legíveis, guardados só como digest" do

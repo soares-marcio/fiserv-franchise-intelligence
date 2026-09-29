@@ -10,6 +10,9 @@ module Operations
 
     def initialize(attrs)
       @attrs = attrs.to_h.stringify_keys
+      # Cadastro manual também cria Master: precisa saber de que organização ele é.
+      @organization = @attrs.delete("organization")
+      raise ArgumentError, "Cadastro manual sem organização: informe a organização dona do EC." if @organization.nil?
     end
 
     def call
@@ -17,14 +20,14 @@ module Operations
       validate_competencies!
       rows = sheet_rows
       BinImport::Validator.new(rows).validate_identity!
-      channel = BinImport::ChannelResolver.call(report_id:, name: channel_name)
+      channel = BinImport::ChannelResolver.call(report_id:, name: channel_name, organization: @organization)
       BinImport::IdentityGuard.assert_existing!(channel, rows)
 
       batch = nil
       ApplicationRecord.transaction do
         template = BinImport::Template.register!
         batch = ImportBatch.create!(
-          channel:, import_template: template, source_filename: "manual",
+          channel:, organization: @organization, import_template: template, source_filename: "manual",
           file_checksum: checksum, previous_period:, current_period:,
           current_month_cutoff_day: cutoff_day, status: "pending"
         )

@@ -5,8 +5,12 @@ module BinImport
   class Importer
     # skip_workbook existe para a aprovação, que reusa a consolidação sem ter arquivo em
     # mãos — o lote já está gravado no banco.
-    def initialize(path, source_filename: nil, skip_workbook: false)
+    # A organização vem do lote quando ele nasceu pela tela (ImportFile já a gravou) e do
+    # parâmetro quando o import é por console ou teste. Sem nenhuma das duas não há como
+    # saber de quem é o Master que o arquivo pode criar.
+    def initialize(path, source_filename: nil, organization: nil, skip_workbook: false)
       @path = path
+      @organization = organization
       return if skip_workbook
 
       @source_filename = source_filename || File.basename(path)
@@ -24,10 +28,13 @@ module BinImport
 
       template = Template.register!(@workbook)
       rows = Template::SHEETS.to_h { |sheet| [ sheet, rows_for(sheet) ] }
-      channel = resolve_channel!(rows.fetch("Mapa de Clientes BIN"))
       batch = ImportBatch.find_or_initialize_by(file_checksum: checksum)
+      organization = batch.organization || @organization || batch.uploaded_by&.organization
+      raise ArgumentError, "Importação sem organização: informe a organização dona do arquivo." if organization.nil?
+
+      channel = resolve_channel!(rows.fetch("Mapa de Clientes BIN"), organization:)
       batch.assign_attributes(
-        channel:, import_template: template, source_filename: @source_filename,
+        channel:, organization:, import_template: template, source_filename: @source_filename,
         source_file_date: source_file_date, status: "pending", validation_errors: []
       )
       batch.save!
@@ -101,7 +108,7 @@ module BinImport
       end
     end
 
-    def resolve_channel!(map_rows)
+    def resolve_channel!(map_rows, organization:)
       report_ids = map_rows.pluck("REPORT_ID").compact.map(&:to_s).uniq
       canals = map_rows.pluck("CANAL").compact.map(&:to_s).reject(&:blank?).uniq
       unless report_ids.one?
@@ -115,7 +122,7 @@ module BinImport
           "Cada arquivo cobre uma carteira só; separe os canais em arquivos diferentes."
       end
 
-      ChannelResolver.call(report_id: report_ids.first, name: canals.first)
+      ChannelResolver.call(report_id: report_ids.first, name: canals.first, organization:)
     end
 
     def source_file_date

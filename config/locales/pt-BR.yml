@@ -11,6 +11,7 @@ pt-BR:
       confirmation: "não confere"
       too_short: "precisa de ao menos %{count} caracteres"
       too_long: "passa de %{count} caracteres"
+      required: "é obrigatório"
   activerecord:
     errors:
       messages:

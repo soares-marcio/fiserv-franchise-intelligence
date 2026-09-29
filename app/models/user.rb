@@ -7,6 +7,10 @@ class User < ApplicationRecord
   has_many :access_grants, dependent: :destroy
   has_many :batch_grants, dependent: :destroy
   belongs_to :created_by, class_name: "User", optional: true
+  # A conta da plataforma não pertence a organização nenhuma; toda outra pertence a uma.
+  # O banco tem o mesmo CHECK (users_platform_or_organization); aqui a mensagem é legível.
+  belongs_to :organization, optional: true
+  validate :platform_or_organization
 
   # O segredo do TOTP é o único dado do portal cifrado em repouso: com ele, quem alcança o
   # banco gera códigos válidos e passa pelo segundo fator.
@@ -42,10 +46,11 @@ class User < ApplicationRecord
   def locked? = locked_until.present? && locked_until.future?
   def mfa_enabled? = mfa_enabled_at.present?
 
-  # Super admin não recebe chave a chave: pode tudo, por definição. Guardar a lista inteira
-  # nele criaria dois lugares para acrescentar permissão nova.
+  # Quem administra — a plataforma ou a própria organização — não recebe chave a chave: pode
+  # tudo, por definição. Guardar a lista inteira criaria dois lugares para acrescentar
+  # permissão nova.
   def permitted?(key)
-    platform_admin? || permissions.include?(key)
+    platform_admin? || organization_admin? || permissions.include?(key)
   end
 
   def unused_recovery_codes = recovery_codes.where(used_at: nil)
@@ -81,6 +86,15 @@ class User < ApplicationRecord
   end
 
   private
+
+  def platform_or_organization
+    if platform_admin?
+      errors.add(:organization, "a conta da plataforma não pertence a organização nenhuma") if organization_id.present?
+      errors.add(:organization_admin, "a conta da plataforma não administra organização") if organization_admin?
+    elsif organization_id.nil?
+      errors.add(:organization, "é obrigatória para quem não é da plataforma")
+    end
+  end
 
   def permissions_must_be_known
     desconhecidas = permissions - Permission::KEYS

@@ -80,7 +80,8 @@ CREATE TABLE public.access_grants (
     sub_channel_id bigint,
     created_by_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    organization_id bigint NOT NULL
 );
 
 
@@ -416,6 +417,7 @@ CREATE TABLE public.import_batches (
     reviewed_at timestamp(6) without time zone,
     review_note text,
     review_reasons character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    organization_id bigint NOT NULL,
     CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
     CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text, ('pending_review'::character varying)::text, ('rejected'::character varying)::text])))
 );
@@ -1572,7 +1574,8 @@ CREATE TABLE public.channels (
     external_id character varying NOT NULL,
     name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    organization_id bigint NOT NULL
 );
 
 
@@ -2067,6 +2070,46 @@ CREATE SEQUENCE public.monthly_volumes_id_seq
 --
 
 ALTER SEQUENCE public.monthly_volumes_id_seq OWNED BY public.monthly_volumes.id;
+
+
+--
+-- Name: organizations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.organizations (
+    id bigint NOT NULL,
+    uuid uuid DEFAULT gen_random_uuid() NOT NULL,
+    name character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT organizations_name_not_blank CHECK (((name IS NULL) OR (length(btrim((name)::text)) > 0)))
+);
+
+
+--
+-- Name: COLUMN organizations.name; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.organizations.name IS 'Nulo até o administrador da organização a nomear no primeiro acesso';
+
+
+--
+-- Name: organizations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.organizations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: organizations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.organizations_id_seq OWNED BY public.organizations.id;
 
 
 --
@@ -2748,8 +2791,11 @@ CREATE TABLE public.users (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     provisional_password text,
+    organization_id bigint,
+    organization_admin boolean DEFAULT false NOT NULL,
     CONSTRAINT users_email_downcased CHECK (((email_address)::text = lower((email_address)::text))),
-    CONSTRAINT users_permissions_known CHECK ((permissions <@ ARRAY['reports_read'::character varying, 'reports_export'::character varying, 'establishments_read'::character varying, 'notes_read'::character varying, 'notes_write'::character varying, 'batches_read'::character varying, 'batches_upload'::character varying, 'batches_adjust'::character varying, 'batches_discard'::character varying, 'batches_approve'::character varying, 'metabase_read'::character varying, 'users_invite'::character varying]))
+    CONSTRAINT users_permissions_known CHECK ((permissions <@ ARRAY['reports_read'::character varying, 'reports_export'::character varying, 'establishments_read'::character varying, 'notes_read'::character varying, 'notes_write'::character varying, 'batches_read'::character varying, 'batches_upload'::character varying, 'batches_adjust'::character varying, 'batches_discard'::character varying, 'batches_approve'::character varying, 'metabase_read'::character varying, 'users_invite'::character varying])),
+    CONSTRAINT users_platform_or_organization CHECK (((platform_admin AND (organization_id IS NULL) AND (NOT organization_admin)) OR ((NOT platform_admin) AND (organization_id IS NOT NULL))))
 );
 
 
@@ -2772,6 +2818,13 @@ COMMENT ON COLUMN public.users.otp_last_used_at IS 'Instante do último código 
 --
 
 COMMENT ON COLUMN public.users.provisional_password IS 'Senha provisória do convite, cifrada; apagada quando a pessoa troca a senha';
+
+
+--
+-- Name: COLUMN users.organization_admin; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.organization_admin IS 'Administra a própria organização inteira; só a plataforma atribui';
 
 
 --
@@ -2966,6 +3019,13 @@ ALTER TABLE ONLY public.map_snapshots ALTER COLUMN id SET DEFAULT nextval('publi
 --
 
 ALTER TABLE ONLY public.monthly_volumes ALTER COLUMN id SET DEFAULT nextval('public.monthly_volumes_id_seq'::regclass);
+
+
+--
+-- Name: organizations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations ALTER COLUMN id SET DEFAULT nextval('public.organizations_id_seq'::regclass);
 
 
 --
@@ -3289,6 +3349,14 @@ ALTER TABLE ONLY public.map_snapshots
 
 ALTER TABLE ONLY public.monthly_volumes
     ADD CONSTRAINT monthly_volumes_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organizations
+    ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
 
 
 --
@@ -3643,6 +3711,13 @@ CREATE INDEX index_access_grants_on_created_by_id ON public.access_grants USING 
 
 
 --
+-- Name: index_access_grants_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_access_grants_on_organization_id ON public.access_grants USING btree (organization_id);
+
+
+--
 -- Name: index_access_grants_on_sub_channel_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3853,10 +3928,24 @@ CREATE UNIQUE INDEX index_channels_on_external_id ON public.channels USING btree
 
 
 --
+-- Name: index_channels_on_id_and_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_channels_on_id_and_organization_id ON public.channels USING btree (id, organization_id);
+
+
+--
 -- Name: index_channels_on_name; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_channels_on_name ON public.channels USING gin (name public.gin_trgm_ops);
+
+
+--
+-- Name: index_channels_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_channels_on_organization_id ON public.channels USING btree (organization_id);
 
 
 --
@@ -4077,6 +4166,13 @@ CREATE INDEX index_import_batches_on_import_template_id ON public.import_batches
 
 
 --
+-- Name: index_import_batches_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_import_batches_on_organization_id ON public.import_batches USING btree (organization_id);
+
+
+--
 -- Name: index_import_batches_on_reviewed_by_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4263,6 +4359,20 @@ CREATE INDEX index_monthly_volumes_on_establishment_id ON public.monthly_volumes
 --
 
 CREATE INDEX index_monthly_volumes_on_import_batch_id ON public.monthly_volumes USING btree (import_batch_id);
+
+
+--
+-- Name: index_organizations_on_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_organizations_on_name ON public.organizations USING btree (name);
+
+
+--
+-- Name: index_organizations_on_uuid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_organizations_on_uuid ON public.organizations USING btree (uuid);
 
 
 --
@@ -4693,6 +4803,20 @@ CREATE UNIQUE INDEX index_users_on_email_address ON public.users USING btree (em
 
 
 --
+-- Name: index_users_on_id_and_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_users_on_id_and_organization_id ON public.users USING btree (id, organization_id);
+
+
+--
+-- Name: index_users_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_users_on_organization_id ON public.users USING btree (organization_id);
+
+
+--
 -- Name: index_users_on_uuid; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -4805,11 +4929,27 @@ ALTER INDEX public.index_daily_revenues_on_import_batch_id ATTACH PARTITION publ
 
 
 --
+-- Name: access_grants access_grants_channel_in_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT access_grants_channel_in_organization FOREIGN KEY (channel_id, organization_id) REFERENCES public.channels(id, organization_id);
+
+
+--
 -- Name: access_grants access_grants_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.access_grants
     ADD CONSTRAINT access_grants_channel_matches_sub_channel FOREIGN KEY (sub_channel_id, channel_id) REFERENCES public.sub_channels(id, channel_id);
+
+
+--
+-- Name: access_grants access_grants_user_in_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT access_grants_user_in_organization FOREIGN KEY (user_id, organization_id) REFERENCES public.users(id, organization_id);
 
 
 --
@@ -5109,6 +5249,14 @@ ALTER TABLE ONLY public.monthly_volumes
 
 
 --
+-- Name: import_batches fk_rails_6f33aec93c; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_rails_6f33aec93c FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
 -- Name: daily_revenue_revisions fk_rails_727a551ec4; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5245,6 +5393,14 @@ ALTER TABLE ONLY public.solid_queue_batch_executions
 
 
 --
+-- Name: channels fk_rails_bfcfceb5ef; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.channels
+    ADD CONSTRAINT fk_rails_bfcfceb5ef FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
 -- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5309,11 +5465,27 @@ ALTER TABLE ONLY public.recovery_codes
 
 
 --
+-- Name: access_grants fk_rails_d1c132e7ca; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.access_grants
+    ADD CONSTRAINT fk_rails_d1c132e7ca FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
 -- Name: audit_events fk_rails_d27dff91d1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.audit_events
     ADD CONSTRAINT fk_rails_d27dff91d1 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: users fk_rails_d7b9ff90af; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT fk_rails_d7b9ff90af FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
 
 
 --
@@ -5373,6 +5545,14 @@ ALTER TABLE ONLY public.monthly_volumes_consolidated
 
 
 --
+-- Name: import_batches import_batches_channel_in_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT import_batches_channel_in_organization FOREIGN KEY (channel_id, organization_id) REFERENCES public.channels(id, organization_id);
+
+
+--
 -- Name: map_snapshots map_snapshots_channel_matches_sub_channel; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5395,6 +5575,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930110000'),
 ('20260930100000'),
 ('20260929120000'),
 ('20260922230000'),

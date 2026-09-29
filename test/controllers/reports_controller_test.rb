@@ -159,7 +159,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
   test "MIC de outro Master que o escolhido também é 404" do
     import_synthetic_workbook(lojas: lojas_com_oferta)
-    outro = Channel.create!(external_id: "ZZ", name: "CANAL Z")
+    outro = Channel.create!(organization: default_organization, external_id: "ZZ", name: "CANAL Z")
     mic_de_outro = outro.sub_channels.create!(name: "MIC ZETA")
 
     do_arquivo = SubChannel.find_by!(name: "MIC ALFA").channel
@@ -863,8 +863,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "seleciona um Master e o mantém no filtro" do
-    selected = Channel.create!(external_id: "1", name: "CANAL A")
-    Channel.create!(external_id: "2", name: "CANAL B")
+    selected = Channel.create!(organization: default_organization, external_id: "1", name: "CANAL A")
+    Channel.create!(organization: default_organization, external_id: "2", name: "CANAL B")
 
     get reports_path(channel_id: selected.uuid)
 
@@ -1461,7 +1461,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   end
 
   def seed_subchannel_revenue(template)
-    channel = Channel.create!(external_id: "A", name: "CANAL A")
+    channel = Channel.create!(organization: default_organization, external_id: "A", name: "CANAL A")
     company = Company.create!(cnpj: "12345678000191")
     establishment = Establishment.create!(ec: "11111111", company:, channel:)
     sub_channel = channel.sub_channels.create!(name: "MIC A")

@@ -2,7 +2,7 @@ require "test_helper"
 
 class SessionTest < ActiveSupport::TestCase
   setup do
-    @user = User.create!(email_address: "sessao@exemplo.com", name: "Sessão", password: "senha-bem-longa-1")
+    @user = User.create!(organization: default_organization, email_address: "sessao@exemplo.com", name: "Sessão", password: "senha-bem-longa-1")
   end
 
   test "expira por inatividade e por tempo absoluto" do

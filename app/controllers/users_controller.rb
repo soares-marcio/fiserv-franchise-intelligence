@@ -118,7 +118,7 @@ class UsersController < ApplicationController
     escopo = Current.access_scope
     @channels = escopo.everything? ? Channel.order(:name) : Channel.where(id: escopo.channel_ids).order(:name)
     @sub_channels = SubChannel.where(channel_id: @channels.select(:id)).order(:name)
-    @permissions = Current.user.platform_admin? ? Permission::KEYS : Current.user.permissions
+    @permissions = Permission::KEYS.select { |chave| Current.user.permitted?(chave) }
   end
 
   def user_attributes

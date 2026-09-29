@@ -6,7 +6,10 @@ module Operations
   # não divergirem com o tempo.
   class SaveUser
     def self.create(attributes:, permissions:, grants:, actor:)
-      user = User.new(attributes.merge(created_by: actor, must_change_password: true))
+      # O convidado nasce na organização de quem convida; o papel de administrador da
+      # organização nunca vem daqui (só a plataforma o atribui, por outro caminho).
+      user = User.new(attributes.merge(created_by: actor, must_change_password: true,
+        organization: actor.organization))
       user.permissions = allowed_permissions(permissions, actor)
       apply(user:, grants:, actor:, senha_provisoria: true)
     end
@@ -41,12 +44,11 @@ module Operations
     end
     private_class_method :apply
 
-    # Ninguém concede permissão que não tem. O super admin passa direto porque tem todas.
+    # Ninguém concede permissão que não tem — e "ter" é o que permitted? diz, então quem
+    # administra passa direto porque tem todas.
     def self.allowed_permissions(permissions, actor)
       pedidas = Array(permissions).map(&:to_s) & Permission::KEYS
-      return pedidas if actor.platform_admin?
-
-      pedidas & actor.permissions
+      pedidas.select { |chave| actor.permitted?(chave) }
     end
     private_class_method :allowed_permissions
 

@@ -11,9 +11,21 @@ module Accounts
   # valor estável deixa o teste legível.
   OTP_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP".freeze
 
-  # Ator que pode tudo. É o padrão dos testes que não falam de permissão: eles descrevem
-  # telas e números, não autorização.
+  # A organização de toda a suíte: Masters, lotes e contas comuns nascem nela, a menos que
+  # o teste diga outra coisa. Tem nome de propósito — sem nome, o onboarding redirecionaria
+  # toda requisição do administrador para a tela de nomear.
+  def default_organization
+    @default_organization ||= Organization.find_or_create_by!(name: "Organização de Teste")
+  end
+
+  # Ator que pode tudo **na organização padrão**: o administrador dela. É o padrão dos
+  # testes que não falam de permissão: eles descrevem telas e números, não autorização.
   def admin_user(email: "chefe@exemplo.com", **atributos)
+    create_user(email:, organization_admin: true, **atributos)
+  end
+
+  # A conta da plataforma: cria organizações e não vê dado nenhum.
+  def platform_admin_user(email: "plataforma@exemplo.com", **atributos)
     create_user(email:, platform_admin: true, **atributos)
   end
 
@@ -30,11 +42,18 @@ module Accounts
   end
 
   def create_user(email:, name: "Teste", permissions: [], **atributos)
+    # A conta da plataforma não tem organização; toda outra nasce na padrão.
+    atributos = { organization: default_organization }.merge(atributos) unless atributos[:platform_admin]
     User.create!(
       email_address: email, name:, password: PASSWORD, permissions:,
       otp_secret: OTP_SECRET, mfa_enabled_at: Time.current, must_change_password: false,
       **atributos
     )
+  end
+
+  # A organização padrão inteira — o que o administrador dela enxerga.
+  def escopo_da_organizacao(organization = default_organization)
+    AccessScope.organization_wide(organization)
   end
 
   # Escopo de um Master inteiro — o que a maioria dos testes de serviço quer dizer quando

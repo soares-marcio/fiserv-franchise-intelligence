@@ -27,7 +27,7 @@ class ImportBatchTest < ActiveSupport::TestCase
   # Lote pendente é importação em curso até o prazo; depois dele é worker parado, e a
   # diferença é o que a tela usa para avisar em vez de deixar o usuário esperando.
   test "lote pendente vira travado depois do prazo" do
-    batch = ImportBatch.create!(file_checksum: "pendente", source_filename: "a.xlsx", status: "pending")
+    batch = ImportBatch.create!(organization: default_organization, file_checksum: "pendente", source_filename: "a.xlsx", status: "pending")
 
     assert_predicate batch, :running?
     assert_not batch.stuck?
@@ -46,7 +46,7 @@ class ImportBatchTest < ActiveSupport::TestCase
   end
 
   test "só lote falho e sem linhas gravadas pode ser descartado" do
-    failed = ImportBatch.create!(file_checksum: "falho", source_filename: "a.xlsx", status: "failed")
+    failed = ImportBatch.create!(organization: default_organization, file_checksum: "falho", source_filename: "a.xlsx", status: "failed")
 
     assert_predicate failed, :discardable?
     assert_not import_synthetic_workbook.discardable?

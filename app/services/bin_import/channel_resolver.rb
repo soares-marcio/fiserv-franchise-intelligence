@@ -7,7 +7,8 @@ module BinImport
 
     # O REPORT_ID é a identidade do canal. Sem CANAL na planilha, um REPORT_ID já conhecido
     # mantém o nome que tem — uma planilha incompleta não pode renomear a carteira.
-    def self.call(report_id:, name:)
+    # Um Master novo nasce dentro da organização de quem o traz.
+    def self.call(report_id:, name:, organization:)
       channel = Channel.find_by(external_id: report_id)
       return channel if channel && name.blank?
 
@@ -18,7 +19,7 @@ module BinImport
           "confira se o CANAL da planilha está correto."
       end
 
-      channel || Channel.create!(external_id: report_id, name: resolved)
+      channel || Channel.create!(external_id: report_id, name: resolved, organization:)
     end
   end
 end

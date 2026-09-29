@@ -7,7 +7,7 @@ class BatchAccessTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @canal = Channel.create!(external_id: "4444", name: "MASTER DOS LOTES")
+    @canal = Channel.create!(organization: default_organization, external_id: "4444", name: "MASTER DOS LOTES")
     @dono = scoped_user(permissions: todas_de_lote, channel: @canal, email: "dono@exemplo.com")
     @colega = scoped_user(permissions: todas_de_lote, channel: @canal, email: "colega@exemplo.com")
 
@@ -187,8 +187,8 @@ end
 # antes de gravar qualquer linha.
 class BatchUploadScopeTest < ActiveSupport::TestCase
   test "planilha de Master fora do escopo é recusada com mensagem clara" do
-    outro = Channel.create!(external_id: "3333", name: "MASTER ALHEIO")
-    autor = User.create!(email_address: "limitado@exemplo.com", name: "Limitado",
+    outro = Channel.create!(organization: default_organization, external_id: "3333", name: "MASTER ALHEIO")
+    autor = User.create!(organization: default_organization, email_address: "limitado@exemplo.com", name: "Limitado",
       password: Accounts::PASSWORD, permissions: [ Permission::BATCHES_UPLOAD ])
     autor.access_grants.create!(channel: outro)
 
@@ -204,9 +204,9 @@ class BatchUploadScopeTest < ActiveSupport::TestCase
   # O canal é criado antes com a identidade da planilha sintética, para o MIC existir e o
   # resolvedor reaproveitá-lo.
   test "com um MIC só do Master, o envio é recusado antes de gravar qualquer linha" do
-    canal = Channel.create!(external_id: BinWorkbook::REPORT_ID, name: BinWorkbook::CANAL)
+    canal = Channel.create!(organization: default_organization, external_id: BinWorkbook::REPORT_ID, name: BinWorkbook::CANAL)
     mic = SubChannel.create!(channel: canal, name: "MIC ALFA")
-    autor = User.create!(email_address: "parcial@exemplo.com", name: "Parcial",
+    autor = User.create!(organization: default_organization, email_address: "parcial@exemplo.com", name: "Parcial",
       password: Accounts::PASSWORD, permissions: [ Permission::BATCHES_UPLOAD ])
     autor.access_grants.create!(channel: canal, sub_channel: mic)
 
@@ -219,7 +219,7 @@ class BatchUploadScopeTest < ActiveSupport::TestCase
   end
 
   test "com o Master no escopo, a importação segue normalmente" do
-    autor = User.create!(email_address: "autorizado@exemplo.com", name: "Autorizado",
+    autor = User.create!(organization: default_organization, email_address: "autorizado@exemplo.com", name: "Autorizado",
       password: Accounts::PASSWORD, permissions: [ Permission::BATCHES_UPLOAD ])
 
     # O canal nasce no próprio import; a concessão é dada depois, e o segundo envio passa.
@@ -239,7 +239,7 @@ class BatchUploadScopeTest < ActiveSupport::TestCase
     BinWorkbook.write(path)
     ImportBatch.create!(source_filename: filename, status: "pending", uploaded_by: autor,
       file_checksum: Digest::SHA256.file(path).hexdigest)
-    BinImport::Importer.new(path, source_filename: filename).call
+    BinImport::Importer.new(path, source_filename: filename, organization: default_organization).call
   ensure
     File.delete(path) if path && File.exist?(path)
   end

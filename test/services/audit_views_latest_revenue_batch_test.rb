@@ -3,7 +3,7 @@ require "test_helper"
 class AuditViewsLatestRevenueBatchTest < ActiveSupport::TestCase
   test "cadastro só de mapa não esconde o último lote de faturamento" do
     template = BinImport::Template.register!
-    channel = Channel.create!(external_id: "1478", name: "MASTER")
+    channel = Channel.create!(organization: default_organization, external_id: "1478", name: "MASTER")
     sub_channel = channel.sub_channels.create!(name: "MIC A")
     company = Company.create!(cnpj: "12345678000191")
     establishment = Establishment.create!(ec: "11111111", company:, channel:)
@@ -26,6 +26,7 @@ class AuditViewsLatestRevenueBatchTest < ActiveSupport::TestCase
     assert_equal 1, view_count("audit_revenue_by_sub_channel")
 
     Operations::RegisterManually.call(
+      "organization" => default_organization,
       "report_id" => "1478", "channel_name" => "MASTER", "sub_channel_name" => "MIC TESTE",
       "ec" => "12345678", "cnpj" => "12345678000195", "contract_status" => "Active"
     )

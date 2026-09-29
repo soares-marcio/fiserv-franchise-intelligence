@@ -184,7 +184,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   end
 
   def seed_establishment(**snapshot_attributes)
-    channel = Channel.create!(external_id: "1478", name: "MASTER")
+    channel = Channel.create!(organization: default_organization, external_id: "1478", name: "MASTER")
     sub_channel = channel.sub_channels.create!(name: "MIC GOIANIA 4")
     company = Company.create!(cnpj: "12345678000195")
     establishment = Establishment.create!(ec: "12345678", company:, channel:)

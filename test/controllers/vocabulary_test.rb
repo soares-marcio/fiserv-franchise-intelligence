@@ -54,7 +54,7 @@ class VocabularyTest < ActionDispatch::IntegrationTest
   # O canal fictício nasce com o nome da coluna que faltou — no banco ele continua "SEM CANAL",
   # que é o que o analista procura no arquivo; na tela, o vocabulário é o outro.
   test "o canal fictício aparece com o vocabulário da tela, sem mudar o dado" do
-    channel = Channel.create!(external_id: "8888", name: BinImport::ChannelResolver::FALLBACK_NAME)
+    channel = Channel.create!(organization: default_organization, external_id: "8888", name: BinImport::ChannelResolver::FALLBACK_NAME)
 
     assert_equal "SEM MASTER", ApplicationController.helpers.channel_name(channel)
     assert_equal "SEM CANAL", channel.reload.name

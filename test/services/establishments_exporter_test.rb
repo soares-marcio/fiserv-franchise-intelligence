@@ -3,7 +3,7 @@ require "csv"
 
 class EstablishmentsExporterTest < ActiveSupport::TestCase
   setup do
-    @channel = Channel.create!(external_id: "1478", name: "MASTER")
+    @channel = Channel.create!(organization: default_organization, external_id: "1478", name: "MASTER")
     @company = Company.create!(cnpj: "12345678000195")
     template = BinImport::Template.register!
     @batch = ImportBatch.create!(channel: @channel, import_template: template,

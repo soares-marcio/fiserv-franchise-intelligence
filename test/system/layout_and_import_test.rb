@@ -39,6 +39,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
   # continua na ficha do lote e no title; aqui ele fica em duas linhas.
   test "a mensagem de falha não empurra o botão de descartar para fora" do
     ImportBatch.create!(
+      organization: default_organization,
       source_filename: "BIN_TESTE_20260903.xlsx", file_checksum: "abc123def456789",
       status: "failed",
       validation_errors: [
@@ -81,8 +82,8 @@ class LayoutAndImportTest < ApplicationSystemTestCase
   # botão de descartar saía do card de novo. O que o usuário vê é a tabela inteira, com o que a
   # Fiserv e o operador nomeiam do jeito que nomeiam.
   test "nomes longos de arquivo e de Master não empurram o botão de descartar para fora" do
-    goias = Channel.create!(external_id: "1479", name: "MASTER FRANQUEADO REGIAO GOIAS")
-    ramos = Channel.create!(external_id: "1478", name: "MASTER FRANQUEADO RAMOS E SILVA")
+    goias = Channel.create!(organization: default_organization, external_id: "1479", name: "MASTER FRANQUEADO REGIAO GOIAS")
+    ramos = Channel.create!(organization: default_organization, external_id: "1478", name: "MASTER FRANQUEADO RAMOS E SILVA")
     ImportBatch.create!(
       channel: goias, source_filename: "14.09.26 - MCB 17 09.xlsx", file_checksum: "f" * 12,
       status: "failed", current_month_cutoff_day: 14,

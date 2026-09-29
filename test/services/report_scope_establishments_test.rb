@@ -193,7 +193,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
 
 
   def seed_channel(template)
-    channel = Channel.create!(external_id: "A", name: "CANAL A")
+    channel = Channel.create!(organization: default_organization, external_id: "A", name: "CANAL A")
     # Um cliente por EC: a listagem agrupa por CNPJ, e dois ECs no mesmo CNPJ dariam uma
     # linha só — os recortes deste arquivo precisam de dois sujeitos. A soma de vários ECs
     # num cliente é coberta em EstablishmentListingQueryTest, que existe para isso.

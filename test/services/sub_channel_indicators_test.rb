@@ -123,7 +123,7 @@ class SubChannelIndicatorsTest < ActiveSupport::TestCase
   end
 
   test "o filtro por Master restringe as carteiras" do
-    outro = Channel.create!(external_id: "OUTRO", name: "OUTRO MASTER")
+    outro = Channel.create!(organization: default_organization, external_id: "OUTRO", name: "OUTRO MASTER")
 
     assert_empty SubChannelIndicatorsQuery.new(scope: escopo_do_canal(outro.id)).by_sub_channel
     assert_equal 2, SubChannelIndicatorsQuery.new(scope: escopo_do_canal(Channel.find_by!(name: BinWorkbook::CANAL).id)).by_sub_channel.size

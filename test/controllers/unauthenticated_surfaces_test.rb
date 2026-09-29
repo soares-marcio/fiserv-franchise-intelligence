@@ -8,7 +8,7 @@ class UnauthenticatedSurfacesTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @batch = ImportBatch.create!(source_filename: "planilha.xlsx", file_checksum: "abc123",
+    @batch = ImportBatch.create!(organization: default_organization, source_filename: "planilha.xlsx", file_checksum: "abc123",
       status: "validated")
     @batch.source_file.attach(io: StringIO.new("conteúdo da planilha"),
       filename: "planilha.xlsx", content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -58,7 +58,7 @@ class BlobAuthorizationTest < ActionDispatch::IntegrationTest
     @nota = Operations::SaveCompanyNote.call(cnpj: @company.cnpj,
       body: %(<div>Com anexo</div><action-text-attachment sgid="#{@anexo.attachable_sgid}"></action-text-attachment>))
     @canal = Channel.find_by!(name: BinWorkbook::CANAL)
-    @outro = Channel.create!(external_id: "7777", name: "MASTER DE FORA")
+    @outro = Channel.create!(organization: default_organization, external_id: "7777", name: "MASTER DE FORA")
   end
 
   test "quem não alcança o cliente não baixa o anexo da anotação dele" do
@@ -91,7 +91,7 @@ class CableConnectionTest < ActionCable::Connection::TestCase
   end
 
   test "conexão com sessão válida identifica o usuário" do
-    user = User.create!(email_address: "cabo@exemplo.com", name: "Cabo", password: Accounts::PASSWORD)
+    user = User.create!(organization: default_organization, email_address: "cabo@exemplo.com", name: "Cabo", password: Accounts::PASSWORD)
     session = user.sessions.create!(last_active_at: Time.current)
 
     cookies.signed[:session_id] = session.id

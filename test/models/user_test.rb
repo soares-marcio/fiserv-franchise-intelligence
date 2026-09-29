@@ -2,10 +2,10 @@ require "test_helper"
 
 class UserTest < ActiveSupport::TestCase
   test "normaliza o e-mail e recusa duplicado com outra caixa" do
-    User.create!(email_address: " Chefe@Exemplo.com ", name: "Chefe", password: "senha-bem-longa-1")
+    User.create!(organization: default_organization, email_address: " Chefe@Exemplo.com ", name: "Chefe", password: "senha-bem-longa-1")
 
     assert_equal "chefe@exemplo.com", User.last.email_address
-    duplicado = User.new(email_address: "CHEFE@exemplo.com", name: "Outro", password: "senha-bem-longa-1")
+    duplicado = User.new(organization: default_organization, email_address: "CHEFE@exemplo.com", name: "Outro", password: "senha-bem-longa-1")
 
     assert_not duplicado.valid?
   end
@@ -13,7 +13,7 @@ class UserTest < ActiveSupport::TestCase
   # A senha provisória fica guardada (cifrada) para quem convidou entregar — e só até a
   # pessoa trocá-la. Depois disso não existe mais em lugar nenhum.
   test "trocar a senha apaga a provisória" do
-    user = User.create!(email_address: "c@exemplo.com", name: "C", password: "provisoria-12345",
+    user = User.create!(organization: default_organization, email_address: "c@exemplo.com", name: "C", password: "provisoria-12345",
       provisional_password: "provisoria-12345", must_change_password: true)
     assert_equal "provisoria-12345", user.reload.provisional_password
 
@@ -23,7 +23,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "salvar sem mexer na senha mantém a provisória" do
-    user = User.create!(email_address: "d@exemplo.com", name: "D", password: "provisoria-12345",
+    user = User.create!(organization: default_organization, email_address: "d@exemplo.com", name: "D", password: "provisoria-12345",
       provisional_password: "provisoria-12345", must_change_password: true)
 
     user.update!(name: "D renomeado")
@@ -34,14 +34,14 @@ class UserTest < ActiveSupport::TestCase
   # O portal passa a ser alcançável pela internet sem o Access na frente: a senha deixa de
   # ser a segunda barreira e vira a primeira.
   test "recusa senha curta" do
-    user = User.new(email_address: "a@exemplo.com", name: "A", password: "curta1")
+    user = User.new(organization: default_organization, email_address: "a@exemplo.com", name: "A", password: "curta1")
 
     assert_not user.valid?
     assert_includes user.errors[:password].join, "12"
   end
 
   test "permissão fora do catálogo não passa nem pelo model nem pelo banco" do
-    user = User.new(email_address: "b@exemplo.com", name: "B", password: "senha-bem-longa-1",
+    user = User.new(organization: default_organization, email_address: "b@exemplo.com", name: "B", password: "senha-bem-longa-1",
       permissions: [ Permission::REPORTS_READ, "inventada" ])
 
     assert_not user.valid?
@@ -52,7 +52,7 @@ class UserTest < ActiveSupport::TestCase
   # para acrescentar permissão nova, e um deles seria esquecido.
   test "super admin tem toda permissão sem nenhuma marcada" do
     chefe = User.new(platform_admin: true, permissions: [])
-    comum = User.new(permissions: [ Permission::REPORTS_READ ])
+    comum = User.new(organization: default_organization, permissions: [ Permission::REPORTS_READ ])
 
     assert chefe.permitted?(Permission::BATCHES_DISCARD)
     assert comum.permitted?(Permission::REPORTS_READ)
@@ -60,7 +60,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "o segredo do TOTP não fica legível no banco" do
-    user = User.create!(email_address: "c@exemplo.com", name: "C", password: "senha-bem-longa-1",
+    user = User.create!(organization: default_organization, email_address: "c@exemplo.com", name: "C", password: "senha-bem-longa-1",
       otp_secret: "JBSWY3DPEHPK3PXP")
 
     cru = User.connection.select_value("SELECT otp_secret FROM users WHERE id = #{user.id}")

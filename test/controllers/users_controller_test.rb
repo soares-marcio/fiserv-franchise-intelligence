@@ -6,8 +6,8 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @canal_a = Channel.create!(external_id: "8001", name: "MASTER A")
-    @canal_b = Channel.create!(external_id: "8002", name: "MASTER B")
+    @canal_a = Channel.create!(organization: default_organization, external_id: "8001", name: "MASTER A")
+    @canal_b = Channel.create!(organization: default_organization, external_id: "8002", name: "MASTER B")
     @mic_a = SubChannel.create!(channel: @canal_a, name: "MIC A1")
     @mic_b = SubChannel.create!(channel: @canal_b, name: "MIC B1")
   end
@@ -109,21 +109,22 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert chefe.reload.mfa_enabled?
   end
 
-  # Administrador geral: só outro administrador geral nomeia, e nunca sobre si mesmo.
-  test "super admin nomeia outro super admin, e a nomeação derruba as sessões" do
+  # Os papéis de administração não se concedem pelo convite: a plataforma nasce do seed e
+  # o administrador da organização, da própria plataforma. Parâmetro forjado é ignorado.
+  test "administrador da organização não nomeia plataforma nem outro administrador pelo convite" do
     alvo = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @canal_a, email: "alvo@exemplo.com")
-    alvo.sessions.create!(last_active_at: Time.current)
     sign_in_as(admin_user)
 
     patch user_path(alvo), params: {
-      user: { name: alvo.name, email_address: alvo.email_address, platform_admin: "1" }, permissions: [], grants: {}
+      user: { name: alvo.name, email_address: alvo.email_address, platform_admin: "1", organization_admin: "1" },
+      permissions: [], grants: {}
     }
 
-    assert alvo.reload.platform_admin?
-    assert_equal 0, alvo.sessions.count
+    assert_not alvo.reload.platform_admin?
+    assert_not alvo.organization_admin?
   end
 
-  test "delegado não nomeia super admin: o parâmetro é ignorado" do
+  test "delegado não nomeia plataforma: o parâmetro é ignorado" do
     delegado = scoped_user(permissions: [ Permission::USERS_INVITE ], channel: @canal_a, email: "delegado@exemplo.com")
     sign_in_as(delegado)
 
@@ -134,24 +135,28 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_not User.find_by(email_address: "novo@exemplo.com").platform_admin?
   end
 
-  test "o último super admin ativo não é rebaixado nem desativado" do
-    chefe = admin_user
+  # Um administrador da organização não edita outro: quem mexe neles é a plataforma.
+  test "administrador da organização não edita outro administrador" do
     outro = admin_user(email: "outro@exemplo.com")
-    sign_in_as(chefe)
+    sign_in_as(admin_user)
 
-    # Com dois, rebaixar um é permitido.
-    patch user_path(outro), params: {
-      user: { name: outro.name, email_address: outro.email_address, platform_admin: "0" }, permissions: [], grants: {}
-    }
-    assert_not outro.reload.platform_admin?
+    patch user_path(outro), params: { user: { name: "Invadido" }, permissions: [], grants: {} }
 
-    # Sobrou um. Pela tela ele não se rebaixa (a caixa nem aparece para si) nem se desativa
-    # (ninguém desativa a si mesmo); a guarda do modelo é o que vale por console.
-    erro = assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(platform_admin: false) }
+    # 403, e não 404: o outro administrador aparece na listagem da organização — o que
+    # não existe é o direito de editá-lo.
+    assert_response :forbidden
+    assert_equal "Teste", outro.reload.name
+  end
+
+  test "o último administrador da plataforma ativo não é rebaixado nem desativado" do
+    plataforma = platform_admin_user
+
+    # Pela tela ninguém o alcança; a guarda do modelo é o que vale por console.
+    erro = assert_raises(ActiveRecord::RecordInvalid) { plataforma.update!(platform_admin: false) }
     assert_match(/ao menos um administrador geral/, erro.message)
-    assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(deactivated_at: Time.current) }
-    assert chefe.reload.platform_admin?
-    assert chefe.active?
+    assert_raises(ActiveRecord::RecordInvalid) { plataforma.update!(deactivated_at: Time.current) }
+    assert plataforma.reload.platform_admin?
+    assert plataforma.active?
   end
 
   # A listagem virou cards com o uso de cada pessoa, tirado da trilha.

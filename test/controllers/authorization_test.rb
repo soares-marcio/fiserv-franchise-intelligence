@@ -7,7 +7,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @batch = ImportBatch.create!(source_filename: "planilha.xlsx", file_checksum: "lote-1", status: "failed")
+    @batch = ImportBatch.create!(organization: default_organization, source_filename: "planilha.xlsx", file_checksum: "lote-1", status: "failed")
   end
 
   test "sem permissão de ver relatório, a tela responde 403" do
@@ -116,7 +116,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   test "anotação: ler e escrever são chaves diferentes" do
     # O cliente precisa existir na carteira do ator: desde o recorte por escopo, anotação de
     # empresa sem EC alcançável responde 404 — e é outro assunto, testado à parte.
-    canal = Channel.create!(external_id: "5555", name: "MASTER DA ANOTACAO")
+    canal = Channel.create!(organization: default_organization, external_id: "5555", name: "MASTER DA ANOTACAO")
     company = Company.create!(cnpj: "11222333000181")
     Establishment.create!(ec: "55000001", company:, channel: canal)
 

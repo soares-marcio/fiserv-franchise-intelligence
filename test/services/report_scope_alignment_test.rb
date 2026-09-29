@@ -95,7 +95,7 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
   end
 
   def seed_channel(external_id, template, cutoff:, amounts:, previous: {})
-    channel = Channel.create!(external_id:, name: "CANAL #{external_id}")
+    channel = Channel.create!(organization: default_organization, external_id:, name: "CANAL #{external_id}")
     company = Company.create!(cnpj: external_id == "A" ? "12345678000191" : "12345678000192")
     establishment = Establishment.create!(
       ec: external_id == "A" ? "11111111" : "22222222",

@@ -8,9 +8,13 @@ module Operations
 
     # O lote nasce aqui, antes de o arquivo ser lido: se o job morrer no caminho,
     # a falha tem onde aparecer. A unicidade do checksum fecha uploads concorrentes.
-    def self.call(upload, uploaded_by: nil)
+    # A organização é de quem envia; por console ou teste vem explícita. Sem ela o lote não
+    # tem dono e o Master que o arquivo criar não teria organização.
+    def self.call(upload, uploaded_by: nil, organization: uploaded_by&.organization)
+      raise ArgumentError, "Importação sem organização: informe a organização dona do arquivo." if organization.nil?
+
       checksum = Digest::SHA256.file(upload.tempfile.path).hexdigest
-      batch = claim_batch(checksum, upload.original_filename, uploaded_by)
+      batch = claim_batch(checksum, upload.original_filename, uploaded_by, organization)
       batch.source_file.purge if batch.source_file.attached?
       batch.source_file.attach(
         io: upload, filename: upload.original_filename,
@@ -27,12 +31,12 @@ module Operations
       raise
     end
 
-    def self.claim_batch(checksum, filename, uploaded_by)
+    def self.claim_batch(checksum, filename, uploaded_by, organization)
       batch = ImportBatch.find_by(file_checksum: checksum)
       return handle_existing(batch, filename) if batch
 
       ImportBatch.create!(source_filename: filename, file_checksum: checksum, status: "pending",
-        uploaded_by:)
+        uploaded_by:, organization:)
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => error
       batch = ImportBatch.find_by(file_checksum: checksum)
       raise error unless batch

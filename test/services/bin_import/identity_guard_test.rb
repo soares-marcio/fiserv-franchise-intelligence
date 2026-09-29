@@ -26,7 +26,7 @@ class BinImport::IdentityGuardTest < ActiveSupport::TestCase
   end
 
   test "recusa EC que muda de canal entre importações" do
-    other = Channel.create!(external_id: "999", name: "OUTRO CANAL")
+    other = Channel.create!(organization: default_organization, external_id: "999", name: "OUTRO CANAL")
 
     error = assert_raises(ArgumentError) do
       BinImport::IdentityGuard.assert_existing!(other, sheets(row(@alfa.ec, "11.222.333/0001-81")))

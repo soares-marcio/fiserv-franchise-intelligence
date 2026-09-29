@@ -27,6 +27,9 @@ class UserPolicy < ApplicationPolicy
     return true if user&.platform_admin?
     return false if record.nil?
     return true if record == user
+    # Ninguém alcança uma conta da plataforma, e ninguém alcança fora da própria organização.
+    return false if record.platform_admin? || record.organization_id != user.organization_id
+    return true if user.organization_admin?
 
     # O delegado administra quem está dentro do escopo dele — e quem ainda não tem escopo
     # nenhum, que é o estado de um convite recém-criado por ele.
@@ -34,10 +37,14 @@ class UserPolicy < ApplicationPolicy
     alvo.empty? || (alvo.channel_ids - AccessScope.for(user).channel_ids).empty?
   end
 
-  # "Tem algo que eu não tenho": super admin, permissão ou escopo além do meu.
+  # "Tem algo que eu não tenho": plataforma, administrador da organização, permissão ou
+  # escopo além do meu. Um administrador da organização não edita outro: quem mexe neles é
+  # a plataforma.
   def outranks_me?
     return false if user&.platform_admin?
     return true if record&.platform_admin?
+    return record.organization_admin? && record != user if user.organization_admin?
+    return true if record&.organization_admin?
     return true if (record.permissions - user.permissions).any?
 
     (AccessScope.for(record).channel_ids - AccessScope.for(user).channel_ids).any?
@@ -48,9 +55,13 @@ class UserPolicy < ApplicationPolicy
       return scope.all if user&.platform_admin?
       return scope.none unless user&.permitted?(Permission::USERS_INVITE)
 
+      # A organização recorta primeiro: o resto é quem, dentro dela, o ator alcança.
+      base = scope.where(organization_id: user.organization_id)
+      return base if user.organization_admin?
+
       # Quem o delegado enxerga: ele mesmo, os que criou e os que estão no escopo dele.
       ids = AccessGrant.where(channel_id: AccessScope.for(user).channel_ids).select(:user_id)
-      scope.where(id: user.id).or(scope.where(created_by_id: user.id)).or(scope.where(id: ids))
+      base.where(id: user.id).or(base.where(created_by_id: user.id)).or(base.where(id: ids))
     end
   end
 end

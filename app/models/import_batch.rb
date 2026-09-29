@@ -10,6 +10,10 @@ class ImportBatch < ApplicationRecord
 
   # Canal e template ficam nulos entre o upload e o fim do parse.
   belongs_to :channel, optional: true
+  # A organização existe antes do parse — vem de quem enviou, ou do canal quando o lote
+  # nasce com ele. É o que recorta a listagem de lotes ainda sem canal.
+  belongs_to :organization
+  before_validation { self.organization ||= channel&.organization || uploaded_by&.organization }
   # Quem enviou e quem revisou. Nuláveis: os lotes anteriores ao login não têm autor, e um
   # lote só ganha revisor quando passa pela quarentena.
   belongs_to :uploaded_by, class_name: "User", optional: true
