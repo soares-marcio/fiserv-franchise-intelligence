@@ -108,16 +108,22 @@ class UsersController < ApplicationController
   end
 
   # O formulário manda uma entrada por caixa marcada, com chaves arbitrárias: o que importa
-  # é o par (Master, MIC), e é só ele que sai daqui.
+  # é o par (Master, MIC), e é só ele que sai daqui. O Master de um MIC vem do banco, não
+  # do formulário: um campo oculto com o channel_id ao lado de cada MIC fazia todo MIC
+  # desmarcado virar concessão do Master inteiro (homologação de 28/09/2026 — erro 500 no
+  # índice único, e o convidado receberia mais do que foi marcado).
   def grant_params
     grants = params[:grants]
     return [] if grants.blank?
 
     grants.keys.filter_map do |chave|
       grant = grants.require(chave).permit(:channel_id, :sub_channel_id)
-      next if grant[:channel_id].blank?
-
-      { channel_id: grant[:channel_id], sub_channel_id: grant[:sub_channel_id] }
-    end
+      if grant[:sub_channel_id].present?
+        mic = SubChannel.find_by(id: grant[:sub_channel_id])
+        { channel_id: mic.channel_id, sub_channel_id: mic.id } if mic
+      elsif grant[:channel_id].present?
+        { channel_id: grant[:channel_id].to_i, sub_channel_id: nil }
+      end
+    end.uniq
   end
 end

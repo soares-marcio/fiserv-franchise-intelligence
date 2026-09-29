@@ -68,10 +68,11 @@
           <div class="mt-3 grid gap-2 pl-6">
             <% @sub_channels.select { |mic| mic.channel_id == channel.id }.each_with_index do |mic, posicao| %>
               <label class="flex items-center gap-2 text-sm">
+                <%# Só o MIC: o Master dele é resolvido no servidor. Um campo oculto aqui
+                    viajaria mesmo com a caixa desmarcada. %>
                 <%= check_box_tag "grants[#{indice}_#{posicao}][sub_channel_id]", mic.id,
                   @user.access_grants.any? { |g| g.sub_channel_id == mic.id },
                   class: "checkbox checkbox-sm" %>
-                <%= hidden_field_tag "grants[#{indice}_#{posicao}][channel_id]", channel.id %>
                 <%= mic.name %>
               </label>
             <% end %>

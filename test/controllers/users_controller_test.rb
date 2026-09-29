@@ -154,6 +154,37 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # Na homologação de 28/09/2026 o convite deu 500: o formulário mandava o channel_id de
+  # cada linha de MIC, marcada ou não, e cada linha desmarcada virava "Master inteiro" — a
+  # segunda estourava o índice único, e sem o índice o convidado receberia o Master que
+  # ninguém marcou. Agora a linha do MIC manda só o MIC, e o Master dele vem do banco.
+  test "marcar um MIC manda só o MIC, e o Master dele é resolvido no servidor" do
+    outro_mic = SubChannel.create!(channel: @canal_a, name: "MIC A2")
+    sign_in_as(admin_user)
+
+    post users_path, params: {
+      user: { name: "Novo", email_address: "novo@exemplo.com" },
+      permissions: [],
+      grants: { "0_0" => { sub_channel_id: @mic_a.id } }
+    }
+
+    novo = User.find_by(email_address: "novo@exemplo.com")
+    assert_equal [ [ @canal_a.id, @mic_a.id ] ], novo.access_grants.pluck(:channel_id, :sub_channel_id)
+    assert_not_includes novo.access_grants.pluck(:sub_channel_id), outro_mic.id
+  end
+
+  # A metade do bug que fica na tela: nenhum campo oculto viaja com as caixas de MIC.
+  test "o formulário de convite não manda o Master junto com cada MIC" do
+    SubChannel.create!(channel: @canal_a, name: "MIC A2")
+    sign_in_as(admin_user)
+
+    get new_user_path
+
+    assert_select "input[type=hidden][name^='grants[']", count: 0
+    assert_select "input[type=checkbox][name='grants[0][channel_id]']", count: 1
+    assert_select "input[type=checkbox][name$='[sub_channel_id]']", minimum: 2
+  end
+
   # Conceder o Master inteiro torna a concessão de MIC redundante — e escopo com recorte
   # que não recorta nada é convite a erro de leitura depois.
   test "Master inteiro apaga as concessões de MIC do mesmo Master" do
