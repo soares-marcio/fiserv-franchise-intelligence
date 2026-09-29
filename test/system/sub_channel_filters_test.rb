@@ -174,11 +174,16 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     # de 1000px as duas medidas ficam a poucos pixels uma da outra — o teste passava ou falhava
     # conforme a altura da linha. Com 620px a rolagem é certa, e é uma condição real: notebook
     # com a janela não maximizada.
-    page.driver.browser.manage.window.resize_to(1400, 620)
+    #
+    # A janela encolhe depois de o modal abrir: desde que o menu tem 11 itens ele quebra em
+    # duas linhas a 1400px, e a pilha fixa — topbar, abas e barra da tabela — cobre ~366 dos
+    # 620px. O Selenium rola a linha para logo abaixo do topo, sob a barra, e o clique não
+    # chega. O modal é 88vh da janela que existir na hora, então a rolagem medida é a mesma.
     visit sub_channel_report_path(@sub_channel)
     find("tr.daily-row", text: CNPJ_ALFA).all("td").first.click
     assert_selector "dialog.daily-modal[open]"
     assert_selector "dialog.daily-modal tbody th", text: "01"
+    page.driver.browser.manage.window.resize_to(1400, 620)
 
     medida = page.evaluate_script(<<~JS)
       (() => {
