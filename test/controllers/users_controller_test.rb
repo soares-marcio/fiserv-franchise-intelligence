@@ -109,6 +109,73 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert chefe.reload.mfa_enabled?
   end
 
+  # Administrador geral: só outro administrador geral nomeia, e nunca sobre si mesmo.
+  test "super admin nomeia outro super admin, e a nomeação derruba as sessões" do
+    alvo = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @canal_a, email: "alvo@exemplo.com")
+    alvo.sessions.create!(last_active_at: Time.current)
+    sign_in_as(admin_user)
+
+    patch user_path(alvo), params: {
+      user: { name: alvo.name, email_address: alvo.email_address, super_admin: "1" }, permissions: [], grants: {}
+    }
+
+    assert alvo.reload.super_admin?
+    assert_equal 0, alvo.sessions.count
+  end
+
+  test "delegado não nomeia super admin: o parâmetro é ignorado" do
+    delegado = scoped_user(permissions: [ Permission::USERS_INVITE ], channel: @canal_a, email: "delegado@exemplo.com")
+    sign_in_as(delegado)
+
+    post users_path, params: {
+      user: { name: "Novo", email_address: "novo@exemplo.com", super_admin: "1" }, permissions: [], grants: {}
+    }
+
+    assert_not User.find_by(email_address: "novo@exemplo.com").super_admin?
+  end
+
+  test "o último super admin ativo não é rebaixado nem desativado" do
+    chefe = admin_user
+    outro = admin_user(email: "outro@exemplo.com")
+    sign_in_as(chefe)
+
+    # Com dois, rebaixar um é permitido.
+    patch user_path(outro), params: {
+      user: { name: outro.name, email_address: outro.email_address, super_admin: "0" }, permissions: [], grants: {}
+    }
+    assert_not outro.reload.super_admin?
+
+    # Sobrou um. Pela tela ele não se rebaixa (a caixa nem aparece para si) nem se desativa
+    # (ninguém desativa a si mesmo); a guarda do modelo é o que vale por console.
+    erro = assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(super_admin: false) }
+    assert_match(/ao menos um administrador geral/, erro.message)
+    assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(deactivated_at: Time.current) }
+    assert chefe.reload.super_admin?
+    assert chefe.active?
+  end
+
+  # A listagem virou cards com o uso de cada pessoa, tirado da trilha.
+  test "os cards mostram último acesso, entradas, exportações e envios" do
+    chefe = admin_user
+    alvo = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @canal_a, email: "alvo@exemplo.com",
+      created_by: chefe)
+    AuditEvent.create!(user: alvo, actor_email: alvo.email_address, action: "session.start", created_at: 2.days.ago)
+    AuditEvent.create!(user: alvo, actor_email: alvo.email_address, action: "report.export", created_at: 1.day.ago)
+    AuditEvent.create!(user: alvo, actor_email: alvo.email_address, action: "report.export", created_at: 40.days.ago)
+    sign_in_as(chefe)
+
+    get users_path
+
+    assert_select ".user-card", text: /alvo@exemplo\.com/ do
+      assert_select "dd", text: /#{Regexp.escape(2.days.ago.strftime("%d/%m/%Y"))}/
+      assert_select "dt", text: "Exportações"
+    end
+    card = css_select(".user-card").find { |c| c.text.include?("alvo@exemplo.com") }
+    assert_match(/Exportações\s*1\b/, card.text.squish, "a exportação de 40 dias atrás fica fora da janela")
+    assert_match(/Entradas\s*1\b/, card.text.squish)
+    assert_match(/Convidado por/, card.text)
+  end
+
   test "ninguém desativa a si mesmo" do
     chefe = admin_user
     sign_in_as(chefe)
@@ -187,14 +254,14 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
     get users_path
     assert_select "code", text: senha
-    assert_select "td", text: /Senha provisória/
+    assert_select ".user-card", text: /Senha provisória/
 
     convidada.update!(password: "definitiva-123456", must_change_password: false)
 
     get users_path
     assert_select "code", text: senha, count: 0
     assert_no_match senha, response.body
-    assert_select "td", text: /Entrou e trocou a senha/
+    assert_select ".user-card", text: /Entrou e trocou a senha/
   end
 
   # Ver a listagem é mais amplo do que editar: o delegado enxerga quem está no escopo dele,
@@ -216,7 +283,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(delegado)
     get users_path
 
-    assert_select "td", text: /Gestora/
+    assert_select ".user-card", text: /Gestora/
     assert_no_match senha, response.body
   end
 

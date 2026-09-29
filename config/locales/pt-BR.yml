@@ -12,6 +12,11 @@ pt-BR:
       too_short: "precisa de ao menos %{count} caracteres"
       too_long: "passa de %{count} caracteres"
   activerecord:
+    errors:
+      messages:
+        # Mensagem do RecordInvalid, que é o que save!/update! levantam: sem esta chave o
+        # erro chegava como "Translation missing" no seed e nos rescues dos controllers.
+        record_invalid: "Registro inválido: %{errors}"
     attributes:
       user:
         email_address: "E-mail"

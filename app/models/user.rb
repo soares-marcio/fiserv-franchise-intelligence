@@ -26,6 +26,9 @@ class User < ApplicationRecord
   # Access na frente: a senha deixa de ser a segunda barreira e vira a primeira.
   validates :password, length: { minimum: 12 }, allow_nil: true
   validate :permissions_must_be_known
+  # Rebaixar ou desativar o último administrador geral ativo deixaria o portal sem ninguém
+  # que possa tudo — inclusive sem quem possa nomear outro.
+  validate :keep_one_active_super_admin, on: :update
 
   # Dez tentativas erradas (senha ou código) bloqueiam a conta por quinze minutos. O
   # contador fica no banco, e não no cache, porque o cache do ambiente de teste é
@@ -67,6 +70,14 @@ class User < ApplicationRecord
   # Trocou a senha: a provisória deixa de existir — inclusive para quem convidou.
   def forget_provisional_password
     self.provisional_password = nil
+  end
+
+  def keep_one_active_super_admin
+    perde = super_admin_was && (!super_admin? || deactivated_at.present?)
+    return unless perde
+    return if User.active.where(super_admin: true).where.not(id: id).exists?
+
+    errors.add(:base, "precisa sobrar ao menos um administrador geral ativo")
   end
 
   private

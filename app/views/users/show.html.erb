@@ -52,6 +52,39 @@
   </section>
 </div>
 
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Uso</p>
+  <dl class="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+    <div><dt class="text-xs opacity-70">Último acesso</dt><dd class="font-semibold"><%= @usage[:last_access] ? @usage[:last_access].strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
+    <div><dt class="text-xs opacity-70">Entradas (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:sessions] %></dd></div>
+    <div><dt class="text-xs opacity-70">Exportações (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:exports] %></dd></div>
+    <div><dt class="text-xs opacity-70">Arquivos enviados (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:uploads] %></dd></div>
+    <div><dt class="text-xs opacity-70">Anotações salvas (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:notes] %></dd></div>
+  </dl>
+
+  <% if @events.any? %>
+    <p class="section-label mt-5">Últimos eventos</p>
+    <div class="table-scroll mt-2" role="region" tabindex="0" aria-label="Últimos eventos desta pessoa">
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Quando</th><th scope="col">O quê</th><th scope="col">Master</th><th scope="col">Detalhes</th></tr></thead>
+        <tbody>
+          <% @events.each do |event| %>
+            <tr>
+              <td class="whitespace-nowrap"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td><%= audit_action_label(event.action) %></td>
+              <td><%= channel_name(event.channel) || "—" %></td>
+              <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%# A trilha completa fica na tela própria; aqui é só o que a pessoa fez por último. %>
+  <% else %>
+    <p class="metric-hint mt-3">Nenhum evento registrado ainda.</p>
+  <% end %>
+</section>
+
 <% if @batch_grants.any? %>
   <section class="surface-card mt-5 p-6">
     <p class="section-label">Arquivos liberados</p>

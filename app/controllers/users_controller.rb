@@ -3,7 +3,8 @@ class UsersController < ApplicationController
 
   def index
     authorize :user, :index?
-    @users = policy_scope(User).includes(:access_grants).order(:name)
+    @users = policy_scope(User).includes(:created_by, access_grants: %i[channel sub_channel]).order(:name)
+    @usage = usage_of(@users)
   end
 
   def new
@@ -31,6 +32,8 @@ class UsersController < ApplicationController
     authorize @user, :show?
     @grants = @user.access_grants.includes(:channel, :sub_channel)
     @batch_grants = @user.batch_grants.includes(import_batch: :channel)
+    @usage = usage_of([ @user ]).fetch(@user.id)
+    @events = AuditEvent.where(user: @user).includes(:channel).recent.limit(20)
   end
 
   def edit
@@ -66,6 +69,9 @@ class UsersController < ApplicationController
     @user.revoke_sessions!
     Audit.record("user.deactivated", record: @user, request:)
     redirect_to user_path(@user), notice: "Acesso desativado."
+  rescue ActiveRecord::RecordInvalid => error
+    # O último administrador geral ativo não se desativa (User#keep_one_active_super_admin).
+    redirect_to user_path(@user), alert: error.record.errors.full_messages.join("; ")
   end
 
   def reactivate
@@ -88,6 +94,24 @@ class UsersController < ApplicationController
     @user = policy_scope(User).find_param!(params[:id])
   end
 
+  # O uso de cada pessoa sai da trilha, em duas consultas para a listagem inteira: o que se
+  # conta é o que a trilha já registra — entradas, exportações, envios. Nada é medido além
+  # disso (nem tempo de sessão, nem telas visitadas), porque nada além disso é gravado.
+  USAGE_WINDOW = 30.days
+
+  def usage_of(users)
+    ids = users.map(&:id)
+    counts = AuditEvent.where(user_id: ids, created_at: USAGE_WINDOW.ago..).group(:user_id, :action).count
+    last_access = AuditEvent.where(user_id: ids, action: "session.start").group(:user_id).maximum(:created_at)
+    ids.to_h do |id|
+      [ id, { last_access: last_access[id],
+              sessions: counts.fetch([ id, "session.start" ], 0),
+              exports: counts.fetch([ id, "report.export" ], 0),
+              uploads: counts.fetch([ id, "batch.uploaded" ], 0),
+              notes: counts.fetch([ id, "note.saved" ], 0) } ]
+    end
+  end
+
   # O convite oferece só o que o convidante tem: a tela espelha a policy, e a policy é quem
   # decide — parâmetro forjado cai na regra do SaveUser.
   def load_options
@@ -99,6 +123,11 @@ class UsersController < ApplicationController
 
   def user_attributes
     dados = params.require(:user).permit(:name, :email_address)
+    # Administrador geral só por administrador geral, e nunca sobre si mesmo — senão o
+    # último se rebaixaria por engano. Fora disso o parâmetro é ignorado, não recusado.
+    if Current.user.super_admin? && @user != Current.user && params[:user].key?(:super_admin)
+      dados[:super_admin] = ActiveModel::Type::Boolean.new.cast(params[:user][:super_admin])
+    end
     return dados if action_name == "update"
 
     # Senha provisória gerada pelo sistema: quem convida não escolhe a senha de outra

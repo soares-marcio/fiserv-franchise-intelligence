@@ -25,6 +25,19 @@
     <% end %>
   </section>
 
+  <% if Current.user.super_admin? && @user != Current.user %>
+    <section class="surface-card p-6">
+      <p class="section-label">Administrador geral</p>
+      <label class="mt-3 flex items-start gap-2 text-sm">
+        <%= form.check_box :super_admin, class: "checkbox checkbox-sm mt-0.5" %>
+        <span>
+          Pode tudo, em qualquer carteira — inclusive nomear e rebaixar outros administradores
+          gerais. As marcações abaixo deixam de importar para quem é administrador geral.
+        </span>
+      </label>
+    </section>
+  <% end %>
+
   <section class="surface-card p-6">
     <p class="section-label">O que pode fazer</p>
     <p class="metric-hint mt-1">

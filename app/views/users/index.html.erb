@@ -4,44 +4,57 @@
   <p class="eyebrow">Administração</p>
   <h1 class="page-title">Acessos</h1>
   <p class="page-description">
-    Quem entra no portal, o que cada um enxerga e o que pode fazer.
+    Quem entra no portal, o que cada um enxerga, o que pode fazer — e o quanto usa.
   </p>
   <% if policy(:user).create? %>
     <%= link_to "Convidar usuário", new_user_path, class: "btn btn-primary relative z-10 mt-6" %>
   <% end %>
 </section>
 
-<section class="table-frame mt-5" data-controller="sticky-table">
-  <div class="table-toolbar">
-    <div>
-      <p class="section-label">Pessoas</p>
-      <h2 class="table-title"><%= pluralize(@users.size, "acesso", "acessos") %></h2>
-    </div>
-  </div>
-  <div class="table-scroll" role="region" tabindex="0" aria-label="Acessos do portal">
-    <table class="table batches-table">
-      <colgroup><col style="width: 26%"><col style="width: 22%"><col style="width: 30%"><col style="width: 22%"></colgroup>
-      <thead>
-        <tr>
-          <th scope="col">Nome</th>
-          <th scope="col">Situação</th>
-          <th scope="col">Enxerga</th>
-          <th scope="col">Pode</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @users.each do |user| %>
-          <tr>
-            <td>
-              <%= link_to user.name, user_path(user), class: "link" %>
-              <span class="block text-xs opacity-70"><%= user.email_address %></span>
-            </td>
-            <td><%= user_status_badge(user) %><%= user_first_access_hint(user) %></td>
-            <td class="text-xs"><%= user_scope_summary(user) %></td>
-            <td class="text-xs"><%= user_permissions_summary(user) %></td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
-  </div>
-</section>
+<p class="section-label mt-6"><%= pluralize(@users.size, "acesso", "acessos") %> · uso nos últimos 30 dias</p>
+
+<div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  <% @users.each do |user| %>
+    <% uso = @usage.fetch(user.id) %>
+    <article class="user-card surface-card flex flex-col gap-4 p-5">
+      <header class="flex flex-wrap items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 class="truncate text-base font-bold">
+            <%= link_to user.name, user_path(user), class: "link" %>
+          </h2>
+          <p class="truncate text-xs opacity-70"><%= user.email_address %></p>
+        </div>
+        <%= user_status_badge(user) %>
+      </header>
+      <%= user_first_access_hint(user) %>
+
+      <dl class="grid gap-1 text-sm">
+        <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Enxerga</dt><dd><%= user_scope_summary(user) %></dd></div>
+        <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Pode</dt><dd><%= user_permissions_summary(user) %></dd></div>
+      </dl>
+
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-base-200 p-3 text-xs">
+        <div><dt class="opacity-70">Último acesso</dt><dd class="font-semibold"><%= uso[:last_access] ? uso[:last_access].strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
+        <div><dt class="opacity-70">Entradas</dt><dd class="font-semibold tabular-nums"><%= uso[:sessions] %></dd></div>
+        <div><dt class="opacity-70">Exportações</dt><dd class="font-semibold tabular-nums"><%= uso[:exports] %></dd></div>
+        <div><dt class="opacity-70">Arquivos enviados</dt><dd class="font-semibold tabular-nums"><%= uso[:uploads] %></dd></div>
+      </dl>
+
+      <footer class="mt-auto flex flex-wrap items-center justify-between gap-2">
+        <span class="text-xs opacity-70">
+          <% if user.created_by %>
+            Convidado por <%= user.created_by.name %> em <%= l(user.created_at.to_date) %>
+          <% else %>
+            Desde <%= l(user.created_at.to_date) %>
+          <% end %>
+        </span>
+        <span class="flex gap-2">
+          <%= link_to "Ficha", user_path(user), class: "btn btn-ghost btn-xs" %>
+          <% if policy(user).update? %>
+            <%= link_to "Editar", edit_user_path(user), class: "btn btn-outline btn-xs" %>
+          <% end %>
+        </span>
+      </footer>
+    </article>
+  <% end %>
+</div>
