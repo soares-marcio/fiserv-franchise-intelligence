@@ -36,7 +36,7 @@
               <%= link_to user.name, user_path(user), class: "link" %>
               <span class="block text-xs opacity-70"><%= user.email_address %></span>
             </td>
-            <td><%= user_status_badge(user) %></td>
+            <td><%= user_status_badge(user) %><%= user_first_access_hint(user) %></td>
             <td class="text-xs"><%= user_scope_summary(user) %></td>
             <td class="text-xs"><%= user_permissions_summary(user) %></td>
           </tr>

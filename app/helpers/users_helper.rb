@@ -10,6 +10,20 @@ module UsersHelper
     content_tag(:span, "Ativo", class: "badge badge-success")
   end
 
+  # O que quem convidou precisa saber do primeiro acesso: a senha provisória enquanto ela
+  # vale, e a confirmação de que a pessoa entrou e a trocou depois. A senha só aparece a
+  # quem pode editar este acesso — a listagem alcança mais gente do que isso.
+  def user_first_access_hint(user)
+    unless user.must_change_password?
+      return content_tag(:span, "Entrou e trocou a senha", class: "block text-xs opacity-70")
+    end
+    return unless user.provisional_password.present? && policy(user).update?
+
+    content_tag(:span, class: "block text-xs") do
+      safe_join([ "Senha provisória: ", content_tag(:code, user.provisional_password, class: "font-mono select-all") ])
+    end
+  end
+
   def user_scope_summary(user)
     return "Tudo" if user.super_admin?
 

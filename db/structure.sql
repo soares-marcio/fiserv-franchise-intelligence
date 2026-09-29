@@ -2747,6 +2747,7 @@ CREATE TABLE public.users (
     created_by_id bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    provisional_password text,
     CONSTRAINT users_email_downcased CHECK (((email_address)::text = lower((email_address)::text))),
     CONSTRAINT users_permissions_known CHECK ((permissions <@ ARRAY['reports_read'::character varying, 'reports_export'::character varying, 'establishments_read'::character varying, 'notes_read'::character varying, 'notes_write'::character varying, 'batches_read'::character varying, 'batches_upload'::character varying, 'batches_adjust'::character varying, 'batches_discard'::character varying, 'batches_approve'::character varying, 'metabase_read'::character varying, 'users_invite'::character varying]))
 );
@@ -2764,6 +2765,13 @@ COMMENT ON COLUMN public.users.mfa_enabled_at IS 'Quando o usuário concluiu a i
 --
 
 COMMENT ON COLUMN public.users.otp_last_used_at IS 'Instante do último código aceito; impede reutilizar o mesmo código na janela';
+
+
+--
+-- Name: COLUMN users.provisional_password; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.provisional_password IS 'Senha provisória do convite, cifrada; apagada quando a pessoa troca a senha';
 
 
 --
@@ -5387,6 +5395,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260929120000'),
 ('20260922230000'),
 ('20260922190000'),
 ('20260917120000'),

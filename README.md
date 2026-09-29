@@ -228,8 +228,10 @@ inteiro, que usa a chave fixa do estabelecimento.
 
 ### Convidar
 
-**Acessos → Convidar usuário.** O sistema gera a senha provisória e a mostra uma vez, para
-você entregar — não há e-mail configurado no portal. Quem convida **só concede o que tem**:
+**Acessos → Convidar usuário.** O sistema gera a senha provisória e a deixa na listagem, ao
+lado da pessoa, para você entregar — não há e-mail configurado no portal. Ela fica visível só
+a quem pode editar aquele acesso e some no instante em que a pessoa a troca; no lugar entra
+"Entrou e trocou a senha". Quem convida **só concede o que tem**:
 nem permissão que não possui, nem Master ou MIC fora do próprio escopo, e não edita quem tem
 mais que ele. Mudar permissão ou escopo, e desativar, derrubam as sessões abertas da pessoa
 na hora.

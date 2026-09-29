@@ -10,6 +10,27 @@ class UserTest < ActiveSupport::TestCase
     assert_not duplicado.valid?
   end
 
+  # A senha provisória fica guardada (cifrada) para quem convidou entregar — e só até a
+  # pessoa trocá-la. Depois disso não existe mais em lugar nenhum.
+  test "trocar a senha apaga a provisória" do
+    user = User.create!(email_address: "c@exemplo.com", name: "C", password: "provisoria-12345",
+      provisional_password: "provisoria-12345", must_change_password: true)
+    assert_equal "provisoria-12345", user.reload.provisional_password
+
+    user.update!(password: "definitiva-123456", must_change_password: false)
+
+    assert_nil user.reload.provisional_password
+  end
+
+  test "salvar sem mexer na senha mantém a provisória" do
+    user = User.create!(email_address: "d@exemplo.com", name: "D", password: "provisoria-12345",
+      provisional_password: "provisoria-12345", must_change_password: true)
+
+    user.update!(name: "D renomeado")
+
+    assert_equal "provisoria-12345", user.reload.provisional_password
+  end
+
   # O portal passa a ser alcançável pela internet sem o Access na frente: a senha deixa de
   # ser a segunda barreira e vira a primeira.
   test "recusa senha curta" do

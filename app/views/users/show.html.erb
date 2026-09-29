@@ -4,6 +4,7 @@
   <p class="eyebrow">Acesso</p>
   <h1 class="page-title"><%= @user.name %></h1>
   <p class="page-description"><%= @user.email_address %> · <%= user_status_badge(@user) %></p>
+  <%= user_first_access_hint(@user) %>
 
   <div class="relative z-10 mt-6 flex flex-wrap gap-3">
     <% if policy(@user).update? %>

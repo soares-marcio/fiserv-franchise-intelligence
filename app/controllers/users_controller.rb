@@ -16,10 +16,10 @@ class UsersController < ApplicationController
     authorize :user, :create?
     @user = Operations::SaveUser.create(attributes: user_attributes, permissions: params[:permissions],
       grants: grant_params, actor: Current.user)
-    # A senha provisória aparece uma vez, aqui, para quem convidou entregar pessoalmente —
-    # não há e-mail configurado no portal, e mandá-la por outro canal é decisão de quem
-    # convida, não do sistema.
-    flash[:notice] = "Usuário criado. Senha provisória: #{@senha_provisoria}"
+    # A senha provisória é de quem convidou entregar pessoalmente — não há e-mail configurado
+    # no portal, e mandá-la por outro canal é decisão de quem convida, não do sistema. Ela
+    # fica na listagem até a pessoa trocá-la; o flash some em segundos.
+    flash[:notice] = "Usuário criado. Senha provisória: #{@senha_provisoria} — fica na listagem até a troca."
     redirect_to users_path
   rescue ActiveRecord::RecordInvalid => error
     @user = error.record
@@ -104,7 +104,7 @@ class UsersController < ApplicationController
     # Senha provisória gerada pelo sistema: quem convida não escolhe a senha de outra
     # pessoa, e a troca é obrigatória no primeiro acesso.
     @senha_provisoria = SecureRandom.alphanumeric(14)
-    dados.merge(password: @senha_provisoria)
+    dados.merge(password: @senha_provisoria, provisional_password: @senha_provisoria)
   end
 
   # O formulário manda uma entrada por caixa marcada, com chaves arbitrárias: o que importa

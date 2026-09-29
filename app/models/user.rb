@@ -11,8 +11,13 @@ class User < ApplicationRecord
   # O segredo do TOTP é o único dado do portal cifrado em repouso: com ele, quem alcança o
   # banco gera códigos válidos e passa pelo segundo fator.
   encrypts :otp_secret
+  # A senha provisória do convite, para quem convidou entregar pessoalmente: fica visível na
+  # listagem até a pessoa trocá-la — e some no instante da troca, abaixo.
+  encrypts :provisional_password
 
   normalizes :email_address, with: ->(e) { e.to_s.strip.downcase }
+
+  before_save :forget_provisional_password, if: -> { persisted? && will_save_change_to_password_digest? }
 
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP, message: "não parece um endereço válido" }
@@ -57,6 +62,11 @@ class User < ApplicationRecord
 
   def register_successful_attempt!
     update!(failed_attempts: 0, locked_until: nil)
+  end
+
+  # Trocou a senha: a provisória deixa de existir — inclusive para quem convidou.
+  def forget_provisional_password
+    self.provisional_password = nil
   end
 
   private

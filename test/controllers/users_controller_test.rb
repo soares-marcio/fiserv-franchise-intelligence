@@ -173,6 +173,53 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_not_includes novo.access_grants.pluck(:sub_channel_id), outro_mic.id
   end
 
+  # O flash some em segundos; a listagem é onde quem convidou vai buscar a senha para
+  # entregar. Ela vale até a troca — e a troca a apaga, deixando o registro de que a pessoa
+  # entrou.
+  test "a senha provisória fica na listagem até a pessoa trocá-la" do
+    sign_in_as(admin_user)
+    post users_path, params: {
+      user: { name: "Convidada", email_address: "convidada@exemplo.com" }, permissions: [], grants: {}
+    }
+    convidada = User.find_by(email_address: "convidada@exemplo.com")
+    senha = convidada.provisional_password
+    assert_equal 14, senha.length
+
+    get users_path
+    assert_select "code", text: senha
+    assert_select "td", text: /Senha provisória/
+
+    convidada.update!(password: "definitiva-123456", must_change_password: false)
+
+    get users_path
+    assert_select "code", text: senha, count: 0
+    assert_no_match senha, response.body
+    assert_select "td", text: /Entrou e trocou a senha/
+  end
+
+  # Ver a listagem é mais amplo do que editar: o delegado enxerga quem está no escopo dele,
+  # mas a senha de quem tem mais do que ele não é dele para ler.
+  test "a senha provisória não aparece a quem não pode editar o acesso" do
+    chefe = admin_user(email: "chefe@exemplo.com")
+    sign_in_as(chefe)
+    post users_path, params: {
+      user: { name: "Gestora", email_address: "gestora@exemplo.com" },
+      permissions: [ Permission::USERS_INVITE, Permission::BATCHES_DISCARD ],
+      grants: { "0" => { channel_id: @canal_a.id } }
+    }
+    gestora = User.find_by(email_address: "gestora@exemplo.com")
+    senha = gestora.provisional_password
+    sign_out
+
+    delegado = scoped_user(permissions: [ Permission::USERS_INVITE ], channel: @canal_a,
+      email: "delegado@exemplo.com")
+    sign_in_as(delegado)
+    get users_path
+
+    assert_select "td", text: /Gestora/
+    assert_no_match senha, response.body
+  end
+
   # A metade do bug que fica na tela: nenhum campo oculto viaja com as caixas de MIC.
   test "o formulário de convite não manda o Master junto com cada MIC" do
     SubChannel.create!(channel: @canal_a, name: "MIC A2")
