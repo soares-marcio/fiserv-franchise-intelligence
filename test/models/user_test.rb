@@ -51,7 +51,7 @@ class UserTest < ActiveSupport::TestCase
   # Super admin não recebe chave a chave: guardar a lista inteira nele criaria dois lugares
   # para acrescentar permissão nova, e um deles seria esquecido.
   test "super admin tem toda permissão sem nenhuma marcada" do
-    chefe = User.new(super_admin: true, permissions: [])
+    chefe = User.new(platform_admin: true, permissions: [])
     comum = User.new(permissions: [ Permission::REPORTS_READ ])
 
     assert chefe.permitted?(Permission::BATCHES_DISCARD)

@@ -5,7 +5,7 @@ class AuditEventPolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.all if user&.super_admin?
+      return scope.all if user&.platform_admin?
       return scope.none unless user&.permitted?(Permission::USERS_INVITE)
 
       # Um admin delegado vê o que aconteceu nos Masters que ele administra, mais os

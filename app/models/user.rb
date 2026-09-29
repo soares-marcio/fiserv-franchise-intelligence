@@ -28,7 +28,7 @@ class User < ApplicationRecord
   validate :permissions_must_be_known
   # Rebaixar ou desativar o último administrador geral ativo deixaria o portal sem ninguém
   # que possa tudo — inclusive sem quem possa nomear outro.
-  validate :keep_one_active_super_admin, on: :update
+  validate :keep_one_active_platform_admin, on: :update
 
   # Dez tentativas erradas (senha ou código) bloqueiam a conta por quinze minutos. O
   # contador fica no banco, e não no cache, porque o cache do ambiente de teste é
@@ -45,7 +45,7 @@ class User < ApplicationRecord
   # Super admin não recebe chave a chave: pode tudo, por definição. Guardar a lista inteira
   # nele criaria dois lugares para acrescentar permissão nova.
   def permitted?(key)
-    super_admin? || permissions.include?(key)
+    platform_admin? || permissions.include?(key)
   end
 
   def unused_recovery_codes = recovery_codes.where(used_at: nil)
@@ -72,10 +72,10 @@ class User < ApplicationRecord
     self.provisional_password = nil
   end
 
-  def keep_one_active_super_admin
-    perde = super_admin_was && (!super_admin? || deactivated_at.present?)
+  def keep_one_active_platform_admin
+    perde = platform_admin_was && (!platform_admin? || deactivated_at.present?)
     return unless perde
-    return if User.active.where(super_admin: true).where.not(id: id).exists?
+    return if User.active.where(platform_admin: true).where.not(id: id).exists?
 
     errors.add(:base, "precisa sobrar ao menos um administrador geral ativo")
   end

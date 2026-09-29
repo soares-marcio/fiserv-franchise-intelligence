@@ -30,7 +30,7 @@ class AdminSeedTest < ActiveSupport::TestCase
     end
 
     admin = User.find_by(email_address: "chefe@exemplo.com")
-    assert admin.super_admin?
+    assert admin.platform_admin?
     assert admin.must_change_password?, "a senha do .env passou por arquivo: troca no primeiro acesso"
     assert_not admin.mfa_enabled?, "o segundo fator é cadastrado pela própria pessoa"
     assert admin.authenticate("senha-do-env-1234")

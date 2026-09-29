@@ -35,7 +35,7 @@ class BatchReviewTest < ActiveSupport::TestCase
   test "aprovar consolida e o lote passa a valer" do
     lote = import_como(nil, lojas: lojas_alteradas, filename: "BIN_APROVA_20260812.xlsx")
     revisor = User.create!(email_address: "revisa@exemplo.com", name: "Revisor",
-      password: Accounts::PASSWORD, super_admin: true)
+      password: Accounts::PASSWORD, platform_admin: true)
 
     Operations::ReviewBatch.approve(batch: lote, reviewer: revisor, note: "Conferido com a Fiserv")
 
@@ -49,7 +49,7 @@ class BatchReviewTest < ActiveSupport::TestCase
   test "recusar exige motivo e não consolida nada" do
     lote = import_como(nil, lojas: lojas_alteradas, filename: "BIN_RECUSA_20260812.xlsx")
     revisor = User.create!(email_address: "recusa@exemplo.com", name: "Revisor",
-      password: Accounts::PASSWORD, super_admin: true)
+      password: Accounts::PASSWORD, platform_admin: true)
 
     assert_raises(ArgumentError) { Operations::ReviewBatch.reject(batch: lote, reviewer: revisor, note: " ") }
 

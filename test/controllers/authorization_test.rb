@@ -136,7 +136,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "super admin não precisa de chave marcada" do
-    entra_com([], super_admin: true)
+    entra_com([], platform_admin: true)
 
     get reports_path
     assert_response :success
@@ -162,9 +162,9 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
 
   private
 
-  def entra_com(permissions, email: "ator@exemplo.com", super_admin: false, channel: nil)
+  def entra_com(permissions, email: "ator@exemplo.com", platform_admin: false, channel: nil)
     sign_out if Current.session
-    user = create_user(email:, permissions:, super_admin:)
+    user = create_user(email:, permissions:, platform_admin:)
     user.access_grants.create!(channel:) if channel
     sign_in_as(user)
   end

@@ -29,11 +29,11 @@ class ImportBatchPolicy < ApplicationPolicy
   private
 
   def own?
-    user&.super_admin? || record&.uploaded_by_id == user&.id
+    user&.platform_admin? || record&.uploaded_by_id == user&.id
   end
 
   def reachable?
-    return true if user&.super_admin?
+    return true if user&.platform_admin?
     return false if record.nil?
 
     return true if record.pending_review? && review?
@@ -46,7 +46,7 @@ class ImportBatchPolicy < ApplicationPolicy
   # Master todo, e um aprovador com um MIC só veria os outros nove (homologação de
   # 29/09/2026).
   def whole_channel?
-    return true if user&.super_admin?
+    return true if user&.platform_admin?
     return false if record.nil? || record.channel_id.nil?
 
     AccessScope.for(user).whole?(record.channel_id)
@@ -57,7 +57,7 @@ class ImportBatchPolicy < ApplicationPolicy
   # sendo processado.
   class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.all if user&.super_admin?
+      return scope.all if user&.platform_admin?
 
       alcance = scope.where(uploaded_by_id: user&.id)
         .or(scope.where(id: BatchGrant.where(user_id: user&.id).select(:import_batch_id)))

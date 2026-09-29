@@ -52,7 +52,7 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_equal inexistente, flash[:alert], "a diferença contaria quem existe no portal"
   end
 
-  # Uma conta comum: o único administrador geral ativo não se desativa (User#keep_one_active_super_admin).
+  # Uma conta comum: o único administrador geral ativo não se desativa (User#keep_one_active_platform_admin).
   test "conta desativada não entra, e sem dizer por quê" do
     comum = scoped_user(permissions: [], email: "comum@exemplo.com")
     comum.update!(deactivated_at: Time.current)
@@ -160,7 +160,7 @@ class AuthenticationPendingStateTest < ActionDispatch::IntegrationTest
   end
 
   test "sem segundo fator cadastrado, a inscrição vem antes" do
-    user = create_user(email: "novo@exemplo.com", otp_secret: nil, mfa_enabled_at: nil, super_admin: true)
+    user = create_user(email: "novo@exemplo.com", otp_secret: nil, mfa_enabled_at: nil, platform_admin: true)
     post session_path, params: { email_address: user.email_address, password: Accounts::PASSWORD }
     # Sem MFA inscrito não há código a pedir: a sessão nasce e a inscrição é a primeira tela.
     post mfa_path, params: { code: "000000" }

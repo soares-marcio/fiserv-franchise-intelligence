@@ -24,7 +24,7 @@ class UserPolicy < ApplicationPolicy
   private
 
   def reachable?
-    return true if user&.super_admin?
+    return true if user&.platform_admin?
     return false if record.nil?
     return true if record == user
 
@@ -36,8 +36,8 @@ class UserPolicy < ApplicationPolicy
 
   # "Tem algo que eu não tenho": super admin, permissão ou escopo além do meu.
   def outranks_me?
-    return false if user&.super_admin?
-    return true if record&.super_admin?
+    return false if user&.platform_admin?
+    return true if record&.platform_admin?
     return true if (record.permissions - user.permissions).any?
 
     (AccessScope.for(record).channel_ids - AccessScope.for(user).channel_ids).any?
@@ -45,7 +45,7 @@ class UserPolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.all if user&.super_admin?
+      return scope.all if user&.platform_admin?
       return scope.none unless user&.permitted?(Permission::USERS_INVITE)
 
       # Quem o delegado enxerga: ele mesmo, os que criou e os que estão no escopo dele.

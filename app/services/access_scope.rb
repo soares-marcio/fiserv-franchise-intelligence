@@ -7,7 +7,7 @@ class AccessScope
   # Nunca instanciado a partir de params: o escopo vem das concessões do usuário, e o filtro
   # da tela só estreita o que já é permitido.
   def self.for(user)
-    return everything if user&.super_admin?
+    return everything if user&.platform_admin?
     return new(full_channel_ids: [], sub_channel_ids: []) if user.nil?
 
     grants = user.access_grants.pluck(:channel_id, :sub_channel_id)

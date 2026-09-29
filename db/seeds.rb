@@ -16,7 +16,7 @@ if email && password
     User.find_or_create_by!(email_address: email.strip.downcase) do |user|
       user.name = ENV.fetch("ADMIN_NAME", "Administrador")
       user.password = password
-      user.super_admin = true
+      user.platform_admin = true
       # As duas pendências valem no primeiro acesso: a senha do .env passou por arquivo e por
       # quem o escreveu, e o segundo fator ainda não existe.
       user.must_change_password = true

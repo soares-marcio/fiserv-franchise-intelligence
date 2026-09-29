@@ -116,10 +116,10 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(admin_user)
 
     patch user_path(alvo), params: {
-      user: { name: alvo.name, email_address: alvo.email_address, super_admin: "1" }, permissions: [], grants: {}
+      user: { name: alvo.name, email_address: alvo.email_address, platform_admin: "1" }, permissions: [], grants: {}
     }
 
-    assert alvo.reload.super_admin?
+    assert alvo.reload.platform_admin?
     assert_equal 0, alvo.sessions.count
   end
 
@@ -128,10 +128,10 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(delegado)
 
     post users_path, params: {
-      user: { name: "Novo", email_address: "novo@exemplo.com", super_admin: "1" }, permissions: [], grants: {}
+      user: { name: "Novo", email_address: "novo@exemplo.com", platform_admin: "1" }, permissions: [], grants: {}
     }
 
-    assert_not User.find_by(email_address: "novo@exemplo.com").super_admin?
+    assert_not User.find_by(email_address: "novo@exemplo.com").platform_admin?
   end
 
   test "o último super admin ativo não é rebaixado nem desativado" do
@@ -141,16 +141,16 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
     # Com dois, rebaixar um é permitido.
     patch user_path(outro), params: {
-      user: { name: outro.name, email_address: outro.email_address, super_admin: "0" }, permissions: [], grants: {}
+      user: { name: outro.name, email_address: outro.email_address, platform_admin: "0" }, permissions: [], grants: {}
     }
-    assert_not outro.reload.super_admin?
+    assert_not outro.reload.platform_admin?
 
     # Sobrou um. Pela tela ele não se rebaixa (a caixa nem aparece para si) nem se desativa
     # (ninguém desativa a si mesmo); a guarda do modelo é o que vale por console.
-    erro = assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(super_admin: false) }
+    erro = assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(platform_admin: false) }
     assert_match(/ao menos um administrador geral/, erro.message)
     assert_raises(ActiveRecord::RecordInvalid) { chefe.update!(deactivated_at: Time.current) }
-    assert chefe.reload.super_admin?
+    assert chefe.reload.platform_admin?
     assert chefe.active?
   end
 

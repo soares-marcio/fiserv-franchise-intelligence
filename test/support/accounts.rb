@@ -14,7 +14,7 @@ module Accounts
   # Ator que pode tudo. É o padrão dos testes que não falam de permissão: eles descrevem
   # telas e números, não autorização.
   def admin_user(email: "chefe@exemplo.com", **atributos)
-    create_user(email:, super_admin: true, **atributos)
+    create_user(email:, platform_admin: true, **atributos)
   end
 
   # Ator com recorte e permissões explícitas — para os testes que afirmam o que alguém

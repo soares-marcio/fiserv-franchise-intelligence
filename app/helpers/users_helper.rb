@@ -25,7 +25,7 @@ module UsersHelper
   end
 
   def user_scope_summary(user)
-    return "Tudo" if user.super_admin?
+    return "Tudo" if user.platform_admin?
 
     grants = user.access_grants
     return "Nada" if grants.empty?
@@ -35,7 +35,7 @@ module UsersHelper
   end
 
   def user_permissions_summary(user)
-    return "Todas" if user.super_admin?
+    return "Todas" if user.platform_admin?
     return "Nenhuma" if user.permissions.empty?
 
     user.permissions.map { |chave| Permission.label(chave) }.to_sentence

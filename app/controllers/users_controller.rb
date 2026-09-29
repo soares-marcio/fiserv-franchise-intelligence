@@ -70,7 +70,7 @@ class UsersController < ApplicationController
     Audit.record("user.deactivated", record: @user, request:)
     redirect_to user_path(@user), notice: "Acesso desativado."
   rescue ActiveRecord::RecordInvalid => error
-    # O último administrador geral ativo não se desativa (User#keep_one_active_super_admin).
+    # O último administrador geral ativo não se desativa (User#keep_one_active_platform_admin).
     redirect_to user_path(@user), alert: error.record.errors.full_messages.join("; ")
   end
 
@@ -118,15 +118,15 @@ class UsersController < ApplicationController
     escopo = Current.access_scope
     @channels = escopo.everything? ? Channel.order(:name) : Channel.where(id: escopo.channel_ids).order(:name)
     @sub_channels = SubChannel.where(channel_id: @channels.select(:id)).order(:name)
-    @permissions = Current.user.super_admin? ? Permission::KEYS : Current.user.permissions
+    @permissions = Current.user.platform_admin? ? Permission::KEYS : Current.user.permissions
   end
 
   def user_attributes
     dados = params.require(:user).permit(:name, :email_address)
     # Administrador geral só por administrador geral, e nunca sobre si mesmo — senão o
     # último se rebaixaria por engano. Fora disso o parâmetro é ignorado, não recusado.
-    if Current.user.super_admin? && @user != Current.user && params[:user].key?(:super_admin)
-      dados[:super_admin] = ActiveModel::Type::Boolean.new.cast(params[:user][:super_admin])
+    if Current.user.platform_admin? && @user != Current.user && params[:user].key?(:platform_admin)
+      dados[:platform_admin] = ActiveModel::Type::Boolean.new.cast(params[:user][:platform_admin])
     end
     return dados if action_name == "update"
 

@@ -2735,7 +2735,7 @@ CREATE TABLE public.users (
     email_address character varying NOT NULL,
     name character varying NOT NULL,
     password_digest character varying NOT NULL,
-    super_admin boolean DEFAULT false NOT NULL,
+    platform_admin boolean DEFAULT false NOT NULL,
     permissions character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     must_change_password boolean DEFAULT true NOT NULL,
     otp_secret text,
@@ -5395,6 +5395,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930100000'),
 ('20260929120000'),
 ('20260922230000'),
 ('20260922190000'),
