@@ -19,7 +19,10 @@
 
 <%= render "shared/staging_otp", user: Current.user %>
 
-<%= form_with url: mfa_enrollment_path, class: "mt-6 grid gap-4" do |form| %>
+<%# Sem Turbo: a resposta é a tela dos códigos de recuperação, renderizada com 200 — e o Turbo
+    ignora resposta 200 a envio de formulário, exige redirecionamento. Com ele ligado o
+    cadastro gravava e a tela não avançava (homologação de 28/09/2026). %>
+<%= form_with url: mfa_enrollment_path, class: "mt-6 grid gap-4", data: { turbo: false } do |form| %>
   <label class="form-control">
     <span class="section-label">Código gerado pelo aplicativo</span>
     <%= form.text_field :code, required: true, autocomplete: "one-time-code",

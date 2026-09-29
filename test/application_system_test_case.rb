@@ -22,6 +22,15 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     fill_in "E-mail", with: user.email_address
     fill_in "Senha", with: password
     click_on "Entrar"
+    # Quem já tem o segundo fator cai no desafio; quem ainda não tem vai para o cadastro.
+    # exact: o cadastro tem "Código gerado pelo aplicativo", que não é o desafio.
+    if has_field?("Código", exact: true, wait: 5)
+      fill_in "Código", with: current_otp(user)
+      click_on "Verificar"
+      # O Turbo envia o formulário em segundo plano: devolver antes de a resposta chegar
+      # deixa o teste navegar sem sessão e cair no login.
+      assert_no_current_path mfa_path
+    end
     user
   end
 end
