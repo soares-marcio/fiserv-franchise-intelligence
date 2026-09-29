@@ -325,15 +325,15 @@ module BinImport
       end
     end
 
-    # Quem enviou precisa alcançar o Master do arquivo. Sem autor (import por console, seed
-    # ou job antigo) a checagem não se aplica: ali não há ator a limitar.
+    # Quem enviou precisa ter o Master do arquivo inteiro — a planilha é a carteira toda, e
+    # um MIC não dá direito de substituí-la. Sem autor (import por console, seed ou job
+    # antigo) a checagem não se aplica: ali não há ator a limitar.
     def authorize_channel!(batch, channel)
       autor = batch.uploaded_by
-      return if autor.nil? || autor.super_admin?
-      return if AccessScope.for(autor).channel_ids.include?(channel.id)
+      return if autor.nil? || AccessScope.for(autor).whole?(channel.id)
 
-      raise ArgumentError, "Esta planilha é do Master \"#{channel.name}\", que está fora do " \
-        "seu acesso. Confira o arquivo ou peça a liberação desse Master."
+      raise ArgumentError, "Esta planilha é do Master \"#{channel.name}\" inteiro, que está fora " \
+        "do seu acesso — um MIC dele não basta. Confira o arquivo ou peça a liberação desse Master."
     end
 
     def validate_existing_establishments!(channel, rows)

@@ -14,6 +14,8 @@ module AuditEventsHelper
     "batch.approved" => "Aprovou importação",
     "batch.rejected" => "Recusou importação",
     "batch.discarded" => "Descartou lote",
+    "batch.granted" => "Liberou arquivo a alguém",
+    "batch.revoked" => "Revogou liberação de arquivo",
     "note.saved" => "Salvou anotação",
     "note.removed" => "Apagou anotação"
   }.freeze

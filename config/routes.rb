@@ -37,6 +37,8 @@ Rails.application.routes.draw do
       post :approve
       post :reject
     end
+    # Liberação nominal do arquivo: quem mais, além de quem enviou, pode vê-lo e baixá-lo.
+    resources :batch_grants, only: %i[create destroy]
   end
   resources :establishments, only: %i[index show]
   # Anotação do cliente, editada de duas telas. O :id é a uuid da empresa, não o CNPJ: o

@@ -253,6 +253,14 @@ tela lê lote que não esteja validado. A tela de revisão mostra o que entra, *
 quem muda de MIC, CNPJ em mais de um MIC e os números comparados. Aprovar consolida; recusar
 guarda o motivo e o arquivo fica no histórico.
 
+**O arquivo é o Master inteiro, e o recorte por MIC não entra nele.** Por isso três coisas
+exigem o Master **inteiro** no escopo, e não um MIC dele: enviar planilha (ela substitui a
+carteira toda), revisar e aprovar (a tela mostra o diff do Master todo) e receber a
+liberação de um arquivo. A liberação é feita na **ficha do lote** ("Quem vê este arquivo")
+por quem administra acessos e alcança o lote; a lista só oferece quem tem aquele Master
+inteiro, e revogar tira o arquivo da listagem da pessoa na hora. Quem tem só um MIC e a
+chave de ver lotes vê exatamente os próprios envios.
+
 ### Trilha
 
 **Trilha** registra entrada, saída, tentativa recusada, falha e uso de código de recuperação,

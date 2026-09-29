@@ -36,6 +36,13 @@ class AccessScope
   # predicado é uma comparação de canal e usa os índices que já existem.
   def partial? = !everything? && sub_channel_ids.any?
 
+  # O Master inteiro, e não um MIC dele. É a pergunta certa para tudo que não tem recorte
+  # por MIC — a planilha importada é a carteira inteira num arquivo, e a revisão de um lote
+  # mostra o diff do Master todo.
+  def whole?(channel_id)
+    everything? || full_channel_ids.include?(channel_id)
+  end
+
   # Todos os canais alcançáveis, por qualquer via. Serve ao seletor de canal da tela e aos
   # filtros que só precisam do Master.
   def channel_ids

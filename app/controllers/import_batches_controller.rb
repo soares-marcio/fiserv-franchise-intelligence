@@ -22,6 +22,14 @@ class ImportBatchesController < ApplicationController
   end
 
   def show
+    return unless policy(@import_batch).grant?
+
+    @grants = BatchGrant.where(import_batch: @import_batch).includes(:user).order("users.name")
+    # Elegíveis: quem este ator administra, ainda não tem o arquivo e tem o Master inteiro.
+    # Super admin já vê tudo; quem enviou também.
+    fora = @grants.map(&:user_id) + [ Current.user.id, @import_batch.uploaded_by_id ].compact
+    @eligible = policy_scope(User).active.where(super_admin: false).where.not(id: fora).order(:name)
+      .select { |candidate| AccessScope.for(candidate).whole?(@import_batch.channel_id) }
   end
 
   def create

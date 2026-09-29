@@ -16,9 +16,15 @@ class ImportBatchPolicy < ApplicationPolicy
 
   def destroy? = permitted?(Permission::BATCHES_DISCARD) && own?
 
-  def review? = permitted?(Permission::BATCHES_APPROVE) && reachable_channel?
+  def review? = permitted?(Permission::BATCHES_APPROVE) && whole_channel?
   alias_method :approve?, :review?
   alias_method :reject?, :review?
+
+  # Liberar o arquivo a outra pessoa é administrar acesso: a chave é a de convidar, o lote
+  # precisa estar ao alcance e o Master precisa ser inteiro — quem tem um MIC não repassa
+  # a carteira toda.
+  def grant? = permitted?(Permission::USERS_INVITE) && reachable? && whole_channel?
+  alias_method :revoke?, :grant?
 
   private
 
@@ -36,12 +42,14 @@ class ImportBatchPolicy < ApplicationPolicy
   end
 
   # Aprovar depende do canal do lote, e não de quem o enviou: quem revisa é o operador
-  # autorizador daquela carteira.
-  def reachable_channel?
+  # autorizador daquela carteira. E da carteira **inteira**: a revisão mostra o diff do
+  # Master todo, e um aprovador com um MIC só veria os outros nove (homologação de
+  # 29/09/2026).
+  def whole_channel?
     return true if user&.super_admin?
     return false if record.nil? || record.channel_id.nil?
 
-    AccessScope.for(user).channel_ids.include?(record.channel_id)
+    AccessScope.for(user).whole?(record.channel_id)
   end
 
   # Só os próprios envios e os liberados. Lote ainda sem canal (o canal só é resolvido
@@ -55,9 +63,9 @@ class ImportBatchPolicy < ApplicationPolicy
         .or(scope.where(id: BatchGrant.where(user_id: user&.id).select(:import_batch_id)))
       return alcance unless user&.permitted?(Permission::BATCHES_APPROVE)
 
-      # Quem aprova enxerga também o que está esperando decisão nos Masters do seu escopo —
-      # sem isso, revisar exigiria uma liberação para cada arquivo.
-      alcance.or(scope.where(status: "pending_review", channel_id: AccessScope.for(user).channel_ids))
+      # Quem aprova enxerga também o que está esperando decisão nos Masters que tem
+      # inteiros — sem isso, revisar exigiria uma liberação para cada arquivo.
+      alcance.or(scope.where(status: "pending_review", channel_id: AccessScope.for(user).full_channel_ids))
     end
   end
 end

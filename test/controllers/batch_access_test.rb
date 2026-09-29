@@ -88,6 +88,83 @@ class BatchAccessTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
+  # A revisão mostra o diff do Master inteiro. Um aprovador com um MIC só veria os outros —
+  # por isso o lote em revisão nem entra no alcance dele (homologação de 29/09/2026).
+  test "aprovador com um MIC só não alcança a revisão; com o Master inteiro, alcança" do
+    mic = SubChannel.create!(channel: @canal, name: "MIC UM")
+    pendente = ImportBatch.create!(source_filename: "pendente.xlsx", file_checksum: "pend-1",
+      status: "pending_review", channel: @canal, uploaded_by: @colega)
+    aprova = [ Permission::BATCHES_READ, Permission::BATCHES_APPROVE ]
+
+    do_mic = scoped_user(permissions: aprova, sub_channel: mic, email: "mic@exemplo.com")
+    sign_in_as(do_mic)
+    get import_batches_path
+    assert_no_match(/pendente\.xlsx/, response.body)
+    get review_import_batch_path(pendente)
+    assert_response :not_found
+    sign_out
+
+    inteiro = scoped_user(permissions: aprova, channel: @canal, email: "inteiro@exemplo.com")
+    sign_in_as(inteiro)
+    get import_batches_path
+    assert_match(/pendente\.xlsx/, response.body)
+    assert ImportBatchPolicy.new(inteiro, pendente).review?
+  end
+
+  # Liberar é administrar acesso: exige a chave de convidar, alcançar o lote e o Master
+  # inteiro — de quem libera e de quem recebe.
+  test "liberar um arquivo: só a quem tem o Master inteiro, e revogar tira na hora" do
+    mic = SubChannel.create!(channel: @canal, name: "MIC UM")
+    autorizador = scoped_user(permissions: todas_de_lote + [ Permission::USERS_INVITE ],
+      channel: @canal, email: "autorizador@exemplo.com")
+    lote = ImportBatch.create!(source_filename: "liberavel.xlsx", file_checksum: "lib-1",
+      status: "validated", channel: @canal, uploaded_by: autorizador)
+    do_mic = scoped_user(permissions: [ Permission::BATCHES_READ ], sub_channel: mic, email: "mic@exemplo.com")
+    sign_in_as(autorizador)
+
+    get import_batch_path(lote)
+    assert_match(/Quem vê este arquivo/, response.body)
+    assert_match(/colega@exemplo\.com/, response.body, "quem tem o Master inteiro é oferecido")
+    assert_no_match(/mic@exemplo\.com/, response.body, "quem tem um MIC não é oferecido")
+
+    assert_difference -> { BatchGrant.count } do
+      post import_batch_batch_grants_path(lote), params: { user_id: @colega.to_param }
+    end
+    assert_no_difference -> { BatchGrant.count } do
+      post import_batch_batch_grants_path(lote), params: { user_id: do_mic.to_param }
+    end
+    assert_match(/Master .* inteiro/, flash[:alert])
+    sign_out
+
+    sign_in_as(@colega)
+    get import_batches_path
+    assert_match(/liberavel\.xlsx/, response.body)
+    sign_out
+
+    # Reentrar com quem já entrou exige outra janela do TOTP: o código não vale duas vezes.
+    travel 31.seconds
+    sign_in_as(autorizador)
+    assert_difference -> { BatchGrant.count }, -1 do
+      delete import_batch_batch_grant_path(lote, BatchGrant.find_by!(user: @colega, import_batch: lote))
+    end
+    sign_out
+
+    travel 31.seconds
+    sign_in_as(@colega)
+    get import_batch_path(lote)
+    assert_response :not_found
+  end
+
+  test "sem a chave de convidar, a seção de liberação não aparece e o POST é recusado" do
+    sign_in_as(@dono)
+
+    get import_batch_path(@meu)
+    assert_no_match(/Quem vê este arquivo/, response.body)
+
+    post import_batch_batch_grants_path(@meu), params: { user_id: @colega.to_param }
+    assert_response :forbidden
+  end
+
   test "super admin enxerga e opera qualquer lote" do
     sign_in_as(admin_user)
 
@@ -121,6 +198,24 @@ class BatchUploadScopeTest < ActiveSupport::TestCase
 
     assert_match(/fora do seu acesso/, erro.message)
     assert_equal 0, MapSnapshot.count, "nada pode ser gravado antes da checagem"
+  end
+
+  # A planilha substitui a carteira inteira do Master: um MIC dele não basta para enviá-la.
+  # O canal é criado antes com a identidade da planilha sintética, para o MIC existir e o
+  # resolvedor reaproveitá-lo.
+  test "com um MIC só do Master, o envio é recusado antes de gravar qualquer linha" do
+    canal = Channel.create!(external_id: BinWorkbook::REPORT_ID, name: BinWorkbook::CANAL)
+    mic = SubChannel.create!(channel: canal, name: "MIC ALFA")
+    autor = User.create!(email_address: "parcial@exemplo.com", name: "Parcial",
+      password: Accounts::PASSWORD, permissions: [ Permission::BATCHES_UPLOAD ])
+    autor.access_grants.create!(channel: canal, sub_channel: mic)
+
+    erro = nil
+    assert_no_difference -> { MapSnapshot.count } do
+      erro = assert_raises(ArgumentError) { import_synthetic_workbook_as(autor) }
+    end
+
+    assert_match(/inteiro/, erro.message)
   end
 
   test "com o Master no escopo, a importação segue normalmente" do
