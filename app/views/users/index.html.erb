@@ -19,8 +19,15 @@
     <article class="user-card surface-card flex flex-col gap-4 p-5">
       <header class="flex flex-wrap items-start justify-between gap-2">
         <div class="min-w-0">
-          <h2 class="truncate text-base font-bold">
-            <%= link_to user.name, user_path(user), class: "link" %>
+          <h2 class="flex items-center gap-2 text-base font-bold">
+            <%= link_to user.name, user_path(user), class: "link truncate" %>
+            <% if policy(user).update? %>
+              <%# Ícone ao lado do nome: o rótulo acessível diz o que ele faz. %>
+              <%= link_to edit_user_path(user), class: "btn btn-ghost btn-xs btn-square",
+                title: "Editar acesso", "aria-label": "Editar acesso de #{user.name}" do %>
+                <%= icon("pencil-simple", css: "icon") %>
+              <% end %>
+            <% end %>
           </h2>
           <p class="truncate text-xs opacity-70"><%= user.email_address %></p>
         </div>
@@ -40,20 +47,13 @@
         <div><dt class="opacity-70">Arquivos enviados</dt><dd class="font-semibold tabular-nums"><%= uso[:uploads] %></dd></div>
       </dl>
 
-      <footer class="mt-auto flex flex-wrap items-center justify-between gap-2">
-        <span class="text-xs opacity-70">
-          <% if user.created_by %>
-            Convidado por <%= user.created_by.name %> em <%= l(user.created_at.to_date) %>
-          <% else %>
-            Desde <%= l(user.created_at.to_date) %>
-          <% end %>
-        </span>
-        <span class="flex gap-2">
-          <%= link_to "Ficha", user_path(user), class: "btn btn-ghost btn-xs" %>
-          <% if policy(user).update? %>
-            <%= link_to "Editar", edit_user_path(user), class: "btn btn-outline btn-xs" %>
-          <% end %>
-        </span>
+      <%# O nome já abre a ficha; o card não repete o atalho. %>
+      <footer class="mt-auto text-xs opacity-70">
+        <% if user.created_by %>
+          Convidado por <%= user.created_by.name %> em <%= l(user.created_at.to_date) %>
+        <% else %>
+          Desde <%= l(user.created_at.to_date) %>
+        <% end %>
       </footer>
     </article>
   <% end %>

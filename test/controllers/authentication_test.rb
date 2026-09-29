@@ -52,12 +52,14 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_equal inexistente, flash[:alert], "a diferença contaria quem existe no portal"
   end
 
+  # Uma conta comum: o único administrador geral ativo não se desativa (User#keep_one_active_super_admin).
   test "conta desativada não entra, e sem dizer por quê" do
-    @user.update!(deactivated_at: Time.current)
+    comum = scoped_user(permissions: [], email: "comum@exemplo.com")
+    comum.update!(deactivated_at: Time.current)
 
-    post session_path, params: { email_address: @user.email_address, password: Accounts::PASSWORD }
+    post session_path, params: { email_address: comum.email_address, password: Accounts::PASSWORD }
 
-    assert_redirected_to new_session_path(email_address: @user.email_address)
+    assert_redirected_to new_session_path(email_address: comum.email_address)
     assert_equal 0, Session.count
   end
 
@@ -125,8 +127,9 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
   end
 
   test "desativar o usuário derruba quem já estava dentro" do
-    sign_in_as(@user)
-    @user.update!(deactivated_at: Time.current)
+    comum = scoped_user(permissions: [], email: "comum@exemplo.com")
+    sign_in_as(comum)
+    comum.update!(deactivated_at: Time.current)
 
     get root_path
 
