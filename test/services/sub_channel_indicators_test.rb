@@ -128,4 +128,17 @@ class SubChannelIndicatorsTest < ActiveSupport::TestCase
     assert_empty SubChannelIndicatorsQuery.new(scope: escopo_do_canal(outro.id)).by_sub_channel
     assert_equal 2, SubChannelIndicatorsQuery.new(scope: escopo_do_canal(Channel.find_by!(name: BinWorkbook::CANAL).id)).by_sub_channel.size
   end
+
+  # Homologação de 29/09/2026: quem tinha um MIC via os dez do Master. Credenciamentos e
+  # base recortavam só pelo canal, e a lista de carteiras saía do que essas consultas
+  # devolviam. O recorte por MIC tem de valer em cada uma das três fontes.
+  test "quem tem um MIC vê só aquele MIC, com os mesmos números" do
+    kappa = SubChannel.find_by!(name: "MIC KAPPA")
+
+    recortado = SubChannelIndicatorsQuery.new(scope: escopo_do_mic(kappa)).by_sub_channel
+
+    assert_equal [ "MIC KAPPA" ], recortado.map { |row| row[:name] }
+    assert_equal agosto(@kappa)[:readings], agosto(recortado.first)[:readings],
+      "o recorte muda quem aparece, não o que se apura de quem aparece"
+  end
 end

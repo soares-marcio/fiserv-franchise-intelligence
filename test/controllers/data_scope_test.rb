@@ -68,16 +68,27 @@ class DataScopeTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  # Recorte por MIC: dois MICs do mesmo Master, e o ator só tem um.
-  test "o ator de um MIC não vê o MIC vizinho do mesmo Master" do
-    user = scoped_user(permissions: [ Permission::REPORTS_READ ], sub_channel: @mic_alfa)
+  # Recorte por MIC: dois MICs do mesmo Master, e o ator só tem um. Tela a tela, porque o
+  # recorte por Master já valia em todas e o por MIC não: a de indicadores mostrava os dez
+  # MICs do Master a quem tinha um só (homologação de 29/09/2026).
+  test "o ator de um MIC não vê o MIC vizinho do mesmo Master em nenhuma tela" do
+    user = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::ESTABLISHMENTS_READ ],
+      sub_channel: @mic_alfa)
     sign_in_as(user)
 
-    get reports_path
-
-    assert_response :success
+    [ reports_path, stalled_reports_path, weekly_reports_path, three_months_reports_path,
+      recurring_reports_path, indicators_reports_path ].each do |tela|
+      get tela
+      assert_response :success, tela
+      assert_no_match(/MIC BETA/, response.body, "#{tela} mostra o MIC vizinho")
+    end
     assert_match(/MIC ALFA/, response.body)
-    assert_no_match(/MIC BETA/, response.body)
+
+    get establishments_path
+    assert_no_match(/BETA CAFE/, response.body, "a listagem de clientes mostra EC do MIC vizinho")
+
+    get search_path(q: "BETA")
+    assert_no_match(/BETA CAFE|MIC BETA/, response.body, "a busca encontra o MIC vizinho")
   end
 
   test "o ator de um MIC não abre a tela do MIC vizinho" do

@@ -55,10 +55,17 @@ class SubChannelIndicatorsQuery
     end.sort_by { |row| row[:name] }
   end
 
-  # Quem aparece em alguma das três fontes: credenciou, indicou ou tem base em algum mês.
+  # Quem aparece em alguma das três fontes: credenciou, indicou ou tem base em algum mês —
+  # e está no escopo. As três consultas já recortam por MIC; a segunda barreira existe
+  # porque foi exatamente aqui que o recorte por Master deixou passar os dez MICs do Master
+  # a quem tinha um só (homologação de 29/09/2026).
   def portfolio_sub_channels
     ids = (@accreditations.keys + @proposals.keys + @bases.keys).map(&:first).uniq
-    SubChannel.where(id: ids).order(:name)
+    permitted = SubChannel.where(id: ids)
+    return permitted.order(:name) if @scope.everything?
+
+    permitted.where(channel_id: @scope.full_channel_ids)
+      .or(permitted.where(id: @scope.sub_channel_ids)).order(:name)
   end
 
   # Competência aberta mostra o valor e não a leitura: um mês pela metade credencia menos
@@ -114,7 +121,7 @@ class SubChannelIndicatorsQuery
       FROM map_snapshots map
       JOIN (#{LATEST_MAP_BATCHES_SQL.indent(6).strip}) latest ON latest.import_batch_id = map.import_batch_id
       WHERE map.accredited_on IS NOT NULL
-        AND #{channel_predicate("latest")}
+        AND #{sub_channel_predicate("map")}
       GROUP BY map.sub_channel_id, date_trunc('month', map.accredited_on)
     SQL
     rows(sql).to_h { |row| [ key_of(row), row["accredited"].to_i ] }
@@ -178,7 +185,7 @@ class SubChannelIndicatorsQuery
         ON vol.channel_id = batch.channel_id
         AND vol.establishment_id = map.establishment_id
         AND vol.period = batch.current_period
-      WHERE #{channel_predicate("batch")}
+      WHERE #{sub_channel_predicate("map")}
         AND (map.suspended_on IS NULL OR map.suspended_on >= batch.current_period)
       GROUP BY map.sub_channel_id, batch.current_period
     SQL
