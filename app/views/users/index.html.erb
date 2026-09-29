@@ -21,12 +21,10 @@
         <div class="min-w-0">
           <h2 class="flex items-center gap-2 text-base font-bold">
             <%= link_to user.name, user_path(user), class: "link truncate" %>
-            <% if policy(user).update? %>
-              <%# Ícone ao lado do nome: o rótulo acessível diz o que ele faz. %>
-              <%= link_to edit_user_path(user), class: "btn btn-ghost btn-xs btn-square",
-                title: "Editar acesso", "aria-label": "Editar acesso de #{user.name}" do %>
-                <%= icon("pencil-simple", css: "icon") %>
-              <% end %>
+            <%# O olho abre a mesma ficha que o nome; editar fica na ficha. %>
+            <%= link_to user_path(user), class: "btn btn-ghost btn-xs btn-square",
+              title: "Visualizar", "aria-label": "Visualizar o acesso de #{user.name}" do %>
+              <%= icon("eye", css: "icon") %>
             <% end %>
           </h2>
           <p class="truncate text-xs opacity-70"><%= user.email_address %></p>
