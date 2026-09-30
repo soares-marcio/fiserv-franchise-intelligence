@@ -1,8 +1,12 @@
 class ImportBatchPolicy < ApplicationPolicy
-  # A tela de importação é onde se envia: quem só tem "Enviar planilha" precisa entrar nela
-  # para enviar e acompanhar os próprios lotes — o Scope já limita a lista ao que é dele.
-  # Sem isso a chave de envio não abria porta nenhuma (homologação de 30/09/2026).
-  def index? = permitted?(Permission::BATCHES_READ) || permitted?(Permission::BATCHES_UPLOAD)
+  # A tela de importação é onde se envia e onde a revisão espera: quem só tem "Enviar
+  # planilha" precisa dela para enviar e acompanhar os próprios lotes, e quem só aprova
+  # precisa dela para achar o que está em revisão — o Scope já limita a lista ao que é de
+  # cada um. Sem isso a chave de envio não abria porta nenhuma (homologação de 30/09/2026).
+  def index?
+    permitted?(Permission::BATCHES_READ) || permitted?(Permission::BATCHES_UPLOAD) ||
+      permitted?(Permission::BATCHES_APPROVE)
+  end
 
   # Ver um lote específico exige, além da chave, que ele esteja ao alcance: os próprios
   # envios e os que alguém liberou nominalmente.

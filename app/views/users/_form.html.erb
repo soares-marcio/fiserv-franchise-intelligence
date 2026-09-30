@@ -47,7 +47,12 @@
             <label class="flex items-start gap-2 text-sm">
               <%= check_box_tag "permissions[]", chave, @user.permissions.include?(chave),
                 id: "permission_#{chave}", class: "checkbox checkbox-sm mt-0.5" %>
-              <span><%= Permission.label(chave) %></span>
+              <span>
+                <%= Permission.label(chave) %>
+                <% if (requisito = Permission.requirement_text(chave)) %>
+                  <span class="block text-xs opacity-70"><%= requisito %></span>
+                <% end %>
+              </span>
             </label>
           <% end %>
         </div>

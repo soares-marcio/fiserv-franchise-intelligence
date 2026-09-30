@@ -46,7 +46,34 @@ class Permission
     "Administração" => [ USERS_INVITE ]
   }.freeze
 
+  # Chave que só faz sentido ao lado de outra: exportar acontece dentro do relatório, a
+  # anotação é lida numa tela de carteira, reprocessar e descartar agem sobre o próprio
+  # envio. Uma chave concedida sem a base não abre porta nenhuma, e foi assim que um
+  # convite com "Enviar planilha" sozinha não chegou à tela (homologação de 30/09/2026).
+  # Cada entrada lista as alternativas: basta uma delas. Quem não está aqui vale sozinha.
+  REQUIRES = {
+    REPORTS_EXPORT => [ REPORTS_READ ],
+    NOTES_READ => [ REPORTS_READ, ESTABLISHMENTS_READ ],
+    NOTES_WRITE => [ NOTES_READ ],
+    BATCHES_ADJUST => [ BATCHES_UPLOAD ],
+    BATCHES_DISCARD => [ BATCHES_UPLOAD ]
+  }.freeze
+
   def self.label(key)
     LABELS.fetch(key, key)
+  end
+
+  # As chaves do conjunto cuja base falta, com o que falta.
+  def self.missing_requirements(keys)
+    REQUIRES.filter_map do |key, bases|
+      [ key, bases ] if keys.include?(key) && (keys & bases).empty?
+    end
+  end
+
+  def self.requirement_text(key)
+    bases = REQUIRES[key]
+    return if bases.nil?
+
+    "requer #{bases.map { |base| %("#{label(base)}") }.join(' ou ')}"
   end
 end

@@ -30,6 +30,7 @@ class User < ApplicationRecord
   # acesso e o segundo fator continuam obrigatórios.
   validates :password, length: { minimum: 8 }, allow_nil: true
   validate :permissions_must_be_known
+  validate :permissions_must_be_coherent
   # Rebaixar ou desativar o último administrador da plataforma ativo deixaria o portal sem
   # quem crie organizações — inclusive sem quem possa nomear outro.
   validate :keep_one_active_platform_admin, on: :update
@@ -119,6 +120,14 @@ class User < ApplicationRecord
       errors.add(:organization_admin, "a conta da plataforma não administra organização") if organization_admin?
     elsif organization_id.nil?
       errors.add(:organization, "é obrigatória para quem não é da plataforma")
+    end
+  end
+
+  # Chave sem a base não abre tela nenhuma: recusar no convite é melhor do que a pessoa
+  # descobrir entrando.
+  def permissions_must_be_coherent
+    Permission.missing_requirements(permissions).each do |key, _bases|
+      errors.add(:permissions, %("#{Permission.label(key)}" #{Permission.requirement_text(key)}))
     end
   end
 

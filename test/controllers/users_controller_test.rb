@@ -301,7 +301,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(chefe)
     post users_path, params: {
       user: { name: "Gestora", email_address: "gestora@exemplo.com" },
-      permissions: [ Permission::USERS_INVITE, Permission::BATCHES_DISCARD ],
+      permissions: [ Permission::USERS_INVITE, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
       grants: { "0" => { channel_id: @canal_a.id } }
     }
     gestora = User.find_by(email_address: "gestora@exemplo.com")

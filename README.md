@@ -244,6 +244,15 @@ inteiro, que usa a chave fixa do estabelecimento.
 | `metabase_read` | **Fechada**: a tela mostra a conexão de um papel que lê as views de todas as organizações; não aparece no convite até haver recorte por organização no Metabase |
 | `users_invite` | Convidar e administrar acessos, e ler o histórico |
 
+Cinco chaves só valem ao lado da base (`Permission::REQUIRES`), e o convite recusa a
+combinação incompleta em vez de deixar a pessoa descobrir entrando: `reports_export` pede
+`reports_read`; `notes_read` pede `reports_read` ou `establishments_read` (a anotação é
+lida numa tela de carteira); `notes_write` pede `notes_read`; `batches_adjust` e
+`batches_discard` pedem `batches_upload` (agem sobre o próprio envio). As demais abrem
+sozinhas a tela que prometem — `batches_upload` e `batches_approve` abrem a tela de
+importação, com a lista limitada ao que é de cada um — e o teste
+`test/controllers/permission_routes_test.rb` percorre chave a chave para garantir isso.
+
 ### Convidar
 
 **Acessos → Convidar usuário.** O sistema gera a senha provisória e a deixa na listagem, ao

@@ -62,7 +62,7 @@ class BlobAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "quem não alcança o cliente não baixa o anexo da anotação dele" do
-    sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ ], channel: @outro,
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: @outro,
       email: "de-fora@exemplo.com"))
 
     get rails_blob_path(@anexo, disposition: "attachment")
@@ -71,7 +71,7 @@ class BlobAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "quem alcança o cliente baixa normalmente" do
-    sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ ], channel: @canal,
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: @canal,
       email: "de-dentro@exemplo.com"))
 
     get rails_blob_path(@anexo, disposition: "attachment")
