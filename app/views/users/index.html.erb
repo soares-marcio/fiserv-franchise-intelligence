@@ -47,11 +47,7 @@
 
       <%# O nome já abre a ficha; o card não repete o atalho. %>
       <footer class="mt-auto text-xs opacity-70">
-        <% if user.created_by %>
-          Convidado por <%= user.created_by.name %> em <%= l(user.created_at.to_date) %>
-        <% else %>
-          Desde <%= l(user.created_at.to_date) %>
-        <% end %>
+        <%= user_origin_line(user) %>
       </footer>
     </article>
   <% end %>

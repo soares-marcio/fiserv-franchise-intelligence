@@ -27,6 +27,17 @@ module UsersHelper
   # O que quem convidou precisa saber do primeiro acesso: a senha provisória enquanto ela
   # vale, e a confirmação de que a pessoa entrou e a trocou depois. A senha só aparece a
   # quem pode editar este acesso — a listagem alcança mais gente do que isso.
+  # De onde veio a conta. O nome de quem convidou só aparece quando é alguém da mesma
+  # organização — é a quem recorrer. O administrador foi criado pela plataforma, e o nome
+  # de quem a opera não pertence à organização.
+  def user_origin_line(user)
+    data = l(user.created_at.to_date)
+    return "Desde #{data}" if user.created_by.nil?
+    return "Criado pela plataforma em #{data}" if user.created_by.platform_admin?
+
+    "Convidado por #{user.created_by.name} em #{data}"
+  end
+
   def user_first_access_hint(user)
     unless user.must_change_password?
       return content_tag(:span, "Entrou e trocou a senha", class: "block text-xs opacity-70")

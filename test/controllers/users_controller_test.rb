@@ -149,7 +149,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "o último administrador da plataforma ativo não é rebaixado nem desativado" do
-    plataforma = platform_admin_user
+    plataforma = platform_admin_user(name: "Operadora Plataforma")
 
     # Pela tela ninguém o alcança; a guarda do modelo é o que vale por console.
     erro = assert_raises(ActiveRecord::RecordInvalid) { plataforma.update!(platform_admin: false) }
@@ -354,5 +354,20 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_select "a.breadcrumb-back[href=?]", users_path, text: /Voltar/
     get users_path
     assert_select "a.breadcrumb-back", count: 0
+  end
+
+  test "o card diz quem convidou dentro da organização, e só 'pela plataforma' quando foi ela" do
+    plataforma = platform_admin_user(name: "Operadora Plataforma")
+    chefe = admin_user
+    chefe.update!(created_by: plataforma)
+    convidado = create_user(email: "convidado@exemplo.com", created_by: chefe)
+    sign_in_as(chefe)
+
+    get users_path
+
+    assert_match(/Criado pela plataforma em/, response.body)
+    assert_no_match(/#{plataforma.name}/, response.body)
+    assert_match(/Convidado por #{chefe.name} em/, response.body)
+    assert_includes response.body, convidado.email_address
   end
 end
