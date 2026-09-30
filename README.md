@@ -182,6 +182,24 @@ desligado ou dormindo derruba o `fiserv.bin`, e só ele; a produção não depen
 O portal exige login desde 09/2026. Antes disso ele não tinha autenticação nenhuma, e o
 porteiro era o Cloudflare Access, fora do repositório.
 
+### Organizações e papéis
+
+O portal hospeda **organizações**: cada Master, cada lote, cada anotação e cada conta comum
+pertencem a uma, e nenhuma enxerga a outra — nem a plataforma. São três papéis:
+
+| Papel | O que é | O que vê |
+| --- | --- | --- |
+| **Administrador da plataforma** | A conta que cria organizações e o administrador de cada uma, e presta suporte (reiniciar segundo fator, desativar, reativar). Nasce do seed; não tem organização | **Nenhum dado**: só a tela macro (organizações → administradores → convidados, com situação e último acesso) e a trilha de plataforma |
+| **Administrador da organização** | Criado pela plataforma. Dá o nome à organização no primeiro acesso, importa a carteira (o primeiro arquivo cria os Masters dela), convida e delega | Tudo dentro da organização, automaticamente — sem chave nem concessão marcada. Não cria outro administrador: isso é só da plataforma |
+| **Colaborador** | Convidado por um administrador ou por um delegado com `users_invite` | O que lhe foi concedido: Masters inteiros e/ou MICs, com as chaves marcadas |
+
+Duas consequências práticas: **e-mail é único no portal inteiro**, então a conta da
+plataforma e a conta que administra uma organização precisam de e-mails distintos; e um
+arquivo cujo `REPORT_ID` já pertence a outra organização — ou que traga um EC de outra — é
+recusado com mensagem neutra, sem revelar nome de Master nem de EC alheio. Master novo só o
+administrador da organização inaugura; colaborador precisa do Master inteiro para enviar,
+revisar ou receber a liberação de um arquivo.
+
 ### Entrar
 
 Senha **e** segundo fator (TOTP: Google Authenticator, Authy, 1Password ou o gerenciador do
@@ -199,7 +217,7 @@ Elas são independentes, e é assim que o convite funciona:
 
 | | |
 | --- | --- |
-| **O que enxerga** | Um ou mais **Masters inteiros** e/ou **MICs específicos**. Sem nenhuma concessão, a pessoa entra e não vê carteira alguma |
+| **O que enxerga** | Um ou mais **Masters inteiros** e/ou **MICs específicos** da própria organização. Sem nenhuma concessão, a pessoa entra e não vê carteira alguma |
 | **O que pode fazer** | As chaves de `Permission` marcadas no convite, listadas abaixo |
 
 O recorte vale em toda parte: relatórios, exportações, listagem de clientes, busca, ficha,
@@ -223,7 +241,7 @@ inteiro, que usa a chave fixa do estabelecimento.
 | `batches_adjust` | Reprocessar lote e ajustar o dia de corte — só nos próprios envios |
 | `batches_discard` | Descartar lote — idem |
 | `batches_approve` | Decidir importação em revisão |
-| `metabase_read` | A tela do Metabase, que mostra host, porta, banco e usuário de conexão |
+| `metabase_read` | **Fechada**: a tela mostra a conexão de um papel que lê as views de todas as organizações; não aparece no convite até haver recorte por organização no Metabase |
 | `users_invite` | Convidar e administrar acessos, e ler a trilha |
 
 ### Convidar
@@ -231,7 +249,8 @@ inteiro, que usa a chave fixa do estabelecimento.
 **Acessos → Convidar usuário.** O sistema gera a senha provisória e a deixa na listagem, ao
 lado da pessoa, para você entregar — não há e-mail configurado no portal. Ela fica visível só
 a quem pode editar aquele acesso e some no instante em que a pessoa a troca; no lugar entra
-"Entrou e trocou a senha". Quem convida **só concede o que tem**:
+"Entrou e trocou a senha". Convidar exige ter ao menos um Master ou MIC — quem não tem nada
+não tem o que conceder. Quem convida **só concede o que tem**:
 nem permissão que não possui, nem Master ou MIC fora do próprio escopo, e não edita quem tem
 mais que ele. Mudar permissão ou escopo, e desativar, derrubam as sessões abertas da pessoa
 na hora.
@@ -271,9 +290,18 @@ texto das anotações: uma trilha que repete o dado protegido vira um segundo va
 
 ### Primeiro acesso de um banco novo
 
-`ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` fazem o seed criar o super admin no primeiro
-`db:prepare`. Sem as duas, o seed não cria ninguém — e o portal sobe sem ninguém para entrar.
-Rodar de novo não duplica nem devolve a senha do arquivo para quem já escolheu a sua.
+`ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` fazem o seed criar o **administrador da
+plataforma** no primeiro `db:prepare`. Sem as duas, o seed não cria ninguém — e o portal sobe
+sem ninguém para entrar. Rodar de novo não duplica nem devolve a senha do arquivo para quem já
+escolheu a sua.
+
+A partir daí é pela tela: a plataforma entra, troca a senha, cadastra o autenticador e cria a
+primeira organização com o seu administrador (**Organizações → Criar organização**). Ele
+recebe a senha provisória, entra, troca, cadastra o segundo fator, **dá o nome à
+organização** e importa a carteira. Num banco que já tinha dados antes das organizações (o
+caso do berry), a migration criou uma organização sem nome com tudo o que existia; a
+plataforma lhe dá um administrador em **Organizações → (a organização) → Adicionar
+administrador**, e ele a nomeia no primeiro acesso.
 
 **As três chaves `AR_ENCRYPTION_*` cifram o segredo do segundo fator.** Perdê-las significa
 que todo mundo reinscreve o autenticador; guarde-as junto do `SECRET_KEY_BASE`.
@@ -541,11 +569,12 @@ Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ
 `company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
 sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 
-**Com o login, a lista de tabelas que não se reconstroem cresceu**: `users`, `sessions`,
-`recovery_codes`, `access_grants`, `batch_grants` e `audit_events`. Restaurar sem elas
-significa reconvidar todo mundo, reinscrever o segundo fator de cada um e perder a trilha.
-As colunas de autoria são nuláveis de propósito: sem os usuários, a anotação volta sem autor
-em vez de falhar.
+**Com o login, a lista de tabelas que não se reconstroem cresceu**: `organizations`, `users`,
+`sessions`, `recovery_codes`, `access_grants`, `batch_grants` e `audit_events`. Restaurar sem
+elas significa reconvidar todo mundo, reinscrever o segundo fator de cada um e perder a
+trilha. As colunas de autoria são nuláveis de propósito: sem os usuários, a anotação volta
+sem autor em vez de falhar — mas **a anotação tem `organization_id` obrigatório**: restaurar
+`company_notes` num banco novo exige restaurar `organizations` antes, com os mesmos ids.
 
 **Roteiro da migração Mac → berry** (executado em **18/09/2026**, ~15 min de portal fora):
 
@@ -774,6 +803,11 @@ por todos os bancos, e por isso `METABASE_RO_PASSWORD` é obrigatória fora do a
 teste: sem ela, o seed falha em vez de trocar a senha que o Metabase está usando pela padrão.
 O `bin/rails` no host não lê o `.env` — exporte a variável antes de `bin/setup`, `db:seed`
 ou `db:rebuild` em development.
+
+**Com organizações, a tela `/metabase` está fechada para todos** (`MetabasePolicy#show? =
+false`): o papel `metabase_ro` lê as views de auditoria de todas as organizações, e uma
+credencial única não respeita o isolamento. Ligar o serviço antes de haver recorte por
+organização expõe a carteira de uma organização à outra — é pré-condição do build abaixo.
 
 ### Build futuro: Metabase no berry
 

@@ -89,8 +89,10 @@ A anotação foi desenhada para o restore ser possível: ela se liga ao **CNPJ**
 planilha. Dá para recriar o banco, reimportar as planilhas e restaurar só
 `company_notes` + `action_text_rich_texts` + `active_storage_*` que tudo religa sozinho.
 
-**Desde 09/2026 a lista cresceu**: `users`, `sessions`, `recovery_codes`, `access_grants`,
-`batch_grants` e `audit_events` também não vêm de planilha nenhuma. Restaurar sem elas
+**Desde 09/2026 a lista cresceu**: `organizations`, `users`, `sessions`, `recovery_codes`,
+`access_grants`, `batch_grants` e `audit_events` também não vêm de planilha nenhuma. A
+anotação tem `organization_id` obrigatório: restaurá-la num banco novo exige `organizations`
+antes, com os mesmos ids. Restaurar sem elas
 significa reconvidar todo mundo e reinscrever o segundo fator de cada um — e perder a
 trilha, que é o registro de quem fez o quê. As FKs de autoria (`company_notes.author_id`,
 `import_batches.uploaded_by_id`) são nuláveis com `ON DELETE SET NULL` justamente para o
@@ -255,6 +257,24 @@ ator. O que era decisão de escopo ("sem autenticação por enquanto") deixou de
 acesso passou a ser externo e outras pessoas entraram. Ver `README.md`, "Quem entra e o que
 cada um vê".
 
+**Desde 30/09/2026 o portal é multi-organização.** Três regras que não podem ser
+contornadas por conveniência:
+
+- **Não existe escopo "tudo".** `AccessScope` materializa a organização inteira como a lista
+  real dos Masters dela, e a conta da plataforma (`users.platform_admin`) recebe escopo
+  **vazio** e `permitted?` falso para toda chave — ela cria organizações e não vê dado. Um
+  ramo "se for admin, devolve tudo" é exatamente onde uma organização vazaria para outra.
+- **O banco garante o isolamento, não só a policy**: CHECK `users_platform_or_organization`
+  e três FKs compostas (concessão liga usuário e Master da mesma organização; lote só aponta
+  para Master da própria). Anotação é única por `(organization_id, cnpj)`.
+- **Mensagem neutra na importação**: Master ou EC de outra organização é recusado sem
+  revelar nome — o texto vai para a tela de lotes. A ordem do `IdentityGuard` (organização
+  antes de CNPJ e de canal) existe por isso.
+
+A trilha ganha `organization_id`; ação da plataforma fica sem organização mesmo quando o
+registro tem uma (é o que separa o que cada papel lê). O papel `metabase_ro` lê as views de
+todas as organizações: a tela `/metabase` está fechada até haver recorte lá.
+
 **Desde 22/09/2026 há um endereço público**, `https://manager.melopay.com.br`, servido por
 Cloudflare Tunnel (README, "Acesso pela internet"). O requisito de autenticação para
 publicação externa é cumprido **fora do app**, pelo Cloudflare Access: a política
@@ -311,7 +331,10 @@ respondia `has-user-setup: false` com `setup-token` presente, verificado em 07/0
 enquanto estiver assim quem alcança o nome na LAN conclui o setup e vira administrador dele.
 O Postgres não está exposto na LAN, mas está na rede do Compose, ao alcance do container —
 e as views de auditoria carregam CNPJ e faturamento reais. Concluir o setup (com senha)
-antes de publicar o nome no Caddy é o mínimo.
+antes de publicar o nome no Caddy é o mínimo. **Com organizações há uma segunda
+pré-condição**: o papel `metabase_ro` lê as views de todas as organizações; até o Metabase
+recortar por organização, a tela `/metabase` fica fechada (`MetabasePolicy#show? = false`)
+e a chave `metabase_read` não é oferecida no convite.
 
 ## Verificação
 
