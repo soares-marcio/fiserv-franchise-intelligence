@@ -175,6 +175,30 @@ class BatchAccessTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  # Quem só envia precisa da tela para enviar e para acompanhar o próprio lote; a planilha
+  # original, que é a carteira inteira, continua atrás de "Ver lotes".
+  test "só 'Enviar planilha' abre a tela de importação com os próprios envios, sem baixar a planilha" do
+    remetente = scoped_user(permissions: [ Permission::BATCHES_UPLOAD ], channel: @canal, email: "envia@exemplo.com")
+    proprio = ImportBatch.create!(source_filename: "enviado.xlsx", file_checksum: "envia-1",
+      status: "failed", channel: @canal, uploaded_by: remetente)
+    sign_in_as(remetente)
+
+    get reports_path
+    assert_select "nav.primary-nav a[href=?]", import_batches_path, text: /Importar arquivo/
+
+    get import_batches_path
+    assert_response :success
+    assert_match(/enviado\.xlsx/, response.body)
+    assert_no_match(/meu\.xlsx|dele\.xlsx/, response.body)
+
+    get import_batch_path(proprio)
+    assert_response :success
+
+    # O download passa pelo Active Storage e responde 404 pela mesma policy.
+    assert_not ImportBatchPolicy.new(remetente, proprio).download_source_file?
+    assert ImportBatchPolicy.new(@dono, @meu).download_source_file?
+  end
+
   private
 
   def todas_de_lote

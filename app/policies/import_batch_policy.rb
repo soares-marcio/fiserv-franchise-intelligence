@@ -1,10 +1,14 @@
 class ImportBatchPolicy < ApplicationPolicy
-  def index? = permitted?(Permission::BATCHES_READ)
+  # A tela de importação é onde se envia: quem só tem "Enviar planilha" precisa entrar nela
+  # para enviar e acompanhar os próprios lotes — o Scope já limita a lista ao que é dele.
+  # Sem isso a chave de envio não abria porta nenhuma (homologação de 30/09/2026).
+  def index? = permitted?(Permission::BATCHES_READ) || permitted?(Permission::BATCHES_UPLOAD)
 
   # Ver um lote específico exige, além da chave, que ele esteja ao alcance: os próprios
   # envios e os que alguém liberou nominalmente.
   def show? = index? && reachable?
-  alias_method :download_source_file?, :show?
+  # Baixar a planilha original continua sendo "ver lotes": é a carteira inteira num arquivo.
+  def download_source_file? = permitted?(Permission::BATCHES_READ) && reachable?
 
   def create? = permitted?(Permission::BATCHES_UPLOAD)
 

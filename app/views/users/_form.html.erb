@@ -35,6 +35,13 @@
       <% next if disponiveis.empty? %>
       <fieldset class="mt-4">
         <legend class="section-label"><%= grupo %></legend>
+        <% if grupo == "Importação" %>
+          <p class="metric-hint mt-1">
+            "Enviar planilha" abre a tela de importação com os próprios envios e exige, em
+            "O que pode ver", o Master inteiro: a planilha é a carteira toda, e um MIC não basta.
+            "Ver lotes" é o que mostra os envios dos outros e libera a planilha original.
+          </p>
+        <% end %>
         <div class="mt-2 grid gap-2">
           <% disponiveis.each do |chave| %>
             <label class="flex items-start gap-2 text-sm">
