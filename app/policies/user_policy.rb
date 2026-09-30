@@ -7,7 +7,9 @@
 class UserPolicy < ApplicationPolicy
   def index? = permitted?(Permission::USERS_INVITE)
   def show? = index? && reachable?
-  def create? = index?
+  # Convidar exige ter algo a conceder: quem ainda não tem Master nem MIC criaria um acesso
+  # vazio — e o dono de carteira própria só convida depois de importar a carteira.
+  def create? = index? && (user.organization_admin? || !AccessScope.for(user).empty?)
   def new? = create?
 
   # Não se edita quem tem algo que você não tem. Sem esta regra, um admin de um MIC

@@ -30,8 +30,8 @@ class User < ApplicationRecord
   # Access na frente: a senha deixa de ser a segunda barreira e vira a primeira.
   validates :password, length: { minimum: 12 }, allow_nil: true
   validate :permissions_must_be_known
-  # Rebaixar ou desativar o último administrador geral ativo deixaria o portal sem ninguém
-  # que possa tudo — inclusive sem quem possa nomear outro.
+  # Rebaixar ou desativar o último administrador da plataforma ativo deixaria o portal sem
+  # quem crie organizações — inclusive sem quem possa nomear outro.
   validate :keep_one_active_platform_admin, on: :update
 
   # Dez tentativas erradas (senha ou código) bloqueiam a conta por quinze minutos. O
@@ -63,6 +63,27 @@ class User < ApplicationRecord
     sessions.destroy_all
   end
 
+  # As três ações de suporte, usadas pela organização sobre os seus e pela plataforma sobre
+  # os administradores. Nenhuma audita: quem audita é quem chama, com a requisição em mãos.
+  def reset_mfa!
+    transaction do
+      update!(otp_secret: nil, mfa_enabled_at: nil, otp_last_used_at: nil)
+      recovery_codes.destroy_all
+      revoke_sessions!
+    end
+  end
+
+  def deactivate!
+    transaction do
+      update!(deactivated_at: Time.current)
+      revoke_sessions!
+    end
+  end
+
+  def reactivate!
+    update!(deactivated_at: nil)
+  end
+
   def register_failed_attempt!
     increment!(:failed_attempts)
     return unless failed_attempts >= MAX_FAILED_ATTEMPTS
@@ -84,7 +105,7 @@ class User < ApplicationRecord
     return unless perde
     return if User.active.where(platform_admin: true).where.not(id: id).exists?
 
-    errors.add(:base, "precisa sobrar ao menos um administrador geral ativo")
+    errors.add(:base, "precisa sobrar ao menos um administrador da plataforma ativo")
   end
 
   private

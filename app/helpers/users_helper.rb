@@ -10,6 +10,14 @@ module UsersHelper
     content_tag(:span, "Ativo", class: "badge badge-success")
   end
 
+  # O papel, quando há um a destacar: o administrador da organização não tem chaves nem
+  # concessões marcadas, e sem o selo a ficha dele pareceria vazia.
+  def user_role_badge(user)
+    return unless user.organization_admin?
+
+    content_tag(:span, "Administrador", class: "badge badge-primary badge-outline")
+  end
+
   # O que quem convidou precisa saber do primeiro acesso: a senha provisória enquanto ela
   # vale, e a confirmação de que a pessoa entrou e a trocou depois. A senha só aparece a
   # quem pode editar este acesso — a listagem alcança mais gente do que isso.

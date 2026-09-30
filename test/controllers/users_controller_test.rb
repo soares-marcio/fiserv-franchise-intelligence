@@ -153,7 +153,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
     # Pela tela ninguém o alcança; a guarda do modelo é o que vale por console.
     erro = assert_raises(ActiveRecord::RecordInvalid) { plataforma.update!(platform_admin: false) }
-    assert_match(/ao menos um administrador geral/, erro.message)
+    assert_match(/ao menos um administrador da plataforma/, erro.message)
     assert_raises(ActiveRecord::RecordInvalid) { plataforma.update!(deactivated_at: Time.current) }
     assert plataforma.reload.platform_admin?
     assert plataforma.active?
@@ -214,6 +214,31 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
     assert_not alvo.reload.active?
     assert_equal 0, alvo.sessions.count
+  end
+
+  # Quem ainda não tem Master nem MIC não tem o que conceder: o dono de carteira própria só
+  # convida depois de importar a carteira.
+  test "com a chave de convidar mas sem escopo, o convite não abre" do
+    sign_in_as(scoped_user(permissions: [ Permission::USERS_INVITE ], email: "vazio@exemplo.com"))
+
+    get users_path
+    assert_response :success
+
+    get new_user_path
+    assert_response :forbidden
+
+    post users_path, params: { user: { name: "X", email_address: "x@exemplo.com" }, permissions: [], grants: {} }
+    assert_response :forbidden
+  end
+
+  test "o card e a ficha destacam o administrador da organização" do
+    sign_in_as(admin_user)
+
+    get users_path
+    assert_select ".user-card .badge", text: "Administrador"
+
+    get user_path(User.find_by!(email_address: "chefe@exemplo.com"))
+    assert_match(/Administrador da organização: tudo/, response.body)
   end
 
   test "sem a chave de administração, a tela nem abre" do

@@ -29,7 +29,7 @@
           </h2>
           <p class="truncate text-xs opacity-70"><%= user.email_address %></p>
         </div>
-        <%= user_status_badge(user) %>
+        <span class="flex flex-wrap gap-1"><%= user_role_badge(user) %><%= user_status_badge(user) %></span>
       </header>
       <%= user_first_access_hint(user) %>
 

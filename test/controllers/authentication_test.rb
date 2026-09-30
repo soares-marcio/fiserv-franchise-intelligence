@@ -52,7 +52,7 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_equal inexistente, flash[:alert], "a diferença contaria quem existe no portal"
   end
 
-  # Uma conta comum: o único administrador geral ativo não se desativa (User#keep_one_active_platform_admin).
+  # Uma conta comum: o último administrador da plataforma ativo não se desativa (User#keep_one_active_platform_admin).
   test "conta desativada não entra, e sem dizer por quê" do
     comum = scoped_user(permissions: [], email: "comum@exemplo.com")
     comum.update!(deactivated_at: Time.current)

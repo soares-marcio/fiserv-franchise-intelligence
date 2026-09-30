@@ -56,27 +56,24 @@ class UsersController < ApplicationController
   # cadastra tudo de novo no próximo acesso.
   def reset_mfa
     authorize @user, :reset_mfa?
-    @user.update!(otp_secret: nil, mfa_enabled_at: nil)
-    @user.recovery_codes.destroy_all
-    @user.revoke_sessions!
+    @user.reset_mfa!
     Audit.record("user.mfa_reset", record: @user, request:)
     redirect_to user_path(@user), notice: "Segundo fator reiniciado. A pessoa cadastra de novo ao entrar."
   end
 
   def deactivate
     authorize @user, :deactivate?
-    @user.update!(deactivated_at: Time.current)
-    @user.revoke_sessions!
+    @user.deactivate!
     Audit.record("user.deactivated", record: @user, request:)
     redirect_to user_path(@user), notice: "Acesso desativado."
   rescue ActiveRecord::RecordInvalid => error
-    # O último administrador geral ativo não se desativa (User#keep_one_active_platform_admin).
+    # O último administrador da plataforma ativo não se desativa (User#keep_one_active_platform_admin).
     redirect_to user_path(@user), alert: error.record.errors.full_messages.join("; ")
   end
 
   def reactivate
     authorize @user, :update?
-    @user.update!(deactivated_at: nil)
+    @user.reactivate!
     Audit.record("user.reactivated", record: @user, request:)
     redirect_to user_path(@user), notice: "Acesso reativado."
   end
