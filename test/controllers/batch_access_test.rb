@@ -235,9 +235,16 @@ class BatchUploadScopeTest < ActiveSupport::TestCase
   # O lote precisa nascer com o checksum do próprio arquivo: é por ele que o importador
   # reencontra o registro e descobre quem enviou. Com outro valor, ele criaria um lote novo
   # sem autor — e a checagem de escopo não teria a quem se aplicar.
+  #
+  # As lojas levam um dia a mais de faturamento: a planilha sintética só varia pelo
+  # instante de criação, em segundos, e o segundo envio no mesmo segundo do primeiro
+  # repetiria o checksum — o que na CI acontecia.
   def import_synthetic_workbook_as(autor, filename: "BIN_TESTE_20260811.xlsx")
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-#{filename}")
-    BinWorkbook.write(path)
+    lojas = BinWorkbook.default_lojas.map do |loja|
+      loja.class.new(**loja.to_h.merge(dias_atual: loja.dias_atual.merge(20 => 77)))
+    end
+    BinWorkbook.write(path, lojas:)
     ImportBatch.create!(source_filename: filename, status: "pending", uploaded_by: autor,
       file_checksum: Digest::SHA256.file(path).hexdigest)
     BinImport::Importer.new(path, source_filename: filename, organization: default_organization).call
