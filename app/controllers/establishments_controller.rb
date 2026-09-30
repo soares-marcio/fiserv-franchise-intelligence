@@ -20,7 +20,10 @@ class EstablishmentsController < ApplicationController
     page_companies = companies.group("companies.id")
       .select("companies.*, MIN(establishments.ec) AS first_ec").order("first_ec")
       .offset((@page - 1) * @per_page).limit(@per_page)
+    # Só os ECs do escopo, também aqui: um CNPJ pode ter ECs em outro Master — ou em outra
+    # organização —, e a listagem não pode mostrar de quem são.
     @establishments_by_company = Establishment.where(company_id: page_companies.map(&:id))
+      .merge(Establishment.in_scope(Current.access_scope))
       .includes(:company, :channel, :primary_establishment, current_map_snapshot: :sub_channel)
       .order(:ec).group_by(&:company)
     @companies = page_companies.map { |company| @establishments_by_company.keys.find { |c| c.id == company.id } }

@@ -142,7 +142,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   # atrás de um botão como nas tabelas.
   test "a ficha do cliente mostra a anotação escrita, com o botão de editar" do
     establishment = seed_establishment
-    Operations::SaveCompanyNote.call(cnpj: establishment.company.cnpj,
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: establishment.company.cnpj,
       body: "<div>Dono viaja, retomar dia 10.</div>")
 
     get establishment_path(establishment.company)
@@ -170,7 +170,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
     establishment = seed_establishment
     outro = Company.create!(cnpj: "99888777000166")
     Establishment.create!(ec: "99999999", company: outro, channel: establishment.channel)
-    Operations::SaveCompanyNote.call(cnpj: establishment.company.cnpj, body: "<div>Ligar.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: establishment.company.cnpj, body: "<div>Ligar.</div>")
 
     get establishments_path
 

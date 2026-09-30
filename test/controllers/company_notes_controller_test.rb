@@ -56,7 +56,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "editor esvaziado remove a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Alguma coisa.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj, body: "<div>Alguma coisa.</div>")
 
     assert_difference -> { CompanyNote.count }, -1 do
       patch company_note_path(@company), params: { body: "<div><br></div>" }
@@ -66,7 +66,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "corpo acima do limite volta com alerta e não altera a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Original.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj, body: "<div>Original.</div>")
 
     patch company_note_path(@company),
       params: { body: "<div>#{'a' * (Operations::SaveCompanyNote::MAX_LENGTH + 1)}</div>" }
@@ -152,7 +152,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
 
   # O modal chega por Turbo Frame, sem layout, com o editor já preenchido.
   test "o formulário do modal chega sem layout, com o que já estava escrito" do
-    Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Escrito antes.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj, body: "<div>Escrito antes.</div>")
 
     get edit_company_note_path(@company), headers: { "Turbo-Frame" => "company_note" }
 

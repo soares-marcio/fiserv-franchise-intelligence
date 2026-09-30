@@ -220,7 +220,7 @@ class EstablishmentListingQueryTest < ActiveSupport::TestCase
   test "a anotação do cliente chega na linha, sem duplicar nem alterar totais" do
     antes = listing
 
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Dono viaja.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Dono viaja.</div>")
     depois = listing
 
     assert_equal antes.rows.size, depois.rows.size

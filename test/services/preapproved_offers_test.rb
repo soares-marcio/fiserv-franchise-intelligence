@@ -57,7 +57,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   # Mesmo cuidado do listing: o LEFT JOIN da anotação entra numa consulta com GROUP BY, e
   # aqui a garantia que importa é continuar uma linha por CNPJ.
   test "a anotação chega sem quebrar a linha por CNPJ" do
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Ligar.</div>")
 
     linhas = PreapprovedOffers.new(scope: escopo_da_organizacao).call
 

@@ -178,7 +178,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   # ao menos um EC daquele CNPJ no próprio escopo.
   test "anotação de cliente de outro Master não é vista nem editada" do
     de_fora = Establishment.find_by!(ec: "70000001").company
-    Operations::SaveCompanyNote.call(cnpj: de_fora.cnpj, body: "<div>Segredo do outro Master</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: de_fora.cnpj, body: "<div>Segredo do outro Master</div>")
     # Com a permissão de anotação, mas sem o cliente no escopo: é o recorte que precisa
     # negar aqui, e não a falta de chave — por isso 404, e não 403.
     sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ, Permission::NOTES_WRITE ],
@@ -209,7 +209,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   # contaria que o cliente do outro Master tem anotação — e que ele existe.
   test "o selo de anotação não aparece para cliente fora do escopo" do
     de_fora = Establishment.find_by!(ec: "70000001").company
-    Operations::SaveCompanyNote.call(cnpj: de_fora.cnpj, body: "<div>Nota alheia</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: de_fora.cnpj, body: "<div>Nota alheia</div>")
     entra_no_canal(@canal_a)
 
     get establishments_path

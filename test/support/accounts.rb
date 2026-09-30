@@ -59,12 +59,15 @@ module Accounts
   # Escopo de um Master inteiro — o que a maioria dos testes de serviço quer dizer quando
   # antes passava channel_id.
   def escopo_do_canal(channel_id)
-    AccessScope.new(full_channel_ids: Array(channel_id), sub_channel_ids: [])
+    ids = Array(channel_id)
+    AccessScope.new(organization_id: Channel.find(ids.first).organization_id, full_channel_ids: ids,
+      sub_channel_ids: [])
   end
 
   # Escopo de um MIC avulso, para os testes de vazamento entre MICs do mesmo Master.
   def escopo_do_mic(sub_channel)
-    AccessScope.new(full_channel_ids: [], sub_channel_ids: [ sub_channel.id ])
+    AccessScope.new(organization_id: sub_channel.channel.organization_id, full_channel_ids: [],
+      sub_channel_ids: [ sub_channel.id ])
   end
 
   def current_otp(user = nil)

@@ -6,7 +6,7 @@ class Operations::SaveCompanyNoteTest < ActiveSupport::TestCase
   CNPJ = "11222333000181".freeze
 
   test "grava a anotação do cliente e carimba a hora" do
-    nota = Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div>Dono viaja até dia 10.</div>")
+    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div>Dono viaja até dia 10.</div>")
 
     assert_equal CNPJ, nota.cnpj
     assert_equal "Dono viaja até dia 10.", nota.body.to_plain_text
@@ -15,8 +15,8 @@ class Operations::SaveCompanyNoteTest < ActiveSupport::TestCase
 
   # Decisão do usuário: uma nota por cliente, editável. Gravar por cima substitui.
   test "gravar de novo substitui, sem acumular" do
-    Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div>Primeira leitura.</div>")
-    nota = Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div>Voltou a vender.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div>Primeira leitura.</div>")
+    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div>Voltou a vender.</div>")
 
     assert_equal 1, CompanyNote.where(cnpj: CNPJ).count
     assert_equal "Voltou a vender.", nota.body.to_plain_text
@@ -24,15 +24,15 @@ class Operations::SaveCompanyNoteTest < ActiveSupport::TestCase
 
   # Esvaziar o editor é o gesto de apagar: não há botão a mais na tela para isso.
   test "corpo vazio apaga a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div>Alguma coisa.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div>Alguma coisa.</div>")
 
-    assert_nil Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div><br></div>")
+    assert_nil Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div><br></div>")
     assert_empty CompanyNote.where(cnpj: CNPJ)
   end
 
   test "recusa CNPJ fora do formato, sem gravar" do
     erro = assert_raises(ArgumentError) do
-      Operations::SaveCompanyNote.call(cnpj: "123", body: "<div>x</div>")
+      Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "123", body: "<div>x</div>")
     end
 
     assert_match(/CNPJ/, erro.message)
@@ -44,7 +44,7 @@ class Operations::SaveCompanyNoteTest < ActiveSupport::TestCase
   # em alerta; RecordInvalid viraria 500.
   test "recusa corpo acima do limite, sem gravar" do
     erro = assert_raises(ArgumentError) do
-      Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div>#{'a' * 20_001}</div>")
+      Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div>#{'a' * 20_001}</div>")
     end
 
     assert_match(/limite/, erro.message)
@@ -57,7 +57,7 @@ class Operations::SaveCompanyNoteTest < ActiveSupport::TestCase
   # cliente errado.
   test "a anotação sobrevive à empresa ser recriada com outro id" do
     antiga = Company.create!(cnpj: CNPJ)
-    Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div>Anotado antes.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div>Anotado antes.</div>")
 
     # O que um db:rebuild faz com a identidade: a linha vai embora e volta com outro id e
     # outro uuid, porque a sequência recomeça e o gen_random_uuid() sorteia de novo. Só o
@@ -74,7 +74,7 @@ class Operations::SaveCompanyNoteTest < ActiveSupport::TestCase
   # pode ser script. Quem garante isso é o sanitizador do Action Text, na renderização.
   test "não devolve script no HTML renderizado" do
     nota = Operations::SaveCompanyNote.call(
-      cnpj: CNPJ, body: "<div>Ligar<script>alert(1)</script></div>"
+      organization: default_organization, cnpj: CNPJ, body: "<div>Ligar<script>alert(1)</script></div>"
     )
 
     assert_no_match(/<script/, nota.body.to_s)

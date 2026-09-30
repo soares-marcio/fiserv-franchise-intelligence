@@ -108,7 +108,7 @@ class PreapprovedOffers
       -- célula do estabelecimento. O JOIN também deixa de fora o EC sem subcanal no snapshot.
       JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       -- Ver o comentário igual em EstablishmentListingQuery: a anotação se liga pelo CNPJ.
-      LEFT JOIN company_notes note ON note.cnpj = company.cnpj
+      LEFT JOIN company_notes note ON note.cnpj = company.cnpj AND #{organization_predicate('note')}
       WHERE snapshot.preapproved_volume IS NOT NULL
         AND #{literal_predicate(sub_channel_predicate("snapshot"))}
       -- Agrupar também pelas colunas da companhia e da anotação não quebra a linha por CNPJ:

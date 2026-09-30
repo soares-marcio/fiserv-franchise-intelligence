@@ -12,16 +12,17 @@ module Operations
     # coluna não virar depósito de documento.
     MAX_LENGTH = 20_000
 
-    def self.call(cnpj:, body:, author: nil)
+    def self.call(cnpj:, body:, organization:, author: nil)
       cnpj = cnpj.to_s
       raise ArgumentError, "CNPJ inválido para anotação." unless cnpj.match?(/\A\d{14}\z/)
+      raise ArgumentError, "Anotação sem organização." if organization.nil?
 
       if body.to_s.length > MAX_LENGTH
         raise ArgumentError,
           "A anotação tem #{body.to_s.length} caracteres e o limite é #{MAX_LENGTH}."
       end
 
-      note = CompanyNote.find_or_initialize_by(cnpj:)
+      note = CompanyNote.find_or_initialize_by(organization_id: organization.id, cnpj:)
       # Editor esvaziado é o gesto de apagar: some a anotação e, com ela, os anexos. Não há
       # botão de excluir na tela porque o formulário já dá esse caminho.
       return note.destroy && nil if blank_body?(body)

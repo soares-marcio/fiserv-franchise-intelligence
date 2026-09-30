@@ -429,7 +429,7 @@ class EstablishmentListingQuery
       -- A anotação do cliente se liga pelo CNPJ, não por FK: id e uuid de companies são
       -- regenerados a cada recriação do banco. Aqui só vêm a existência e a data; o corpo é
       -- rich text e é carregado à parte.
-      LEFT JOIN company_notes note ON note.cnpj = company.cnpj
+      LEFT JOIN company_notes note ON note.cnpj = company.cnpj AND #{organization_predicate('note')}
       LEFT JOIN LATERAL (
         SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on,
           mapa.last_app_access_at, mapa.best_conversation_raw,

@@ -82,8 +82,6 @@ class SchemaIntegrityTest < ActiveSupport::TestCase
     end
   end
 
-  # A concessão de MIC precisa apontar para um MIC do mesmo Master, e quem garante é o
-  # banco: policy pode ser contornada por console, seed ou job; a FK composta, não.
   # O isolamento por organização é do banco, não só do modelo: as três FKs compostas e o
   # CHECK das contas valem por console também.
   test "organizações: FKs compostas e o CHECK de conta da plataforma existem" do
@@ -93,8 +91,12 @@ class SchemaIntegrityTest < ActiveSupport::TestCase
     assert_includes connection.foreign_keys("import_batches").map(&:name), "import_batches_channel_in_organization"
     assert_includes connection.check_constraints("users").map(&:name), "users_platform_or_organization"
     assert_includes connection.check_constraints("organizations").map(&:name), "organizations_name_not_blank"
+    assert connection.indexes("company_notes").find { |i| i.columns == %w[organization_id cnpj] }&.unique,
+      "a anotação é única por (organização, CNPJ)"
   end
 
+  # A concessão de MIC precisa apontar para um MIC do mesmo Master, e quem garante é o
+  # banco: policy pode ser contornada por console, seed ou job; a FK composta, não.
   test "concessão de escopo não aceita MIC de outro Master" do
     assert_includes connection.foreign_keys("access_grants").map(&:name),
       "access_grants_channel_matches_sub_channel"

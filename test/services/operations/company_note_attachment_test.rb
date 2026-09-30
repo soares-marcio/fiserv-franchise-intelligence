@@ -12,7 +12,7 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
 
   test "a imagem anexada fica presa à anotação e volta como img, sem pedir variante" do
     blob = anexo_png
-    nota = Operations::SaveCompanyNote.call(cnpj: CNPJ, body: corpo_com(blob))
+    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(blob))
 
     assert_equal 1, nota.body.body.attachments.size
     assert_equal blob, nota.body.body.attachments.first.attachable
@@ -30,7 +30,7 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
     blob = ActiveStorage::Blob.create_and_upload!(
       io: StringIO.new("%PDF-1.4\n"), filename: "proposta.pdf", content_type: "application/pdf"
     )
-    nota = Operations::SaveCompanyNote.call(cnpj: CNPJ, body: corpo_com(blob))
+    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(blob))
 
     html = nota.body.to_s
     assert_no_match(/<img/, html)
@@ -40,17 +40,17 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
   # Apagar a anotação leva os anexos junto: sem isso, o arquivo ficaria no disco sem nada que
   # aponte para ele, e a purga de órfãos só varre blob sem attachment nenhum.
   test "apagar a anotação leva o anexo junto" do
-    Operations::SaveCompanyNote.call(cnpj: CNPJ, body: corpo_com(anexo_png))
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(anexo_png))
 
     assert_difference -> { ActiveStorage::Attachment.count }, -1 do
-      Operations::SaveCompanyNote.call(cnpj: CNPJ, body: "<div><br></div>")
+      Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div><br></div>")
     end
   end
 
   # Um anexo sozinho, sem uma palavra escrita, é anotação legítima — o print já diz o que
   # precisava ser dito. Não pode ser confundido com editor vazio.
   test "anexo sem texto não conta como anotação vazia" do
-    nota = Operations::SaveCompanyNote.call(cnpj: CNPJ, body: corpo_com(anexo_png))
+    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(anexo_png))
 
     assert_not_nil nota
     assert_predicate CompanyNote.find_by(cnpj: CNPJ), :present?

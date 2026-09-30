@@ -66,7 +66,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   # Reabrir precisa trazer o que foi salvo, não o formulário como ele estava: é por isso que o
   # controller troca o src do frame a cada abertura.
   test "reabrir a anotação mostra o que foi salvo" do
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Escrito antes.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Escrito antes.</div>")
 
     visit sub_channel_report_path(@sub_channel)
     abrir_anotacao
@@ -76,7 +76,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
 
   # Esvaziar e salvar é o gesto de apagar — não há botão de excluir na tela.
   test "esvaziar o editor apaga a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Para apagar.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Para apagar.</div>")
 
     visit sub_channel_report_path(@sub_channel)
     abrir_anotacao

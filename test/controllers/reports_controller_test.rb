@@ -53,7 +53,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     import_synthetic_workbook
     refresh_audit_views
     empresa = Company.find_by!(cnpj: "11222333000181")
-    Operations::SaveCompanyNote.call(cnpj: empresa.cnpj, body: "<div>Dono viaja.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: empresa.cnpj, body: "<div>Dono viaja.</div>")
 
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
 
@@ -181,7 +181,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
   # célula voltou a levar só o botão; o texto vive no modal, que é onde se lê e se escreve.
   test "a coluna da anotação não traz o texto salvo" do
     import_synthetic_workbook(lojas: lojas_com_oferta)
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181",
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181",
       body: "<div>Dono viaja, retomar dia 10.</div>")
 
     get stalled_reports_path
@@ -199,7 +199,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # par necessário para o teste provar as duas coisas.
     import_synthetic_workbook(lojas: lojas_com_oferta)
     refresh_audit_views
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Ligar.</div>")
 
     get weekly_day_report_path(day: 1, period: "2026-08-01")
 

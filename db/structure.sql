@@ -1634,6 +1634,7 @@ CREATE TABLE public.company_notes (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     author_id bigint,
+    organization_id bigint NOT NULL,
     CONSTRAINT company_notes_cnpj_format CHECK (((cnpj)::text ~ '^[0-9]{14}$'::text))
 );
 
@@ -3984,10 +3985,17 @@ CREATE INDEX index_company_notes_on_author_id ON public.company_notes USING btre
 
 
 --
--- Name: index_company_notes_on_cnpj; Type: INDEX; Schema: public; Owner: -
+-- Name: index_company_notes_on_organization_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_company_notes_on_cnpj ON public.company_notes USING btree (cnpj);
+CREATE INDEX index_company_notes_on_organization_id ON public.company_notes USING btree (organization_id);
+
+
+--
+-- Name: index_company_notes_on_organization_id_and_cnpj; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_company_notes_on_organization_id_and_cnpj ON public.company_notes USING btree (organization_id, cnpj);
 
 
 --
@@ -5169,6 +5177,14 @@ ALTER TABLE ONLY public.data_anomalies
 
 
 --
+-- Name: company_notes fk_rails_502afc8704; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_notes
+    ADD CONSTRAINT fk_rails_502afc8704 FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
 -- Name: access_grants fk_rails_55410f2ab3; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5575,6 +5591,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930120000'),
 ('20260930110000'),
 ('20260930100000'),
 ('20260929120000'),

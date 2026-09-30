@@ -23,8 +23,11 @@ class CompanyNotesController < ApplicationController
   def edit
     @company = company_in_scope
     @note = policy_scope(CompanyNote).find_by(cnpj: @company.cnpj) ||
-      CompanyNote.new(cnpj: @company.cnpj)
+      CompanyNote.new(cnpj: @company.cnpj, organization: Current.organization)
+    # Só os ECs do escopo: o mesmo CNPJ pode ter ECs em outra organização, e o nome que
+    # aparece no modal não pode vir de lá.
     @snapshot = MapSnapshot.joins(:establishment)
+      .merge(Establishment.in_scope(Current.access_scope))
       .where(establishments: { company_id: @company.id })
       .order(id: :desc).first
   end
@@ -32,13 +35,13 @@ class CompanyNotesController < ApplicationController
   def update
     company = company_in_scope
     note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body],
-      author: Current.user)
+      organization: Current.organization, author: Current.user)
     # Sem o texto e sem o CNPJ: a trilha diz que houve edição, não o que foi escrito.
     Audit.record(note ? "note.saved" : "note.removed", record: note || company, request:,
       metadata: { caracteres: params[:body].to_s.length })
     responder(company, note, notice: note ? "Anotação salva." : "Anotação removida.")
   rescue ArgumentError => error
-    responder(company, CompanyNote.find_by(cnpj: company&.cnpj), alert: error.message)
+    responder(company, policy_scope(CompanyNote).find_by(cnpj: company&.cnpj), alert: error.message)
   end
 
   private
@@ -83,7 +86,7 @@ class CompanyNotesController < ApplicationController
   def celula(company, note)
     {
       company_uuid: company.uuid,
-      name: company.establishments.first&.current_map_snapshot&.trade_name.to_s,
+      name: company.establishments.in_scope(Current.access_scope).first&.current_map_snapshot&.trade_name.to_s,
       note_id: note&.id, note_updated_at: note&.updated_at,
       note_params: params[:origin] == "sub_channel" ? origin_params : {}
     }

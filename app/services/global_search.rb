@@ -40,7 +40,7 @@ class GlobalSearch
   # leitura — o texto mora na ficha do cliente e no modal.
   def noted_cnpjs
     # Os ECs já vieram recortados, então os CNPJs também — a consulta aqui é sobre eles.
-    @noted_cnpjs ||= CompanyNote.where(cnpj: establishments.map { |e| e.company.cnpj }.uniq)
+    @noted_cnpjs ||= CompanyNote.where(organization_id: @access.organization_id, cnpj: establishments.map { |e| e.company.cnpj }.uniq)
       .pluck(:cnpj).to_set
   end
 

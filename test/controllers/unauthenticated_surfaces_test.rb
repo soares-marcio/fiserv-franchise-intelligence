@@ -55,7 +55,7 @@ class BlobAuthorizationTest < ActionDispatch::IntegrationTest
       filename: "recibo.pdf", content_type: "application/pdf")
     # Como a tela grava: o anexo vem embutido na marcação do corpo, e é o Action Text que
     # cria o vínculo ao salvar. Anexar pelo `embeds` não persiste nada.
-    @nota = Operations::SaveCompanyNote.call(cnpj: @company.cnpj,
+    @nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj,
       body: %(<div>Com anexo</div><action-text-attachment sgid="#{@anexo.attachable_sgid}"></action-text-attachment>))
     @canal = Channel.find_by!(name: BinWorkbook::CANAL)
     @outro = Channel.create!(organization: default_organization, external_id: "7777", name: "MASTER DE FORA")

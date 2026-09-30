@@ -9,8 +9,15 @@ module ScopedQuery
     {
       channel_ids: bind_list(@scope.channel_ids),
       full_channel_ids: bind_list(@scope.full_channel_ids),
-      sub_channel_ids: bind_list(@scope.sub_channel_ids)
+      sub_channel_ids: bind_list(@scope.sub_channel_ids),
+      organization_id: @scope.organization_id || 0
     }
+  end
+
+  # Tabelas da organização sem canal — a anotação do cliente. Com o id já embutido, para
+  # servir também às consultas de binds posicionais; zero não é id de nada.
+  def organization_predicate(prefix = nil)
+    "#{qualify(prefix)}organization_id = #{(@scope.organization_id || 0).to_i}"
   end
 
   # Tabelas que só têm channel_id. O recorte por MIC herda o canal: cobertura do mês e dia

@@ -25,7 +25,7 @@ class SearchControllerTest < ActionDispatch::IntegrationTest
   # que é onde o texto está.
   test "o resultado avisa quando o cliente tem anotação" do
     import_synthetic_workbook
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Ligar.</div>")
 
     get search_path(q: "30000001")
 
