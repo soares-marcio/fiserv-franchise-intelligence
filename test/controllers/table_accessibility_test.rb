@@ -40,13 +40,6 @@ class TableAccessibilityTest < ActionDispatch::IntegrationTest
     assert_select "thead th[scope='col'] span.sr-only", text: "Ações"
   end
 
-  test "a tabela de dados de conexão do Metabase rotula as linhas" do
-    get metabase_path
-
-    assert_select "tbody th[scope='row']", text: "Porta"
-    assert_select "tbody th[scope='row']", text: "Database"
-  end
-
   test "a área rolável da tabela é alcançável pelo teclado e se anuncia" do
     paths.each do |path|
       get path

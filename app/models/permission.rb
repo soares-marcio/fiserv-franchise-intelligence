@@ -41,7 +41,9 @@ class Permission
     "Relatórios" => [ REPORTS_READ, REPORTS_EXPORT, ESTABLISHMENTS_READ ],
     "Anotações" => [ NOTES_READ, NOTES_WRITE ],
     "Importação" => [ BATCHES_READ, BATCHES_UPLOAD, BATCHES_ADJUST, BATCHES_DISCARD, BATCHES_APPROVE ],
-    "Administração" => [ METABASE_READ, USERS_INVITE ]
+    # metabase_read continua no catálogo (contas que já a têm seguem válidas) mas fora do
+    # formulário: a tela está fechada até haver recorte por organização no Metabase.
+    "Administração" => [ USERS_INVITE ]
   }.freeze
 
   def self.label(key)

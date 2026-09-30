@@ -21,7 +21,7 @@ class VocabularyTest < ActionDispatch::IntegrationTest
     [
       reports_path, stalled_reports_path, weekly_reports_path, recurring_reports_path,
       three_months_reports_path, indicators_reports_path, establishments_path,
-      import_batches_path, metabase_path, sub_channel_report_path(@sub_channel),
+      import_batches_path, sub_channel_report_path(@sub_channel),
       search_path(q: "mic")
     ]
   end

@@ -63,8 +63,8 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "a tela do Metabase exige a própria chave, porque mostra dados de conexão" do
-    entra_com([ Permission::REPORTS_READ ])
+  test "a tela do Metabase está fechada para todos, com ou sem a chave" do
+    entra_com([ Permission::REPORTS_READ, Permission::METABASE_READ ])
 
     get metabase_path
 
@@ -141,7 +141,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     get reports_path
     assert_response :success
 
-    get metabase_path
+    get import_batches_path
     assert_response :success
   end
 
