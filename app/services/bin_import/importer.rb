@@ -32,17 +32,17 @@ module BinImport
       organization = batch.organization || @organization || batch.uploaded_by&.organization
       raise ArgumentError, "Importação sem organização: informe a organização dona do arquivo." if organization.nil?
 
-      channel = resolve_channel!(rows.fetch("Mapa de Clientes BIN"), organization:)
+      # O Master do arquivo só se conhece depois do parse, e é o resolvedor que decide se
+      # quem enviou pode tocá-lo — antes de criar canal ou salvar o lote com ele. Sem isso,
+      # quem tem permissão de enviar alimentaria a carteira de qualquer Master, inclusive a
+      # de outra organização.
+      report_id, name = channel_identity!(rows.fetch("Mapa de Clientes BIN"))
+      channel = ChannelResolver.call(report_id:, name:, organization:, actor: batch.uploaded_by)
       batch.assign_attributes(
         channel:, organization:, import_template: template, source_filename: @source_filename,
         source_file_date: source_file_date, status: "pending", validation_errors: []
       )
       batch.save!
-
-      # O Master do arquivo só se conhece depois do parse, então a checagem de escopo é
-      # aqui — antes de gravar qualquer linha. Sem ela, quem tem permissão de enviar
-      # alimentaria a carteira de qualquer Master, inclusive a de um concorrente.
-      authorize_channel!(batch, channel)
 
       validation = Validator.new(rows).validate!
       validate_existing_establishments!(channel, rows)
@@ -108,7 +108,8 @@ module BinImport
       end
     end
 
-    def resolve_channel!(map_rows, organization:)
+    # Só extrai a identidade do Master da planilha; quem consulta o banco é o resolvedor.
+    def channel_identity!(map_rows)
       report_ids = map_rows.pluck("REPORT_ID").compact.map(&:to_s).uniq
       canals = map_rows.pluck("CANAL").compact.map(&:to_s).reject(&:blank?).uniq
       unless report_ids.one?
@@ -122,7 +123,7 @@ module BinImport
           "Cada arquivo cobre uma carteira só; separe os canais em arquivos diferentes."
       end
 
-      ChannelResolver.call(report_id: report_ids.first, name: canals.first, organization:)
+      [ report_ids.first, canals.first ]
     end
 
     def source_file_date
@@ -330,17 +331,6 @@ module BinImport
             period:, day:, amount:, provisional:, created_at: Time.current, updated_at: Time.current } if amount.nonzero?
         end
       end
-    end
-
-    # Quem enviou precisa ter o Master do arquivo inteiro — a planilha é a carteira toda, e
-    # um MIC não dá direito de substituí-la. Sem autor (import por console, seed ou job
-    # antigo) a checagem não se aplica: ali não há ator a limitar.
-    def authorize_channel!(batch, channel)
-      autor = batch.uploaded_by
-      return if autor.nil? || AccessScope.for(autor).whole?(channel.id)
-
-      raise ArgumentError, "Esta planilha é do Master \"#{channel.name}\" inteiro, que está fora " \
-        "do seu acesso — um MIC dele não basta. Confira o arquivo ou peça a liberação desse Master."
     end
 
     def validate_existing_establishments!(channel, rows)

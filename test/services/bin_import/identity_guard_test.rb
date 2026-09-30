@@ -47,8 +47,9 @@ class BinImport::IdentityGuardTest < ActiveSupport::TestCase
     rows = sheets(*Establishment.pluck(:ec).map { |ec| row(ec, Establishment.find_by(ec:).company.cnpj) })
 
     # uncached: o query cache da requisição esconderia a repetição entre as abas, mas não
-    # o custo de um EC distinto por vez, que é o que cresce com a planilha.
-    assert_queries_count(2) do
+    # o custo de um EC distinto por vez, que é o que cresce com a planilha. São três
+    # consultas fixas — ECs, empresas e canais (a organização do EC vem do canal).
+    assert_queries_count(3) do
       ApplicationRecord.uncached { BinImport::IdentityGuard.assert_existing!(@channel, rows) }
     end
   end

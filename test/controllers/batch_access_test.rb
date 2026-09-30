@@ -196,7 +196,8 @@ class BatchUploadScopeTest < ActiveSupport::TestCase
       import_synthetic_workbook_as(autor)
     end
 
-    assert_match(/fora do seu acesso/, erro.message)
+    assert_match(/administrador da organização/, erro.message,
+      "Master novo: um colaborador não o inaugura, mesmo com concessão em outro Master")
     assert_equal 0, MapSnapshot.count, "nada pode ser gravado antes da checagem"
   end
 

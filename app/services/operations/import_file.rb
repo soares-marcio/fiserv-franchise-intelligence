@@ -33,7 +33,7 @@ module Operations
 
     def self.claim_batch(checksum, filename, uploaded_by, organization)
       batch = ImportBatch.find_by(file_checksum: checksum)
-      return handle_existing(batch, filename) if batch
+      return handle_existing(batch, filename, organization) if batch
 
       ImportBatch.create!(source_filename: filename, file_checksum: checksum, status: "pending",
         uploaded_by:, organization:)
@@ -41,10 +41,15 @@ module Operations
       batch = ImportBatch.find_by(file_checksum: checksum)
       raise error unless batch
 
-      handle_existing(batch, filename)
+      handle_existing(batch, filename, organization)
     end
 
-    def self.handle_existing(batch, filename)
+    def self.handle_existing(batch, filename, organization)
+      # O mesmo arquivo em outra organização: nem quando, nem por quem — o REPORT_ID já
+      # barraria no parse, e aqui não pode contar mais do que lá.
+      if batch.organization_id != organization.id
+        raise ArgumentError, "Este arquivo não pode ser importado nesta organização."
+      end
       if batch.status == "validated"
         raise ArgumentError, "Este arquivo já foi importado em " \
           "#{batch.created_at.strftime('%d/%m/%Y %H:%M')} " \
