@@ -54,7 +54,7 @@ class AuditTest < ActionDispatch::IntegrationTest
   test "anotação registra que houve edição, não o que foi escrito" do
     import_synthetic_workbook
     company = Establishment.find_by!(ec: "30000001").company
-    ator = scoped_user(permissions: [ Permission::NOTES_READ, Permission::NOTES_WRITE ],
+    ator = scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ, Permission::NOTES_WRITE ],
       channel: Channel.find_by!(name: BinWorkbook::CANAL), email: "anota@exemplo.com")
     sign_in_as(ator)
 

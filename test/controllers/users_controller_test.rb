@@ -52,7 +52,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
     post users_path, params: {
       user: { name: "Novo", email_address: "novo@exemplo.com" },
-      permissions: [ Permission::REPORTS_READ, Permission::BATCHES_DISCARD ],
+      permissions: [ Permission::REPORTS_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
       grants: { "0" => { channel_id: @canal_a.id } }
     }
 

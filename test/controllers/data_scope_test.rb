@@ -189,7 +189,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
     Operations::SaveCompanyNote.call(organization: default_organization, cnpj: de_fora.cnpj, body: "<div>Segredo do outro Master</div>")
     # Com a permissão de anotação, mas sem o cliente no escopo: é o recorte que precisa
     # negar aqui, e não a falta de chave — por isso 404, e não 403.
-    sign_in_as(scoped_user(permissions: [ Permission::NOTES_READ, Permission::NOTES_WRITE ],
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ, Permission::NOTES_WRITE ],
       channel: @canal_a, email: "tem-chave@exemplo.com"))
 
     get edit_company_note_path(de_fora)
@@ -202,7 +202,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
 
   test "a anotação do próprio escopo continua acessível, e grava quem editou" do
     company = Establishment.find_by!(ec: "30000001").company
-    user = scoped_user(permissions: [ Permission::NOTES_READ, Permission::NOTES_WRITE ],
+    user = scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ, Permission::NOTES_WRITE ],
       channel: @canal_a, email: "anota@exemplo.com")
     sign_in_as(user)
 

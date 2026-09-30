@@ -96,7 +96,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "descartar exige a chave de descarte, que é separada de ajustar" do
-    ator = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_ADJUST ])
+    ator = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_ADJUST ])
     @batch.update!(uploaded_by: ator)
 
     assert_no_difference -> { ImportBatch.count } do
@@ -104,7 +104,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     end
     assert_response :forbidden
 
-    outro = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_DISCARD ],
+    outro = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
       email: "descarta@exemplo.com")
     @batch.update!(uploaded_by: outro)
 
@@ -120,7 +120,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     company = Company.create!(cnpj: "11222333000181")
     Establishment.create!(ec: "55000001", company:, channel: canal)
 
-    entra_com([ Permission::NOTES_READ ], channel: canal)
+    entra_com([ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: canal)
 
     get edit_company_note_path(company)
     assert_response :success
@@ -128,7 +128,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     patch company_note_path(company), params: { body: "<div>Oi</div>" }
     assert_response :forbidden
 
-    entra_com([ Permission::NOTES_READ, Permission::NOTES_WRITE ], email: "escreve@exemplo.com",
+    entra_com([ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ, Permission::NOTES_WRITE ], email: "escreve@exemplo.com",
       channel: canal)
 
     patch company_note_path(company), params: { body: "<div>Oi</div>" }
