@@ -4,12 +4,16 @@
 # É construído uma vez por requisição, com uma consulta só, e atravessa os query objects no
 # lugar do antigo `channel_id:`. A troca de assinatura é proposital: quem esquecer de migrar
 # um ponto quebra no boot, e não em produção servindo dado de outro Master.
+#
+# Não existe escopo "tudo": o administrador da organização recebe a lista real dos Masters
+# dela, e a conta da plataforma recebe escopo vazio. Um "tudo" simbólico exigiria um ramo
+# especial em cada predicado — e é num ramo desses que o dado de uma organização vazaria
+# para outra.
 class AccessScope
   # Nunca instanciado a partir de params: o escopo vem das concessões do usuário, e o filtro
   # da tela só estreita o que já é permitido.
   def self.for(user)
-    return everything if user&.platform_admin?
-    return new(full_channel_ids: [], sub_channel_ids: []) if user.nil?
+    return empty if user.nil? || user.platform_admin?
     return organization_wide(user.organization) if user.organization_admin?
 
     grants = user.access_grants.pluck(:channel_id, :sub_channel_id)
@@ -20,11 +24,11 @@ class AccessScope
     new(organization_id: user.organization_id, full_channel_ids: full, sub_channel_ids: subs)
   end
 
-  def self.everything = new(everything: true)
+  def self.empty = new
 
   # O administrador da organização enxerga a organização inteira — materializada como a
-  # lista real dos Masters dela, e não como um "tudo" simbólico: assim todo predicado que
-  # já recorta por canal recorta também a organização, sem ramo especial.
+  # lista real dos Masters dela: assim todo predicado que já recorta por canal recorta
+  # também a organização, sem ramo especial.
   def self.organization_wide(organization)
     new(organization_id: organization.id, organization_wide: true,
       full_channel_ids: Channel.where(organization_id: organization.id).pluck(:id), sub_channel_ids: [])
@@ -32,43 +36,33 @@ class AccessScope
 
   attr_reader :organization_id, :full_channel_ids, :sub_channel_ids
 
-  def initialize(organization_id: nil, full_channel_ids: [], sub_channel_ids: [], everything: false,
-    organization_wide: false)
+  def initialize(organization_id: nil, full_channel_ids: [], sub_channel_ids: [], organization_wide: false)
     @organization_id = organization_id
     @full_channel_ids = full_channel_ids
     @sub_channel_ids = sub_channel_ids
-    @everything = everything
     @organization_wide = organization_wide
   end
-
-  def everything? = @everything
 
   # Só importa onde a lista de canais não responde: um Master que ainda não existe.
   def organization_wide? = @organization_wide
 
-  def empty? = !everything? && full_channel_ids.empty? && sub_channel_ids.empty?
+  def empty? = full_channel_ids.empty? && sub_channel_ids.empty?
 
   # Recorte por MIC obriga a passar pelo vínculo EC→MIC, que é temporal; sem ele, o
   # predicado é uma comparação de canal e usa os índices que já existem.
-  def partial? = !everything? && sub_channel_ids.any?
+  def partial? = sub_channel_ids.any?
 
   # O Master inteiro, e não um MIC dele. É a pergunta certa para tudo que não tem recorte
   # por MIC — a planilha importada é a carteira inteira num arquivo, e a revisão de um lote
   # mostra o diff do Master todo.
   def whole?(channel_id)
-    everything? || full_channel_ids.include?(channel_id)
+    full_channel_ids.include?(channel_id)
   end
 
   # Todos os canais alcançáveis, por qualquer via. Serve ao seletor de canal da tela e aos
   # filtros que só precisam do Master.
   def channel_ids
-    return @channel_ids if defined?(@channel_ids)
-
-    @channel_ids = if everything?
-      Channel.pluck(:id)
-    else
-      (full_channel_ids + SubChannel.where(id: sub_channel_ids).pluck(:channel_id)).uniq
-    end
+    @channel_ids ||= (full_channel_ids + SubChannel.where(id: sub_channel_ids).pluck(:channel_id)).uniq
   end
 
   # O filtro da tela estreita o que já é permitido; jamais amplia. Um canal fora do escopo
@@ -76,7 +70,6 @@ class AccessScope
   def narrow(channel: nil, sub_channel: nil)
     return narrow_to_sub_channel(sub_channel) if sub_channel
     return self if channel.nil?
-    return derived(full_channel_ids: [ channel.id ]) if everything?
 
     if full_channel_ids.include?(channel.id)
       derived(full_channel_ids: [ channel.id ])
@@ -90,8 +83,6 @@ class AccessScope
   # por usuário. O id do ator nunca entra: o que separa é o escopo, não quem o tem. A
   # organização entra porque duas organizações nunca podem dividir uma entrada.
   def cache_key
-    return "all" if everything?
-
     "org:#{organization_id || '-'}|c:#{full_channel_ids.sort.join(',')}|s:#{sub_channel_ids.sort.join(',')}"
   end
 
@@ -109,8 +100,7 @@ class AccessScope
   end
 
   def narrow_to_sub_channel(sub_channel)
-    permitido = everything? || full_channel_ids.include?(sub_channel.channel_id) ||
-      sub_channel_ids.include?(sub_channel.id)
+    permitido = full_channel_ids.include?(sub_channel.channel_id) || sub_channel_ids.include?(sub_channel.id)
     return derived unless permitido
 
     derived(sub_channel_ids: [ sub_channel.id ])

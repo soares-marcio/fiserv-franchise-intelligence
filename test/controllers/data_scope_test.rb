@@ -225,7 +225,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
     b = ReportScope.new(scope: escopo_do_canal(@canal_b.id))
 
     assert_not_equal a.scope.cache_key, b.scope.cache_key
-    assert_not_equal AccessScope.everything.cache_key, a.scope.cache_key
+    assert_not_equal escopo_da_organizacao.cache_key, a.scope.cache_key
     assert_not_equal a.totals, b.totals
   end
 

@@ -8,7 +8,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     other = channel.sub_channels.find_by!(name: "MIC B")
     AuditViews.refresh!
 
-    scope = ReportScope.new(scope: AccessScope.everything)
+    scope = ReportScope.new(scope: escopo_da_organizacao)
     rows = scope.revenue_by_establishment(sub_channel_id: sub_channel.id)
     parent = scope.revenue_by_sub_channel.find { |row| row["sub_channel_id"] == sub_channel.id }
 

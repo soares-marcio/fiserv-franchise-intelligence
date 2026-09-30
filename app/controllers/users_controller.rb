@@ -116,18 +116,15 @@ class UsersController < ApplicationController
   # decide — parâmetro forjado cai na regra do SaveUser.
   def load_options
     escopo = Current.access_scope
-    @channels = escopo.everything? ? Channel.order(:name) : Channel.where(id: escopo.channel_ids).order(:name)
+    @channels = Channel.where(id: escopo.channel_ids).order(:name)
     @sub_channels = SubChannel.where(channel_id: @channels.select(:id)).order(:name)
     @permissions = Permission::KEYS.select { |chave| Current.user.permitted?(chave) }
   end
 
   def user_attributes
+    # Os papéis de administração não passam por aqui: a plataforma nasce do seed e o
+    # administrador da organização, da própria plataforma. Parâmetro forjado é ignorado.
     dados = params.require(:user).permit(:name, :email_address)
-    # Administrador geral só por administrador geral, e nunca sobre si mesmo — senão o
-    # último se rebaixaria por engano. Fora disso o parâmetro é ignorado, não recusado.
-    if Current.user.platform_admin? && @user != Current.user && params[:user].key?(:platform_admin)
-      dados[:platform_admin] = ActiveModel::Type::Boolean.new.cast(params[:user][:platform_admin])
-    end
     return dados if action_name == "update"
 
     # Senha provisória gerada pelo sistema: quem convida não escolhe a senha de outra

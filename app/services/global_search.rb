@@ -46,8 +46,6 @@ class GlobalSearch
 
   # Os MICs que o ator alcança: os do Master inteiro concedido, mais os avulsos.
   def sub_channels_in_scope
-    return SubChannel.all if @access.everything?
-
     SubChannel.where(channel_id: @access.full_channel_ids)
       .or(SubChannel.where(id: @access.sub_channel_ids))
   end

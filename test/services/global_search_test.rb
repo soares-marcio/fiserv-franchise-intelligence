@@ -4,7 +4,7 @@ require "test_helper"
 # "não achei" de "ainda não há dado importado".
 class GlobalSearchTest < ActiveSupport::TestCase
   test "sem lote validado a base está vazia e nada é procurado" do
-    search = GlobalSearch.new("alfa", access: AccessScope.everything)
+    search = GlobalSearch.new("alfa", access: escopo_da_organizacao)
 
     assert_predicate search, :base_empty?
     assert_empty search.establishments
@@ -12,7 +12,7 @@ class GlobalSearchTest < ActiveSupport::TestCase
 
   test "termo curto demais não vira consulta" do
     import_synthetic_workbook
-    search = GlobalSearch.new("a", access: AccessScope.everything)
+    search = GlobalSearch.new("a", access: escopo_da_organizacao)
 
     assert_not search.searchable?
     assert_empty search.sub_channels
@@ -23,20 +23,20 @@ class GlobalSearchTest < ActiveSupport::TestCase
   test "acha o MIC pelo nome, em qualquer caixa" do
     import_synthetic_workbook
 
-    assert_equal [ "MIC ALFA" ], GlobalSearch.new("mic alfa", access: AccessScope.everything).sub_channels.map(&:name)
+    assert_equal [ "MIC ALFA" ], GlobalSearch.new("mic alfa", access: escopo_da_organizacao).sub_channels.map(&:name)
   end
 
   test "acha o estabelecimento por EC, nome fantasia e CNPJ colado com máscara" do
     import_synthetic_workbook
 
-    assert_equal [ "30000002" ], GlobalSearch.new("30000002", access: AccessScope.everything).establishments.map(&:ec)
-    assert_equal [ "30000002" ], GlobalSearch.new("beta cafe", access: AccessScope.everything).establishments.map(&:ec)
-    assert_equal [ "30000002" ], GlobalSearch.new("44.555.666/0001-72", access: AccessScope.everything).establishments.map(&:ec)
+    assert_equal [ "30000002" ], GlobalSearch.new("30000002", access: escopo_da_organizacao).establishments.map(&:ec)
+    assert_equal [ "30000002" ], GlobalSearch.new("beta cafe", access: escopo_da_organizacao).establishments.map(&:ec)
+    assert_equal [ "30000002" ], GlobalSearch.new("44.555.666/0001-72", access: escopo_da_organizacao).establishments.map(&:ec)
   end
 
   test "termo sem correspondência é busca vazia, com base preenchida" do
     import_synthetic_workbook
-    search = GlobalSearch.new("zzzz", access: AccessScope.everything)
+    search = GlobalSearch.new("zzzz", access: escopo_da_organizacao)
 
     assert_not search.base_empty?
     assert_predicate search, :empty?
@@ -45,8 +45,8 @@ class GlobalSearchTest < ActiveSupport::TestCase
   test "espaços em volta do termo não contam como conteúdo" do
     import_synthetic_workbook
 
-    assert_not GlobalSearch.new("  a  ", access: AccessScope.everything).searchable?
-    assert_equal [ "30000002" ], GlobalSearch.new("  beta cafe  ", access: AccessScope.everything).establishments.map(&:ec)
+    assert_not GlobalSearch.new("  a  ", access: escopo_da_organizacao).searchable?
+    assert_equal [ "30000002" ], GlobalSearch.new("  beta cafe  ", access: escopo_da_organizacao).establishments.map(&:ec)
   end
 end
 

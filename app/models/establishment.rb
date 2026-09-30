@@ -25,7 +25,6 @@ class Establishment < ApplicationRecord
   # Master inteiro usa establishments.channel_id, a chave estável. Só o recorte por MIC
   # passa pelo snapshot, porque o vínculo EC→MIC vem da planilha e muda a cada importação.
   scope :in_scope, ->(access) {
-    next all if access.everything?
     next none if access.empty?
 
     por_mic = joins(:current_map_snapshot)

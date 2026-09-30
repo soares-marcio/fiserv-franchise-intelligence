@@ -46,11 +46,13 @@ class User < ApplicationRecord
   def locked? = locked_until.present? && locked_until.future?
   def mfa_enabled? = mfa_enabled_at.present?
 
-  # Quem administra — a plataforma ou a própria organização — não recebe chave a chave: pode
-  # tudo, por definição. Guardar a lista inteira criaria dois lugares para acrescentar
-  # permissão nova.
+  # A conta da plataforma não tem chave nenhuma: ela cria organizações e não vê dado. O
+  # administrador da organização tem todas, por definição — guardar a lista inteira nele
+  # criaria dois lugares para acrescentar permissão nova.
   def permitted?(key)
-    platform_admin? || organization_admin? || permissions.include?(key)
+    return false if platform_admin?
+
+    organization_admin? || permissions.include?(key)
   end
 
   def unused_recovery_codes = recovery_codes.where(used_at: nil)

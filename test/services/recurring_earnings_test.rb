@@ -9,7 +9,7 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     @lojas = BinWorkbook.earnings_lojas
     import_synthetic_workbook(lojas: @lojas)
     refresh_audit_views
-    @reports = RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel
+    @reports = RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel
   end
 
   test "uma linha por competência, com débito e crédito da planilha" do
@@ -96,7 +96,7 @@ class RecurringEarningsTest < ActiveSupport::TestCase
       "UPDATE period_coverages SET closed = true WHERE period = DATE '2026-08-01'"
     )
     refresh_audit_views
-    delta = RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
+    delta = RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
 
     com_parcela = delta[:months].select { |month| month[:accreditation].positive? }
     assert_predicate com_parcela, :any?, "a janela do EC tem de cruzar a série, senão o teste é vácuo"
@@ -132,7 +132,7 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     )
     refresh_audit_views
 
-    delta = RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
+    delta = RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel.find { |row| row[:name] == "MIC DELTA" }
     agosto = delta[:months].find { |month| month[:period] == Date.new(2026, 8, 1) }
 
     assert_not_includes delta[:months].map { |m| m[:period] }, Date.new(2026, 7, 1),
@@ -178,7 +178,7 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     setembro.update_columns(current_period: Date.new(2026, 9, 1))
     refresh_audit_views
 
-    reports = RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel
+    reports = RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel
     agosto = gama_month(reports, Date.new(2026, 8, 1))
     julho = gama_month(reports, Date.new(2026, 7, 1))
 
@@ -211,7 +211,7 @@ class RecurringEarningsTest < ActiveSupport::TestCase
       "UPDATE map_snapshots SET financial_solutions = 'Flex' WHERE establishment_id = #{flex_ec.id}"
     )
     refresh_audit_views
-    depois = RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel
+    depois = RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel
       .find { |row| row[:name] == "MIC GAMA" }[:months].first
 
     assert_not_nil antes, "o EC precisa ter MDR, senão o teste é vácuo"
@@ -234,7 +234,7 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     # definição da classe, e um NullStore novo deixaria aquele teste sem simulação.
     original_store = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
-    query = RecurringEarningsQuery.new(scope: AccessScope.everything)
+    query = RecurringEarningsQuery.new(scope: escopo_da_organizacao)
     assert_equal @reports, query.by_sub_channel
 
     # Só a consulta que monta a chave (carimbo da última consolidação).
@@ -242,12 +242,15 @@ class RecurringEarningsTest < ActiveSupport::TestCase
     assert_equal @reports, cached
 
     Operations::ReprocessBatch.call(ImportBatch.validated.last)
-    assert_queries_match(/monthly_volumes_consolidated/) { RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel }
-    assert_queries_count(1) { RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel }
+    assert_queries_match(/monthly_volumes_consolidated/) { RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel }
+    # O escopo da organização materializa a lista de Masters numa consulta própria; ela fica
+    # fora da contagem, que é sobre o cache da série.
+    escopo = escopo_da_organizacao
+    assert_queries_count(1) { RecurringEarningsQuery.new(scope: escopo).by_sub_channel }
 
     @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
     import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
-    assert_queries_match(/monthly_volumes_consolidated/) { RecurringEarningsQuery.new(scope: AccessScope.everything).by_sub_channel }
+    assert_queries_match(/monthly_volumes_consolidated/) { RecurringEarningsQuery.new(scope: escopo_da_organizacao).by_sub_channel }
   ensure
     Rails.cache = original_store
   end

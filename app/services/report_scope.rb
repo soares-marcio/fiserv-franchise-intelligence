@@ -273,7 +273,7 @@ class ReportScope
   # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
   def latest_validated_batch_id(sub_channel_id)
     channel_id = SubChannel.find(sub_channel_id).channel_id
-    return nil unless @scope.everything? || @scope.channel_ids.include?(channel_id)
+    return nil unless @scope.channel_ids.include?(channel_id)
 
     ImportBatch.where(channel_id:, status: "validated")
       .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)

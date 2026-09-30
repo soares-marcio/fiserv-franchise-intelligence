@@ -9,7 +9,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   end
 
   test "uma linha por CNPJ, com os quatro campos da planilha" do
-    linhas = PreapprovedOffers.new(scope: AccessScope.everything).call
+    linhas = PreapprovedOffers.new(scope: escopo_da_organizacao).call
 
     assert_equal 1, linhas.size, "dois ECs do mesmo CNPJ são um cliente"
     linha = linhas.first
@@ -22,7 +22,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   end
 
   test "CNPJ sem oferta na planilha fica de fora" do
-    assert_empty PreapprovedOffers.new(scope: AccessScope.everything).call.select { |row| row["cnpj"] == "22333444000105" }
+    assert_empty PreapprovedOffers.new(scope: escopo_da_organizacao).call.select { |row| row["cnpj"] == "22333444000105" }
   end
 
   # A invariante que o usuário declarou e que a carteira confirma. Se uma planilha futura
@@ -32,9 +32,9 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     MapSnapshot.joins(:establishment).where(establishments: { ec: "30000002" })
       .update_all(preapproved_volume: 999)
 
-    assert_equal 1, PreapprovedOffers.new(scope: AccessScope.everything).call.size,
+    assert_equal 1, PreapprovedOffers.new(scope: escopo_da_organizacao).call.size,
       "a listagem continua com uma linha por CNPJ"
-    assert PreapprovedOffers.new(scope: AccessScope.everything).diverging_cnpjs.any?,
+    assert PreapprovedOffers.new(scope: escopo_da_organizacao).diverging_cnpjs.any?,
       "e a divergência precisa ser detectável, não silenciosa"
   end
 
@@ -46,11 +46,11 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     MapSnapshot.joins(:establishment).where(establishments: { ec: "30000002" })
       .update_all(legal_name: "ZZZ NOME FANTASIA")
 
-    linha = PreapprovedOffers.new(scope: AccessScope.everything).call.first
+    linha = PreapprovedOffers.new(scope: escopo_da_organizacao).call.first
 
     assert_equal "ALFA COMERCIO LTDA", linha["legal_name"],
       "dois ECs dizem a razão social e um discorda: vence a maioria, não o alfabeto"
-    assert_includes PreapprovedOffers.new(scope: AccessScope.everything).diverging_name_cnpjs, "11222333000181",
+    assert_includes PreapprovedOffers.new(scope: escopo_da_organizacao).diverging_name_cnpjs, "11222333000181",
       "e a divergência aparece, em vez de a tela escolher em silêncio"
   end
 
@@ -59,7 +59,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   test "a anotação chega sem quebrar a linha por CNPJ" do
     Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Ligar.</div>")
 
-    linhas = PreapprovedOffers.new(scope: AccessScope.everything).call
+    linhas = PreapprovedOffers.new(scope: escopo_da_organizacao).call
 
     assert_equal 1, linhas.size
     assert_predicate linhas.first["company_uuid"], :present?
@@ -70,7 +70,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   # 2.220 snapshots. A consulta a expõe assim mesmo — quem lê a tela precisa ver a lacuna,
   # não um número inventado a partir de volume, prazo e taxa.
   test "a parcela vem como veio da planilha, sem cálculo" do
-    assert_nil PreapprovedOffers.new(scope: AccessScope.everything).call.first["preapproved_installment"]
+    assert_nil PreapprovedOffers.new(scope: escopo_da_organizacao).call.first["preapproved_installment"]
   end
 
   # O MIC virou filtro da tela: sem escolha, vêm todos; com escolha, só os clientes daquele
@@ -85,17 +85,17 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     gama = SubChannel.find_by!(name: "MIC GAMA")
 
     assert_equal %w[11222333000181 44555666000177].sort,
-      PreapprovedOffers.new(scope: AccessScope.everything).call.map { |linha| linha["cnpj"] }.sort
+      PreapprovedOffers.new(scope: escopo_da_organizacao).call.map { |linha| linha["cnpj"] }.sort
     assert_equal [ "11222333000181" ],
-      PreapprovedOffers.new(scope: AccessScope.everything, sub_channel_id: alfa.id).call.map { |linha| linha["cnpj"] }
+      PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: alfa.id).call.map { |linha| linha["cnpj"] }
     assert_equal [ "44555666000177" ],
-      PreapprovedOffers.new(scope: AccessScope.everything, sub_channel_id: gama.id).call.map { |linha| linha["cnpj"] }
+      PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: gama.id).call.map { |linha| linha["cnpj"] }
 
     # "MIC BETA" veio na mesma planilha, mas o cliente dele não tem oferta: não é oferecido.
     assert_equal [ "MIC ALFA", "MIC GAMA" ],
-      PreapprovedOffers.new(scope: AccessScope.everything).sub_channel_options.map { |mic| mic["name"] }
+      PreapprovedOffers.new(scope: escopo_da_organizacao).sub_channel_options.map { |mic| mic["name"] }
     assert_equal [ "MIC ALFA", "MIC GAMA" ],
-      PreapprovedOffers.new(scope: AccessScope.everything, sub_channel_id: alfa.id).sub_channel_options.map { |mic| mic["name"] },
+      PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: alfa.id).sub_channel_options.map { |mic| mic["name"] },
       "escolher um MIC não faz os outros sumirem da própria lista"
   end
 
@@ -108,7 +108,7 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
       ).id)
 
     delta = SubChannel.find_by!(name: "MIC DELTA")
-    linha = PreapprovedOffers.new(scope: AccessScope.everything, sub_channel_id: delta.id).call.sole
+    linha = PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: delta.id).call.sole
 
     assert_equal "11222333000181", linha["cnpj"]
     assert_equal 3, linha["establishments"].to_i,

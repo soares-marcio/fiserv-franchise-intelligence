@@ -15,20 +15,18 @@ module Operations
     end
 
     def self.update(user:, attributes:, permissions:, grants:, actor:)
-      antes = { permissions: user.permissions.dup, grants: grant_pairs(user), platform_admin: user.platform_admin? }
+      antes = { permissions: user.permissions.dup, grants: grant_pairs(user) }
       user.assign_attributes(attributes)
       user.permissions = allowed_permissions(permissions, actor)
       resultado = apply(user:, grants:, actor:, senha_provisoria: false)
 
-      # Mudança de permissão, de escopo ou de administrador geral derruba as sessões
-      # abertas: quem perdeu acesso continuaria dentro até a sessão expirar sozinha.
-      depois = { permissions: user.permissions, grants: grant_pairs(user), platform_admin: user.platform_admin? }
+      # Mudança de permissão ou de escopo derruba as sessões abertas: quem perdeu acesso continuaria dentro até a sessão expirar sozinha.
+      depois = { permissions: user.permissions, grants: grant_pairs(user) }
       if antes != depois
         user.revoke_sessions!
         Audit.record("user.access_changed", user: actor, record: user,
           metadata: { permissoes_antes: antes[:permissions], permissoes_depois: user.permissions,
-            escopos_antes: antes[:grants].size, escopos_depois: depois[:grants].size,
-            admin_geral_antes: antes[:platform_admin], admin_geral_depois: depois[:platform_admin] })
+            escopos_antes: antes[:grants].size, escopos_depois: depois[:grants].size })
       end
       resultado
     end
@@ -55,8 +53,6 @@ module Operations
     # Nem escopo além do próprio: conceder um Master inteiro exige tê-lo inteiro; conceder
     # um MIC exige ter o Master dele ou exatamente aquele MIC.
     def self.allowed_grants(grants, actor)
-      return Array(grants) if actor.platform_admin?
-
       escopo = AccessScope.for(actor)
       Array(grants).select do |grant|
         channel_id = grant[:channel_id].to_i

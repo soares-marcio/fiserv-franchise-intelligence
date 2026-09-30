@@ -62,8 +62,6 @@ class SubChannelIndicatorsQuery
   def portfolio_sub_channels
     ids = (@accreditations.keys + @proposals.keys + @bases.keys).map(&:first).uniq
     permitted = SubChannel.where(id: ids)
-    return permitted.order(:name) if @scope.everything?
-
     permitted.where(channel_id: @scope.full_channel_ids)
       .or(permitted.where(id: @scope.sub_channel_ids)).order(:name)
   end

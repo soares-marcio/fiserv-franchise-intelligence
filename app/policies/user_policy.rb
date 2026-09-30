@@ -52,7 +52,6 @@ class UserPolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.all if user&.platform_admin?
       return scope.none unless user&.permitted?(Permission::USERS_INVITE)
 
       # A organização recorta primeiro: o resto é quem, dentro dela, o ator alcança.

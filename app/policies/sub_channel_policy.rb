@@ -6,8 +6,6 @@ class SubChannelPolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope
     def resolve
       access = AccessScope.for(user)
-      return scope.all if access.everything?
-
       scope.where(channel_id: access.full_channel_ids).or(scope.where(id: access.sub_channel_ids))
     end
   end

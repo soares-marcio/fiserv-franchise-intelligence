@@ -7,7 +7,7 @@ class AuditEventPolicy < ApplicationPolicy
     def resolve
       # Transitório: a trilha só ganha organization_id na fase da trilha; até lá o
       # administrador da organização lê tudo, como o antigo super admin.
-      return scope.all if user&.platform_admin? || user&.organization_admin?
+      return scope.all if user&.organization_admin?
       return scope.none unless user&.permitted?(Permission::USERS_INVITE)
 
       # Um admin delegado vê o que aconteceu nos Masters que ele administra, mais os

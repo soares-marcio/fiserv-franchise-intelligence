@@ -135,14 +135,27 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
-  test "super admin não precisa de chave marcada" do
-    entra_com([], platform_admin: true)
+  test "administrador da organização não precisa de chave marcada" do
+    entra_com([], organization_admin: true)
 
     get reports_path
     assert_response :success
 
     get metabase_path
     assert_response :success
+  end
+
+  # A conta da plataforma cria organizações e não vê dado: nenhuma chave, nenhuma tela de
+  # dado — nem com o escopo forjado por console.
+  test "a plataforma não abre tela de dado nenhuma" do
+    entra_com([], platform_admin: true)
+
+    [ reports_path, stalled_reports_path, weekly_reports_path, three_months_reports_path,
+      recurring_reports_path, indicators_reports_path, establishments_path, search_path(q: "x"),
+      import_batches_path, metabase_path, users_path, audit_events_path ].each do |tela|
+      get tela
+      assert_response :forbidden, tela
+    end
   end
 
   # O menu é a primeira coisa que o usuário vê: mostrar link para tela que responde 403
@@ -162,9 +175,9 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
 
   private
 
-  def entra_com(permissions, email: "ator@exemplo.com", platform_admin: false, channel: nil)
+  def entra_com(permissions, email: "ator@exemplo.com", platform_admin: false, organization_admin: false, channel: nil)
     sign_out if Current.session
-    user = create_user(email:, permissions:, platform_admin:)
+    user = create_user(email:, permissions:, platform_admin:, organization_admin:)
     user.access_grants.create!(channel:) if channel
     sign_in_as(user)
   end

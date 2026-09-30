@@ -11,7 +11,7 @@ class SubChannelIndicatorsTest < ActiveSupport::TestCase
     import_synthetic_workbook(lojas: @lojas)
     # A competência atual nasce aberta; fechada, ganha leitura.
     fechar_mes_atual
-    @reports = SubChannelIndicatorsQuery.new(scope: AccessScope.everything).by_sub_channel
+    @reports = SubChannelIndicatorsQuery.new(scope: escopo_da_organizacao).by_sub_channel
     @kappa = @reports.find { |row| row[:name] == "MIC KAPPA" }
     @sigma = @reports.find { |row| row[:name] == "MIC SIGMA" }
     @kappa_lojas = @lojas.select { |loja| loja.sub_channel_name == "MIC KAPPA" }
@@ -88,7 +88,7 @@ class SubChannelIndicatorsTest < ActiveSupport::TestCase
 
   test "competência aberta mostra o valor e não a leitura" do
     fechar_mes_atual(closed: false)
-    kappa = SubChannelIndicatorsQuery.new(scope: AccessScope.everything).by_sub_channel.find { |row| row[:name] == "MIC KAPPA" }
+    kappa = SubChannelIndicatorsQuery.new(scope: escopo_da_organizacao).by_sub_channel.find { |row| row[:name] == "MIC KAPPA" }
     mes = agosto(kappa)
 
     assert mes[:partial]

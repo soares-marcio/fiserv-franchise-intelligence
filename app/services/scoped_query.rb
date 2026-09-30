@@ -7,7 +7,7 @@ module ScopedQuery
   # predicado não obriga a lembrar de acrescentar bind.
   def scope_binds
     {
-      channel_ids: bind_list(@scope.everything? ? nil : @scope.channel_ids),
+      channel_ids: bind_list(@scope.channel_ids),
       full_channel_ids: bind_list(@scope.full_channel_ids),
       sub_channel_ids: bind_list(@scope.sub_channel_ids)
     }
@@ -16,15 +16,11 @@ module ScopedQuery
   # Tabelas que só têm channel_id. O recorte por MIC herda o canal: cobertura do mês e dia
   # de corte são do arquivo, que é do Master inteiro.
   def channel_predicate(prefix = nil)
-    return "TRUE" if @scope.everything?
-
     "#{qualify(prefix)}channel_id IN (:channel_ids)"
   end
 
   # Tabelas com sub_channel_id: Master inteiro pelo canal, MIC avulso pela coluna.
   def sub_channel_predicate(prefix = nil)
-    return "TRUE" if @scope.everything?
-
     "(#{qualify(prefix)}channel_id IN (:full_channel_ids) OR " \
       "#{qualify(prefix)}sub_channel_id IN (:sub_channel_ids))"
   end
@@ -32,7 +28,6 @@ module ScopedQuery
   # Tabelas ligadas ao EC e sem sub_channel_id — o faturamento diário consolidado é a
   # principal: o recorte fino passa pelo vínculo EC→MIC, que é temporal.
   def establishment_predicate(prefix)
-    return "TRUE" if @scope.everything?
     return "#{qualify(prefix)}channel_id IN (:channel_ids)" unless @scope.partial?
 
     "(#{qualify(prefix)}channel_id IN (:full_channel_ids) OR " \

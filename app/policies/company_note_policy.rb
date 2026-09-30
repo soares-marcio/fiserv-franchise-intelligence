@@ -16,8 +16,6 @@ class CompanyNotePolicy < ApplicationPolicy
   class Scope < ApplicationPolicy::Scope
     def resolve
       access = AccessScope.for(user)
-      return scope.all if access.everything?
-
       scope.where(cnpj: Company.where(id: Establishment.in_scope(access).select(:company_id))
         .select(:cnpj))
     end

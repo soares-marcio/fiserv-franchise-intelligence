@@ -34,8 +34,6 @@ module BlobAuthorization
   end
 
   def note_in_scope?(nota)
-    return true if Current.user&.platform_admin?
-
     CompanyNotePolicy::Scope.new(Current.user, CompanyNote).resolve.exists?(id: nota.id)
   end
 end

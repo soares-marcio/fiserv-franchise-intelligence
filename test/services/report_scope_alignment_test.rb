@@ -9,7 +9,7 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     seed_channel("B", template, cutoff: 27, amounts: { 24 => 100, 27 => 50 }, previous: { 24 => 80, 31 => 40 })
     AuditViews.refresh!
 
-    scope = ReportScope.new(scope: AccessScope.everything)
+    scope = ReportScope.new(scope: escopo_da_organizacao)
     totals = scope.totals
     rows = scope.revenue_by_sub_channel
     channel_b = Channel.find_by!(external_id: "B")
@@ -39,7 +39,7 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     lojas = BinWorkbook.default_lojas
     import_synthetic_workbook(lojas:)
     AuditViews.refresh!
-    scope = ReportScope.new(scope: AccessScope.everything)
+    scope = ReportScope.new(scope: escopo_da_organizacao)
     totals = scope.totals
 
     rows = SubChannel.pluck(:id).flat_map do |sub_channel_id|
@@ -65,25 +65,25 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     original_store = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
 
-    rows = ReportScope.new(scope: AccessScope.everything).revenue_by_sub_channel
-    totals = ReportScope.new(scope: AccessScope.everything).totals
+    rows = ReportScope.new(scope: escopo_da_organizacao).revenue_by_sub_channel
+    totals = ReportScope.new(scope: escopo_da_organizacao).totals
     assert_no_queries_match(/daily_revenues_consolidated/) do
-      assert_equal rows, ReportScope.new(scope: AccessScope.everything).revenue_by_sub_channel
-      assert_equal totals, ReportScope.new(scope: AccessScope.everything).totals
+      assert_equal rows, ReportScope.new(scope: escopo_da_organizacao).revenue_by_sub_channel
+      assert_equal totals, ReportScope.new(scope: escopo_da_organizacao).totals
     end
 
     Operations::ReprocessBatch.call(batch)
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: AccessScope.everything).revenue_by_sub_channel }
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: AccessScope.everything).totals }
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: escopo_da_organizacao).revenue_by_sub_channel }
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: escopo_da_organizacao).totals }
 
     Operations::AdjustCutoff.call(batch:, max_known_day: 3)
-    assert_equal 3, ReportScope.new(scope: AccessScope.everything).revenue_by_sub_channel.first["max_known_day"].to_i
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: AccessScope.everything).totals }
+    assert_equal 3, ReportScope.new(scope: escopo_da_organizacao).revenue_by_sub_channel.first["max_known_day"].to_i
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: escopo_da_organizacao).totals }
 
     lojas.first.dias_atual = lojas.first.dias_atual.merge(1 => 999)
     import_synthetic_workbook(lojas:, filename: "BIN_TESTE_20260818.xlsx")
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: AccessScope.everything).revenue_by_sub_channel }
-    assert_equal soma(lojas, :dias_atual), ReportScope.new(scope: AccessScope.everything).totals[:current_revenue]
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: escopo_da_organizacao).revenue_by_sub_channel }
+    assert_equal soma(lojas, :dias_atual), ReportScope.new(scope: escopo_da_organizacao).totals[:current_revenue]
   ensure
     Rails.cache = original_store
   end

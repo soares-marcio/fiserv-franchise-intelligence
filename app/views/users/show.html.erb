@@ -40,8 +40,8 @@
 
   <section class="surface-card p-6">
     <p class="section-label">Pode fazer</p>
-    <% if @user.platform_admin? %>
-      <p class="metric-hint mt-2">Administrador geral: tudo, em qualquer carteira.</p>
+    <% if @user.organization_admin? %>
+      <p class="metric-hint mt-2">Administrador da organização: tudo, em toda carteira dela.</p>
     <% elsif @user.permissions.any? %>
       <ul class="mt-3 grid gap-1 text-sm">
         <% @user.permissions.each do |chave| %><li><%= Permission.label(chave) %></li><% end %>

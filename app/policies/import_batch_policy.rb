@@ -30,11 +30,10 @@ class ImportBatchPolicy < ApplicationPolicy
 
   # O administrador da organização opera qualquer lote dela como se fosse seu.
   def own?
-    user&.platform_admin? || organization_admin_of_record? || record&.uploaded_by_id == user&.id
+    organization_admin_of_record? || record&.uploaded_by_id == user&.id
   end
 
   def reachable?
-    return true if user&.platform_admin?
     return false if record.nil?
 
     return true if record.pending_review? && review?
@@ -51,7 +50,6 @@ class ImportBatchPolicy < ApplicationPolicy
   # Master todo, e um aprovador com um MIC só veria os outros nove (homologação de
   # 29/09/2026).
   def whole_channel?
-    return true if user&.platform_admin?
     return false if record.nil? || record.channel_id.nil?
 
     AccessScope.for(user).whole?(record.channel_id)
@@ -62,8 +60,7 @@ class ImportBatchPolicy < ApplicationPolicy
   # sendo processado.
   class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.all if user&.platform_admin?
-      return scope.none if user.nil?
+      return scope.none if user.nil? || user.platform_admin?
 
       # A organização recorta primeiro, mesmo para o delegado: um lote liberado por engano
       # a alguém de fora não atravessa.

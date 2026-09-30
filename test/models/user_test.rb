@@ -48,13 +48,15 @@ class UserTest < ActiveSupport::TestCase
     assert_match(/inventada/, user.errors[:permissions].join)
   end
 
-  # Super admin não recebe chave a chave: guardar a lista inteira nele criaria dois lugares
-  # para acrescentar permissão nova, e um deles seria esquecido.
-  test "super admin tem toda permissão sem nenhuma marcada" do
-    chefe = User.new(platform_admin: true, permissions: [])
+  # O administrador da organização não recebe chave a chave: guardar a lista inteira nele
+  # criaria dois lugares para acrescentar permissão nova. A plataforma não tem nenhuma.
+  test "administrador da organização tem toda permissão; a plataforma, nenhuma" do
+    chefe = User.new(organization: default_organization, organization_admin: true, permissions: [])
+    plataforma = User.new(platform_admin: true, permissions: [])
     comum = User.new(organization: default_organization, permissions: [ Permission::REPORTS_READ ])
 
     assert chefe.permitted?(Permission::BATCHES_DISCARD)
+    assert_not plataforma.permitted?(Permission::REPORTS_READ)
     assert comum.permitted?(Permission::REPORTS_READ)
     assert_not comum.permitted?(Permission::BATCHES_DISCARD)
   end
