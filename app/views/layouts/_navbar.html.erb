@@ -87,7 +87,7 @@
           <span class="user-chip__name" title="<%= Current.user.email_address %>">
             <%= Current.user.name %>
             <% if Current.organization %>
-              <span class="block text-[0.7rem] font-normal opacity-70"><%= organization_display_name(Current.organization) %></span>
+              <span class="block text-xs font-normal opacity-70"><%= organization_display_name(Current.organization) %></span>
             <% end %>
           </span>
           <%= button_to "Sair", session_path, method: :delete,

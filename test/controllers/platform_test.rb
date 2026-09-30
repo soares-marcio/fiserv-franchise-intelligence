@@ -227,4 +227,17 @@ class PlatformTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     assert_not default_organization.reload.suspended?
   end
+
+  test "a ficha e as telas internas têm Voltar apontando para a tela anterior; a lista não" do
+    sign_in_as(@plataforma)
+
+    get platform_organizations_path
+    assert_select "a.breadcrumb-back", count: 0
+
+    get platform_organization_path(default_organization)
+    assert_select "a.breadcrumb-back[href=?]", platform_organizations_path, text: /Voltar/
+
+    get new_platform_organization_admin_path(default_organization)
+    assert_select "a.breadcrumb-back[href=?]", platform_organization_path(default_organization)
+  end
 end

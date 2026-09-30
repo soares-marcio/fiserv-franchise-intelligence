@@ -4,6 +4,10 @@
 
 @theme {
   --font-sans: "Montserrat", Helvetica, Arial, sans-serif;
+  /* O menor corpo do portal sobe de 12px para 13px (30/09/2026): 12px era pequeno demais
+     para ler nas fichas e nas trilhas. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
 }
 
 [data-theme="bin"] {
@@ -278,7 +282,7 @@
   .metric-hint {
     margin-top: 0.2rem;
     color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
-    font-size: 0.72rem;
+    font-size: 0.84rem;
   }
 
   .surface-card,
@@ -1319,7 +1323,7 @@
 
   .earnings-card__table {
     min-width: 34rem;
-    font-size: 0.82rem;
+    font-size: 0.9rem;
   }
 
   .earnings-card__table th[scope="row"] {
@@ -1745,7 +1749,7 @@
     border-color: var(--color-base-300);
     background: color-mix(in oklab, var(--color-base-200) 74%, white);
     color: color-mix(in oklab, var(--color-base-content) 66%, transparent);
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 800;
     letter-spacing: 0;
     text-transform: uppercase;
@@ -1754,7 +1758,14 @@
   .table :where(td) {
     padding-block: 0.95rem;
     border-color: color-mix(in oklab, var(--color-base-300) 72%, white);
-    font-size: 0.88rem;
+    font-size: 0.95rem;
+  }
+
+  /* Texto longo quebra dentro da célula em vez de alargar a tabela: e-mails, nomes de
+     arquivo e os detalhes da trilha não têm espaço para o navegador quebrar sozinho.
+     Número continua em linha única pelo .tabular-nums. */
+  .table :where(td, th) {
+    overflow-wrap: anywhere;
   }
 
   .table tbody tr {
@@ -2848,8 +2859,23 @@
     background: var(--color-base-100);
     box-shadow: var(--cork-shadow);
     color: var(--cork-muted);
-    font-size: 0.78rem;
+    font-size: 0.85rem;
     font-weight: 600;
+  }
+
+  /* O Voltar mora na barra da trilha, à direita, e aponta para o item anterior dela: é a
+     mesma informação, em botão, para quem entrou numa ficha e quer sair dela. */
+  .breadcrumb-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--cork-strong);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .breadcrumb-back:hover {
+    color: var(--color-primary);
   }
 
   .breadcrumb-item {
@@ -2859,7 +2885,11 @@
     gap: 0.5rem;
   }
 
-  .breadcrumb-item:not(:first-child)::before {
+  .breadcrumb-item--back {
+    margin-left: auto;
+  }
+
+  .breadcrumb-item:not(:first-child):not(.breadcrumb-item--back)::before {
     color: color-mix(in oklab, var(--color-base-content) 32%, transparent);
     content: "/";
     font-weight: 500;
@@ -3036,9 +3066,14 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* A tabela cabe no card e o texto quebra dentro da célula (ver .table na camada de
+     componentes). Era width: max-content, que dava a cada tabela a largura do conteúdo em
+     linha única e fazia qualquer texto longo virar rolagem horizontal (30/09/2026). O
+     overflow-x: auto do .table-scroll fica como rede: só entra se as colunas numéricas,
+     que não quebram, não couberem mesmo. */
   .table-scroll > .table {
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   /* A tabela de lotes é a exceção (ver .batches-table na camada de componentes): fica na
@@ -3325,9 +3360,14 @@
     scrollbar-gutter: stable;
   }
 
+  /* A tabela cabe no card e o texto quebra dentro da célula (ver .table na camada de
+     componentes). Era width: max-content, que dava a cada tabela a largura do conteúdo em
+     linha única e fazia qualquer texto longo virar rolagem horizontal (30/09/2026). O
+     overflow-x: auto do .table-scroll fica como rede: só entra se as colunas numéricas,
+     que não quebram, não couberem mesmo. */
   .table-scroll > .table {
-    width: max-content;
-    min-width: 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   /* As dez colunas preservam a largura que torna cada dado legível. O scroll fica contido

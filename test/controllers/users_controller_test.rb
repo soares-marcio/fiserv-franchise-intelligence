@@ -344,4 +344,15 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     novo = User.find_by(email_address: "novo@exemplo.com")
     assert_equal [ [ @canal_a.id, nil ] ], novo.access_grants.pluck(:channel_id, :sub_channel_id)
   end
+
+  test "a ficha de acesso tem Voltar para a listagem" do
+    sign_in_as(admin_user)
+    alvo = create_user(email: "ficha@exemplo.com")
+
+    get user_path(alvo)
+
+    assert_select "a.breadcrumb-back[href=?]", users_path, text: /Voltar/
+    get users_path
+    assert_select "a.breadcrumb-back", count: 0
+  end
 end

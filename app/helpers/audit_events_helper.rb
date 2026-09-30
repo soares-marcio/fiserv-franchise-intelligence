@@ -24,6 +24,9 @@ module AuditEventsHelper
     "organization.suspended" => "Suspendeu organização",
     "organization.reactivated" => "Reativou organização",
     "organization_admin.created" => "Criou administrador de organização",
+    "user.created" => "Convidou alguém",
+    "user.updated" => "Editou o acesso de alguém",
+    "user.access_changed" => "Mudou permissões ou escopo de alguém",
     "user.mfa_reset" => "Reiniciou o segundo fator de alguém",
     "user.deactivated" => "Desativou acesso de alguém",
     "user.reactivated" => "Reativou acesso de alguém"

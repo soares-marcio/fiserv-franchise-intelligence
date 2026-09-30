@@ -58,13 +58,42 @@ module ApplicationHelper
   end
 
   def section_breadcrumb_items
-    case controller_name
+    case controller_path
     when "reports" then reports_breadcrumb_items
     when "establishments" then establishments_breadcrumb_items
     when "import_batches" then import_batches_breadcrumb_items
     when "metabase" then [ breadcrumb_current("Metabase") ]
+    when "users" then users_breadcrumb_items
+    when "company_notes" then company_notes_breadcrumb_items
+    when "audit_events" then [ breadcrumb_current("Trilha") ]
+    when "platform/organizations" then platform_breadcrumb_items
+    when "platform/organization_admins"
+      [ breadcrumb_link("Organizações", platform_organizations_path),
+        breadcrumb_link(organization_display_name(@organization), platform_organization_path(@organization)),
+        breadcrumb_current("Adicionar administrador") ]
     else [ breadcrumb_current(content_for(:title).presence || "Página") ]
     end
+  end
+
+  def users_breadcrumb_items
+    return [ breadcrumb_current("Acessos") ] if action_name == "index"
+
+    [ breadcrumb_link("Acessos", users_path), breadcrumb_current(content_for(:title).presence || "Acesso") ]
+  end
+
+  # Sem @company (o update sem JavaScript volta à tela pelo rescue), a trilha para na
+  # listagem.
+  def company_notes_breadcrumb_items
+    [ breadcrumb_link("Estabelecimentos", establishments_path),
+      (breadcrumb_link(client_crumb_label, establishment_path(@company)) if @company),
+      breadcrumb_current("Anotação") ].compact
+  end
+
+  def platform_breadcrumb_items
+    return [ breadcrumb_current("Organizações") ] if action_name == "index"
+
+    [ breadcrumb_link("Organizações", platform_organizations_path),
+      breadcrumb_current(content_for(:title).presence || "Organização") ]
   end
 
   def reports_breadcrumb_items
@@ -117,9 +146,23 @@ module ApplicationHelper
   end
 
   def render_breadcrumbs
+    items = breadcrumb_items
     content_tag(:nav, class: "breadcrumb-wrap", aria: { label: "Trilha de navegação" }) do
       content_tag(:ol, class: "breadcrumb-list") do
-        safe_join(breadcrumb_items.map { |item| breadcrumb_item(item) })
+        safe_join([ *items.map { |item| breadcrumb_item(item) }, breadcrumb_back(items) ].compact)
+      end
+    end
+  end
+
+  # Voltar aponta para o item anterior da trilha — a tela de onde se entra nesta. Tela de
+  # primeiro nível não tem para onde voltar além do Início, e aí o botão não aparece.
+  def breadcrumb_back(items)
+    parent = items.reverse.find { |item| item[:path].present? && item[:path] != root_path }
+    return if parent.nil?
+
+    content_tag(:li, class: "breadcrumb-item breadcrumb-item--back") do
+      link_to parent[:path], class: "breadcrumb-back" do
+        safe_join([ icon("arrow-left", css: "breadcrumb-icon"), "Voltar" ])
       end
     end
   end
