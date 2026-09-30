@@ -2,16 +2,59 @@
 
 <section class="page-hero">
   <p class="eyebrow">Plataforma · Organização</p>
-  <h1 class="page-title"><%= organization_display_name(@organization) %></h1>
+  <h1 class="page-title">
+    <%= organization_display_name(@organization) %>
+    <% if @organization.suspended? %>
+      <span class="badge badge-error align-middle">Suspensa</span>
+    <% end %>
+  </h1>
   <p class="page-description">
     <% if @organization.named? %>
-      Criada em <%= l(@organization.created_at.to_date) %>.
+      Registro criado em <%= l(@organization.created_at.to_date) %><%= " por #{@profile.created_by.name}" if @profile.created_by %>.
+      <%= "Nomeada em #{l(@profile.named_at.to_date)}." if @profile.named_at %>
     <% else %>
       Ainda sem nome: o administrador dá o nome no primeiro acesso dele.
     <% end %>
+    <% if @organization.suspended? %>
+      Suspensa em <%= l(@organization.suspended_at.to_date) %>: ninguém dela entra até a reativação.
+    <% end %>
   </p>
-  <%= link_to "Adicionar administrador", new_platform_organization_admin_path(@organization),
-    class: "btn btn-primary relative z-10 mt-6" %>
+  <div class="relative z-10 mt-6 flex flex-wrap items-center gap-2">
+    <%= link_to "Adicionar administrador", new_platform_organization_admin_path(@organization), class: "btn btn-primary" %>
+    <% if @organization.suspended? %>
+      <%= button_to "Reativar organização", reactivate_platform_organization_path(@organization), class: "btn btn-outline" %>
+    <% else %>
+      <%= button_to "Suspender organização", suspend_platform_organization_path(@organization), class: "btn btn-outline",
+        form: { data: { turbo_confirm: "Suspender #{organization_display_name(@organization)}? Ninguém dela entra até a reativação; as sessões abertas caem agora. Nada é apagado." } } %>
+    <% end %>
+  </div>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Nome</p>
+  <%= form_with url: rename_platform_organization_path(@organization), method: :patch, class: "mt-3 flex flex-wrap items-end gap-2" do |form| %>
+    <div class="min-w-0 grow">
+      <%= form.label :name, "Renomear a pedido da organização", class: "label text-xs" %>
+      <%= form.text_field :name, value: @organization.name, required: true, maxlength: 120, class: "input input-bordered w-full" %>
+    </div>
+    <%= form.submit "Renomear", class: "btn btn-outline" %>
+  <% end %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Contas e uso</p>
+  <p class="metric-hint mt-1">Só contagens e datas. Nome de Master, CNPJ e faturamento ficam com a organização.</p>
+  <dl class="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+    <div><dt class="text-xs opacity-70">Administradores</dt><dd class="font-semibold tabular-nums"><%= @profile.admins_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Colaboradores</dt><dd class="font-semibold tabular-nums"><%= @profile.members_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Contas ativas</dt><dd class="font-semibold tabular-nums"><%= @profile.active_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Primeiro acesso pendente</dt><dd class="font-semibold tabular-nums"><%= @profile.first_access_pending_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Masters</dt><dd class="font-semibold tabular-nums"><%= @profile.channels_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Arquivos importados</dt><dd class="font-semibold tabular-nums"><%= @profile.batches_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Último arquivo</dt><dd class="font-semibold"><%= @profile.last_file_on ? l(@profile.last_file_on) : "—" %></dd></div>
+    <div><dt class="text-xs opacity-70">Anotações</dt><dd class="font-semibold tabular-nums"><%= @profile.notes_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Anexos</dt><dd class="font-semibold tabular-nums"><%= @profile.attachments_count %> · <%= number_to_human_size(@profile.attachments_bytes) %></dd></div>
+  </dl>
 </section>
 
 <section class="surface-card mt-5 p-6">
@@ -54,6 +97,30 @@
               <td class="text-xs"><%= member.created_by&.name || "—" %></td>
               <td class="text-xs"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
               <td><%= render "support_actions", user: member %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">O que a plataforma fez aqui</p>
+  <p class="metric-hint mt-1">Criação, nome, administradores e suporte. O que a organização faz por conta própria fica na trilha dela.</p>
+  <% if @platform_events.empty? %>
+    <p class="metric-hint mt-3">Nada registrado ainda.</p>
+  <% else %>
+    <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Ações da plataforma nesta organização">
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Quando</th><th scope="col">Quem</th><th scope="col">O quê</th><th scope="col">Detalhes</th></tr></thead>
+        <tbody>
+          <% @platform_events.each do |event| %>
+            <tr>
+              <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td class="text-xs"><%= event.user&.name || event.actor_email %></td>
+              <td><%= audit_action_label(event.action) %></td>
+              <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
             </tr>
           <% end %>
         </tbody>

@@ -2084,6 +2084,7 @@ CREATE TABLE public.organizations (
     name character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    suspended_at timestamp(6) without time zone,
     CONSTRAINT organizations_name_not_blank CHECK (((name IS NULL) OR (length(btrim((name)::text)) > 0)))
 );
 
@@ -2093,6 +2094,13 @@ CREATE TABLE public.organizations (
 --
 
 COMMENT ON COLUMN public.organizations.name IS 'Nulo até o administrador da organização a nomear no primeiro acesso';
+
+
+--
+-- Name: COLUMN organizations.suspended_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.organizations.suspended_at IS 'Suspensa pela plataforma: ninguém dela entra até a reativação; nada é apagado';
 
 
 --
@@ -5607,6 +5615,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930150000'),
 ('20260930130000'),
 ('20260930120000'),
 ('20260930110000'),

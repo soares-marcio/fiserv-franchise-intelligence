@@ -26,10 +26,11 @@ class SessionsController < ApplicationController
 
     # A senha errada não diz quem errou — authenticate_by devolve nada. Sem procurar a
     # conta aqui, o contador de tentativas nunca subiria e o bloqueio seria decoração.
-    # A resposta continua a mesma para conta inexistente, senha errada e conta desativada.
+    # A resposta continua a mesma para conta inexistente, senha errada, conta desativada e
+    # organização suspensa: dizer "suspensa" confirmaria que o e-mail existe.
     return handle_failure(email) if user.nil?
     return locked if user.locked?
-    return handle_failure(email) unless user.active?
+    return handle_failure(email) unless user.sign_in_allowed?
 
     user.register_successful_attempt!
 

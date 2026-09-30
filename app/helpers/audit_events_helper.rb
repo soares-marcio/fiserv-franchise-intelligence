@@ -20,7 +20,13 @@ module AuditEventsHelper
     "note.removed" => "Apagou anotação",
     "organization.created" => "Criou organização",
     "organization.named" => "Nomeou a organização",
-    "organization_admin.created" => "Criou administrador de organização"
+    "organization.renamed" => "Renomeou organização",
+    "organization.suspended" => "Suspendeu organização",
+    "organization.reactivated" => "Reativou organização",
+    "organization_admin.created" => "Criou administrador de organização",
+    "user.mfa_reset" => "Reiniciou o segundo fator de alguém",
+    "user.deactivated" => "Desativou acesso de alguém",
+    "user.reactivated" => "Reativou acesso de alguém"
   }.freeze
 
   def audit_action_label(action)

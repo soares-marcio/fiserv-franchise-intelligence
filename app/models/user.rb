@@ -43,6 +43,9 @@ class User < ApplicationRecord
   scope :active, -> { where(deactivated_at: nil) }
 
   def active? = deactivated_at.nil?
+  # O que decide se a pessoa entra: conta ativa e organização não suspensa. `active?` continua
+  # sendo só da conta — é o que as telas de suporte mostram e revertem.
+  def sign_in_allowed? = active? && !organization&.suspended?
   def locked? = locked_until.present? && locked_until.future?
   def mfa_enabled? = mfa_enabled_at.present?
 

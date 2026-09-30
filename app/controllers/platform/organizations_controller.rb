@@ -15,6 +15,41 @@ module Platform
       @admins = @organization.users.where(organization_admin: true).order(:name)
       @members = @organization.users.where(organization_admin: false).includes(:created_by).order(:name)
       @last_access = last_access_of(@organization.users)
+      @profile = Platform::OrganizationProfile.new(@organization)
+      @platform_events = platform_events_about(@organization)
+    end
+
+    # Renomear a pedido da organização. O nome em branco chega ao modelo como string vazia,
+    # que ele recusa — nulo seria "ainda sem nome", e passaria.
+    def rename
+      authorize :organization, :rename?
+      @organization = load_organization
+      anterior = @organization.name
+      if @organization.update(name: params[:name].to_s.strip)
+        Audit.record("organization.renamed", record: @organization, request:,
+          metadata: { de: anterior, para: @organization.name })
+        redirect_to platform_organization_path(@organization), notice: "Organização renomeada."
+      else
+        redirect_to platform_organization_path(@organization),
+          alert: "Nome não aceito: #{@organization.errors.full_messages.join('; ')}"
+      end
+    end
+
+    def suspend
+      authorize :organization, :suspend?
+      @organization = load_organization
+      @organization.suspend!
+      Audit.record("organization.suspended", record: @organization, request:)
+      redirect_to platform_organization_path(@organization),
+        notice: "Organização suspensa. Ninguém dela entra até a reativação; nada foi apagado."
+    end
+
+    def reactivate
+      authorize :organization, :reactivate?
+      @organization = load_organization
+      @organization.reactivate!
+      Audit.record("organization.reactivated", record: @organization, request:)
+      redirect_to platform_organization_path(@organization), notice: "Organização reativada."
     end
 
     def new
@@ -37,6 +72,19 @@ module Platform
     end
 
     private
+
+    def load_organization
+      policy_scope(Organization).find_param!(params[:id])
+    end
+
+    # O que a plataforma fez sobre esta organização: os eventos dela são de plataforma (sem
+    # organização) e apontam para a organização ou para uma conta dela.
+    def platform_events_about(organization)
+      policy_scope(AuditEvent)
+        .where(record: organization)
+        .or(policy_scope(AuditEvent).where(record_type: "User", record_id: organization.users.select(:id)))
+        .includes(:user).recent.limit(20)
+    end
 
     def admin_params
       params.require(:user).permit(:name, :email_address).to_h.symbolize_keys

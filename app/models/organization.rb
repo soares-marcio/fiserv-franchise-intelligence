@@ -13,6 +13,20 @@ class Organization < ApplicationRecord
   validate :name_not_blank_when_present
 
   def named? = name.present?
+  def suspended? = suspended_at.present?
+
+  # Suspender é reversível e não toca em conta nem em dado: só fecha a porta. As sessões
+  # abertas caem na hora, como na desativação de uma conta.
+  def suspend!
+    transaction do
+      update!(suspended_at: Time.current)
+      Session.where(user_id: users.select(:id)).destroy_all
+    end
+  end
+
+  def reactivate!
+    update!(suspended_at: nil)
+  end
 
   private
 

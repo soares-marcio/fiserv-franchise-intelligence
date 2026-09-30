@@ -69,6 +69,11 @@ Rails.application.routes.draw do
   namespace :platform do
     resources :organizations, only: %i[index show new create] do
       resources :admins, only: %i[new create], controller: "organization_admins"
+      member do
+        patch :rename
+        post :suspend
+        post :reactivate
+      end
     end
     resources :users, only: [] do
       member do

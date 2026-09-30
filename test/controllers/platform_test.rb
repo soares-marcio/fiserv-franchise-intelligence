@@ -119,4 +119,112 @@ class PlatformTest < ActionDispatch::IntegrationTest
     post reset_mfa_platform_user_path(@convidado)
     assert_response :forbidden
   end
+
+  test "a ficha da organização traz contagens e datas, sem nome de Master" do
+    sign_in_as(@plataforma)
+
+    get platform_organization_path(default_organization)
+
+    assert_response :success
+    assert_match(/Masters<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
+    assert_match(/Arquivos importados<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
+    assert_match(/Administradores<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
+    assert_match(/Colaboradores<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
+    assert_match(/Anexos<\/dt><dd class="font-semibold tabular-nums">0 · 0 Bytes/, response.body)
+    assert_no_match(/#{Regexp.escape(BinWorkbook::CANAL)}|MIC ALFA|30000001/, response.body)
+  end
+
+  test "renomeia a organização a pedido, com o nome anterior e o novo na trilha" do
+    sign_in_as(@plataforma)
+
+    patch rename_platform_organization_path(default_organization), params: { name: "Nome Novo" }
+
+    assert_redirected_to platform_organization_path(default_organization)
+    assert_equal "Nome Novo", default_organization.reload.name
+    evento = AuditEvent.find_by!(action: "organization.renamed")
+    assert_nil evento.organization
+    assert_equal({ "de" => "Organização de Teste", "para" => "Nome Novo" }, evento.metadata)
+  end
+
+  test "renomear recusa nome em branco e nome já usado" do
+    Organization.create!(name: "Ocupado")
+    sign_in_as(@plataforma)
+
+    patch rename_platform_organization_path(default_organization), params: { name: "   " }
+    assert_equal "Organização de Teste", default_organization.reload.name
+    assert_match(/em branco/, flash[:alert])
+
+    patch rename_platform_organization_path(default_organization), params: { name: "Ocupado" }
+    assert_equal "Organização de Teste", default_organization.reload.name
+    assert_nil AuditEvent.find_by(action: "organization.renamed")
+  end
+
+  test "suspender derruba as sessões, fecha a entrada com a mensagem neutra e reativar reabre" do
+    sign_in_as(@admin_a)
+    assert_equal 1, @admin_a.sessions.count
+
+    sign_in_as(@plataforma)
+    post suspend_platform_organization_path(default_organization)
+
+    assert_redirected_to platform_organization_path(default_organization)
+    assert default_organization.reload.suspended?
+    assert_equal 0, @admin_a.sessions.count
+    assert_nil AuditEvent.find_by!(action: "organization.suspended").organization
+
+    follow_redirect!
+    assert_match(/Suspensa/, response.body)
+    get platform_organizations_path
+    assert_match(/Suspensa/, response.body)
+
+    sign_out
+    travel 31.seconds
+    post session_path, params: { email_address: @admin_a.email_address, password: PASSWORD }
+    assert_redirected_to new_session_path(email_address: @admin_a.email_address)
+    assert_equal "E-mail ou senha inválidos.", flash[:alert]
+    assert_equal 0, @admin_a.sessions.count
+
+    sign_in_as(@plataforma)
+    post reactivate_platform_organization_path(default_organization)
+    assert_not default_organization.reload.suspended?
+    sign_out
+
+    travel 31.seconds
+    sign_in_as(@admin_a)
+    get reports_path
+    assert_response :success
+  end
+
+  test "suspensa no meio do segundo fator, a pessoa não entra" do
+    post session_path, params: { email_address: @admin_a.email_address, password: PASSWORD }
+    assert_redirected_to mfa_path
+
+    default_organization.suspend!
+    post mfa_path, params: { code: current_otp(@admin_a) }
+
+    assert_redirected_to new_session_path
+    assert_equal 0, @admin_a.sessions.count
+  end
+
+  test "a ficha mostra o que a plataforma fez nesta organização, e não em outra" do
+    outra = Operations::CreateOrganizationAdmin.call(name: "Fulana", email_address: "fulana@exemplo.com", actor: @plataforma)
+    sign_in_as(@plataforma)
+    post reset_mfa_platform_user_path(@admin_a)
+    post reset_mfa_platform_user_path(outra)
+
+    get platform_organization_path(default_organization)
+
+    assert_match(/Reiniciou o segundo fator de alguém/, response.body)
+    assert_match(/alvo: admin-a@exemplo\.com/, response.body)
+    assert_no_match(/fulana@exemplo\.com/, response.body)
+  end
+
+  test "o administrador da organização não renomeia nem suspende pela plataforma" do
+    sign_in_as(@admin_a)
+
+    patch rename_platform_organization_path(default_organization), params: { name: "X" }
+    assert_response :forbidden
+    post suspend_platform_organization_path(default_organization)
+    assert_response :forbidden
+    assert_not default_organization.reload.suspended?
+  end
 end

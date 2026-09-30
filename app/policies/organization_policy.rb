@@ -6,6 +6,10 @@ class OrganizationPolicy < ApplicationPolicy
   def create? = platform?
   def new? = create?
   def create_admin? = platform?
+  # Suporte sobre a organização inteira: renomear a pedido e fechar ou reabrir a porta.
+  def rename? = platform?
+  def suspend? = platform?
+  def reactivate? = platform?
 
   # Nomear é do administrador da própria organização, no primeiro acesso.
   def update? = user.present? && user.organization_admin? && record.id == user.organization_id

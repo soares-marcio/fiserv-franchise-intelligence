@@ -35,7 +35,8 @@ module PendingAuthentication
     @pending_user = begin
       dados = JSON.parse(cookies.encrypted[:pending_mfa].to_s)
       expirou = Time.at(dados["at"].to_i) < PENDING_LIMIT.ago
-      expirou ? nil : User.active.find_by(id: dados["user_id"])
+      user = expirou ? nil : User.find_by(id: dados["user_id"])
+      user if user&.sign_in_allowed?
     rescue JSON::ParserError, TypeError
       nil
     end

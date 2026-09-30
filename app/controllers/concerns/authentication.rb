@@ -37,7 +37,7 @@ module Authentication
       session = Session.find_by(id: cookies.signed[:session_id])
       return if session.nil?
 
-      if session.expired? || !session.user.active?
+      if session.expired? || !session.user.sign_in_allowed?
         session.destroy
         cookies.delete(:session_id)
         return

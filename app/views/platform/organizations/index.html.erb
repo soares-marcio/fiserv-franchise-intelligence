@@ -22,6 +22,9 @@
         <header>
           <h2 class="text-base font-bold">
             <%= link_to organization_display_name(organization), platform_organization_path(organization), class: "link" %>
+            <% if organization.suspended? %>
+              <span class="badge badge-error badge-sm align-middle">Suspensa</span>
+            <% end %>
           </h2>
           <% unless organization.named? %>
             <p class="text-xs opacity-70">Sem nome: o administrador dá o nome no primeiro acesso.</p>

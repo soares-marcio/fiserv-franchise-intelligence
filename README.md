@@ -189,7 +189,7 @@ pertencem a uma, e nenhuma enxerga a outra — nem a plataforma. São três pap�
 
 | Papel | O que é | O que vê |
 | --- | --- | --- |
-| **Administrador da plataforma** | A conta que cria organizações e o administrador de cada uma, e presta suporte (reiniciar segundo fator, desativar, reativar). Nasce do seed; não tem organização | **Nenhum dado**: só a tela macro (organizações → administradores → convidados, com situação e último acesso) e a trilha de plataforma |
+| **Administrador da plataforma** | A conta que cria organizações e o administrador de cada uma, e presta suporte: reiniciar segundo fator, desativar e reativar contas, renomear a organização a pedido e **suspender** a organização inteira (ninguém dela entra até a reativação; nada é apagado). Nasce do seed; não tem organização | **Nenhum dado**: só a tela macro (organizações → administradores → convidados, com situação e último acesso), a ficha de cada organização em contagens e datas (contas, Masters, arquivos, anotações, anexos) e a trilha de plataforma |
 | **Administrador da organização** | Criado pela plataforma. Dá o nome à organização no primeiro acesso, importa a carteira (o primeiro arquivo cria os Masters dela), convida e delega | Tudo dentro da organização, automaticamente — sem chave nem concessão marcada. Não cria outro administrador: isso é só da plataforma |
 | **Colaborador** | Convidado por um administrador ou por um delegado com `users_invite` | O que lhe foi concedido: Masters inteiros e/ou MICs, com as chaves marcadas |
 
