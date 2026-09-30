@@ -9,7 +9,10 @@
         O mês anterior aparece completo. A variação compara períodos equivalentes até o
         <strong>dia <%= @cutoff_day %></strong>, último dia com movimento no mês atual.
         <% if @scope.mixed_cutoffs? %>
-          Para múltiplos Masters, usamos o menor corte disponível.
+          Os Masters estão em dias diferentes
+          (<%= @scope.cutoffs_by_channel.map { |name, day| "#{name}: dia #{day}" }.join(" · ") %>):
+          com todos selecionados vale o menor, para comparar períodos da mesma duração.
+          Escolha um Master no filtro para ver o corte dele.
         <% end %>
       </p>
     <% else %>

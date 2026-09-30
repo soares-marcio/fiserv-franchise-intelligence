@@ -25,11 +25,13 @@ class MultiMasterCutoffTest < ActionDispatch::IntegrationTest
     get reports_path
     assert_response :success
     assert_match(/dia #{@corte_a}<\/strong>/, response.body)
-    assert_match(/menor corte/, response.body)
+    assert_match(/Masters estão em dias diferentes/, response.body)
+    assert_match(/MASTER FRANQUEADO B: dia #{@corte_b} · #{Regexp.escape(BinWorkbook::CANAL)}: dia #{@corte_a}/, response.body,
+      "a tela diz o corte de cada Master, do mais recente ao mais atrasado")
 
     get reports_path(channel_id: @canal_b.uuid)
     assert_match(/dia #{@corte_b}<\/strong>/, response.body)
-    assert_no_match(/menor corte/, response.body)
+    assert_no_match(/dias diferentes/, response.body)
   end
 
   test "ajustar o corte de um Master não move o corte da visão com todos, enquanto o outro ficar atrás" do

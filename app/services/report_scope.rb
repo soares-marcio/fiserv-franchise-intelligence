@@ -261,6 +261,14 @@ class ReportScope
     coverages.map { |row| row["max_known_day"].to_i }.uniq.size > 1
   end
 
+  # O corte de cada Master, pelo nome, para a tela dizer quem está atrás quando os cortes
+  # divergem: sem isso o "menor corte" parecia um corte parado (produção, 30/09/2026).
+  def cutoffs_by_channel
+    names = Channel.where(id: coverages.map { |row| row["channel_id"] }).pluck(:id, :name).to_h
+    coverages.map { |row| [ names[row["channel_id"]], row["max_known_day"].to_i ] }
+      .sort_by { |name, day| [ -day, name.to_s ] }
+  end
+
   def totals
     cutoff = cutoff_day
     return empty_totals unless cutoff
