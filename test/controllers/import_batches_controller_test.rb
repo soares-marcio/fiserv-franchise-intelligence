@@ -292,21 +292,21 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
     get import_batches_path
     assert_select ".metric-value", text: "há 3 dias"
     assert_select ".metric-card[data-tone=?]", "green"
-    assert_not ImportBatch.stale?
+    assert_not ImportBatch.stale?(organization: default_organization)
 
     recente.update_column(:created_at, ImportBatch::STALE_AFTER_DAYS.days.ago)
 
     get import_batches_path
     assert_select ".metric-value", text: "há #{ImportBatch::STALE_AFTER_DAYS} dias"
     assert_select ".metric-card[data-tone=?]", "rose"
-    assert ImportBatch.stale?
+    assert ImportBatch.stale?(organization: default_organization)
   end
 
   test "sem nenhum lote validado a carteira já conta como desatualizada" do
     get import_batches_path
 
     assert_select ".metric-value", text: "Nunca"
-    assert ImportBatch.stale?
+    assert ImportBatch.stale?(organization: default_organization)
   end
 
   test "descarta lote que falhou antes de gravar dados" do

@@ -63,13 +63,19 @@
         <%= icon("list-bullets", css: "icon") %>
         <span class="sr-only">Abrir ou fechar o menu</span>
       </button>
-      <button class="search-content" type="button" data-action="click->app-layout#openSearch"
-        data-app-layout-target="searchTrigger" aria-haspopup="dialog">
-        <%= icon("magnifying-glass", css: "icon") %>
-        <span class="sr-only">Buscar EC, CNPJ, nome ou MIC</span>
-        <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
-      </button>
-      <%= render "layouts/file_status" %>
+      <%# A busca e o selo são sinais da carteira: a conta da plataforma não tem carteira, e
+          quem não pode buscar não ganha o atalho. %>
+      <% if policy(:search).index? %>
+        <button class="search-content" type="button" data-action="click->app-layout#openSearch"
+          data-app-layout-target="searchTrigger" aria-haspopup="dialog">
+          <%= icon("magnifying-glass", css: "icon") %>
+          <span class="sr-only">Buscar EC, CNPJ, nome ou MIC</span>
+          <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
+        </button>
+      <% end %>
+      <% if Current.organization %>
+        <%= render "layouts/file_status" %>
+      <% end %>
       <%# Quem está logado e a saída. Sem isto, a única forma de trocar de usuário seria
           apagar cookie na mão — e ninguém sabe em nome de quem está agindo. %>
       <% if Current.user %>

@@ -13,7 +13,7 @@ class ImportBatchesController < ApplicationController
 
   def index
     @import_batches = policy_scope(ImportBatch).includes(:channel).order(created_at: :desc).limit(50)
-    @days_since_last_file = ImportBatch.days_since_last_file
+    @days_since_last_file = ImportBatch.days_since_last_file(organization: Current.organization)
     @running_batch = @import_batches.find(&:running?)
     @stuck_batches = @import_batches.select(&:stuck?)
     @last_batch = @import_batches.first

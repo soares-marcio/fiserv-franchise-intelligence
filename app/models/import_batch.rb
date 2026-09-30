@@ -50,19 +50,22 @@ class ImportBatch < ApplicationRecord
     heartbeat.present? && heartbeat > WORKER_HEARTBEAT_TIMEOUT.ago
   end
 
-  def self.last_received_at
-    validated.maximum(:created_at)
+  # Os três sinais são da carteira de uma organização; sem organização não há sinal.
+  def self.last_received_at(organization:)
+    return if organization.nil?
+
+    validated.where(organization:).maximum(:created_at)
   end
 
-  def self.days_since_last_file
-    received = last_received_at
+  def self.days_since_last_file(organization:)
+    received = last_received_at(organization:)
     return unless received
 
     (Date.current - received.to_date).to_i
   end
 
-  def self.stale?
-    days = days_since_last_file
+  def self.stale?(organization:)
+    days = days_since_last_file(organization:)
     days.nil? || days >= STALE_AFTER_DAYS
   end
 

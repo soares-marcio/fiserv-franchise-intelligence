@@ -56,7 +56,7 @@ class GlobalSearch
 
   # Sem lote validado não há o que achar: a resposta certa é apontar a importação, não "nada".
   def base_empty?
-    @base_empty = ImportBatch.validated.none? if @base_empty.nil?
+    @base_empty = ImportBatch.validated.where(organization_id: @access.organization_id).none? if @base_empty.nil?
     @base_empty
   end
 

@@ -26,7 +26,7 @@
 <%= turbo_stream_from "import_batches" %>
 
 <div class="metric-grid metric-grid--3 mt-5">
-  <article class="metric-card" data-tone="<%= ImportBatch.stale? ? "rose" : "green" %>">
+  <article class="metric-card" data-tone="<%= ImportBatch.stale?(organization: Current.organization) ? "rose" : "green" %>">
     <p class="metric-label"><%= icon("calendar-check", css: "metric-icon") %>Último arquivo recebido</p>
     <p class="metric-value"><%= last_file_headline(@days_since_last_file) %></p>
     <p class="metric-hint"><%= last_file_hint(@days_since_last_file) %></p>

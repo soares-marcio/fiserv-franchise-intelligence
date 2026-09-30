@@ -27,7 +27,7 @@ class ApplicationController < ActionController::Base
   helper_method :file_freshness
 
   def file_freshness
-    @file_freshness ||= FileFreshness.new
+    @file_freshness ||= FileFreshness.new(organization: Current.organization)
   end
 
   private

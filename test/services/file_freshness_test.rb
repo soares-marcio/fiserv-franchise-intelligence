@@ -10,7 +10,7 @@ class FileFreshnessTest < ActiveSupport::TestCase
     travel_to Time.zone.local(2026, 9, 16, 12) do
       canal_em_dia = canal("ALFA", recebido: 5.days.ago, cobertura: Date.new(2026, 9, 9))
       canal_atrasado = canal("BETA", recebido: 2.days.ago, cobertura: Date.new(2026, 8, 26))
-      freshness = FileFreshness.new
+      freshness = FileFreshness.new(organization: default_organization)
 
       assert_equal [ "ALFA", "BETA" ], freshness.entries.map(&:name)
       assert_equal 5, freshness.received_days, "o upload mais antigo, e não o mais novo"
@@ -33,9 +33,9 @@ class FileFreshnessTest < ActiveSupport::TestCase
     travel_to Time.zone.local(2026, 9, 16, 12) do
       canal("ALFA", recebido: Time.zone.local(2026, 9, 14, 21, 15), cobertura: Date.new(2026, 9, 9))
 
-      assert_equal Date.new(2026, 9, 14), FileFreshness.new.entries.first.received_on
-      assert_equal 2, FileFreshness.new.received_days
-      assert_equal ImportBatch.days_since_last_file, FileFreshness.new.received_days,
+      assert_equal Date.new(2026, 9, 14), FileFreshness.new(organization: default_organization).entries.first.received_on
+      assert_equal 2, FileFreshness.new(organization: default_organization).received_days
+      assert_equal ImportBatch.days_since_last_file(organization: default_organization), FileFreshness.new(organization: default_organization).received_days,
         "o selo e a tela de importação contam os mesmos dias"
     end
   end
@@ -43,12 +43,25 @@ class FileFreshnessTest < ActiveSupport::TestCase
   # Canal sem arquivo nenhum não é sinal verde: a ausência conta como atraso.
   test "canal sem arquivo conta como atrasado" do
     Channel.create!(organization: default_organization, name: "SEM ARQUIVO", external_id: "EXT-SEM-ARQUIVO")
-    freshness = FileFreshness.new
+    freshness = FileFreshness.new(organization: default_organization)
 
     assert_nil freshness.entries.first.received_days
     assert freshness.received_stale?
     assert freshness.covered_stale?
     assert_not freshness.any_file?
+  end
+
+  # A carteira de outra organização não entra no selo de ninguém — nem como atraso.
+  test "canal de outra organização fica fora do selo" do
+    outra = Organization.create!(name: "Outra")
+    Channel.create!(organization: outra, name: "DE OUTRA", external_id: "EXT-OUTRA")
+    canal("ALFA", recebido: 1.day.ago, cobertura: Date.current)
+
+    freshness = FileFreshness.new(organization: default_organization)
+
+    assert_equal [ "ALFA" ], freshness.entries.map(&:name)
+    assert_not freshness.received_stale?
+    assert_empty FileFreshness.new(organization: nil).entries, "a plataforma não tem carteira a medir"
   end
 
   private
