@@ -20,20 +20,26 @@ class DataScopeTest < ActionDispatch::IntegrationTest
     refresh_audit_views
   end
 
-  test "o ator de um Master não vê o outro em nenhuma tela" do
-    entra_no_canal(@canal_a)
+  # Com cache real, aquecido antes pelo administrador da organização: é o cenário de
+  # produção, em que a tela já foi carregada por quem vê tudo antes de o ator de um
+  # recorte abri-la. Chave de cache sem o escopo serviria o resultado dele a qualquer um.
+  test "o ator de um Master não vê o outro em nenhuma tela, nem pelo cache" do
+    with_real_cache do
+      aquece_o_cache_como_administrador
+      entra_no_canal(@canal_a)
 
-    get reports_path
-    assert_response :success
-    assert_select "body" do
-      assert_select "*", text: /MASTER FRANQUEADO OUTRO/, count: 0
+      get reports_path
+      assert_response :success
+      assert_select "body" do
+        assert_select "*", text: /MASTER FRANQUEADO OUTRO/, count: 0
+      end
+
+      get recurring_reports_path
+      assert_no_match(/OUTRO/, response.body)
+
+      get indicators_reports_path
+      assert_no_match(/MIC OMEGA/, response.body)
     end
-
-    get recurring_reports_path
-    assert_no_match(/OUTRO/, response.body)
-
-    get indicators_reports_path
-    assert_no_match(/MIC OMEGA/, response.body)
   end
 
   # O seletor de canal é uma lista de Masters: oferecer um que o ator não pode abrir conta
@@ -71,24 +77,26 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   # Recorte por MIC: dois MICs do mesmo Master, e o ator só tem um. Tela a tela, porque o
   # recorte por Master já valia em todas e o por MIC não: a de indicadores mostrava os dez
   # MICs do Master a quem tinha um só (homologação de 29/09/2026).
-  test "o ator de um MIC não vê o MIC vizinho do mesmo Master em nenhuma tela" do
-    user = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::ESTABLISHMENTS_READ ],
-      sub_channel: @mic_alfa)
-    sign_in_as(user)
+  test "o ator de um MIC não vê o MIC vizinho do mesmo Master em nenhuma tela, nem pelo cache" do
+    with_real_cache do
+      aquece_o_cache_como_administrador
+      user = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::ESTABLISHMENTS_READ ],
+        sub_channel: @mic_alfa)
+      sign_in_as(user)
 
-    [ reports_path, stalled_reports_path, weekly_reports_path, three_months_reports_path,
-      recurring_reports_path, indicators_reports_path ].each do |tela|
-      get tela
-      assert_response :success, tela
-      assert_no_match(/MIC BETA/, response.body, "#{tela} mostra o MIC vizinho")
+      TELAS_DE_RELATORIO.each do |tela|
+        get tela
+        assert_response :success, tela
+        assert_no_match(/MIC BETA/, response.body, "#{tela} mostra o MIC vizinho")
+      end
+      assert_match(/MIC ALFA/, response.body)
+
+      get establishments_path
+      assert_no_match(/BETA CAFE/, response.body, "a listagem de clientes mostra EC do MIC vizinho")
+
+      get search_path(q: "BETA")
+      assert_no_match(/BETA CAFE|MIC BETA/, response.body, "a busca encontra o MIC vizinho")
     end
-    assert_match(/MIC ALFA/, response.body)
-
-    get establishments_path
-    assert_no_match(/BETA CAFE/, response.body, "a listagem de clientes mostra EC do MIC vizinho")
-
-    get search_path(q: "BETA")
-    assert_no_match(/BETA CAFE|MIC BETA/, response.body, "a busca encontra o MIC vizinho")
   end
 
   test "o ator de um MIC não abre a tela do MIC vizinho" do
@@ -220,6 +228,27 @@ class DataScopeTest < ActionDispatch::IntegrationTest
 
   # Cache é a falha mais silenciosa possível: dois escopos com a mesma chave serviriam um ao
   # outro sem erro nenhum.
+  # A chave de cache tem de carregar o escopo. Em 30/09/2026 a tela Ganhos 3M levava na
+  # chave um canal que nunca existia (nulo): quem tinha um MIC só via o resultado de quem
+  # carregara a tela antes. O cache de teste é nulo, então o teste liga um de verdade.
+  test "a tela Ganhos 3M não serve a um ator o cache do recorte de outro" do
+    with_real_cache do
+        sign_in_as(admin_user)
+        get three_months_reports_path
+        assert_response :success
+        assert_match(/MIC BETA/, response.body)
+        sign_out
+
+        travel 31.seconds
+        user = scoped_user(permissions: [ Permission::REPORTS_READ ], sub_channel: @mic_alfa)
+        sign_in_as(user)
+        get three_months_reports_path
+        assert_response :success
+        assert_no_match(/MIC BETA/, response.body, "o cache do administrador vazou para o ator do MIC")
+        assert_match(/MIC ALFA/, response.body)
+    end
+  end
+
   test "escopos diferentes não compartilham cache" do
     a = ReportScope.new(scope: escopo_do_canal(@canal_a.id))
     b = ReportScope.new(scope: escopo_do_canal(@canal_b.id))
@@ -237,6 +266,28 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   end
 
   private
+
+  TELAS_DE_RELATORIO = %w[/reports /reports/stalled /reports/weekly /reports/three_months /reports/recurring
+    /reports/indicators].freeze
+
+  # O administrador vê a organização inteira: o que ele carrega enche o cache com todos
+  # os Masters e MICs. Quem entra depois só pode ver o seu.
+  def aquece_o_cache_como_administrador
+    sign_in_as(admin_user)
+    TELAS_DE_RELATORIO.each { |tela| get(tela) && assert_response(:success, tela) }
+    get establishments_path
+    sign_out
+    # O código do autenticador não vale duas vezes na mesma janela de 30 s.
+    travel 31.seconds
+  end
+
+  def with_real_cache
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    yield
+  ensure
+    Rails.cache = original
+  end
 
   def entra_no_canal(channel)
     sign_in_as(scoped_user(permissions: [ Permission::REPORTS_READ, Permission::ESTABLISHMENTS_READ ],

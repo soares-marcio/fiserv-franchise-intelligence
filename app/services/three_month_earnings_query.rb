@@ -107,9 +107,12 @@ class ThreeMonthEarningsQuery
   end
   private_class_method :parse_start_period
 
-  # Mesma invalidação do recorrente: o carimbo da última consolidação entra na chave.
+  # Mesma invalidação do recorrente: o carimbo da última consolidação entra na chave. E o
+  # escopo também — a chave levava um @channel_id que nunca existiu (nulo), e todo mundo,
+  # de qualquer recorte e organização, lia o mesmo resultado: quem tinha um MIC só via os
+  # MICs de quem tinha carregado a tela antes (30/09/2026).
   def by_sub_channel
-    Rails.cache.fetch([ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods ]) do
+    Rails.cache.fetch([ "three_months", PeriodCoverage.consolidation_stamp, @scope.cache_key, @periods ]) do
       compute_by_sub_channel
     end
   end
@@ -117,7 +120,7 @@ class ThreeMonthEarningsQuery
   # Só os ECs cujo M0 é o mês escolhido: assim M0, M1 e M2 significam a mesma coisa em
   # todos os cards, e a janela da tela é exatamente a janela de apuração deles.
   def by_establishment(sub_channel_id:)
-    key = [ "three_months", PeriodCoverage.consolidation_stamp, @channel_id, @periods, sub_channel_id ]
+    key = [ "three_months", PeriodCoverage.consolidation_stamp, @scope.cache_key, @periods, sub_channel_id ]
     Rails.cache.fetch(key) { compute_by_establishment(sub_channel_id:) }
   end
 
