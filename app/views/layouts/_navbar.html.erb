@@ -52,7 +52,7 @@
           class: nav_link_class({ controller: :users }) %>
       <% end %>
       <% if policy(:audit_event).index? %>
-        <%= link_to icon_label("list-bullets", "Trilha", css: "nav-icon"), audit_events_path,
+        <%= link_to icon_label("list-bullets", "Histórico", css: "nav-icon"), audit_events_path,
           class: nav_link_class({ controller: :audit_events }) %>
       <% end %>
       <% if policy(:metabase).show? %>

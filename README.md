@@ -189,7 +189,7 @@ pertencem a uma, e nenhuma enxerga a outra — nem a plataforma. São três pap�
 
 | Papel | O que é | O que vê |
 | --- | --- | --- |
-| **Administrador da plataforma** | A conta que cria organizações e o administrador de cada uma, e presta suporte: reiniciar segundo fator, desativar e reativar contas, renomear a organização a pedido e **suspender** a organização inteira (ninguém dela entra até a reativação; nada é apagado). Nasce do seed; não tem organização | **Nenhum dado**: só a tela macro (organizações → administradores → convidados, com situação e último acesso), a ficha de cada organização em contagens e datas (contas, Masters, arquivos, anotações, anexos) e a trilha de plataforma |
+| **Administrador da plataforma** | A conta que cria organizações e o administrador de cada uma, e presta suporte: reiniciar segundo fator, desativar e reativar contas, renomear a organização a pedido e **suspender** a organização inteira (ninguém dela entra até a reativação; nada é apagado). Desativar o **último administrador ativo** suspende a organização junto, porque o motivo (desinteresse, inadimplência) vale para todos abaixo dele; reativá-lo reabre. Ela também lê o histórico de cada organização, sem a coluna do Master: atividade, não carteira. Nasce do seed; não tem organização | **Nenhum dado**: só a tela macro (organizações → administradores → convidados, com situação e último acesso), a ficha de cada organização em contagens e datas (contas, Masters, arquivos, anotações, anexos) e a trilha de plataforma |
 | **Administrador da organização** | Criado pela plataforma. Dá o nome à organização no primeiro acesso, importa a carteira (o primeiro arquivo cria os Masters dela), convida e delega | Tudo dentro da organização, automaticamente — sem chave nem concessão marcada. Não cria outro administrador: isso é só da plataforma |
 | **Colaborador** | Convidado por um administrador ou por um delegado com `users_invite` | O que lhe foi concedido: Masters inteiros e/ou MICs, com as chaves marcadas |
 
@@ -242,7 +242,7 @@ inteiro, que usa a chave fixa do estabelecimento.
 | `batches_discard` | Descartar lote — idem |
 | `batches_approve` | Decidir importação em revisão |
 | `metabase_read` | **Fechada**: a tela mostra a conexão de um papel que lê as views de todas as organizações; não aparece no convite até haver recorte por organização no Metabase |
-| `users_invite` | Convidar e administrar acessos, e ler a trilha |
+| `users_invite` | Convidar e administrar acessos, e ler o histórico |
 
 ### Convidar
 
@@ -280,9 +280,9 @@ por quem administra acessos e alcança o lote; a lista só oferece quem tem aque
 inteiro, e revogar tira o arquivo da listagem da pessoa na hora. Quem tem só um MIC e a
 chave de ver lotes vê exatamente os próprios envios.
 
-### Trilha
+### Histórico
 
-**Trilha** registra entrada, saída, tentativa recusada, falha e uso de código de recuperação,
+**Histórico** (a trilha de auditoria, `audit_events`) registra entrada, saída, tentativa recusada, falha e uso de código de recuperação,
 troca de senha, cada exportação, envio, aprovação, recusa e descarte de lote, edição de
 anotação e toda mudança de acesso — convite, alteração de permissão ou escopo, reinício do
 segundo fator, desativação. Guarda a ação e o contexto, **nunca o conteúdo** — sem CNPJ, sem faturamento, sem o

@@ -8,6 +8,8 @@ class OrganizationPolicy < ApplicationPolicy
   def create_admin? = platform?
   # Suporte sobre a organização inteira: renomear a pedido e fechar ou reabrir a porta.
   def rename? = platform?
+  # O histórico da organização, sem a coluna do Master: atividade, não carteira.
+  def history? = platform?
   def suspend? = platform?
   def reactivate? = platform?
 

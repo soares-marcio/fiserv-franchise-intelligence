@@ -389,11 +389,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get reports_path
 
     assert_select "nav.primary-nav details", count: 0
-    # Dez para o administrador da organização dos testes, com Acessos e Trilha e sem o
+    # Dez para o administrador da organização dos testes, com Acessos e Histórico e sem o
     # Metabase (fechado até haver recorte por organização). O menu é montado por permissão:
     # quem não administra acessos vê oito.
     assert_select "nav.primary-nav a.nav-link", count: 10
-    assert_select "nav.primary-nav a", text: /Trilha/
+    assert_select "nav.primary-nav a", text: /Histórico/
     assert_select "nav.primary-nav a.nav-link.is-active", text: /Faturamento/
     assert_select "nav.primary-nav a", text: /Indicadores/
     assert_select "nav.primary-nav a", text: /Clover Capital/

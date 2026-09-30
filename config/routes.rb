@@ -70,6 +70,7 @@ Rails.application.routes.draw do
     resources :organizations, only: %i[index show new create] do
       resources :admins, only: %i[new create], controller: "organization_admins"
       member do
+        get :history
         patch :rename
         post :suspend
         post :reactivate

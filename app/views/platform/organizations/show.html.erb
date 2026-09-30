@@ -107,7 +107,10 @@
 
 <section class="surface-card mt-5 p-6">
   <p class="section-label">O que a plataforma fez aqui</p>
-  <p class="metric-hint mt-1">Criação, nome, administradores e suporte. O que a organização faz por conta própria fica na trilha dela.</p>
+  <p class="metric-hint mt-1">
+    Criação, nome, administradores e suporte. O que a organização faz por conta própria está no
+    <%= link_to "histórico da organização", history_platform_organization_path(@organization), class: "link" %>.
+  </p>
   <% if @platform_events.empty? %>
     <p class="metric-hint mt-3">Nada registrado ainda.</p>
   <% else %>

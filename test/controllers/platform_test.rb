@@ -240,4 +240,49 @@ class PlatformTest < ActionDispatch::IntegrationTest
     get new_platform_organization_admin_path(default_organization)
     assert_select "a.breadcrumb-back[href=?]", platform_organization_path(default_organization)
   end
+
+  test "desativar o último administrador ativo suspende a organização; reativá-lo reabre" do
+    sign_in_as(@plataforma)
+
+    post deactivate_platform_user_path(@admin_a)
+
+    assert default_organization.reload.suspended?
+    assert_equal "último administrador desativado", AuditEvent.find_by!(action: "organization.suspended").metadata["motivo"]
+    assert_match(/suspensa junto/, flash[:notice])
+
+    post reactivate_platform_user_path(@admin_a)
+
+    assert_not default_organization.reload.suspended?
+    assert_match(/reaberta junto/, flash[:notice])
+  end
+
+  test "com outro administrador ativo, desativar um deles não suspende a organização" do
+    admin_user(email: "admin-b@exemplo.com")
+    sign_in_as(@plataforma)
+
+    post deactivate_platform_user_path(@admin_a)
+
+    assert_not default_organization.reload.suspended?
+    assert_nil AuditEvent.find_by(action: "organization.suspended")
+  end
+
+  test "o histórico da organização mostra a atividade dela sem o nome do Master" do
+    Audit.record("batch.uploaded", user: @admin_a, channel: Channel.first, metadata: { arquivo: "x.xlsx" })
+    Audit.record("session.start", user: @convidado)
+    sign_in_as(@plataforma)
+
+    get history_platform_organization_path(default_organization)
+
+    assert_response :success
+    assert_match(/Enviou planilha/, response.body)
+    assert_match(/convidado@exemplo\.com/, response.body)
+    assert_no_match(/#{Regexp.escape(BinWorkbook::CANAL)}|MIC ALFA|30000001/, response.body)
+    assert_select "a.breadcrumb-back[href=?]", platform_organization_path(default_organization)
+
+    sign_out
+    travel 31.seconds
+    sign_in_as(@admin_a)
+    get history_platform_organization_path(default_organization)
+    assert_response :forbidden
+  end
 end

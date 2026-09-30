@@ -19,6 +19,19 @@ module Platform
       @platform_events = platform_events_about(@organization)
     end
 
+    # O histórico completo da organização, lido de propósito fora do Scope da policy — que
+    # para a plataforma só devolve os eventos de plataforma. A tela não mostra o Master: a
+    # plataforma vê a atividade (quem entrou, quem enviou arquivo), não a carteira.
+    def history
+      authorize :organization, :history?
+      @organization = load_organization
+      eventos = AuditEvent.where(organization_id: @organization.id).recent
+      @page = [ params[:page].to_i, 1 ].max
+      offset = (@page - 1) * AuditEventsController::PER_PAGE
+      @events = eventos.includes(:user).limit(AuditEventsController::PER_PAGE).offset(offset)
+      @has_more = eventos.limit(1).offset(offset + AuditEventsController::PER_PAGE).any?
+    end
+
     # Renomear a pedido da organização. O nome em branco chega ao modelo como string vazia,
     # que ele recusa — nulo seria "ainda sem nome", e passaria.
     def rename

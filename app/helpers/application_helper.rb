@@ -65,12 +65,12 @@ module ApplicationHelper
     when "metabase" then [ breadcrumb_current("Metabase") ]
     when "users" then users_breadcrumb_items
     when "company_notes" then company_notes_breadcrumb_items
-    when "audit_events" then [ breadcrumb_current("Trilha") ]
+    when "audit_events" then [ breadcrumb_current("Histórico") ]
     when "platform/organizations" then platform_breadcrumb_items
     when "platform/organization_admins"
       [ breadcrumb_link("Organizações", platform_organizations_path),
-        breadcrumb_link(organization_display_name(@organization), platform_organization_path(@organization)),
-        breadcrumb_current("Adicionar administrador") ]
+        platform_organization_crumb,
+        breadcrumb_current("Adicionar administrador") ].compact
     else [ breadcrumb_current(content_for(:title).presence || "Página") ]
     end
   end
@@ -92,8 +92,20 @@ module ApplicationHelper
   def platform_breadcrumb_items
     return [ breadcrumb_current("Organizações") ] if action_name == "index"
 
+    if action_name == "history"
+      return [ breadcrumb_link("Organizações", platform_organizations_path), platform_organization_crumb,
+        breadcrumb_current("Histórico") ].compact
+    end
+
     [ breadcrumb_link("Organizações", platform_organizations_path),
       breadcrumb_current(content_for(:title).presence || "Organização") ]
+  end
+
+  # Sem @organization (a página de 403 monta o layout antes de carregá-la), o item some.
+  def platform_organization_crumb
+    return if @organization.nil?
+
+    breadcrumb_link(organization_display_name(@organization), platform_organization_path(@organization))
   end
 
   def reports_breadcrumb_items
