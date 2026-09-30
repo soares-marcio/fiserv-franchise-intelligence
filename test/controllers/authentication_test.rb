@@ -15,6 +15,18 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
   end
 
+  test "a tela de entrada identifica o ambiente de homologação" do
+    original = ENV["APP_ENVIRONMENT"]
+    ENV["APP_ENVIRONMENT"] = "staging"
+
+    get new_session_path
+
+    assert_response :success
+    assert_select ".env-banner", text: /Homologação/
+  ensure
+    original ? ENV["APP_ENVIRONMENT"] = original : ENV.delete("APP_ENVIRONMENT")
+  end
+
   test "a tela pedida é retomada depois de entrar" do
     get metabase_path
     sign_in_as(@user)

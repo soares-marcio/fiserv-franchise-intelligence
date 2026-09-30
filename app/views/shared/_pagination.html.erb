@@ -9,9 +9,14 @@
     O caminho vem de quem renderiza, num lambda, porque cada tela tem o seu recorte a
     preservar na URL. %>
 <nav class="pagination-bar" aria-label="Paginação">
-  <%= link_to icon_label("caret-left", "Anterior"), path.call([ page - 1, 1 ].max),
-    class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if page <= 1}",
-    aria: { disabled: page <= 1 } %>
+  <% if page <= 1 %>
+    <span class="btn btn-sm btn-outline opacity-40" aria-disabled="true">
+      <%= icon_label("caret-left", "Anterior") %>
+    </span>
+  <% else %>
+    <%= link_to icon_label("caret-left", "Anterior"), path.call(page - 1),
+      class: "btn btn-sm btn-outline" %>
+  <% end %>
 
   <div class="pagination-bar__pages">
     <% pagination_page_groups(page, total_pages).each_with_index do |bloco, indice| %>
@@ -31,8 +36,12 @@
     <% end %>
   </div>
 
-  <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]),
-    path.call([ page + 1, total_pages ].min),
-    class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if page >= total_pages}",
-    aria: { disabled: page >= total_pages } %>
+  <% if page >= total_pages %>
+    <span class="btn btn-sm btn-outline opacity-40" aria-disabled="true">
+      <%= safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]) %>
+    </span>
+  <% else %>
+    <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]),
+      path.call(page + 1), class: "btn btn-sm btn-outline" %>
+  <% end %>
 </nav>

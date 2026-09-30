@@ -14,24 +14,32 @@
           convite para um erro, e revela o que existe a quem não deveria saber. %>
       <% if policy(:report).index? %>
       <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[index sub_channel] }) %>
       <%= link_to icon_label("storefront", "Clover Capital", css: "nav-icon"), stalled_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[stalled] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[stalled] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[stalled] }) %>
       <%= link_to icon_label("calendar-blank", "Semanal", css: "nav-icon"), weekly_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[weekly] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[weekly] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[weekly] }) %>
       <%= link_to icon_label("calendar-check", "Ganhos 3M", css: "nav-icon"), three_months_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
       <%= link_to icon_label("chart-bar", "Recorrente", css: "nav-icon"), recurring_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[recurring] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[recurring] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[recurring] }) %>
       <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[indicators] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[indicators] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[indicators] }) %>
       <% end %>
       <% if policy(:establishment).index? %>
         <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
-          class: nav_link_class({ controller: :establishments }) %>
+          class: nav_link_class({ controller: :establishments }),
+          aria: nav_link_aria({ controller: :establishments }) %>
       <% end %>
       <% if policy(:import_batch).index? %>
-      <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }) do %>
+      <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }),
+        aria: nav_link_aria({ controller: :import_batches }) do %>
         <%= icon("upload-simple", css: "nav-icon") %>
         Importar arquivo
         <%# Badge com dado real: a idade do último arquivo, do mesmo FileFreshness que o selo
@@ -45,19 +53,23 @@
       <% end %>
       <% if policy(:organization).index? %>
         <%= link_to icon_label("storefront", "Organizações", css: "nav-icon"), platform_organizations_path,
-          class: nav_link_class({ controller: :organizations }) %>
+          class: nav_link_class({ controller: :organizations }),
+          aria: nav_link_aria({ controller: :organizations }) %>
       <% end %>
       <% if policy(:user).index? %>
         <%= link_to icon_label("storefront", "Acessos", css: "nav-icon"), users_path,
-          class: nav_link_class({ controller: :users }) %>
+          class: nav_link_class({ controller: :users }),
+          aria: nav_link_aria({ controller: :users }) %>
       <% end %>
       <% if policy(:audit_event).index? %>
         <%= link_to icon_label("list-bullets", "Histórico", css: "nav-icon"), audit_events_path,
-          class: nav_link_class({ controller: :audit_events }) %>
+          class: nav_link_class({ controller: :audit_events }),
+          aria: nav_link_aria({ controller: :audit_events }) %>
       <% end %>
       <% if policy(:metabase).show? %>
         <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
-          class: nav_link_class({ controller: :metabase }) %>
+          class: nav_link_class({ controller: :metabase }),
+          aria: nav_link_aria({ controller: :metabase }) %>
       <% end %>
     </nav>
 

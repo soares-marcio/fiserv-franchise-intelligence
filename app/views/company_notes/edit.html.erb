@@ -42,6 +42,7 @@
       <% end %>
     <% end %>
 
+    <%= label_tag :body, "Texto da anotação", class: "sr-only" %>
     <%= rich_text_area_tag :body, @note.body, class: "note-editor" %>
 
     <div class="note-form__actions">

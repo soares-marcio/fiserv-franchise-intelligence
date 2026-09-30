@@ -2,9 +2,12 @@
     o nome da organização é dele para dar, no primeiro acesso. %>
 <%= form_with model: admin, url:, class: "grid gap-5" do |form| %>
   <% if admin.errors.any? %>
-    <ul class="grid gap-1 text-sm text-error">
-      <% admin.errors.full_messages.each do |mensagem| %><li><%= mensagem %></li><% end %>
-    </ul>
+    <div class="app-alert alert alert-error" role="alert" tabindex="-1">
+      <p class="font-semibold">Revise os campos abaixo:</p>
+      <ul class="mt-1 grid gap-1 text-sm">
+        <% admin.errors.full_messages.each do |mensagem| %><li><%= mensagem %></li><% end %>
+      </ul>
+    </div>
   <% end %>
 
   <section class="surface-card p-6">

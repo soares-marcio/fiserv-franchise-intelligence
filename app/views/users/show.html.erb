@@ -6,14 +6,14 @@
   <p class="page-description"><%= @user.email_address %> · <%= user_role_badge(@user) %> <%= user_status_badge(@user) %></p>
   <%= user_first_access_hint(@user) %>
 
-  <div class="relative z-10 mt-6 flex flex-wrap gap-3">
+  <div class="action-group relative z-10 mt-6">
     <% if policy(@user).update? %>
       <%= link_to "Editar acesso", edit_user_path(@user), class: "btn btn-primary" %>
       <%= button_to "Reiniciar segundo fator", reset_mfa_user_path(@user), class: "btn btn-outline",
         form: { data: { turbo_confirm: "A pessoa terá de cadastrar o autenticador de novo. Continuar?" } } %>
     <% end %>
     <% if policy(@user).deactivate? && @user.active? %>
-      <%= button_to "Desativar", deactivate_user_path(@user), class: "btn btn-outline",
+      <%= button_to "Desativar", deactivate_user_path(@user), class: "btn btn-danger",
         form: { data: { turbo_confirm: "Desativar este acesso? As sessões abertas caem agora." } } %>
     <% elsif policy(@user).update? && !@user.active? %>
       <%= button_to "Reativar", reactivate_user_path(@user), class: "btn btn-outline" %>

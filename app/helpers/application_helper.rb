@@ -53,6 +53,10 @@ module ApplicationHelper
     [ "nav-link", ("is-active" if nav_active?(*matches)) ].compact.join(" ")
   end
 
+  def nav_link_aria(*matches)
+    { current: ("page" if nav_active?(*matches)) }.compact
+  end
+
   def breadcrumb_items
     [ breadcrumb_link("Início", root_path), *section_breadcrumb_items ]
   end

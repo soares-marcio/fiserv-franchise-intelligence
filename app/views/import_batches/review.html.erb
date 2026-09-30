@@ -142,10 +142,10 @@
       </label>
       <%# Dois destinos, um formulário: o formaction leva a observação digitada junto na
           recusa, o que um botão separado não faria. %>
-      <div class="flex flex-wrap gap-3">
+      <div class="action-group">
         <%= form.submit "Aprovar e consolidar", class: "btn btn-primary",
           data: { turbo_confirm: "Aprovar este arquivo? Ele passa a ser a foto oficial do Master." } %>
-        <%= form.submit "Recusar", class: "btn btn-outline",
+        <%= form.submit "Recusar", class: "btn btn-danger",
           formaction: reject_import_batch_path(@import_batch),
           data: { turbo_confirm: "Recusar este arquivo? Diga o motivo no campo acima." } %>
       </div>

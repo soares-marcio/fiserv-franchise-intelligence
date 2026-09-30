@@ -394,7 +394,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     # quem não administra acessos vê oito.
     assert_select "nav.primary-nav a.nav-link", count: 10
     assert_select "nav.primary-nav a", text: /Histórico/
-    assert_select "nav.primary-nav a.nav-link.is-active", text: /Faturamento/
+    assert_select "nav.primary-nav a.nav-link.is-active[aria-current='page']", text: /Faturamento/
     assert_select "nav.primary-nav a", text: /Indicadores/
     assert_select "nav.primary-nav a", text: /Clover Capital/
     assert_select "nav.primary-nav a", text: /Importar arquivo/
@@ -1237,7 +1237,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "td p", text: "LOJA DOIS"
     assert_select "td p", text: "LOJA UM", count: 0
     assert_select "a", text: "Anterior"
-    assert_select "a", text: "Próxima"
+    assert_select "nav.pagination-bar span[aria-disabled='true']", text: "Próxima"
   end
 
   # Pedido do usuário (10/09/2026): poder clicar na página 3, em vez de chegar nela clicando
@@ -1266,8 +1266,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes CGI.unescape(destino["href"]), "q=loja", "o número leva a busca junto"
     assert_select "nav.pagination-bar [aria-current=?]", "page", text: "1"
     assert_select "nav.pagination-bar a", text: "1", count: 0
-    # Anterior e Próxima continuam onde estavam.
-    assert_select "nav.pagination-bar a", text: /Anterior/
+    # Os extremos continuam onde estavam, mas o indisponível não entra no teclado.
+    assert_select "nav.pagination-bar span[aria-disabled='true']", text: /Anterior/
     assert_select "nav.pagination-bar a", text: /Próxima/
   end
 

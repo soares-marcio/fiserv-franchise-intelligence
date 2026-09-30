@@ -18,6 +18,61 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     assert_no_selector "[role='dialog']", visible: true
   end
 
+  test "a navbar móvel mantém usuário, ações e menu dentro da tela" do
+    visit reports_path
+    { 320 => 568, 375 => 667, 768 => 1024, 1024 => 768, 1400 => 1000 }.each do |largura, altura|
+      page.driver.browser.manage.window.resize_to(largura, altura)
+
+      medida = page.evaluate_script(<<~JS)
+        (() => {
+          const usuario = document.querySelector(".user-chip").getBoundingClientRect()
+          return {
+            pagina: document.documentElement.scrollWidth - window.innerWidth,
+            usuario_esquerda: usuario.left,
+            usuario_direita: usuario.right - window.innerWidth
+          }
+        })()
+      JS
+
+      assert_operator medida["pagina"], :<=, 0, "a página não pode transbordar em #{largura}px"
+      assert_operator medida["usuario_esquerda"], :>=, 0, "o usuário precisa começar dentro da tela"
+      assert_operator medida["usuario_direita"], :<=, 0, "o botão Sair precisa terminar dentro da tela"
+    end
+
+    page.driver.browser.manage.window.resize_to(375, 667)
+    click_button "Abrir ou fechar o menu"
+    assert_selector "#primary_nav.is-open", visible: true
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
+
+  test "ações administrativas preservam rótulos legíveis sem apertar os botões" do
+    platform = platform_admin_user
+    organization = Organization.create!(name: "Organização com nome representativo")
+    create_user(email: "administrador@exemplo.com", name: "Administrador da organização",
+      organization:, organization_admin: true, created_by: platform)
+
+    click_button "Sair"
+    sign_in_through_ui(platform)
+    visit platform_organization_path(organization)
+    page.driver.browser.manage.window.resize_to(1024, 768)
+
+    medidas = page.evaluate_script(<<~JS)
+      [...document.querySelectorAll(".support-actions .btn")].map((botao) => ({
+        texto_cabe: botao.scrollWidth <= botao.clientWidth,
+        fonte: parseFloat(getComputedStyle(botao).fontSize),
+        altura: botao.getBoundingClientRect().height
+      }))
+    JS
+
+    assert_equal 2, medidas.size
+    assert medidas.all? { |medida| medida["texto_cabe"] }, "nenhum rótulo pode ser cortado"
+    assert medidas.all? { |medida| medida["fonte"] >= 13 }, "ações precisam manter texto de ao menos 13px"
+    assert medidas.all? { |medida| medida["altura"] >= 36 }, "ações compactas ainda precisam de altura legível"
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
+
   test "envia uma planilha pela interface e mostra o lote pendente" do
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-BIN_TESTE_20260811.xlsx")
     BinWorkbook.write(path)
