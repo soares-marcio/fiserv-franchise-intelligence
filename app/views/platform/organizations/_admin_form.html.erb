@@ -1,0 +1,33 @@
+<%# Um administrador nasce só com nome e e-mail: a senha provisória é gerada pelo sistema, e
+    o nome da organização é dele para dar, no primeiro acesso. %>
+<%= form_with model: admin, url:, class: "grid gap-5" do |form| %>
+  <% if admin.errors.any? %>
+    <ul class="grid gap-1 text-sm text-error">
+      <% admin.errors.full_messages.each do |mensagem| %><li><%= mensagem %></li><% end %>
+    </ul>
+  <% end %>
+
+  <section class="surface-card p-6">
+    <p class="section-label">Administrador da organização</p>
+    <div class="mt-3 grid gap-4 sm:grid-cols-2">
+      <label class="form-control">
+        <span class="section-label">Nome</span>
+        <%= form.text_field :name, required: true, class: "input input-bordered w-full" %>
+      </label>
+      <label class="form-control">
+        <span class="section-label">E-mail</span>
+        <%= form.email_field :email_address, required: true, class: "input input-bordered w-full" %>
+      </label>
+    </div>
+    <p class="metric-hint mt-3">
+      A senha provisória é gerada pelo sistema e fica na tela da organização até a pessoa
+      trocá-la. No primeiro acesso ela troca a senha, cadastra o segundo fator e dá o nome à
+      organização. Ela terá tudo dentro da organização — e nada fora dela.
+    </p>
+  </section>
+
+  <div class="flex gap-3">
+    <%= form.submit submit_label, class: "btn btn-primary" %>
+    <%= link_to "Cancelar", platform_organizations_path, class: "btn btn-ghost" %>
+  </div>
+<% end %>

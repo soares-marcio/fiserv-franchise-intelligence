@@ -1,4 +1,7 @@
 class ReportsController < ApplicationController
+  # A raiz do portal é este index; a conta da plataforma não tem carteira e cairia em 403 ao
+  # entrar. Ela vai para a tela dela, antes de qualquer autorização.
+  before_action -> { redirect_to platform_organizations_path if Current.user&.platform_admin? }, only: :index
   before_action :load_scope
   # Toda ação deste controller mostra relatório: a chave é a mesma, e declarar aqui evita
   # que uma tela nova entre sem autorização.

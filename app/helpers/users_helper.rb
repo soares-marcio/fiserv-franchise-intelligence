@@ -1,4 +1,10 @@
 module UsersHelper
+  # A organização nasce sem nome; até o administrador nomeá-la, a tela precisa chamá-la de
+  # alguma coisa que não pareça um nome.
+  def organization_display_name(organization)
+    organization.name.presence || "Organização sem nome ##{organization.id}"
+  end
+
   def user_status_badge(user)
     return content_tag(:span, "Desativado", class: "badge badge-ghost") unless user.active?
     return content_tag(:span, "Bloqueado", class: "badge badge-error") if user.locked?
@@ -25,7 +31,7 @@ module UsersHelper
     unless user.must_change_password?
       return content_tag(:span, "Entrou e trocou a senha", class: "block text-xs opacity-70")
     end
-    return unless user.provisional_password.present? && policy(user).update?
+    return unless user.provisional_password.present? && (policy(user).update? || policy(user).support?)
 
     content_tag(:span, class: "block text-xs") do
       safe_join([ "Senha provisória: ", content_tag(:code, user.provisional_password, class: "font-mono select-all") ])

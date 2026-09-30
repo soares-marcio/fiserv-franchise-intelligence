@@ -1,0 +1,63 @@
+<% content_for :title, organization_display_name(@organization) %>
+
+<section class="page-hero">
+  <p class="eyebrow">Plataforma · Organização</p>
+  <h1 class="page-title"><%= organization_display_name(@organization) %></h1>
+  <p class="page-description">
+    <% if @organization.named? %>
+      Criada em <%= l(@organization.created_at.to_date) %>.
+    <% else %>
+      Ainda sem nome: o administrador dá o nome no primeiro acesso dele.
+    <% end %>
+  </p>
+  <%= link_to "Adicionar administrador", new_platform_organization_admin_path(@organization),
+    class: "btn btn-primary relative z-10 mt-6" %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Administradores</p>
+  <% if @admins.empty? %>
+    <p class="metric-hint mt-2">Nenhum. Sem administrador, ninguém entra nesta organização.</p>
+  <% else %>
+    <ul class="mt-3 grid gap-3">
+      <% @admins.each do |admin| %>
+        <li class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-base-300 p-3">
+          <div class="min-w-0">
+            <p class="font-semibold"><%= admin.name %> <span class="text-xs font-normal opacity-70">· <%= admin.email_address %></span></p>
+            <%= user_first_access_hint(admin) %>
+            <p class="text-xs opacity-70">Último acesso: <%= @last_access[admin.id] ? @last_access[admin.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <%= user_status_badge(admin) %>
+            <%= render "support_actions", user: admin %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Convidados</p>
+  <p class="metric-hint mt-1">Quem os administradores e seus delegados convidaram. Só nome, e-mail e situação.</p>
+  <% if @members.empty? %>
+    <p class="metric-hint mt-3">Ninguém ainda.</p>
+  <% else %>
+    <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Convidados da organização">
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
+        <tbody>
+          <% @members.each do |member| %>
+            <tr>
+              <td><%= member.name %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
+              <td><%= user_status_badge(member) %></td>
+              <td class="text-xs"><%= member.created_by&.name || "—" %></td>
+              <td class="text-xs"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
+              <td><%= render "support_actions", user: member %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

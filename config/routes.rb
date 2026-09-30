@@ -61,4 +61,19 @@ Rails.application.routes.draw do
       post :reactivate
     end
   end
+
+  # A plataforma: cria organizações e o administrador de cada uma, vê quem existe e presta
+  # suporte às contas — e não abre tela de dado nenhuma.
+  namespace :platform do
+    resources :organizations, only: %i[index show new create] do
+      resources :admins, only: %i[new create], controller: "organization_admins"
+    end
+    resources :users, only: [] do
+      member do
+        post :reset_mfa
+        post :deactivate
+        post :reactivate
+      end
+    end
+  end
 end

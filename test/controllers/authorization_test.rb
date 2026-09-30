@@ -150,12 +150,15 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   test "a plataforma não abre tela de dado nenhuma" do
     entra_com([], platform_admin: true)
 
-    [ reports_path, stalled_reports_path, weekly_reports_path, three_months_reports_path,
+    [ stalled_reports_path, weekly_reports_path, three_months_reports_path,
       recurring_reports_path, indicators_reports_path, establishments_path, search_path(q: "x"),
       import_batches_path, metabase_path, users_path ].each do |tela|
       get tela
       assert_response :forbidden, tela
     end
+    # A raiz é o relatório de faturamento; a plataforma é levada à tela dela antes de 403.
+    get reports_path
+    assert_redirected_to platform_organizations_path
   end
 
   # O menu é a primeira coisa que o usuário vê: mostrar link para tela que responde 403

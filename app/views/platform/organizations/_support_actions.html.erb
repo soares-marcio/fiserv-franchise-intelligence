@@ -1,0 +1,11 @@
+<%# As três ações de suporte, sobre uma conta de organização. %>
+<span class="flex flex-wrap gap-1">
+  <%= button_to "Reiniciar 2º fator", reset_mfa_platform_user_path(user), class: "btn btn-outline btn-xs",
+    form: { data: { turbo_confirm: "#{user.name} terá de cadastrar o autenticador de novo. Continuar?" } } %>
+  <% if user.active? %>
+    <%= button_to "Desativar", deactivate_platform_user_path(user), class: "btn btn-ghost btn-xs",
+      form: { data: { turbo_confirm: "Desativar o acesso de #{user.name}? As sessões abertas caem agora." } } %>
+  <% else %>
+    <%= button_to "Reativar", reactivate_platform_user_path(user), class: "btn btn-ghost btn-xs" %>
+  <% end %>
+</span>

@@ -43,6 +43,10 @@
         </span>
       <% end %>
       <% end %>
+      <% if policy(:organization).index? %>
+        <%= link_to icon_label("storefront", "Organizações", css: "nav-icon"), platform_organizations_path,
+          class: nav_link_class({ controller: :organizations }) %>
+      <% end %>
       <% if policy(:user).index? %>
         <%= link_to icon_label("storefront", "Acessos", css: "nav-icon"), users_path,
           class: nav_link_class({ controller: :users }) %>

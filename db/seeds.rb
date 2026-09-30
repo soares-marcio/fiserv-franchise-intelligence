@@ -3,7 +3,8 @@
 # banco carregado do arquivo — sem isto, produção nasceria sem acesso do Metabase.
 MetabaseRole.ensure!
 
-# Primeiro administrador. O portal exige login, então um banco novo sem nenhum usuário é um
+# Primeiro administrador **da plataforma**: cria organizações e o administrador de cada uma,
+# e não vê dado nenhum. O portal exige login, então um banco novo sem nenhum usuário é um
 # portal em que ninguém entra — nem para criar o primeiro acesso.
 #
 # No-op sem as variáveis, e isso é obrigatório: test/db/schema_integrity_test.rb roda o seed
@@ -26,5 +27,5 @@ if email && password
     # As mensagens de validação não repetem o valor da senha — só o motivo.
     abort("[seed] administrador não criado: #{e.record.errors.full_messages.join('; ')}")
   end
-  Rails.logger.info("[seed] administrador #{email} disponível para o primeiro acesso")
+  Rails.logger.info("[seed] administrador da plataforma #{email} disponível para o primeiro acesso")
 end

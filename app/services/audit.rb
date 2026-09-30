@@ -24,7 +24,7 @@ class Audit
       record_type: record&.class&.name,
       record_id: record&.id,
       channel:,
-      organization: organization || user&.organization || record.try(:organization) || channel&.organization,
+      organization: organization || organization_of(user, record, channel),
       metadata:,
       ip_address: request&.remote_ip,
       created_at: Time.current
@@ -35,4 +35,13 @@ class Audit
     Rails.logger.error("[auditoria] #{action} não registrado: #{error.class}: #{error.message}")
     nil
   end
+
+  # Ação da plataforma fica sem organização mesmo quando o registro tem uma: é o que
+  # separa o que a plataforma lê do que a organização lê.
+  def self.organization_of(user, record, channel)
+    return nil if user&.platform_admin?
+
+    user&.organization || record.try(:organization) || channel&.organization
+  end
+  private_class_method :organization_of
 end

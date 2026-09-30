@@ -23,6 +23,11 @@ class UserPolicy < ApplicationPolicy
   # continua na trilha, que é o que permite auditar depois.
   def deactivate? = update? && record != user
 
+  # Suporte da plataforma às contas de organização: reiniciar o segundo fator de um
+  # administrador que perdeu o celular, desativar, reativar. Nunca sobre outra conta da
+  # plataforma — essas só por console.
+  def support? = platform? && record.present? && !record.platform_admin?
+
   private
 
   def reachable?
