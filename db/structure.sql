@@ -1172,7 +1172,8 @@ CREATE TABLE public.audit_events (
     channel_id bigint,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     ip_address character varying,
-    created_at timestamp(6) without time zone NOT NULL
+    created_at timestamp(6) without time zone NOT NULL,
+    organization_id bigint
 );
 
 
@@ -3845,6 +3846,13 @@ CREATE INDEX index_audit_events_on_created_at ON public.audit_events USING btree
 
 
 --
+-- Name: index_audit_events_on_organization_id_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_audit_events_on_organization_id_and_created_at ON public.audit_events USING btree (organization_id, created_at);
+
+
+--
 -- Name: index_audit_events_on_record_type_and_record_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5409,6 +5417,14 @@ ALTER TABLE ONLY public.solid_queue_batch_executions
 
 
 --
+-- Name: audit_events fk_rails_be0ed9e37f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT fk_rails_be0ed9e37f FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
 -- Name: channels fk_rails_bfcfceb5ef; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5591,6 +5607,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20260930130000'),
 ('20260930120000'),
 ('20260930110000'),
 ('20260930100000'),

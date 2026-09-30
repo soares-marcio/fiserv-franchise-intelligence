@@ -3,6 +3,8 @@
 class AuditEvent < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :channel, optional: true
+  # Nula para evento de plataforma.
+  belongs_to :organization, optional: true
   belongs_to :record, polymorphic: true, optional: true
 
   scope :recent, -> { order(created_at: :desc) }

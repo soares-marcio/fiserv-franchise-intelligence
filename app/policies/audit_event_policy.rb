@@ -1,19 +1,22 @@
-# A trilha diz quem fez o quê no portal inteiro: é leitura de administração, não de
-# operação. Fica com quem administra acessos.
+# A trilha diz quem fez o quê: é leitura de administração, não de operação. Cada organização
+# lê a sua; a plataforma lê só os eventos de plataforma — os que não têm organização.
 class AuditEventPolicy < ApplicationPolicy
-  def index? = permitted?(Permission::USERS_INVITE)
+  def index? = platform? || permitted?(Permission::USERS_INVITE)
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      # Transitório: a trilha só ganha organization_id na fase da trilha; até lá o
-      # administrador da organização lê tudo, como o antigo super admin.
-      return scope.all if user&.organization_admin?
+      return scope.where(organization_id: nil) if user&.platform_admin?
       return scope.none unless user&.permitted?(Permission::USERS_INVITE)
 
-      # Um admin delegado vê o que aconteceu nos Masters que ele administra, mais os
-      # eventos sem canal (entrada, senha, MFA) dos usuários que ele alcança.
-      scope.where(channel_id: AccessScope.for(user).channel_ids)
-        .or(scope.where(channel_id: nil))
+      base = scope.where(organization_id: user.organization_id)
+      return base if user.organization_admin?
+
+      # O delegado vê o que aconteceu nos Masters que administra, mais os eventos sem canal
+      # (entrada, senha, MFA) **dos usuários que ele alcança** — e não de todo mundo, que era
+      # o que um `.or(channel_id: nil)` sem filtro de usuário deixava passar.
+      alcance = UserPolicy::Scope.new(user, User).resolve.select(:id)
+      base.where(channel_id: AccessScope.for(user).channel_ids)
+        .or(base.where(channel_id: nil, user_id: alcance))
     end
   end
 end

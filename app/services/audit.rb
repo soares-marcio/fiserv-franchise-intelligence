@@ -9,7 +9,13 @@
 # quê, e não repete o dado que a tela já protege — senão ela mesma vira um vazamento, e um
 # que ninguém recorta por escopo.
 class Audit
-  def self.record(action, user: Current.user, record: nil, channel: nil, metadata: {}, request: nil)
+  # A organização do evento vem, nesta ordem, do parâmetro, do ator, do registro e do canal.
+  # O ator vem primeiro de propósito: suporte feito pela plataforma sobre uma conta de
+  # organização (reiniciar o segundo fator) fica sem organização — a plataforma vê, a
+  # organização não. Inverter é uma linha, se um dia se decidir o contrário.
+  def self.record(action, user: Current.user, record: nil, channel: nil, organization: nil, metadata: {},
+    request: nil)
+    channel ||= record.try(:channel)
     AuditEvent.create!(
       user:,
       # Cópia do e-mail no instante do evento: o registro sobrevive à exclusão do usuário.
@@ -17,7 +23,8 @@ class Audit
       action:,
       record_type: record&.class&.name,
       record_id: record&.id,
-      channel: channel || record.try(:channel),
+      channel:,
+      organization: organization || user&.organization || record.try(:organization) || channel&.organization,
       metadata:,
       ip_address: request&.remote_ip,
       created_at: Time.current

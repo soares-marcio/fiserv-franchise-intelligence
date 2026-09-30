@@ -26,6 +26,10 @@ class ApplicationPolicy
     user.present? && user.permitted?(key)
   end
 
+  def platform?
+    user.present? && user.platform_admin?
+  end
+
   class Scope
     attr_reader :user, :scope
 

@@ -152,7 +152,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
 
     [ reports_path, stalled_reports_path, weekly_reports_path, three_months_reports_path,
       recurring_reports_path, indicators_reports_path, establishments_path, search_path(q: "x"),
-      import_batches_path, metabase_path, users_path, audit_events_path ].each do |tela|
+      import_batches_path, metabase_path, users_path ].each do |tela|
       get tela
       assert_response :forbidden, tela
     end

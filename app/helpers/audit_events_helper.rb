@@ -17,7 +17,10 @@ module AuditEventsHelper
     "batch.granted" => "Liberou arquivo a alguém",
     "batch.revoked" => "Revogou liberação de arquivo",
     "note.saved" => "Salvou anotação",
-    "note.removed" => "Apagou anotação"
+    "note.removed" => "Apagou anotação",
+    "organization.created" => "Criou organização",
+    "organization.named" => "Nomeou a organização",
+    "organization_admin.created" => "Criou administrador de organização"
   }.freeze
 
   def audit_action_label(action)
