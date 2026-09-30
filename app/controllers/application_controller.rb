@@ -8,6 +8,7 @@ class ApplicationController < ActionController::Base
   # declará-las nasceria fora da regra.
   before_action :require_password_change
   before_action :require_mfa_enrollment
+  before_action :require_organization_name
 
   # A guarda que faz a diferença entre "negar por padrão" escrito e praticado: ação que
   # esquecer de autorizar falha no teste, em vez de servir o dado calada. Fica na base, que
@@ -53,5 +54,15 @@ class ApplicationController < ActionController::Base
     return if controller_name.in?(%w[mfa_enrollments sessions passwords])
 
     redirect_to mfa_enrollment_path, alert: "Cadastre o segundo fator antes de usar o portal."
+  end
+
+  # A terceira pendência, só do administrador da organização: a organização que a plataforma
+  # criou não tem nome, e é ele quem dá. Colaborador não é redirecionado — não é dele para
+  # nomear, e ficaria preso.
+  def require_organization_name
+    return unless Current.user&.organization_admin? && !Current.organization.named?
+    return if controller_name.in?(%w[organizations sessions passwords mfa_enrollments mfa])
+
+    redirect_to edit_organization_path, alert: "Dê um nome à sua organização antes de usar o portal."
   end
 end

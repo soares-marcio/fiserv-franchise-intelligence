@@ -84,7 +84,12 @@
           apagar cookie na mão — e ninguém sabe em nome de quem está agindo. %>
       <% if Current.user %>
         <div class="user-chip">
-          <span class="user-chip__name" title="<%= Current.user.email_address %>"><%= Current.user.name %></span>
+          <span class="user-chip__name" title="<%= Current.user.email_address %>">
+            <%= Current.user.name %>
+            <% if Current.organization %>
+              <span class="block text-[0.7rem] font-normal opacity-70"><%= organization_display_name(Current.organization) %></span>
+            <% end %>
+          </span>
           <%= button_to "Sair", session_path, method: :delete,
             class: "btn btn-ghost btn-sm", form: { class: "contents" } %>
         </div>

@@ -1,0 +1,25 @@
+<% content_for :title, "Nome da organização" %>
+
+<h1 class="page-title">Dê um nome à sua organização</h1>
+<p class="page-description mt-2">
+  É como ela aparece no portal para você e para quem você convidar. Só o administrador da
+  organização a nomeia, e uma vez.
+</p>
+
+<% if @organization.errors.any? %>
+  <ul class="mt-4 grid gap-1 text-sm text-error">
+    <% @organization.errors.full_messages.each do |mensagem| %>
+      <li><%= mensagem %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with url: organization_path, method: :patch, class: "mt-6 grid gap-4" do |form| %>
+  <label class="form-control">
+    <span class="section-label">Nome</span>
+    <%= form.text_field :name, required: true, autofocus: true, maxlength: 120,
+      value: @organization.name, class: "input input-bordered w-full" %>
+  </label>
+
+  <%= form.submit "Salvar e entrar", class: "btn btn-primary w-full" %>
+<% end %>

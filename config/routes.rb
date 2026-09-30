@@ -6,6 +6,8 @@ Rails.application.routes.draw do
   post "mfa", to: "mfa#create"
   resource :mfa_enrollment, only: %i[show create], controller: "mfa_enrollments"
   resource :password, only: %i[edit update]
+  # O nome da organização, dado pelo administrador dela no primeiro acesso.
+  resource :organization, only: %i[edit update]
   get "up" => "rails/health#show", as: :rails_health_check
 
   root "reports#index"
