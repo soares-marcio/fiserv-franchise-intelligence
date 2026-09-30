@@ -40,12 +40,12 @@ class AdminSeedTest < ActiveSupport::TestCase
   # "Translation missing" e não dizia qual variável estava errada.
   test "senha curta no .env aborta dizendo o motivo, sem repetir a senha" do
     ENV["ADMIN_EMAIL"] = "chefe@exemplo.com"
-    ENV["ADMIN_PASSWORD"] = "curta123"
+    ENV["ADMIN_PASSWORD"] = "curta12"
 
     erro = assert_raises(SystemExit) { Rails.application.load_seed }
 
-    assert_match(/12 caracteres/, erro.message)
-    assert_no_match(/curta123/, erro.message)
+    assert_match(/8 caracteres/, erro.message)
+    assert_no_match(/curta12/, erro.message)
     assert_nil User.find_by(email_address: "chefe@exemplo.com")
   end
 

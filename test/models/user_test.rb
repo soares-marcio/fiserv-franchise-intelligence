@@ -37,7 +37,7 @@ class UserTest < ActiveSupport::TestCase
     user = User.new(organization: default_organization, email_address: "a@exemplo.com", name: "A", password: "curta1")
 
     assert_not user.valid?
-    assert_includes user.errors[:password].join, "12"
+    assert_includes user.errors[:password].join, "8"
   end
 
   test "permissão fora do catálogo não passa nem pelo model nem pelo banco" do

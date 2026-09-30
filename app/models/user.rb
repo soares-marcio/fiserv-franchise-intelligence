@@ -26,9 +26,9 @@ class User < ApplicationRecord
   validates :email_address, presence: true, uniqueness: { case_sensitive: false },
     format: { with: URI::MailTo::EMAIL_REGEXP, message: "não parece um endereço válido" }
   validates :name, presence: true
-  # 12 caracteres porque o portal passa a ser alcançável pela internet, sem o Cloudflare
-  # Access na frente: a senha deixa de ser a segunda barreira e vira a primeira.
-  validates :password, length: { minimum: 12 }, allow_nil: true
+  # Mínimo de 8 por decisão de 30/09/2026 (o padrão era 12); a troca obrigatória no primeiro
+  # acesso e o segundo fator continuam obrigatórios.
+  validates :password, length: { minimum: 8 }, allow_nil: true
   validate :permissions_must_be_known
   # Rebaixar ou desativar o último administrador da plataforma ativo deixaria o portal sem
   # quem crie organizações — inclusive sem quem possa nomear outro.
