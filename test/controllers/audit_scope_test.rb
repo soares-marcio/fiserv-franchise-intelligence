@@ -6,21 +6,21 @@ class AuditScopeTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @canal_a = Channel.create!(organization: default_organization, external_id: "9911", name: "MASTER A")
-    @canal_a2 = Channel.create!(organization: default_organization, external_id: "9912", name: "MASTER A2")
+    @channel_a = Channel.create!(organization: default_organization, external_id: "9911", name: "MASTER A")
+    @channel_a2 = Channel.create!(organization: default_organization, external_id: "9912", name: "MASTER A2")
     @org_b = Organization.create!(name: "Organização B")
-    @canal_b = Channel.create!(organization: @org_b, external_id: "9921", name: "MASTER B")
+    @channel_b = Channel.create!(organization: @org_b, external_id: "9921", name: "MASTER B")
 
     @admin_a = admin_user(email: "admin-a@exemplo.com")
     @admin_b = create_user(email: "admin-b@exemplo.com", organization: @org_b, organization_admin: true)
-    @plataforma = platform_admin_user
+    @platform = platform_admin_user
 
     # Um evento de cada natureza: com canal, sem canal (login) e de plataforma.
-    Audit.record("batch.uploaded", user: @admin_a, channel: @canal_a, metadata: { arquivo: "a.xlsx" })
+    Audit.record("batch.uploaded", user: @admin_a, channel: @channel_a, metadata: { arquivo: "a.xlsx" })
     Audit.record("session.start", user: @admin_a)
-    Audit.record("batch.uploaded", user: @admin_b, channel: @canal_b, metadata: { arquivo: "b.xlsx" })
+    Audit.record("batch.uploaded", user: @admin_b, channel: @channel_b, metadata: { arquivo: "b.xlsx" })
     Audit.record("session.start", user: @admin_b)
-    Audit.record("organization.created", user: @plataforma, metadata: { alvo: "b" })
+    Audit.record("organization.created", user: @platform, metadata: { alvo: "b" })
   end
 
   test "cada evento nasce com a organização do ator, e o de plataforma sem nenhuma" do
@@ -40,7 +40,7 @@ class AuditScopeTest < ActionDispatch::IntegrationTest
   end
 
   test "a plataforma lê só os eventos de plataforma" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     get audit_events_path
 
@@ -52,12 +52,12 @@ class AuditScopeTest < ActionDispatch::IntegrationTest
   # O vazamento antigo: `.or(channel_id: nil)` mostrava o login de todo usuário do portal a
   # qualquer delegado. Agora só dos usuários que ele alcança.
   test "o delegado não vê o login de quem não alcança, mesmo dentro da organização" do
-    delegado = scoped_user(permissions: [ Permission::USERS_INVITE ], channel: @canal_a, email: "delegado@exemplo.com")
-    de_outro_master = scoped_user(permissions: [], channel: @canal_a2, email: "longe@exemplo.com")
-    Audit.record("session.start", user: de_outro_master)
-    do_meu_master = scoped_user(permissions: [], channel: @canal_a, email: "perto@exemplo.com")
-    Audit.record("session.start", user: do_meu_master)
-    sign_in_as(delegado)
+    delegate = scoped_user(permissions: [ Permission::USERS_INVITE ], channel: @channel_a, email: "delegado@exemplo.com")
+    from_other_master = scoped_user(permissions: [], channel: @channel_a2, email: "longe@exemplo.com")
+    Audit.record("session.start", user: from_other_master)
+    from_my_master = scoped_user(permissions: [], channel: @channel_a, email: "perto@exemplo.com")
+    Audit.record("session.start", user: from_my_master)
+    sign_in_as(delegate)
 
     get audit_events_path
 

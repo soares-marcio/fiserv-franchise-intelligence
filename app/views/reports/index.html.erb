@@ -72,7 +72,7 @@
       <% if @reports.any? %>
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
         <%= render "shared/sort_status", sort: @order,
-          path: ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+          path: ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
       <% end %>
     </div>
 
@@ -84,9 +84,9 @@
           <tr>
             <th scope="col">MIC</th>
             <%# As três colunas de valor ordenam a listagem, como na tela do subcanal. %>
-            <% caminho = ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+            <% sort_path = ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
             <% ReportScope::SUB_CHANNEL_SORT_COLUMNS.each do |column, label| %>
-              <%= render "shared/sortable_header", sort: @order, column:, label:, path: caminho,
+              <%= render "shared/sortable_header", sort: @order, column:, label:, path: sort_path,
                 hint: (column == "previous_full_revenue" ? "competência fechada" : ("até dia #{@cutoff_day}" if @cutoff_day)),
                 extra_class: ("variation-col" if column == "variation") %>
             <% end %>

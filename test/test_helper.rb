@@ -27,11 +27,11 @@ module ActiveSupport
       AuditViews.refresh!
     end
 
-    def import_synthetic_workbook(lojas: BinWorkbook.default_lojas, filename: "BIN_TESTE_20260811.xlsx",
-      volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: BinWorkbook::CANAL,
+    def import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260811.xlsx",
+      volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, channel: BinWorkbook::CHANNEL,
       report_id: BinWorkbook::REPORT_ID, organization: default_organization)
       path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-#{filename}")
-      BinWorkbook.write(path, lojas:, volume_months:, canal:, report_id:)
+      BinWorkbook.write(path, stores:, volume_months:, channel:, report_id:)
       BinImport::Importer.new(path, source_filename: filename, organization:).call
     ensure
       File.delete(path) if path && File.exist?(path)

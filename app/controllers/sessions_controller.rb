@@ -60,12 +60,12 @@ class SessionsController < ApplicationController
   # Uma mensagem só para e-mail inexistente, senha errada e conta desativada: qualquer
   # diferença entre elas conta a quem tenta se aquele e-mail existe no portal.
   def handle_failure(email)
-    alvo = User.find_by(email_address: email)
-    alvo&.register_failed_attempt!
+    target = User.find_by(email_address: email)
+    target&.register_failed_attempt!
     # O e-mail tentado entra na trilha mesmo quando não existe conta: é o que permite ver
     # uma varredura acontecendo.
-    Audit.record("session.failed", user: alvo, request:,
-      metadata: { email_tentado: email, bloqueada: alvo&.locked? || false })
+    Audit.record("session.failed", user: target, request:,
+      metadata: { email_tentado: email, bloqueada: target&.locked? || false })
     deny
   end
 

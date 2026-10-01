@@ -9,21 +9,21 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
   MONTHS = %w[202606 202607 202608].freeze
 
   setup do
-    @lojas = BinWorkbook.earnings_lojas
-    import_synthetic_workbook(lojas: @lojas)
+    @stores = BinWorkbook.earnings_stores
+    import_synthetic_workbook(stores: @stores)
     refresh_audit_views
-    @query = ThreeMonthEarningsQuery.new(periods: PERIODS, scope: escopo_da_organizacao)
+    @query = ThreeMonthEarningsQuery.new(periods: PERIODS, scope: organization_scope)
   end
 
   test "volumes de débito e crédito por sub-canal batem com a planilha" do
-    gama = @query.by_sub_channel.find { |row| row[:name] == "MIC GAMA" }
-    gama_lojas = @lojas.select { |loja| loja.sub_channel_name == "MIC GAMA" }
+    gamma = @query.by_sub_channel.find { |row| row[:name] == "MIC GAMA" }
+    gamma_stores = @stores.select { |store| store.sub_channel_name == "MIC GAMA" }
 
     MONTHS.each_with_index do |month, index|
-      assert_in_delta gama_lojas.sum { |loja| loja.debito(month) },
-        gama[:months][index][:debit], 0.001, "débito de #{month}"
-      assert_in_delta gama_lojas.sum { |loja| loja.credito(month) },
-        gama[:months][index][:credit], 0.001, "crédito de #{month}"
+      assert_in_delta gamma_stores.sum { |store| store.debit(month) },
+        gamma[:months][index][:debit], 0.001, "débito de #{month}"
+      assert_in_delta gamma_stores.sum { |store| store.credit(month) },
+        gamma[:months][index][:credit], 0.001, "crédito de #{month}"
     end
   end
 
@@ -32,25 +32,25 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
   # modelo dos primeiros 3 meses.
   test "nível 1 resume a safra: contagem de ECs e prêmio nas duas hipóteses" do
     # Safra de junho: o EC da GAMA credenciou em julho, então junho vem vazio.
-    gama_june = @query.by_sub_channel.find { |row| row[:name] == "MIC GAMA" }
-    assert_equal 0, gama_june[:prize][:accredited]
+    gamma_june = @query.by_sub_channel.find { |row| row[:name] == "MIC GAMA" }
+    assert_equal 0, gamma_june[:prize][:accredited]
 
     july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
-    gama = ThreeMonthEarningsQuery.new(periods: july, scope: escopo_da_organizacao).by_sub_channel
+    gamma = ThreeMonthEarningsQuery.new(periods: july, scope: organization_scope).by_sub_channel
       .find { |row| row[:name] == "MIC GAMA" }
-    gama_ec = @lojas.find { |loja| loja.ec == "50000001" }
-    peak = [ gama_ec.total_m1, gama_ec.total_atual ].max
+    gamma_ec = @stores.find { |store| store.ec == "50000001" }
+    peak = [ gamma_ec.total_m1, gamma_ec.total_atual ].max
 
-    assert_equal 1, gama[:prize][:accredited]
-    assert_in_delta SubChannelCompensationRules::DIGITALIZATION_FEE, gama[:prize][:digitalization], 0.001
+    assert_equal 1, gamma[:prize][:accredited]
+    assert_in_delta SubChannelCompensationRules::DIGITALIZATION_FEE, gamma[:prize][:digitalization], 0.001
     assert_in_delta SubChannelCompensationRules.accreditation_bracket_value(peak, with_auto: false),
-      gama[:prize][:addon_without_auto], 0.001
+      gamma[:prize][:addon_without_auto], 0.001
     assert_in_delta SubChannelCompensationRules.accreditation_bracket_value(peak, with_auto: true),
-      gama[:prize][:addon_with_auto], 0.001
+      gamma[:prize][:addon_with_auto], 0.001
   end
 
   test "credenciamento em janela parcialmente coberta apura a marca d'água e expõe os meses" do
-    gama_ec = @lojas.find { |loja| loja.ec == "50000001" }
+    gamma_ec = @stores.find { |store| store.ec == "50000001" }
     row = ApplicationRecord.connection.exec_query(
       "SELECT * FROM audit_accreditation_earnings WHERE establishment_id = " \
       "(SELECT id FROM establishments WHERE ec = '50000001')"
@@ -59,7 +59,7 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     # Janela do EC = jul/ago/set. O volume mensal cobre jul e ago; setembro não existe
     # na planilha — dois meses apurados, não três.
     assert_equal 2, row["months_observed"]
-    peak = [ gama_ec.total_m1, gama_ec.total_atual ].max
+    peak = [ gamma_ec.total_m1, gamma_ec.total_atual ].max
     assert_in_delta peak, row["peak_month_revenue"].to_f, 0.001
     assert_in_delta SubChannelCompensationRules.accreditation_bracket_value(peak, with_auto: false),
       row["addon_without_auto"].to_f, 0.001
@@ -93,18 +93,18 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
   # foi tratar um pelo outro que tornou a classificação impossível em 09/2026. SOLUÇÕES
   # FINANCEIRAS entrega a modalidade, e classifica 567 de 567 ECs no arquivo real.
   test "a modalidade contratada escolhe a coluna do adicional" do
-    com_auto = view_row("50000001")
-    sem_auto = view_row("50000003")
+    with_auto = view_row("50000001")
+    without_auto = view_row("50000003")
 
-    assert_equal true, com_auto["auto_flex"]
-    assert_in_delta com_auto["addon_with_auto"].to_f, com_auto["addon_amount"].to_f, 0.001
+    assert_equal true, with_auto["auto_flex"]
+    assert_in_delta with_auto["addon_with_auto"].to_f, with_auto["addon_amount"].to_f, 0.001
 
-    assert_equal false, sem_auto["auto_flex"]
-    assert_in_delta sem_auto["addon_without_auto"].to_f, sem_auto["addon_amount"].to_f, 0.001
+    assert_equal false, without_auto["auto_flex"]
+    assert_in_delta without_auto["addon_without_auto"].to_f, without_auto["addon_amount"].to_f, 0.001
 
     # As duas hipóteses continuam saindo: é contra elas que a resolução se confere.
-    assert com_auto.key?("addon_without_auto")
-    assert com_auto.key?("addon_with_auto")
+    assert with_auto.key?("addon_without_auto")
+    assert with_auto.key?("addon_with_auto")
   end
 
   # Sem modalidade na origem, nada é eleito: indefinido é NULL, e não zero. É a mesma distinção
@@ -121,13 +121,13 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
   # M2 paga a faixa de M2 menos a maior já paga. O esperado é o mesmo laço em Ruby, sobre os
   # totais declarados na planilha — nada fixado à mão.
   test "as parcelas seguem a marca d'água mês a mês" do
-    gama = @lojas.find { |loja| loja.ec == "50000001" }
+    gamma = @stores.find { |store| store.ec == "50000001" }
     row = view_row("50000001")
-    esperado = marca_dagua([ gama.total_m1, gama.total_atual, nil ], with_auto: true)
+    expected = watermark([ gamma.total_m1, gamma.total_atual, nil ], with_auto: true)
 
-    assert_equal esperado, [ row["m0_addon_amount"], row["m1_addon_amount"],
+    assert_equal expected, [ row["m0_addon_amount"], row["m1_addon_amount"],
       row["m2_addon_amount"] ].map { |v| v.to_f.round(2) }
-    assert_in_delta esperado.sum, row["addon_amount"].to_f, 0.001,
+    assert_in_delta expected.sum, row["addon_amount"].to_f, 0.001,
       "a soma das parcelas fecha no total da janela"
   end
 
@@ -144,11 +144,11 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     refresh_audit_views
 
     row = view_row("50000003")
-    faixa = SubChannelCompensationRules.accreditation_bracket_value(55_000, with_auto: false)
+    band = SubChannelCompensationRules.accreditation_bracket_value(55_000, with_auto: false)
 
-    assert_equal [ 0.0, 0.0, faixa.to_f ], [ row["m0_addon_amount"], row["m1_addon_amount"],
+    assert_equal [ 0.0, 0.0, band.to_f ], [ row["m0_addon_amount"], row["m1_addon_amount"],
       row["m2_addon_amount"] ].map { |v| v.to_f.round(2) }
-    assert_in_delta faixa, row["addon_amount"].to_f, 0.001
+    assert_in_delta band, row["addon_amount"].to_f, 0.001
   end
 
   # O invariante que autoriza trocar o total pelo detalhe: a soma das três parcelas é o total,
@@ -190,20 +190,20 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
 
     # M0 = julho: entra o EC credenciado em julho, e a janela dele é jul/ago/set.
     july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
-    rows = ThreeMonthEarningsQuery.new(periods: july, scope: escopo_da_organizacao).by_establishment(sub_channel_id: sub_channel.id)
+    rows = ThreeMonthEarningsQuery.new(periods: july, scope: organization_scope).by_establishment(sub_channel_id: sub_channel.id)
     assert_equal [ "50000001" ], rows.map { |row| row[:ec] }
     assert_equal 2, rows.sole[:accreditation]["months_observed"]
 
     # M0 = junho: o EC de julho não pertence a este mês de credenciamento, ainda que
     # julho apareça na janela de junho — é o M0 que define a pertinência, não a janela.
     june = [ Date.new(2026, 6, 1), Date.new(2026, 7, 1), Date.new(2026, 8, 1) ]
-    assert_empty ThreeMonthEarningsQuery.new(periods: june, scope: escopo_da_organizacao).by_establishment(sub_channel_id: sub_channel.id)
+    assert_empty ThreeMonthEarningsQuery.new(periods: june, scope: organization_scope).by_establishment(sub_channel_id: sub_channel.id)
   end
 
   test "sem volume mensal importado a consulta responde vazia, sem erro" do
     ApplicationRecord.connection.execute("DELETE FROM monthly_volumes_consolidated")
-    assert_equal [], ThreeMonthEarningsQuery.new(periods: PERIODS, scope: escopo_da_organizacao).by_sub_channel
-    assert_equal [], ThreeMonthEarningsQuery.available_periods(scope: escopo_da_organizacao)
+    assert_equal [], ThreeMonthEarningsQuery.new(periods: PERIODS, scope: organization_scope).by_sub_channel
+    assert_equal [], ThreeMonthEarningsQuery.available_periods(scope: organization_scope)
   end
 
   test "o nível 1 fica em cache por janela até a próxima consolidação" do
@@ -217,12 +217,12 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     assert_equal reports, assert_queries_count(1) { @query.by_sub_channel }
     other_window = [ Date.new(2026, 5, 1), Date.new(2026, 6, 1), Date.new(2026, 7, 1) ]
     assert_queries_match(/monthly_volumes_consolidated/) do
-      ThreeMonthEarningsQuery.new(periods: other_window, scope: escopo_da_organizacao).by_sub_channel
+      ThreeMonthEarningsQuery.new(periods: other_window, scope: organization_scope).by_sub_channel
     end
 
-    @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
-    import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
-    assert_queries_match(/monthly_volumes_consolidated/) { ThreeMonthEarningsQuery.new(periods: PERIODS, scope: escopo_da_organizacao).by_sub_channel }
+    @stores.first.current_days = @stores.first.current_days.merge(1 => 999)
+    import_synthetic_workbook(stores: @stores, filename: "BIN_TESTE_20260818.xlsx")
+    assert_queries_match(/monthly_volumes_consolidated/) { ThreeMonthEarningsQuery.new(periods: PERIODS, scope: organization_scope).by_sub_channel }
   ensure
     Rails.cache = original_store
   end
@@ -234,17 +234,17 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
     sub_channel = SubChannel.find_by!(name: "MIC GAMA")
     july = [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ]
-    query = ThreeMonthEarningsQuery.new(periods: july, scope: escopo_da_organizacao)
+    query = ThreeMonthEarningsQuery.new(periods: july, scope: organization_scope)
     rows = query.by_establishment(sub_channel_id: sub_channel.id)
 
     assert_equal rows, assert_queries_count(1) { query.by_establishment(sub_channel_id: sub_channel.id) }
     other = SubChannel.where.not(id: sub_channel.id).first
     assert_queries_match(/audit_accreditation_earnings/) { query.by_establishment(sub_channel_id: other.id) }
 
-    @lojas.first.dias_atual = @lojas.first.dias_atual.merge(1 => 999)
-    import_synthetic_workbook(lojas: @lojas, filename: "BIN_TESTE_20260818.xlsx")
+    @stores.first.current_days = @stores.first.current_days.merge(1 => 999)
+    import_synthetic_workbook(stores: @stores, filename: "BIN_TESTE_20260818.xlsx")
     assert_queries_match(/monthly_volumes_consolidated/) do
-      ThreeMonthEarningsQuery.new(periods: july, scope: escopo_da_organizacao).by_establishment(sub_channel_id: sub_channel.id)
+      ThreeMonthEarningsQuery.new(periods: july, scope: organization_scope).by_establishment(sub_channel_id: sub_channel.id)
     end
   ensure
     Rails.cache = original_store
@@ -259,13 +259,13 @@ class ThreeMonthEarningsTest < ActiveSupport::TestCase
   end
 
   # O laço do contrato, em Ruby: a referência contra a qual o SQL da view é conferido.
-  def marca_dagua(totais, with_auto:)
-    pago = 0
-    totais.map do |total|
-      faixa = total.nil? ? 0 : SubChannelCompensationRules.accreditation_bracket_value(total, with_auto:)
-      parcela = [ faixa - pago, 0 ].max
-      pago += parcela
-      parcela.to_f.round(2)
+  def watermark(totals, with_auto:)
+    paid = 0
+    totals.map do |total|
+      band = total.nil? ? 0 : SubChannelCompensationRules.accreditation_bracket_value(total, with_auto:)
+      installment = [ band - paid, 0 ].max
+      paid += installment
+      installment.to_f.round(2)
     end
   end
 end

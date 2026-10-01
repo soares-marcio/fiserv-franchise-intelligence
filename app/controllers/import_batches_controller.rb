@@ -27,9 +27,9 @@ class ImportBatchesController < ApplicationController
     @grants = BatchGrant.where(import_batch: @import_batch).includes(:user).order("users.name")
     # Elegíveis: quem este ator administra, ainda não tem o arquivo e tem o Master inteiro.
     # Super admin já vê tudo; quem enviou também.
-    fora = @grants.map(&:user_id) + [ Current.user.id, @import_batch.uploaded_by_id ].compact
+    excluded_ids = @grants.map(&:user_id) + [ Current.user.id, @import_batch.uploaded_by_id ].compact
     @eligible = policy_scope(User).active.where(platform_admin: false, organization_admin: false)
-      .where.not(id: fora).order(:name)
+      .where.not(id: excluded_ids).order(:name)
       .select { |candidate| AccessScope.for(candidate).whole?(@import_batch.channel_id) }
   end
 
@@ -109,15 +109,15 @@ class ImportBatchesController < ApplicationController
   end
 
   def upload_rejection(upload)
-    extensao = File.extname(upload.original_filename.to_s)
-    unless extensao.casecmp(".xlsx").zero?
-      return "O arquivo precisa ser .xlsx e este é #{extensao.presence || 'sem extensão'}. " \
+    extension = File.extname(upload.original_filename.to_s)
+    unless extension.casecmp(".xlsx").zero?
+      return "O arquivo precisa ser .xlsx e este é #{extension.presence || 'sem extensão'}. " \
         "Se a planilha estiver em .xls ou .csv, abra no Excel e salve como .xlsx."
     end
     if upload.size > Operations::ImportFile::MAX_UPLOAD_BYTES
-      limite = Operations::ImportFile::MAX_UPLOAD_BYTES / 1.megabyte
+      limit_in_megabytes = Operations::ImportFile::MAX_UPLOAD_BYTES / 1.megabyte
       return "O arquivo tem #{ActiveSupport::NumberHelper.number_to_human_size(upload.size)} " \
-        "e o limite é #{limite} MB. " \
+        "e o limite é #{limit_in_megabytes} MB. " \
         "A planilha BIN costuma ter menos de 1 MB: confira se não foi enviado outro arquivo."
     end
 

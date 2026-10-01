@@ -34,16 +34,16 @@ class ThreeMonthEarningsExporter
 
   # A janela precisa estar escrita: M0/M1/M2 sem os meses não dizem de quando é o arquivo.
   def note
-    janela = Array(@window).map { |period| I18n.l(period, format: "%m/%Y") }.join(" · ")
-    "Prêmio de entrada e faturamento da janela #{janela} · #{@channel_name || 'todos os Masters'}"
+    window_label = Array(@window).map { |period| I18n.l(period, format: "%m/%Y") }.join(" · ")
+    "Prêmio de entrada e faturamento da janela #{window_label} · #{@channel_name || 'todos os Masters'}"
   end
 
   def export_row(report)
     prize = report[:prize]
-    digitalizacao = prize[:digitalization].to_d
+    digitalization = prize[:digitalization].to_d
     [
-      report[:name], prize[:accredited].to_i, digitalizacao,
-      prize[:addon_amount].to_d, digitalizacao + prize[:addon_amount].to_d,
+      report[:name], prize[:accredited].to_i, digitalization,
+      prize[:addon_amount].to_d, digitalization + prize[:addon_amount].to_d,
       prize[:undefined_modality].to_i,
       prize[:addon_without_auto].to_d, prize[:addon_with_auto].to_d,
       *report[:months].flat_map { |month| month_cells(month) }

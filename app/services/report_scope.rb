@@ -364,8 +364,8 @@ class ReportScope
 
     # As views de auditoria trazem sub_channel_id (menos a semanal, que é agregada por
     # canal): o recorte por MIC é uma coluna, sem precisar do CTE de estabelecimentos.
-    predicado = view_has_sub_channel?(table) ? sub_channel_predicate : channel_predicate
-    sql = ApplicationRecord.sanitize_sql_array([ "SELECT * FROM #{table} WHERE #{predicado}", scope_binds ])
+    predicate = view_has_sub_channel?(table) ? sub_channel_predicate : channel_predicate
+    sql = ApplicationRecord.sanitize_sql_array([ "SELECT * FROM #{table} WHERE #{predicate}", scope_binds ])
     sql += " ORDER BY #{order_by}" if order_by
     ApplicationRecord.connection.exec_query(sql).to_a
   end

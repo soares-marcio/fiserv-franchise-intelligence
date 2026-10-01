@@ -35,14 +35,14 @@ module BinImport
     def self.authorize!(channel, actor)
       return if actor.nil?
 
-      escopo = AccessScope.for(actor)
+      scope = AccessScope.for(actor)
       if channel
-        return if escopo.whole?(channel.id)
+        return if scope.whole?(channel.id)
 
         raise ArgumentError, "Esta planilha é do Master \"#{channel.name}\" inteiro, que está fora " \
           "do seu acesso — um MIC dele não basta. Confira o arquivo ou peça a liberação desse Master."
       end
-      return if escopo.organization_wide?
+      return if scope.organization_wide?
 
       raise ArgumentError, "Este arquivo é de um Master que ainda não existe na sua organização. O " \
         "primeiro arquivo de um Master novo é enviado pelo administrador da organização."

@@ -11,8 +11,8 @@ class EstablishmentsController < ApplicationController
   # agrupados. A busca continua por qualquer campo de qualquer EC da empresa.
   def index
     @query = params[:q].to_s.strip
-    no_escopo = Establishment.in_scope(Current.access_scope)
-    matching = @query.present? ? no_escopo.merge(Establishment.search(@query)) : no_escopo
+    in_scope_establishments = Establishment.in_scope(Current.access_scope)
+    matching = @query.present? ? in_scope_establishments.merge(Establishment.search(@query)) : in_scope_establishments
     companies = Company.joins(:establishments).where(establishments: { id: matching.select(:id) })
     @total_count = companies.distinct.count(:id)
     @total_establishments = matching.except(:includes).distinct.count(:id)
@@ -31,8 +31,8 @@ class EstablishmentsController < ApplicationController
     @notes_by_cnpj = policy_scope(CompanyNote).where(cnpj: @companies.map(&:cnpj)).index_by(&:cnpj)
     respond_to do |format|
       format.html
-      format.csv { send_data exporter(companies).to_csv, **arquivo("csv") }
-      format.xlsx { send_data exporter(companies).to_xlsx, **arquivo("xlsx") }
+      format.csv { send_data exporter(companies).to_csv, **download_headers("csv") }
+      format.xlsx { send_data exporter(companies).to_xlsx, **download_headers("xlsx") }
     end
   end
 
@@ -87,21 +87,21 @@ class EstablishmentsController < ApplicationController
   # O arquivo é do filtro, não da página: a exportação refaz a consulta sem o recorte de
   # paginação. Exportar só a página entregaria um recorte que ninguém pediu.
   def exporter(companies)
-    todas = companies.group("companies.id").select("companies.*, MIN(establishments.ec) AS first_ec")
+    all_companies = companies.group("companies.id").select("companies.*, MIN(establishments.ec) AS first_ec")
       .order("first_ec").to_a
-    por_empresa = Establishment.where(company_id: todas.map(&:id))
+    by_company = Establishment.where(company_id: all_companies.map(&:id))
       .includes(:company, :channel, :primary_establishment, current_map_snapshot: :sub_channel)
       .order(:ec).group_by(&:company)
     # group_by devolve as instâncias carregadas aqui; a lista ordenada vem da outra consulta,
     # então as chaves precisam ser as mesmas instâncias para o fetch do exportador achá-las.
-    ordenadas = todas.map { |company| por_empresa.keys.find { |c| c.id == company.id } }.compact
-    EstablishmentsExporter.new(ordenadas, establishments_by_company: por_empresa, query: @query)
+    ordered = all_companies.map { |company| by_company.keys.find { |c| c.id == company.id } }.compact
+    EstablishmentsExporter.new(ordered, establishments_by_company: by_company, query: @query)
   end
 
-  def arquivo(extensao)
-    tipo = extensao == "csv" ? "text/csv" : Mime[:xlsx]
-    nome = @query.present? ? "estabelecimentos-#{@query.parameterize}" : "estabelecimentos"
-    { filename: "#{nome}.#{extensao}", type: tipo }
+  def download_headers(extension)
+    content_type = extension == "csv" ? "text/csv" : Mime[:xlsx]
+    basename = @query.present? ? "estabelecimentos-#{@query.parameterize}" : "estabelecimentos"
+    { filename: "#{basename}.#{extension}", type: content_type }
   end
 
   def paginate(total_count)

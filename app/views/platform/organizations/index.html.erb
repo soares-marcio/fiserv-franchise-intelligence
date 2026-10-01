@@ -17,7 +17,7 @@
     <% @organizations.each do |organization| %>
       <% admins = organization.users.select(&:organization_admin?) %>
       <% members = organization.users.reject(&:organization_admin?) %>
-      <% ultimo = organization.users.filter_map { |u| @last_access[u.id] }.max %>
+      <% latest = organization.users.filter_map { |u| @last_access[u.id] }.max %>
       <article class="organization-card surface-card flex flex-col gap-4 p-5">
         <header>
           <h2 class="text-base font-bold">
@@ -34,7 +34,7 @@
         <dl class="grid grid-cols-3 gap-2 rounded-lg bg-base-200 p-3 text-xs">
           <div><dt class="opacity-70">Administradores</dt><dd class="font-semibold tabular-nums"><%= admins.size %></dd></div>
           <div><dt class="opacity-70">Convidados</dt><dd class="font-semibold tabular-nums"><%= members.size %></dd></div>
-          <div><dt class="opacity-70">Último acesso</dt><dd class="font-semibold"><%= ultimo ? ultimo.strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
+          <div><dt class="opacity-70">Último acesso</dt><dd class="font-semibold"><%= latest ? latest.strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
         </dl>
 
         <ul class="grid gap-1 text-sm">

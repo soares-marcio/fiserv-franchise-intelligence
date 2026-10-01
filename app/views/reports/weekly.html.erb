@@ -16,13 +16,13 @@
       <% if @period %>
         <%# O arquivo sai com o recorte da tela: os mesmos parâmetros que o link carrega,
             senão o download traz um recorte diferente do que está à vista. %>
-        <% recorte = { channel_id: @selected_channel&.uuid, period: @period }.compact %>
+        <% export_params = { channel_id: @selected_channel&.uuid, period: @period }.compact %>
         <div class="export-actions relative z-10 flex flex-wrap gap-2">
           <%= link_to icon_label("download-simple", "Exportar CSV"),
-            weekly_reports_path(format: :csv, **recorte),
+            weekly_reports_path(format: :csv, **export_params),
             class: "btn btn-outline export-action" %>
           <%= link_to icon_label("download-simple", "Exportar XLSX"),
-            weekly_reports_path(format: :xlsx, **recorte),
+            weekly_reports_path(format: :xlsx, **export_params),
             class: "btn btn-neutral export-action" %>
         </div>
       <% end %>
@@ -112,8 +112,8 @@
           <thead>
             <tr>
               <th scope="col">Dias</th>
-              <% %w[Dom Seg Ter Qua Qui Sex Sáb].each do |dia| %>
-                <th scope="col" class="text-right"><%= dia %></th>
+              <% %w[Dom Seg Ter Qua Qui Sex Sáb].each do |day| %>
+                <th scope="col" class="text-right"><%= day %></th>
               <% end %>
               <th scope="col" class="text-right">Semana</th>
             </tr>
@@ -122,7 +122,7 @@
             <% @calendar.weeks.each do |week| %>
               <tr>
                 <th scope="row" class="font-normal"><%= week.label %></th>
-                <% week.cells.each_with_index do |cell, indice| %>
+                <% week.cells.each_with_index do |cell, index| %>
                   <%# A caixa é um bloco dentro da célula, e não a célula: o respiro entre os
                       dias vem do padding do <td>, senão dias vizinhos de tom parecido se
                       fundem num borrão só. %>
@@ -150,7 +150,7 @@
                         <span class="calendar-box__value tabular-nums"><%= brl(cell.revenue) %></span>
                         <%# O .table-frame recorta com overflow: clip, e nenhum z-index escapa
                             disso: o tooltip abre para dentro da tabela. %>
-                        <span class="tooltip <%= indice < 4 ? "tooltip-right" : "tooltip-left" %> calendar-box__meta tabular-nums"
+                        <span class="tooltip <%= index < 4 ? "tooltip-right" : "tooltip-left" %> calendar-box__meta tabular-nums"
                           data-tip="ECs que venderam nesse dia"><%= cell.establishments %> ECs</span>
                       <% end %>
                     </td>

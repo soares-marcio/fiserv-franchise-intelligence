@@ -105,14 +105,14 @@ class SchemaIntegrityTest < ActiveSupport::TestCase
   # O CHECK é o que impede uma permissão inventada entrar pelo console ou por um seed
   # desatualizado; o catálogo do código sozinho não alcança esses caminhos.
   test "o banco recusa permissão fora do catálogo" do
-    erro = assert_raises(ActiveRecord::StatementInvalid) do
+    error = assert_raises(ActiveRecord::StatementInvalid) do
       connection.execute(<<~SQL)
         INSERT INTO users (email_address, name, password_digest, permissions, created_at, updated_at)
         VALUES ('x@exemplo.com', 'X', 'x', ARRAY['inventada']::character varying[], now(), now())
       SQL
     end
 
-    assert_match(/users_permissions_known/, erro.message)
+    assert_match(/users_permissions_known/, error.message)
   end
 
   test "o seed cria o papel do Metabase com acesso só de leitura às views" do

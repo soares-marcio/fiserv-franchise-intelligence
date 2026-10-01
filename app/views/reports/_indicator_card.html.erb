@@ -14,20 +14,20 @@
     <p class="metric-value">
       <%= report[:risk_count] %><span class="metric-value__cents"> de <%= SubChannelIndicatorRules::INDICATORS.size %> apurados</span>
     </p>
-    <% em_risco = report[:latest].select { |_, reading| reading && reading[:verdict] == :risk } %>
+    <% at_risk = report[:latest].select { |_, reading| reading && reading[:verdict] == :risk } %>
     <p class="earnings-card__breakdown">
-      <% if em_risco.any? %>
-        <%= em_risco.map { |indicator, reading| "#{indicator_label(indicator)} (#{l(reading[:period], format: '%b/%Y')})" }.join(" · ") %>
+      <% if at_risk.any? %>
+        <%= at_risk.map { |indicator, reading| "#{indicator_label(indicator)} (#{l(reading[:period], format: '%b/%Y')})" }.join(" · ") %>
       <% else %>
         Nenhum indicador em risco no último mês fechado com leitura.
       <% end %>
     </p>
     <%# A cláusula 12.2 (xx) fala em 60 dias; com apuração mensal, dois meses fechados
         seguidos em Risco alcançam o prazo. Só aparece quando alcança. %>
-    <% alertas = report[:risk_streaks].select { |_, meses| meses >= SubChannelIndicatorRules::TERMINATION_MONTHS } %>
-    <% if alertas.any? %>
+    <% alerts = report[:risk_streaks].select { |_, months| months >= SubChannelIndicatorRules::TERMINATION_MONTHS } %>
+    <% if alerts.any? %>
       <p class="indicator-card__alert">
-        <%= alertas.map { |indicator, meses| "#{indicator_label(indicator)} em risco há #{meses} meses fechados seguidos" }.to_sentence %>
+        <%= alerts.map { |indicator, months| "#{indicator_label(indicator)} em risco há #{months} meses fechados seguidos" }.to_sentence %>
         — alcança os 60 dias da cláusula 12.2 (xx) do contrato.
       </p>
     <% end %>

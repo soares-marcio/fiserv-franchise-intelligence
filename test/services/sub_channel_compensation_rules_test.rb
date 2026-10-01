@@ -40,20 +40,20 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
   # que ele demonstra — soma da marca d'água igual à faixa do mês de pico — é o que autoriza
   # `audit_accreditation_earnings` a apurar a janela a partir do pico, sem percorrer mês a mês.
   test "gabarito oficial de credenciamento: marca d'água de três meses fecha na faixa do pico" do
-    meses = [ 18_000, 15_000, 55_000 ]
-    pago = 0
+    months = [ 18_000, 15_000, 55_000 ]
+    paid = 0
 
-    parcelas = meses.map do |revenue|
-      faixa = SubChannelCompensationRules.accreditation_bracket_value(revenue, with_auto: false)
-      diferenca = [ faixa - pago, 0 ].max
-      pago += diferenca
-      diferenca
+    installments = months.map do |revenue|
+      band = SubChannelCompensationRules.accreditation_bracket_value(revenue, with_auto: false)
+      difference = [ band - paid, 0 ].max
+      paid += difference
+      difference
     end
 
-    assert_equal [ 50, 0, 39 ], parcelas
-    assert_equal 89, pago
-    assert_equal SubChannelCompensationRules.accreditation_bracket_value(meses.max, with_auto: false),
-      pago, "a janela tem que fechar na faixa do mês de pico"
+    assert_equal [ 50, 0, 39 ], installments
+    assert_equal 89, paid
+    assert_equal SubChannelCompensationRules.accreditation_bracket_value(months.max, with_auto: false),
+      paid, "a janela tem que fechar na faixa do mês de pico"
   end
 
   # Simulação 1 do Anexo C, com antecipação automática: janeiro R$ 20.000 paga R$ 300,
@@ -61,20 +61,20 @@ class SubChannelCompensationRulesTest < ActiveSupport::TestCase
   # exercita a marca d'água nos três meses, com mudança de faixa em cada um — e o que
   # confirma a leitura literal da tabela na fronteira de R$ 20.000.
   test "gabarito oficial de credenciamento com auto/flex fecha nos três meses" do
-    meses = [ 20_000, 75_000, 250_000 ]
-    pago = 0
+    months = [ 20_000, 75_000, 250_000 ]
+    paid = 0
 
-    parcelas = meses.map do |revenue|
-      faixa = SubChannelCompensationRules.accreditation_bracket_value(revenue, with_auto: true)
-      diferenca = [ faixa - pago, 0 ].max
-      pago += diferenca
-      diferenca
+    installments = months.map do |revenue|
+      band = SubChannelCompensationRules.accreditation_bracket_value(revenue, with_auto: true)
+      difference = [ band - paid, 0 ].max
+      paid += difference
+      difference
     end
 
-    assert_equal [ 300, 490, 1_410 ], parcelas
-    assert_equal 2_200, pago
-    assert_equal SubChannelCompensationRules.accreditation_bracket_value(meses.max, with_auto: true),
-      pago, "a janela fecha na faixa do mês de pico"
+    assert_equal [ 300, 490, 1_410 ], installments
+    assert_equal 2_200, paid
+    assert_equal SubChannelCompensationRules.accreditation_bracket_value(months.max, with_auto: true),
+      paid, "a janela fecha na faixa do mês de pico"
   end
 
   test "acelerador só a partir de 20% e com a faixa superior em 100% exato" do

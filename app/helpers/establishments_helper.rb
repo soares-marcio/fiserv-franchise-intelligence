@@ -38,11 +38,11 @@ module EstablishmentsHelper
   def revenue_summary(basis, min, max)
     return "qualquer" if basis.blank?
 
-    rotulo = REVENUE_BASIS_LABELS.fetch(basis).downcase
-    teto = max || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
-    return "#{rotulo} · até #{brl_round(teto)}" unless min.to_i.positive?
+    basis_label = REVENUE_BASIS_LABELS.fetch(basis).downcase
+    ceiling = max || EstablishmentListingQuery::LOW_REVENUE_THRESHOLD
+    return "#{basis_label} · até #{brl_round(ceiling)}" unless min.to_i.positive?
 
-    "#{rotulo} · #{brl_round(min)}–#{number_with_delimiter(teto, delimiter: ".")}"
+    "#{basis_label} · #{brl_round(min)}–#{number_with_delimiter(ceiling, delimiter: ".")}"
   end
 
   # Valor redondo, sem centavos: só no resumo da pílula, onde a largura manda. O espaço não

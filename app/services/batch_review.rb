@@ -37,20 +37,20 @@ class BatchReview
   # EC que continua na carteira, mas passa a pertencer a outro MIC. Não é erro — acontece
   # de verdade —, mas muda de dono quem lê e quem recebe a remuneração, então é decisão.
   def moving
-    @moving ||= incoming.filter_map do |ec, linha|
-      anterior = current_by_ec[ec]
-      next if anterior.nil? || anterior[:sub_channel] == linha[:sub_channel]
+    @moving ||= incoming.filter_map do |ec, row|
+      previous = current_by_ec[ec]
+      next if previous.nil? || previous[:sub_channel] == row[:sub_channel]
 
-      [ ec, { from: anterior[:sub_channel], to: linha[:sub_channel], cnpj: linha[:cnpj] } ]
+      [ ec, { from: previous[:sub_channel], to: row[:sub_channel], cnpj: row[:cnpj] } ]
     end.to_h
   end
 
   # CNPJ com ECs em mais de um MIC dentro do próprio arquivo: anomalia conhecida do domínio,
   # e a tela de revisão é o lugar de mostrá-la antes, não depois.
   def split_cnpjs
-    @split_cnpjs ||= incoming.values.group_by { |linha| linha[:cnpj] }
-      .select { |_cnpj, linhas| linhas.map { |l| l[:sub_channel] }.uniq.size > 1 }
-      .transform_values { |linhas| linhas.map { |l| l[:sub_channel] }.uniq.sort }
+    @split_cnpjs ||= incoming.values.group_by { |row| row[:cnpj] }
+      .select { |_cnpj, rows| rows.map { |l| l[:sub_channel] }.uniq.size > 1 }
+      .transform_values { |rows| rows.map { |l| l[:sub_channel] }.uniq.sort }
   end
 
   def incoming_count = incoming.size
@@ -79,9 +79,9 @@ class BatchReview
     return false if current_batch&.current_period.blank?
     return false unless batch.current_period == current_batch.current_period
 
-    corte_novo = batch.current_month_cutoff_day
-    corte_atual = current_batch.current_month_cutoff_day
-    corte_novo.present? && corte_atual.present? && corte_novo >= corte_atual
+    new_cutoff = batch.current_month_cutoff_day
+    current_cutoff = current_batch.current_month_cutoff_day
+    new_cutoff.present? && current_cutoff.present? && new_cutoff >= current_cutoff
   end
 
   def current_batch
@@ -96,12 +96,12 @@ class BatchReview
   # Motivos pelos quais este lote precisa de revisão. Vazio significa que pode consolidar
   # direto, como sempre foi.
   def review_reasons(uploader:)
-    motivos = []
-    motivos << :no_approval_permission unless uploader.nil? || uploader.permitted?(Permission::BATCHES_APPROVE)
-    motivos << :removes_establishments if removes_establishments?
-    motivos << :moves_sub_channels if moving.any?
-    motivos << :revenue_drop if revenue_change && revenue_change <= -REVENUE_DROP_LIMIT
-    motivos
+    reasons = []
+    reasons << :no_approval_permission unless uploader.nil? || uploader.permitted?(Permission::BATCHES_APPROVE)
+    reasons << :removes_establishments if removes_establishments?
+    reasons << :moves_sub_channels if moving.any?
+    reasons << :revenue_drop if revenue_change && revenue_change <= -REVENUE_DROP_LIMIT
+    reasons
   end
 
   # Queda de 40% no faturamento total do Master entre dois arquivos seguidos não é oscilação

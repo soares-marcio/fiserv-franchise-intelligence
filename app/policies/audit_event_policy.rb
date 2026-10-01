@@ -14,9 +14,9 @@ class AuditEventPolicy < ApplicationPolicy
       # O delegado vê o que aconteceu nos Masters que administra, mais os eventos sem canal
       # (entrada, senha, MFA) **dos usuários que ele alcança** — e não de todo mundo, que era
       # o que um `.or(channel_id: nil)` sem filtro de usuário deixava passar.
-      alcance = UserPolicy::Scope.new(user, User).resolve.select(:id)
+      reach = UserPolicy::Scope.new(user, User).resolve.select(:id)
       base.where(channel_id: AccessScope.for(user).channel_ids)
-        .or(base.where(channel_id: nil, user_id: alcance))
+        .or(base.where(channel_id: nil, user_id: reach))
     end
   end
 end

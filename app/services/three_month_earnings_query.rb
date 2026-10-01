@@ -36,10 +36,10 @@ class ThreeMonthEarningsQuery
   # Meses com volume mensal disponível — a lista real, não a suposta: o seletor oferece
   # exatamente as competências que os arquivos importados trouxeram.
   def self.available_periods(scope:)
-    consulta = new(periods: [], scope:)
-    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, consulta.scope_binds ])
+    query = new(periods: [], scope:)
+    sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, query.scope_binds ])
       SELECT DISTINCT period FROM monthly_volumes_consolidated
-      WHERE #{consulta.channel_predicate}
+      WHERE #{query.channel_predicate}
       ORDER BY period DESC
     SQL
     ApplicationRecord.connection.exec_query(sql).rows.map { |(period)| period.to_date }

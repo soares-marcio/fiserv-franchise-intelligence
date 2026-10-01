@@ -27,9 +27,9 @@ class Establishment < ApplicationRecord
   scope :in_scope, ->(access) {
     next none if access.empty?
 
-    por_mic = joins(:current_map_snapshot)
+    by_mic = joins(:current_map_snapshot)
       .where(map_snapshots: { sub_channel_id: access.sub_channel_ids }).select(:id)
-    where(channel_id: access.full_channel_ids).or(where(id: por_mic))
+    where(channel_id: access.full_channel_ids).or(where(id: by_mic))
   }
 
   # Busca livre pelo que aparece no cadastro: EC, CNPJ, nomes, cidade, CNAE ou subcanal.

@@ -11,7 +11,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "sem permissão de ver relatório, a tela responde 403" do
-    entra_com([])
+    sign_in_with([])
 
     get reports_path
 
@@ -19,7 +19,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "com permissão de ver relatório, a tela abre" do
-    entra_com([ Permission::REPORTS_READ ])
+    sign_in_with([ Permission::REPORTS_READ ])
 
     get reports_path
 
@@ -29,7 +29,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   # Exportar leva a carteira inteira num arquivo, sem paginação: é decisão separada de ver
   # a tela, e o teste cobre as duas pontas.
   test "ver relatório não dá direito de exportar" do
-    entra_com([ Permission::REPORTS_READ ])
+    sign_in_with([ Permission::REPORTS_READ ])
 
     get recurring_reports_path(format: :csv)
 
@@ -37,7 +37,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "com a chave de exportação, o arquivo sai" do
-    entra_com([ Permission::REPORTS_READ, Permission::REPORTS_EXPORT ])
+    sign_in_with([ Permission::REPORTS_READ, Permission::REPORTS_EXPORT ])
 
     get recurring_reports_path(format: :csv)
 
@@ -46,7 +46,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "estabelecimentos e busca dependem da mesma chave" do
-    entra_com([ Permission::REPORTS_READ ])
+    sign_in_with([ Permission::REPORTS_READ ])
 
     get establishments_path
     assert_response :forbidden
@@ -54,7 +54,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     get search_path(q: "alfa")
     assert_response :forbidden
 
-    entra_com([ Permission::ESTABLISHMENTS_READ ], email: "outro@exemplo.com")
+    sign_in_with([ Permission::ESTABLISHMENTS_READ ], email: "outro@exemplo.com")
 
     get establishments_path
     assert_response :success
@@ -64,7 +64,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "a tela do Metabase está fechada para todos, com ou sem a chave" do
-    entra_com([ Permission::REPORTS_READ, Permission::METABASE_READ ])
+    sign_in_with([ Permission::REPORTS_READ, Permission::METABASE_READ ])
 
     get metabase_path
 
@@ -74,8 +74,8 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   # O lote é do próprio ator: assim o que se mede aqui é a falta da chave, e não a falta de
   # alcance — lote de terceiro responde 404, e isso é assunto do teste de acesso a lotes.
   test "ver lotes não dá direito de enviar, ajustar nem descartar" do
-    ator = entra_com([ Permission::BATCHES_READ ])
-    @batch.update!(uploaded_by: ator)
+    actor = sign_in_with([ Permission::BATCHES_READ ])
+    @batch.update!(uploaded_by: actor)
 
     get import_batches_path
     assert_response :success
@@ -96,17 +96,17 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "descartar exige a chave de descarte, que é separada de ajustar" do
-    ator = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_ADJUST ])
-    @batch.update!(uploaded_by: ator)
+    actor = sign_in_with([ Permission::BATCHES_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_ADJUST ])
+    @batch.update!(uploaded_by: actor)
 
     assert_no_difference -> { ImportBatch.count } do
       delete import_batch_path(@batch)
     end
     assert_response :forbidden
 
-    outro = entra_com([ Permission::BATCHES_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
+    another = sign_in_with([ Permission::BATCHES_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
       email: "descarta@exemplo.com")
-    @batch.update!(uploaded_by: outro)
+    @batch.update!(uploaded_by: another)
 
     assert_difference -> { ImportBatch.count }, -1 do
       delete import_batch_path(@batch)
@@ -116,11 +116,11 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   test "anotação: ler e escrever são chaves diferentes" do
     # O cliente precisa existir na carteira do ator: desde o recorte por escopo, anotação de
     # empresa sem EC alcançável responde 404 — e é outro assunto, testado à parte.
-    canal = Channel.create!(organization: default_organization, external_id: "5555", name: "MASTER DA ANOTACAO")
+    channel = Channel.create!(organization: default_organization, external_id: "5555", name: "MASTER DA ANOTACAO")
     company = Company.create!(cnpj: "11222333000181")
-    Establishment.create!(ec: "55000001", company:, channel: canal)
+    Establishment.create!(ec: "55000001", company:, channel: channel)
 
-    entra_com([ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: canal)
+    sign_in_with([ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: channel)
 
     get edit_company_note_path(company)
     assert_response :success
@@ -128,15 +128,15 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
     patch company_note_path(company), params: { body: "<div>Oi</div>" }
     assert_response :forbidden
 
-    entra_com([ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ, Permission::NOTES_WRITE ], email: "escreve@exemplo.com",
-      channel: canal)
+    sign_in_with([ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ, Permission::NOTES_WRITE ], email: "escreve@exemplo.com",
+      channel: channel)
 
     patch company_note_path(company), params: { body: "<div>Oi</div>" }
     assert_response :redirect
   end
 
   test "administrador da organização não precisa de chave marcada" do
-    entra_com([], organization_admin: true)
+    sign_in_with([], organization_admin: true)
 
     get reports_path
     assert_response :success
@@ -148,13 +148,13 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   # A conta da plataforma cria organizações e não vê dado: nenhuma chave, nenhuma tela de
   # dado — nem com o escopo forjado por console.
   test "a plataforma não abre tela de dado nenhuma" do
-    entra_com([], platform_admin: true)
+    sign_in_with([], platform_admin: true)
 
     [ stalled_reports_path, weekly_reports_path, three_months_reports_path,
       recurring_reports_path, indicators_reports_path, establishments_path, search_path(q: "x"),
-      import_batches_path, metabase_path, users_path ].each do |tela|
-      get tela
-      assert_response :forbidden, tela
+      import_batches_path, metabase_path, users_path ].each do |screen|
+      get screen
+      assert_response :forbidden, screen
     end
     # A raiz é o relatório de faturamento; a plataforma é levada à tela dela antes de 403.
     get reports_path
@@ -164,7 +164,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   # O menu é a primeira coisa que o usuário vê: mostrar link para tela que responde 403
   # revela o que existe a quem não pode abrir.
   test "o menu mostra só o que o ator pode abrir" do
-    entra_com([ Permission::REPORTS_READ ])
+    sign_in_with([ Permission::REPORTS_READ ])
 
     get reports_path
 
@@ -178,7 +178,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
 
   private
 
-  def entra_com(permissions, email: "ator@exemplo.com", platform_admin: false, organization_admin: false, channel: nil)
+  def sign_in_with(permissions, email: "ator@exemplo.com", platform_admin: false, organization_admin: false, channel: nil)
     sign_out if Current.session
     user = create_user(email:, permissions:, platform_admin:, organization_admin:)
     user.access_grants.create!(channel:) if channel

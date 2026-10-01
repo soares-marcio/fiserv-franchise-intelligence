@@ -20,7 +20,7 @@ class UsersController < ApplicationController
     # A senha provisória é de quem convidou entregar pessoalmente — não há e-mail configurado
     # no portal, e mandá-la por outro canal é decisão de quem convida, não do sistema. Ela
     # fica na listagem até a pessoa trocá-la; o flash some em segundos.
-    flash[:notice] = "Usuário criado. Senha provisória: #{@senha_provisoria} — fica na listagem até a troca."
+    flash[:notice] = "Usuário criado. Senha provisória: #{@provisional_password} — fica na listagem até a troca."
     redirect_to users_path
   rescue ActiveRecord::RecordInvalid => error
     @user = error.record
@@ -112,22 +112,22 @@ class UsersController < ApplicationController
   # O convite oferece só o que o convidante tem: a tela espelha a policy, e a policy é quem
   # decide — parâmetro forjado cai na regra do SaveUser.
   def load_options
-    escopo = Current.access_scope
-    @channels = Channel.where(id: escopo.channel_ids).order(:name)
+    scope = Current.access_scope
+    @channels = Channel.where(id: scope.channel_ids).order(:name)
     @sub_channels = SubChannel.where(channel_id: @channels.select(:id)).order(:name)
-    @permissions = Permission::KEYS.select { |chave| Current.user.permitted?(chave) }
+    @permissions = Permission::KEYS.select { |key| Current.user.permitted?(key) }
   end
 
   def user_attributes
     # Os papéis de administração não passam por aqui: a plataforma nasce do seed e o
     # administrador da organização, da própria plataforma. Parâmetro forjado é ignorado.
-    dados = params.require(:user).permit(:name, :email_address)
-    return dados if action_name == "update"
+    attributes_hash = params.require(:user).permit(:name, :email_address)
+    return attributes_hash if action_name == "update"
 
     # Senha provisória gerada pelo sistema: quem convida não escolhe a senha de outra
     # pessoa, e a troca é obrigatória no primeiro acesso.
-    @senha_provisoria = SecureRandom.alphanumeric(14)
-    dados.merge(password: @senha_provisoria, provisional_password: @senha_provisoria)
+    @provisional_password = SecureRandom.alphanumeric(14)
+    attributes_hash.merge(password: @provisional_password, provisional_password: @provisional_password)
   end
 
   # O formulário manda uma entrada por caixa marcada, com chaves arbitrárias: o que importa
@@ -139,8 +139,8 @@ class UsersController < ApplicationController
     grants = params[:grants]
     return [] if grants.blank?
 
-    grants.keys.filter_map do |chave|
-      grant = grants.require(chave).permit(:channel_id, :sub_channel_id)
+    grants.keys.filter_map do |key|
+      grant = grants.require(key).permit(:channel_id, :sub_channel_id)
       if grant[:sub_channel_id].present?
         mic = SubChannel.find_by(id: grant[:sub_channel_id])
         { channel_id: mic.channel_id, sub_channel_id: mic.id } if mic

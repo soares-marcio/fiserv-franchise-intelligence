@@ -13,19 +13,19 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
   CNPJ_PARADA = "77.888.999/0001-44".freeze
 
   setup do
-    terceiro_ec = BinWorkbook::Loja.new(
+    third_ec = BinWorkbook::Store.new(
       ec: "90000002", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
       legal_name: "ALFA COMERCIO DE ALIMENTOS LTDA", trade_name: "ALFA LANCHES",
-      contract_status: "Active", dias_m1: { 1 => 5 }, dias_atual: { 1 => 40 },
-      melhor_conversa: "Verificar outras máquinas > Revisar MDR", proposta: false
+      contract_status: "Active", previous_days: { 1 => 5 }, current_days: { 1 => 40 },
+      best_conversation: "Verificar outras máquinas > Revisar MDR", proposal: false
     )
-    em_queda = BinWorkbook::Loja.new(
+    falling = BinWorkbook::Store.new(
       ec: "30000009", cnpj: "77888999000144", sub_channel_name: "MIC ALFA",
       legal_name: "ALFA PARADA LTDA", trade_name: "ALFA PARADA",
-      contract_status: "Active", dias_m1: { 1 => 500 }, dias_atual: {},
-      melhor_conversa: nil, proposta: false
+      contract_status: "Active", previous_days: { 1 => 500 }, current_days: {},
+      best_conversation: nil, proposal: false
     )
-    import_synthetic_workbook(lojas: BinWorkbook.default_lojas + [ terceiro_ec, em_queda ])
+    import_synthetic_workbook(stores: BinWorkbook.default_stores + [ third_ec, falling ])
     refresh_audit_views
     @sub_channel = SubChannel.find_by!(name: "MIC ALFA")
   end
@@ -33,7 +33,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
   test "o percentual da variação permanece ao lado do ícone" do
     visit sub_channel_report_path(@sub_channel)
 
-    medida = page.evaluate_script(<<~JS)
+    measure = page.evaluate_script(<<~JS)
       (() => {
         const valor = document.querySelector(".establishment-revenue-table .variation-chip__value")
         const estilo = getComputedStyle(valor)
@@ -47,9 +47,9 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
       })()
     JS
 
-    assert_operator medida["linhas"], :<=, 1.2, "o percentual não pode quebrar em várias linhas"
-    assert medida["cabe"], "o percentual precisa caber na própria caixa"
-    assert medida["horizontal"], "o percentual não pode ficar empilhado na vertical"
+    assert_operator measure["linhas"], :<=, 1.2, "o percentual não pode quebrar em várias linhas"
+    assert measure["cabe"], "o percentual precisa caber na própria caixa"
+    assert measure["horizontal"], "o percentual não pode ficar empilhado na vertical"
   end
 
   test "trocar de aba posiciona a barra no início da área útil" do
@@ -242,7 +242,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     assert_selector "dialog.daily-modal tbody th", text: "01"
     page.driver.browser.manage.window.resize_to(1400, 620)
 
-    medida = page.evaluate_script(<<~JS)
+    measure = page.evaluate_script(<<~JS)
       (() => {
         const dialogo = document.querySelector("dialog.daily-modal[open]")
         const scroll = dialogo.querySelector(".table-scroll")
@@ -263,13 +263,13 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
       })()
     JS
 
-    assert medida["quem_rola_tabela"], "quem rola tem que ser a tabela do modal"
-    refute medida["quem_rola_dialogo"], "o diálogo inteiro não pode rolar: o cabeçalho iria junto"
-    assert_operator medida["rolou"], :>, 0, "sem rolagem o teste passaria por vacuidade"
-    assert_operator medida["linha_subiu"], :>, 100, "as linhas precisam ter subido de verdade"
-    assert_equal "sticky", medida["posicao"]
-    assert_operator medida["th_parado"], :<, 2, "o cabeçalho não pode acompanhar as linhas"
-    assert_operator medida["desalinho"], :<, 2, "e tem que ficar colado no topo do scroll"
+    assert measure["quem_rola_tabela"], "quem rola tem que ser a tabela do modal"
+    refute measure["quem_rola_dialogo"], "o diálogo inteiro não pode rolar: o cabeçalho iria junto"
+    assert_operator measure["rolou"], :>, 0, "sem rolagem o teste passaria por vacuidade"
+    assert_operator measure["linha_subiu"], :>, 100, "as linhas precisam ter subido de verdade"
+    assert_equal "sticky", measure["posicao"]
+    assert_operator measure["th_parado"], :<, 2, "o cabeçalho não pode acompanhar as linhas"
+    assert_operator measure["desalinho"], :<, 2, "e tem que ficar colado no topo do scroll"
   ensure
     page.driver.browser.manage.window.resize_to(1400, 1000)
   end
@@ -282,7 +282,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     visit sub_channel_report_path(@sub_channel)
 
     assert_no_selector "dialog[open]"
-    abrir_acoes(CNPJ_ALFA).find("button.conversation-trigger").click
+    open_actions(CNPJ_ALFA).find("button.conversation-trigger").click
 
     # O modal se identifica pelo mesmo nome da célula do estabelecimento: o fantasia.
     assert_selector "dialog[open] h3.table-title", text: "ALFA LANCHES"
@@ -307,9 +307,9 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
   test "sem melhor conversa no Mapa o botão vem desabilitado" do
     visit sub_channel_report_path(@sub_channel)
 
-    botao = abrir_acoes(CNPJ_PARADA).find("button.conversation-trigger")
+    button = open_actions(CNPJ_PARADA).find("button.conversation-trigger")
 
-    assert botao.disabled?, "o botão da linha sem conversa precisa vir desabilitado"
+    assert button.disabled?, "o botão da linha sem conversa precisa vir desabilitado"
   end
 
   # O menu de ações abre para fora da tabela, e a tabela o recortava: `.table-scroll` tem
@@ -331,7 +331,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     # do `[open]` pega o painel ainda `absolute`, e o teste falha por corrida, não por defeito.
     assert_selector ".actions-menu[open] .actions-menu__list[style*='fixed']"
 
-    medida = page.evaluate_script(<<~JS)
+    measure = page.evaluate_script(<<~JS)
       (() => {
         const lista = document.querySelector(".actions-menu[open] .actions-menu__list")
         const gatilho = lista.closest(".actions-menu").querySelector("summary")
@@ -348,12 +348,12 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
       })()
     JS
 
-    assert_equal "fixed", medida["posicao"], "o painel precisa escapar do recorte da tabela"
-    assert_operator medida["desalinho"], :<=, 2, "o painel fica alinhado à direita do gatilho"
+    assert_equal "fixed", measure["posicao"], "o painel precisa escapar do recorte da tabela"
+    assert_operator measure["desalinho"], :<=, 2, "o painel fica alinhado à direita do gatilho"
     # Abre para baixo; sem espaço até o fim da janela, abre para cima. As duas contam.
-    assert_operator medida["distanciaDoGatilho"], :<=, 12, "e colado a ele"
-    assert medida["rodapeVisivel"], "o rodapé do painel precisa estar à vista, não atrás da tabela"
-    assert medida["naJanela"], "o painel precisa caber na janela"
+    assert_operator measure["distanciaDoGatilho"], :<=, 12, "e colado a ele"
+    assert measure["rodapeVisivel"], "o rodapé do painel precisa estar à vista, não atrás da tabela"
+    assert measure["naJanela"], "o painel precisa caber na janela"
   end
 
   # No hover, a célula de variação assume a cor da própria variação — verde para alta,
@@ -362,9 +362,9 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
   test "a coluna de variação muda de cor no hover conforme a variação" do
     visit sub_channel_report_path(@sub_channel)
 
-    fundo = lambda do |cnpj|
-      linha = find("tr.daily-row", text: cnpj)
-      page.driver.browser.action.move_to(linha.native).perform
+    background = lambda do |cnpj|
+      row = find("tr.daily-row", text: cnpj)
+      page.driver.browser.action.move_to(row.native).perform
       page.evaluate_script(<<~JS)
         (() => {
           const linha = [...document.querySelectorAll("tr.daily-row")]
@@ -374,10 +374,10 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
       JS
     end
 
-    alta = fundo.call(CNPJ_ALFA)
-    queda = fundo.call(CNPJ_PARADA)
+    high = background.call(CNPJ_ALFA)
+    drop = background.call(CNPJ_PARADA)
 
-    assert_not_equal alta, queda, "alta e queda precisam ter fundos diferentes no hover"
+    assert_not_equal high, drop, "alta e queda precisam ter fundos diferentes no hover"
   end
 
   # As duas alças do faturamento são dois inputs nativos empilhados — não existe range de duas
@@ -404,7 +404,7 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
       "o campo escondido leva o valor em reais, e é ele que o formulário envia"
     # A faixa acesa acompanha a posição da alça no trilho, e não o valor: a décima parada de
     # 48 fica a 21% dele, embora R$ 10.000 sejam 1% da escala em dinheiro.
-    assert_in_delta 20.8, faixa["left"].to_f, 0.1
+    assert_in_delta 20.8, band["left"].to_f, 0.1
 
     # O piso para no teto em vez de passar por ele.
     mover("max_revenue_slider", 20)
@@ -416,9 +416,9 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
 
     # Juntas no topo da escala, a alça de cima tem que ser a que ainda tem para onde ir: o
     # teto já não sobe, então quem recebe o clique é o piso. Sem isso o controle trava.
-    ultima = find("#max_revenue_slider", visible: :all)[:max]
-    mover("max_revenue_slider", ultima)
-    mover("min_revenue_slider", ultima)
+    last_one = find("#max_revenue_slider", visible: :all)[:max]
+    mover("max_revenue_slider", last_one)
+    mover("min_revenue_slider", last_one)
 
     assert_operator z_index("min_revenue_slider"), :>, z_index("max_revenue_slider"),
       "no topo da escala o piso fica por cima, senão não há como voltar"
@@ -435,24 +435,24 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
 
   # As ações da linha ficam num menu fechado; devolve a linha com ele aberto. A linha é
   # localizada pelo CNPJ, que é a identidade dela desde que a listagem agrupa por cliente.
-  def abrir_acoes(cnpj)
-    linha = find("tr.daily-row", text: cnpj)
-    linha.find("summary.actions-menu__trigger").click
-    linha
+  def open_actions(cnpj)
+    row = find("tr.daily-row", text: cnpj)
+    row.find("summary.actions-menu__trigger").click
+    row
   end
 
   # A alça é input[type=range]: arrastar por pixel é frágil, e o que interessa é o que o
   # controller faz quando o valor muda. O evento vai à mão porque set() não o dispara.
-  def mover(id, valor)
+  def mover(id, value)
     page.execute_script(<<~JS, find("##{id}", visible: :all))
-      arguments[0].value = #{valor}
+      arguments[0].value = #{value}
       arguments[0].dispatchEvent(new Event("input", { bubbles: true }))
     JS
   end
 
-  def faixa
-    estilo = find("[data-revenue-filter-target=band]", visible: :all)[:style].to_s
-    estilo.scan(/([\w-]+):\s*([^;]+)/).to_h { |chave, valor| [ chave, valor.strip ] }
+  def band
+    style = find("[data-revenue-filter-target=band]", visible: :all)[:style].to_s
+    style.scan(/([\w-]+):\s*([^;]+)/).to_h { |key, value| [ key, value.strip ] }
   end
 
   def click_variation_tab(label)

@@ -259,15 +259,15 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   # inteiro no title. Sem limite, ela esticava a coluna e empurrava o botão de descartar para
   # fora da área visível.
   test "a linha da tabela traz a mensagem limitada, com o texto inteiro no title" do
-    inteiro = "A aba \"Mapa de Clientes BIN\" está sem a coluna \"REPORT_ID\". " \
+    whole = "A aba \"Mapa de Clientes BIN\" está sem a coluna \"REPORT_ID\". " \
       "No lugar apareceu \"ELEGIBILIDADE\"."
     ImportBatch.create!(organization: default_organization, source_filename: "quebrado.xlsx", file_checksum: "checksum-quebrado",
-      status: "failed", validation_errors: [ inteiro ])
+      status: "failed", validation_errors: [ whole ])
 
     get import_batches_path
 
     assert_response :success
-    assert_select "tbody p.import-error[title=?]", inteiro, text: /REPORT_ID/
+    assert_select "tbody p.import-error[title=?]", whole, text: /REPORT_ID/
     assert_select "tbody td .btn", text: /Descartar/
   end
 
@@ -286,15 +286,15 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "mostra há quantos dias não chega arquivo e alerta a partir de 12" do
-    recente = import_synthetic_workbook
-    recente.update_column(:created_at, 3.days.ago)
+    recent = import_synthetic_workbook
+    recent.update_column(:created_at, 3.days.ago)
 
     get import_batches_path
     assert_select ".metric-value", text: "há 3 dias"
     assert_select ".metric-card[data-tone=?]", "green"
     assert_not ImportBatch.stale?(organization: default_organization)
 
-    recente.update_column(:created_at, ImportBatch::STALE_AFTER_DAYS.days.ago)
+    recent.update_column(:created_at, ImportBatch::STALE_AFTER_DAYS.days.ago)
 
     get import_batches_path
     assert_select ".metric-value", text: "há #{ImportBatch::STALE_AFTER_DAYS} dias"

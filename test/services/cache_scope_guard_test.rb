@@ -6,22 +6,22 @@ require "test_helper"
 # um Rails.cache.fetch sem `cache_key` por perto quebra aqui, não em produção.
 class CacheScopeGuardTest < ActiveSupport::TestCase
   test "todo Rails.cache.fetch do app leva o cache_key do escopo na chave" do
-    sem_escopo = Dir[Rails.root.join("app/**/*.rb")].flat_map do |arquivo|
-      linhas = File.readlines(arquivo)
-      linhas.each_index.filter_map do |i|
-        next unless linhas[i].include?("Rails.cache.fetch")
+    without_scope = Dir[Rails.root.join("app/**/*.rb")].flat_map do |file|
+      rows = File.readlines(file)
+      rows.each_index.filter_map do |i|
+        next unless rows[i].include?("Rails.cache.fetch")
         # A chave pode ser montada nas linhas logo acima (`key = [...]`).
-        trecho = linhas[[ i - 3, 0 ].max..i].join
-        "#{arquivo.delete_prefix(Rails.root.to_s + '/')}:#{i + 1}" unless trecho.include?("cache_key")
+        excerpt = rows[[ i - 3, 0 ].max..i].join
+        "#{file.delete_prefix(Rails.root.to_s + '/')}:#{i + 1}" unless excerpt.include?("cache_key")
       end
     end
 
-    assert_empty sem_escopo, "chave de cache sem o escopo em: #{sem_escopo.join(', ')}"
+    assert_empty without_scope, "chave de cache sem o escopo em: #{without_scope.join(', ')}"
   end
 
   test "o guarda encontra os usos de cache que existem" do
-    usos = Dir[Rails.root.join("app/**/*.rb")].sum { |arquivo| File.read(arquivo).scan("Rails.cache.fetch").size }
+    usages = Dir[Rails.root.join("app/**/*.rb")].sum { |file| File.read(file).scan("Rails.cache.fetch").size }
 
-    assert_operator usos, :>=, 4, "o guarda não está lendo os serviços"
+    assert_operator usages, :>=, 4, "o guarda não está lendo os serviços"
   end
 end

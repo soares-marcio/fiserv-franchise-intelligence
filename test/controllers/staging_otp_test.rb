@@ -26,12 +26,12 @@ class StagingOtpTest < ActionDispatch::IntegrationTest
 
   test "em homologação, o cadastro do segundo fator mostra o código do segredo recém-gerado" do
     ENV["APP_ENVIRONMENT"] = "staging"
-    novato = create_user(email: "novato@exemplo.com", otp_secret: nil, mfa_enabled_at: nil)
-    post session_path, params: { email_address: novato.email_address, password: Accounts::PASSWORD }
+    newcomer = create_user(email: "novato@exemplo.com", otp_secret: nil, mfa_enabled_at: nil)
+    post session_path, params: { email_address: newcomer.email_address, password: Accounts::PASSWORD }
 
     get mfa_enrollment_path
 
-    assert_select "[data-testid=staging-otp]", text: current_otp(novato.reload)
+    assert_select "[data-testid=staging-otp]", text: current_otp(newcomer.reload)
   end
 
   test "fora da homologação, nenhuma das duas telas mostra código" do
@@ -42,8 +42,8 @@ class StagingOtpTest < ActionDispatch::IntegrationTest
     assert_select "[data-testid=staging-otp]", count: 0
     assert_no_match current_otp(@user), response.body
 
-    novato = create_user(email: "novato@exemplo.com", otp_secret: nil, mfa_enabled_at: nil)
-    post session_path, params: { email_address: novato.email_address, password: Accounts::PASSWORD }
+    newcomer = create_user(email: "novato@exemplo.com", otp_secret: nil, mfa_enabled_at: nil)
+    post session_path, params: { email_address: newcomer.email_address, password: Accounts::PASSWORD }
     get mfa_enrollment_path
     assert_select "[data-testid=staging-otp]", count: 0
   end

@@ -74,8 +74,8 @@ class AccessScope
     if full_channel_ids.include?(channel.id)
       derived(full_channel_ids: [ channel.id ])
     else
-      permitidos = SubChannel.where(id: sub_channel_ids, channel_id: channel.id).pluck(:id)
-      derived(sub_channel_ids: permitidos)
+      allowed_ids = SubChannel.where(id: sub_channel_ids, channel_id: channel.id).pluck(:id)
+      derived(sub_channel_ids: allowed_ids)
     end
   end
 
@@ -100,8 +100,8 @@ class AccessScope
   end
 
   def narrow_to_sub_channel(sub_channel)
-    permitido = full_channel_ids.include?(sub_channel.channel_id) || sub_channel_ids.include?(sub_channel.id)
-    return derived unless permitido
+    allowed = full_channel_ids.include?(sub_channel.channel_id) || sub_channel_ids.include?(sub_channel.id)
+    return derived unless allowed
 
     derived(sub_channel_ids: [ sub_channel.id ])
   end

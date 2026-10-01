@@ -11,13 +11,13 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
   CNPJ = "11222333000181".freeze
 
   test "a imagem anexada fica presa à anotação e volta como img, sem pedir variante" do
-    blob = anexo_png
-    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(blob))
+    blob = png_attachment
+    note = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: body_with(blob))
 
-    assert_equal 1, nota.body.body.attachments.size
-    assert_equal blob, nota.body.body.attachments.first.attachable
+    assert_equal 1, note.body.body.attachments.size
+    assert_equal blob, note.body.body.attachments.first.attachable
 
-    html = nota.body.to_s
+    html = note.body.to_s
     assert_match(/<img/, html)
     assert_match(/figure class="attachment attachment--preview/, html)
     # A prova de que o partial não pede variante: uma URL de representação apareceria aqui, e
@@ -30,9 +30,9 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
     blob = ActiveStorage::Blob.create_and_upload!(
       io: StringIO.new("%PDF-1.4\n"), filename: "proposta.pdf", content_type: "application/pdf"
     )
-    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(blob))
+    note = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: body_with(blob))
 
-    html = nota.body.to_s
+    html = note.body.to_s
     assert_no_match(/<img/, html)
     assert_match(/proposta\.pdf/, html)
   end
@@ -40,7 +40,7 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
   # Apagar a anotação leva os anexos junto: sem isso, o arquivo ficaria no disco sem nada que
   # aponte para ele, e a purga de órfãos só varre blob sem attachment nenhum.
   test "apagar a anotação leva o anexo junto" do
-    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(anexo_png))
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: body_with(png_attachment))
 
     assert_difference -> { ActiveStorage::Attachment.count }, -1 do
       Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: "<div><br></div>")
@@ -50,36 +50,36 @@ class Operations::CompanyNoteAttachmentTest < ActiveSupport::TestCase
   # Um anexo sozinho, sem uma palavra escrita, é anotação legítima — o print já diz o que
   # precisava ser dito. Não pode ser confundido com editor vazio.
   test "anexo sem texto não conta como anotação vazia" do
-    nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: corpo_com(anexo_png))
+    note = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: CNPJ, body: body_with(png_attachment))
 
-    assert_not_nil nota
+    assert_not_nil note
     assert_predicate CompanyNote.find_by(cnpj: CNPJ), :present?
   end
 
   private
 
-  def anexo_png
+  def png_attachment
     ActiveStorage::Blob.create_and_upload!(
-      io: StringIO.new(png_de_um_pixel), filename: "print.png", content_type: "image/png"
+      io: StringIO.new(one_pixel_png), filename: "print.png", content_type: "image/png"
     )
   end
 
   # O corpo que o Trix monta depois de subir o arquivo: o anexo entra por sgid, não por URL.
-  def corpo_com(blob)
-    %(<div>Print da conversa.<action-text-attachment sgid="#{blob.attachable_sgid}">) +
+  def body_with(blob)
+    %(<div>Print da conversation.<action-text-attachment sgid="#{blob.attachable_sgid}">) +
       "</action-text-attachment></div>"
   end
 
   # PNG 1×1 montado na hora, com o CRC calculado: não há imagem versionada no repositório, e
   # bytes copiados à mão dariam um arquivo inválido.
-  def png_de_um_pixel
-    cabecalho = [ 1, 1, 8, 6, 0, 0, 0 ].pack("NNC5")
+  def one_pixel_png
+    header = [ 1, 1, 8, 6, 0, 0, 0 ].pack("NNC5")
     pixel = Zlib::Deflate.deflate("\x00\x00\x00\x00\x00".b)
-    "\x89PNG\r\n\x1a\n".b + chunk_png("IHDR", cabecalho) + chunk_png("IDAT", pixel) +
+    "\x89PNG\r\n\x1a\n".b + chunk_png("IHDR", header) + chunk_png("IDAT", pixel) +
       chunk_png("IEND", "".b)
   end
 
-  def chunk_png(tipo, dados)
-    [ dados.bytesize ].pack("N") + tipo + dados + [ Zlib.crc32(tipo + dados) ].pack("N")
+  def chunk_png(kind, data)
+    [ data.bytesize ].pack("N") + kind + data + [ Zlib.crc32(kind + data) ].pack("N")
   end
 end

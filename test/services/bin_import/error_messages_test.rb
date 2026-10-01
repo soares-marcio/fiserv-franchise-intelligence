@@ -18,14 +18,14 @@ class ErrorMessagesTest < ActiveSupport::TestCase
   test "coluna ausente diz qual é, em que aba, e o que fazer" do
     path = workbook_without_column("STATUS DO CONTRATO")
 
-    erro = assert_raises(ArgumentError) do
+    error = assert_raises(ArgumentError) do
       BinImport::Importer.new(path, source_filename: "BIN_TESTE_20260811.xlsx", organization: default_organization).call
     end
 
-    assert_match "Mapa de Clientes BIN", erro.message
-    assert_match "STATUS DO CONTRATO", erro.message
-    assert_match(/renomeada|removida/i, erro.message, "a mensagem precisa dizer o que verificar")
-    assert_no_match(/ausentes: ;/, erro.message, "lista vazia não pode aparecer na mensagem")
+    assert_match "Mapa de Clientes BIN", error.message
+    assert_match "STATUS DO CONTRATO", error.message
+    assert_match(/renomeada|removida/i, error.message, "a mensagem precisa dizer o que verificar")
+    assert_no_match(/ausentes: ;/, error.message, "lista vazia não pode aparecer na mensagem")
   ensure
     File.delete(path) if path && File.exist?(path)
   end
@@ -33,7 +33,7 @@ class ErrorMessagesTest < ActiveSupport::TestCase
   private
 
   def workbook_with_extra_column(header)
-    escrever do |sheet_name, headers, rows|
+    write do |sheet_name, headers, rows|
       next [ headers, rows ] unless sheet_name == "Mapa de Clientes BIN"
 
       [ headers + [ header ], rows.map { |row| row.merge(header => "SIM") } ]
@@ -41,7 +41,7 @@ class ErrorMessagesTest < ActiveSupport::TestCase
   end
 
   def workbook_without_column(header)
-    escrever do |sheet_name, headers, rows|
+    write do |sheet_name, headers, rows|
       next [ headers, rows ] unless sheet_name == "Mapa de Clientes BIN"
 
       [ headers - [ header ], rows ]
@@ -49,11 +49,11 @@ class ErrorMessagesTest < ActiveSupport::TestCase
   end
 
   # Escreve a planilha sintética deixando o bloco ajustar cabeçalhos e linhas de cada aba.
-  def escrever
+  def write
     path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-BIN_TESTE_20260811.xlsx")
-    lojas = BinWorkbook.default_lojas
+    stores = BinWorkbook.default_stores
     Axlsx::Package.new do |package|
-      BinWorkbook.sheet_rows(lojas).each do |sheet_name, rows|
+      BinWorkbook.sheet_rows(stores).each do |sheet_name, rows|
         headers, rows = yield(sheet_name, BinWorkbook.headers_for(sheet_name, BinImport::Template::DEFAULT_VOLUME_MONTHS), rows)
         package.workbook.add_worksheet(name: sheet_name) do |worksheet|
           worksheet.add_row headers

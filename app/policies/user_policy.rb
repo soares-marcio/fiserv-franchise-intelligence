@@ -40,8 +40,8 @@ class UserPolicy < ApplicationPolicy
 
     # O delegado administra quem está dentro do escopo dele — e quem ainda não tem escopo
     # nenhum, que é o estado de um convite recém-criado por ele.
-    alvo = AccessScope.for(record)
-    alvo.empty? || (alvo.channel_ids - AccessScope.for(user).channel_ids).empty?
+    target = AccessScope.for(record)
+    target.empty? || (target.channel_ids - AccessScope.for(user).channel_ids).empty?
   end
 
   # "Tem algo que eu não tenho": plataforma, administrador da organização, permissão ou

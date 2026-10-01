@@ -5,9 +5,9 @@ class UserTest < ActiveSupport::TestCase
     User.create!(organization: default_organization, email_address: " Chefe@Exemplo.com ", name: "Chefe", password: "senha-bem-longa-1")
 
     assert_equal "chefe@exemplo.com", User.last.email_address
-    duplicado = User.new(organization: default_organization, email_address: "CHEFE@exemplo.com", name: "Outro", password: "senha-bem-longa-1")
+    duplicate = User.new(organization: default_organization, email_address: "CHEFE@exemplo.com", name: "Outro", password: "senha-bem-longa-1")
 
-    assert_not duplicado.valid?
+    assert_not duplicate.valid?
   end
 
   # A senha provisória fica guardada (cifrada) para quem convidou entregar — e só até a
@@ -51,24 +51,24 @@ class UserTest < ActiveSupport::TestCase
   # O administrador da organização não recebe chave a chave: guardar a lista inteira nele
   # criaria dois lugares para acrescentar permissão nova. A plataforma não tem nenhuma.
   test "administrador da organização tem toda permissão; a plataforma, nenhuma" do
-    chefe = User.new(organization: default_organization, organization_admin: true, permissions: [])
-    plataforma = User.new(platform_admin: true, permissions: [])
-    comum = User.new(organization: default_organization, permissions: [ Permission::REPORTS_READ ])
+    boss = User.new(organization: default_organization, organization_admin: true, permissions: [])
+    platform = User.new(platform_admin: true, permissions: [])
+    shared = User.new(organization: default_organization, permissions: [ Permission::REPORTS_READ ])
 
-    assert chefe.permitted?(Permission::BATCHES_DISCARD)
-    assert_not plataforma.permitted?(Permission::REPORTS_READ)
-    assert comum.permitted?(Permission::REPORTS_READ)
-    assert_not comum.permitted?(Permission::BATCHES_DISCARD)
+    assert boss.permitted?(Permission::BATCHES_DISCARD)
+    assert_not platform.permitted?(Permission::REPORTS_READ)
+    assert shared.permitted?(Permission::REPORTS_READ)
+    assert_not shared.permitted?(Permission::BATCHES_DISCARD)
   end
 
   test "o segredo do TOTP não fica legível no banco" do
     user = User.create!(organization: default_organization, email_address: "c@exemplo.com", name: "C", password: "senha-bem-longa-1",
       otp_secret: "JBSWY3DPEHPK3PXP")
 
-    cru = User.connection.select_value("SELECT otp_secret FROM users WHERE id = #{user.id}")
+    raw = User.connection.select_value("SELECT otp_secret FROM users WHERE id = #{user.id}")
 
     assert_equal "JBSWY3DPEHPK3PXP", user.reload.otp_secret
-    assert_not_equal "JBSWY3DPEHPK3PXP", cru
-    assert_no_match(/JBSWY3DPEHPK3PXP/, cru)
+    assert_not_equal "JBSWY3DPEHPK3PXP", raw
+    assert_no_match(/JBSWY3DPEHPK3PXP/, raw)
   end
 end

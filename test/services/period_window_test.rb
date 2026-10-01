@@ -89,8 +89,8 @@ class PeriodWindowTest < ActiveSupport::TestCase
   # se importações anteriores a cobriram. Sem cobertura, coluna zerada diria "sem venda"
   # onde a verdade é "sem dado".
   test "a penúltima competência vira coluna quando tem cobertura" do
-    julho = { "period" => "2026-07-01", "max_known_day" => 31, "closed" => true }
-    window = PeriodWindow.from_coverages([ julho, FECHADA, ABERTA ])
+    july = { "period" => "2026-07-01", "max_known_day" => 31, "closed" => true }
+    window = PeriodWindow.from_coverages([ july, FECHADA, ABERTA ])
 
     assert_equal [ Date.new(2026, 7, 1), Date.new(2026, 8, 1), Date.new(2026, 9, 1) ],
       window.daily_columns.keys

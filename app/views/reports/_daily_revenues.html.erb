@@ -21,7 +21,7 @@
     <%# Uma coluna por competência, da mais antiga para a mais nova. A lista vem da janela
         porque a penúltima só existe quando foi importada — o laço evita repetir a mesma
         célula três vezes no cabeçalho, no corpo e no rodapé. %>
-    <% colunas = @window.daily_columns.map { |period, key| [ period, key, Time.days_in_month(period.month, period.year) ] } %>
+    <% columns = @window.daily_columns.map { |period, key| [ period, key, Time.days_in_month(period.month, period.year) ] } %>
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Faturamento diário de <%= @client.name %>">
       <table class="table">
@@ -31,7 +31,7 @@
         <thead>
           <tr>
             <th scope="col">Dia</th>
-            <% colunas.each do |period, _key, _dias| %>
+            <% columns.each do |period, _key, _days| %>
               <th scope="col" class="text-right"><%= period_option_label(period) %></th>
             <% end %>
           </tr>
@@ -41,12 +41,12 @@
             <% day = row["day"].to_i %>
             <tr>
               <th scope="row" class="font-mono"><%= format("%02d", day) %></th>
-              <% colunas.each do |_period, key, dias_no_mes| %>
-                <% valor = row[key].to_d %>
+              <% columns.each do |_period, key, days_in_month| %>
+                <% value = row[key].to_d %>
                 <%# Dia que não existe na competência: travessão, não zero — 31 de setembro
                     não é "sem venda". %>
-                <td class="text-right tabular-nums <%= "opacity-40" if valor.zero? %>">
-                  <%= day > dias_no_mes ? "—" : brl(valor) %>
+                <td class="text-right tabular-nums <%= "opacity-40" if value.zero? %>">
+                  <%= day > days_in_month ? "—" : brl(value) %>
                 </td>
               <% end %>
             </tr>
@@ -55,7 +55,7 @@
         <tfoot>
           <tr>
             <th scope="row">Total no período</th>
-            <% colunas.each do |_period, key, _dias| %>
+            <% columns.each do |_period, key, _days| %>
               <td class="text-right tabular-nums">
                 <%= brl(@rows.sum { |row| row[key].to_d }) %>
               </td>

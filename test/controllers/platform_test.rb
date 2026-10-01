@@ -7,14 +7,14 @@ class PlatformTest < ActionDispatch::IntegrationTest
 
   setup do
     import_synthetic_workbook
-    @plataforma = platform_admin_user
+    @platform = platform_admin_user
     @admin_a = admin_user(email: "admin-a@exemplo.com")
-    @convidado = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: Channel.first,
+    @guest = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: Channel.first,
       email: "convidado@exemplo.com", created_by: @admin_a)
   end
 
   test "ao entrar, a plataforma cai na tela de organizações, não em relatório" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     get root_path
 
@@ -22,24 +22,24 @@ class PlatformTest < ActionDispatch::IntegrationTest
   end
 
   test "a tela macro lista organizações, administradores e convidados sem nome de Master" do
-    Audit.record("session.start", user: @convidado)
-    sign_in_as(@plataforma)
+    Audit.record("session.start", user: @guest)
+    sign_in_as(@platform)
 
     get platform_organizations_path
     assert_response :success
     assert_match(/Organização de Teste/, response.body)
     assert_match(/admin-a@exemplo\.com/, response.body)
-    assert_no_match(/#{Regexp.escape(BinWorkbook::CANAL)}|MIC ALFA|30000001/, response.body)
+    assert_no_match(/#{Regexp.escape(BinWorkbook::CHANNEL)}|MIC ALFA|30000001/, response.body)
 
     get platform_organization_path(default_organization)
     assert_response :success
     assert_match(/convidado@exemplo\.com/, response.body)
     assert_match(/Convidado por|Teste/, response.body)
-    assert_no_match(/#{Regexp.escape(BinWorkbook::CANAL)}|MIC ALFA|30000001/, response.body)
+    assert_no_match(/#{Regexp.escape(BinWorkbook::CHANNEL)}|MIC ALFA|30000001/, response.body)
   end
 
   test "criar organização cria o administrador junto, sem nome e com senha provisória visível" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     assert_difference [ -> { Organization.count }, -> { User.count } ], 1 do
       post platform_organizations_path, params: { user: { name: "Dona", email_address: "dona@exemplo.com" } }
@@ -54,26 +54,26 @@ class PlatformTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_match(/#{dona.provisional_password}/, response.body, "a senha fica na tela da organização até a troca")
 
-    criacao = AuditEvent.find_by(action: "organization.created")
-    assert_nil criacao.organization, "ação da plataforma não pertence a organização nenhuma"
+    creation = AuditEvent.find_by(action: "organization.created")
+    assert_nil creation.organization, "ação da plataforma não pertence a organização nenhuma"
     assert_equal "dona@exemplo.com", AuditEvent.find_by(action: "organization_admin.created").metadata["alvo"]
   end
 
   test "adiciona administrador a uma organização que já existe" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     assert_no_difference -> { Organization.count } do
       post platform_organization_admins_path(default_organization),
         params: { user: { name: "Segundo", email_address: "segundo@exemplo.com" } }
     end
 
-    segundo = User.find_by!(email_address: "segundo@exemplo.com")
-    assert segundo.organization_admin?
-    assert_equal default_organization, segundo.organization
+    second = User.find_by!(email_address: "segundo@exemplo.com")
+    assert second.organization_admin?
+    assert_equal default_organization, second.organization
   end
 
   test "suporte: reinicia o segundo fator de um administrador e a trilha fica na plataforma" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     post reset_mfa_platform_user_path(@admin_a)
 
@@ -88,17 +88,17 @@ class PlatformTest < ActionDispatch::IntegrationTest
   end
 
   test "suporte não alcança outra conta da plataforma" do
-    outra = platform_admin_user(email: "outra-plataforma@exemplo.com")
-    sign_in_as(@plataforma)
+    other = platform_admin_user(email: "outra-plataforma@exemplo.com")
+    sign_in_as(@platform)
 
-    post reset_mfa_platform_user_path(outra)
+    post reset_mfa_platform_user_path(other)
 
     assert_response :forbidden
-    assert outra.reload.mfa_enabled?
+    assert other.reload.mfa_enabled?
   end
 
   test "a plataforma não convida colaboradores nem abre a ficha de ninguém" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     get new_user_path
     assert_response :forbidden
@@ -116,12 +116,12 @@ class PlatformTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     post platform_organizations_path, params: { user: { name: "X", email_address: "x@exemplo.com" } }
     assert_response :forbidden
-    post reset_mfa_platform_user_path(@convidado)
+    post reset_mfa_platform_user_path(@guest)
     assert_response :forbidden
   end
 
   test "a ficha da organização traz contagens e datas, sem nome de Master" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     get platform_organization_path(default_organization)
 
@@ -131,24 +131,24 @@ class PlatformTest < ActionDispatch::IntegrationTest
     assert_match(/Administradores<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
     assert_match(/Colaboradores<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
     assert_match(/Anexos<\/dt><dd class="font-semibold tabular-nums">0 · 0 Bytes/, response.body)
-    assert_no_match(/#{Regexp.escape(BinWorkbook::CANAL)}|MIC ALFA|30000001/, response.body)
+    assert_no_match(/#{Regexp.escape(BinWorkbook::CHANNEL)}|MIC ALFA|30000001/, response.body)
   end
 
   test "renomeia a organização a pedido, com o nome anterior e o novo na trilha" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     patch rename_platform_organization_path(default_organization), params: { name: "Nome Novo" }
 
     assert_redirected_to platform_organization_path(default_organization)
     assert_equal "Nome Novo", default_organization.reload.name
-    evento = AuditEvent.find_by!(action: "organization.renamed")
-    assert_nil evento.organization
-    assert_equal({ "de" => "Organização de Teste", "para" => "Nome Novo" }, evento.metadata)
+    event = AuditEvent.find_by!(action: "organization.renamed")
+    assert_nil event.organization
+    assert_equal({ "de" => "Organização de Teste", "para" => "Nome Novo" }, event.metadata)
   end
 
   test "renomear recusa nome em branco e nome já usado" do
     Organization.create!(name: "Ocupado")
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     patch rename_platform_organization_path(default_organization), params: { name: "   " }
     assert_equal "Organização de Teste", default_organization.reload.name
@@ -163,7 +163,7 @@ class PlatformTest < ActionDispatch::IntegrationTest
     sign_in_as(@admin_a)
     assert_equal 1, @admin_a.sessions.count
 
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
     post suspend_platform_organization_path(default_organization)
 
     assert_redirected_to platform_organization_path(default_organization)
@@ -183,7 +183,7 @@ class PlatformTest < ActionDispatch::IntegrationTest
     assert_equal "E-mail ou senha inválidos.", flash[:alert]
     assert_equal 0, @admin_a.sessions.count
 
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
     post reactivate_platform_organization_path(default_organization)
     assert_not default_organization.reload.suspended?
     sign_out
@@ -206,10 +206,10 @@ class PlatformTest < ActionDispatch::IntegrationTest
   end
 
   test "a ficha mostra o que a plataforma fez nesta organização, e não em outra" do
-    outra = Operations::CreateOrganizationAdmin.call(name: "Fulana", email_address: "fulana@exemplo.com", actor: @plataforma)
-    sign_in_as(@plataforma)
+    other = Operations::CreateOrganizationAdmin.call(name: "Fulana", email_address: "fulana@exemplo.com", actor: @platform)
+    sign_in_as(@platform)
     post reset_mfa_platform_user_path(@admin_a)
-    post reset_mfa_platform_user_path(outra)
+    post reset_mfa_platform_user_path(other)
 
     get platform_organization_path(default_organization)
 
@@ -229,7 +229,7 @@ class PlatformTest < ActionDispatch::IntegrationTest
   end
 
   test "a ficha e as telas internas têm Voltar apontando para a tela anterior; a lista não" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     get platform_organizations_path
     assert_select "a.breadcrumb-back", count: 0
@@ -242,7 +242,7 @@ class PlatformTest < ActionDispatch::IntegrationTest
   end
 
   test "desativar o último administrador ativo suspende a organização; reativá-lo reabre" do
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     post deactivate_platform_user_path(@admin_a)
 
@@ -258,7 +258,7 @@ class PlatformTest < ActionDispatch::IntegrationTest
 
   test "com outro administrador ativo, desativar um deles não suspende a organização" do
     admin_user(email: "admin-b@exemplo.com")
-    sign_in_as(@plataforma)
+    sign_in_as(@platform)
 
     post deactivate_platform_user_path(@admin_a)
 
@@ -268,15 +268,15 @@ class PlatformTest < ActionDispatch::IntegrationTest
 
   test "o histórico da organização mostra a atividade dela sem o nome do Master" do
     Audit.record("batch.uploaded", user: @admin_a, channel: Channel.first, metadata: { arquivo: "x.xlsx" })
-    Audit.record("session.start", user: @convidado)
-    sign_in_as(@plataforma)
+    Audit.record("session.start", user: @guest)
+    sign_in_as(@platform)
 
     get history_platform_organization_path(default_organization)
 
     assert_response :success
     assert_match(/Enviou planilha/, response.body)
     assert_match(/convidado@exemplo\.com/, response.body)
-    assert_no_match(/#{Regexp.escape(BinWorkbook::CANAL)}|MIC ALFA|30000001/, response.body)
+    assert_no_match(/#{Regexp.escape(BinWorkbook::CHANNEL)}|MIC ALFA|30000001/, response.body)
     assert_select "a.breadcrumb-back[href=?]", platform_organization_path(default_organization)
 
     sign_out

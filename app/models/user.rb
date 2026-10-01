@@ -105,8 +105,8 @@ class User < ApplicationRecord
   end
 
   def keep_one_active_platform_admin
-    perde = platform_admin_was && (!platform_admin? || deactivated_at.present?)
-    return unless perde
+    loses_role = platform_admin_was && (!platform_admin? || deactivated_at.present?)
+    return unless loses_role
     return if User.active.where(platform_admin: true).where.not(id: id).exists?
 
     errors.add(:base, "precisa sobrar ao menos um administrador da plataforma ativo")
@@ -132,9 +132,9 @@ class User < ApplicationRecord
   end
 
   def permissions_must_be_known
-    desconhecidas = permissions - Permission::KEYS
-    return if desconhecidas.empty?
+    unknown = permissions - Permission::KEYS
+    return if unknown.empty?
 
-    errors.add(:permissions, "desconhecidas: #{desconhecidas.join(', ')}")
+    errors.add(:permissions, "desconhecidas: #{unknown.join(', ')}")
   end
 end

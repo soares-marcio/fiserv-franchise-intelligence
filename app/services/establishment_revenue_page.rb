@@ -28,10 +28,10 @@ class EstablishmentRevenuePage
   # rende cada cliente ativo" —, e por isso a tela escreve o divisor ao lado do valor. Sem
   # CNPJ ativo não há média: devolve nil em vez de zero, que seria outra afirmação.
   def average_ticket
-    ativos = status_counts["Active"].to_i
-    return if ativos.zero?
+    active_count = status_counts["Active"].to_i
+    return if active_count.zero?
 
-    totals[:previous_full_revenue] / ativos
+    totals[:previous_full_revenue] / active_count
   end
 
   def total_pages

@@ -8,7 +8,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     other = channel.sub_channels.find_by!(name: "MIC B")
     AuditViews.refresh!
 
-    scope = ReportScope.new(scope: escopo_da_organizacao)
+    scope = ReportScope.new(scope: organization_scope)
     rows = scope.revenue_by_establishment(sub_channel_id: sub_channel.id)
     parent = scope.revenue_by_sub_channel.find { |row| row["sub_channel_id"] == sub_channel.id }
 
@@ -41,7 +41,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
     RevenueSnapshot.find_by!(establishment: Establishment.find_by!(ec: "22222222"))
       .update!(contract_status: "Suspended")
-    scope = ReportScope.new(scope: escopo_do_canal(channel.id))
+    scope = ReportScope.new(scope: channel_scope(channel.id))
 
     active = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, statuses: [ "Active" ])
     both = scope.revenue_by_establishment(
@@ -59,7 +59,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     MapSnapshot.find_by!(establishment: Establishment.find_by!(ec: "22222222"))
       .update!(accredited_on: Date.new(2024, 5, 1), activated_on: nil,
         suspended_on: Date.new(2024, 6, 10))
-    scope = ReportScope.new(scope: escopo_do_canal(channel.id))
+    scope = ReportScope.new(scope: channel_scope(channel.id))
 
     credentialed = scope.revenue_by_establishment(
       sub_channel_id: sub_channel.id, date_kinds: [ "credenciamento" ],
@@ -99,7 +99,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       accredited_on: Date.new(2025, 1, 10), activated_on: Date.new(2025, 2, 20)
     )
 
-    row = ReportScope.new(scope: escopo_do_canal(channel.id))
+    row = ReportScope.new(scope: channel_scope(channel.id))
       .revenue_by_establishment(sub_channel_id: sub_channel.id).first
 
     assert_equal Date.new(2024, 3, 15), row["accredited_on"]
@@ -127,7 +127,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
       current_period: Date.new(2026, 8, 1), current_month_cutoff_day: 24, status: "validated"
     )
 
-    statuses = ReportScope.new(scope: escopo_do_canal(channel.id)).contract_statuses(sub_channel_id: sub_channel.id)
+    statuses = ReportScope.new(scope: channel_scope(channel.id)).contract_statuses(sub_channel_id: sub_channel.id)
 
     assert_equal [ "Suspended" ], statuses
   end
@@ -136,7 +136,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
-    scope = ReportScope.new(scope: escopo_do_canal(channel.id))
+    scope = ReportScope.new(scope: channel_scope(channel.id))
 
     day_31 = scope.revenue_by_establishment(
       sub_channel_id: sub_channel.id, from_day: 31, to_day: 31
@@ -155,7 +155,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
-    scope = ReportScope.new(scope: escopo_do_canal(channel.id))
+    scope = ReportScope.new(scope: channel_scope(channel.id))
 
     by_name = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, query: "loja um")
     by_ec = scope.revenue_by_establishment(sub_channel_id: sub_channel.id, query: "22222222")
@@ -172,7 +172,7 @@ class ReportScopeEstablishmentsTest < ActiveSupport::TestCase
     template = BinImport::Template.register!
     channel = seed_channel(template)
     sub_channel = channel.sub_channels.find_by!(name: "MIC A")
-    scope = ReportScope.new(scope: escopo_do_canal(channel.id))
+    scope = ReportScope.new(scope: channel_scope(channel.id))
 
     first_page = scope.revenue_by_establishment(
       sub_channel_id: sub_channel.id, page: 1, per_page: 1

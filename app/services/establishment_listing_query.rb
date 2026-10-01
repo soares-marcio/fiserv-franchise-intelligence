@@ -125,14 +125,14 @@ class EstablishmentListingQuery
   def self.normalize_max_revenue(value)
     return if value.blank?
 
-    teto = value.to_i.clamp(0, LOW_REVENUE_THRESHOLD)
-    REVENUE_STOPS.reverse_each.find { |parada| parada <= teto }
+    ceiling = value.to_i.clamp(0, LOW_REVENUE_THRESHOLD)
+    REVENUE_STOPS.reverse_each.find { |stop| stop <= ceiling }
   end
 
   # Posição da alça para um valor já normalizado. Fora das paradas, a de baixo — é a mesma
   # regra da normalização, e as duas precisam concordar.
   def self.revenue_stop_index(value)
-    REVENUE_STOPS.rindex { |parada| parada <= value.to_i } || 0
+    REVENUE_STOPS.rindex { |stop| stop <= value.to_i } || 0
   end
 
   # As duas alças de uma vez: cada uma presa à escala e ao passo, e as duas em ordem. Podem
@@ -268,9 +268,9 @@ class EstablishmentListingQuery
   # status (EstablishmentsHelper::CONTRACT_STATUSES); se surgir um terceiro, ele cai em
   # suspensos e este cálculo precisa mudar.
   def status_counts(row)
-    clientes = row["total_count"].to_i
+    total_count = row["total_count"].to_i
     active = row["active_count"].to_i
-    { "Active" => active, "Suspended" => clientes - active }
+    { "Active" => active, "Suspended" => total_count - active }
   end
 
   # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que

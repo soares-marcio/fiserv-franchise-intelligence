@@ -20,10 +20,10 @@ class LayoutAndImportTest < ApplicationSystemTestCase
 
   test "a navbar móvel mantém usuário, ações e menu dentro da tela" do
     visit reports_path
-    { 320 => 568, 375 => 667, 768 => 1024, 1024 => 768, 1400 => 1000 }.each do |largura, altura|
-      page.driver.browser.manage.window.resize_to(largura, altura)
+    { 320 => 568, 375 => 667, 768 => 1024, 1024 => 768, 1400 => 1000 }.each do |width, height|
+      page.driver.browser.manage.window.resize_to(width, height)
 
-      medida = page.evaluate_script(<<~JS)
+      measure = page.evaluate_script(<<~JS)
         (() => {
           const usuario = document.querySelector(".user-chip").getBoundingClientRect()
           return {
@@ -34,9 +34,9 @@ class LayoutAndImportTest < ApplicationSystemTestCase
         })()
       JS
 
-      assert_operator medida["pagina"], :<=, 0, "a página não pode transbordar em #{largura}px"
-      assert_operator medida["usuario_esquerda"], :>=, 0, "o usuário precisa começar dentro da tela"
-      assert_operator medida["usuario_direita"], :<=, 0, "o botão Sair precisa terminar dentro da tela"
+      assert_operator measure["pagina"], :<=, 0, "a página não pode transbordar em #{width}px"
+      assert_operator measure["usuario_esquerda"], :>=, 0, "o usuário precisa começar dentro da tela"
+      assert_operator measure["usuario_direita"], :<=, 0, "o botão Sair precisa terminar dentro da tela"
     end
 
     page.driver.browser.manage.window.resize_to(375, 667)
@@ -58,7 +58,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     page.driver.browser.manage.window.resize_to(1024, 768)
 
     assert_selector ".user-status-indicator", text: "Ativo"
-    medidas = page.evaluate_script(<<~JS)
+    measures = page.evaluate_script(<<~JS)
       [...document.querySelectorAll(".support-actions .btn")].map((botao) => ({
         texto_cabe: botao.scrollWidth <= botao.clientWidth,
         fonte: parseFloat(getComputedStyle(botao).fontSize),
@@ -66,10 +66,10 @@ class LayoutAndImportTest < ApplicationSystemTestCase
       }))
     JS
 
-    assert_equal 2, medidas.size
-    assert medidas.all? { |medida| medida["texto_cabe"] }, "nenhum rótulo pode ser cortado"
-    assert medidas.all? { |medida| medida["fonte"] >= 13 }, "ações precisam manter texto de ao menos 13px"
-    assert medidas.all? { |medida| medida["altura"] >= 36 }, "ações compactas ainda precisam de altura legível"
+    assert_equal 2, measures.size
+    assert measures.all? { |measure| measure["texto_cabe"] }, "nenhum rótulo pode ser cortado"
+    assert measures.all? { |measure| measure["fonte"] >= 13 }, "ações precisam manter texto de ao menos 13px"
+    assert measures.all? { |measure| measure["altura"] >= 36 }, "ações compactas ainda precisam de altura legível"
 
     status = page.evaluate_script(<<~JS)
       (() => {
@@ -135,7 +135,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     visit import_batches_path
     assert_selector "tbody .import-error"
 
-    medida = page.evaluate_script(<<~JS)
+    measure = page.evaluate_script(<<~JS)
       (() => {
         const rolagem = document.querySelector(".table-scroll")
         const tabela = rolagem.querySelector("table")
@@ -153,10 +153,10 @@ class LayoutAndImportTest < ApplicationSystemTestCase
       })()
     JS
 
-    assert_operator medida["sobra"], :<=, 0, "a tabela não pode transbordar por causa da mensagem"
-    assert medida["botao_dentro"], "o botão Descartar precisa caber na área visível"
-    assert_operator medida["linhas"], :<=, 2, "a mensagem fica em duas linhas"
-    assert_includes medida["texto_completo"], "REPORT_ID",
+    assert_operator measure["sobra"], :<=, 0, "a tabela não pode transbordar por causa da mensagem"
+    assert measure["botao_dentro"], "o botão Descartar precisa caber na área visível"
+    assert_operator measure["linhas"], :<=, 2, "a mensagem fica em duas linhas"
+    assert_includes measure["texto_completo"], "REPORT_ID",
       "o texto inteiro continua acessível no title"
   end
 
@@ -187,7 +187,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     visit import_batches_path
     assert_selector "tbody .import-error"
 
-    medida = page.evaluate_script(<<~JS)
+    measure = page.evaluate_script(<<~JS)
       (() => {
         const rolagem = document.querySelector(".table-scroll")
         const tabela = rolagem.querySelector("table")
@@ -199,27 +199,27 @@ class LayoutAndImportTest < ApplicationSystemTestCase
       })()
     JS
 
-    assert_operator medida["sobra"], :<=, 0, "a tabela não pode transbordar por causa dos nomes"
-    assert medida["botao_dentro"], "o botão Descartar precisa caber na área visível"
+    assert_operator measure["sobra"], :<=, 0, "a tabela não pode transbordar por causa dos nomes"
+    assert measure["botao_dentro"], "o botão Descartar precisa caber na área visível"
   end
 
   # A tabela de sete colunas dentro do card vazava por cima do card vizinho: no desktop o
   # .table-scroll geral é overflow: visible, e o item de grid sem min-width: 0 esticava a
   # coluna inteira. O card tem que conter a própria tabela, rolando por dentro.
   test "os cards do recorrente contêm a tabela em vez de vazar" do
-    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    import_synthetic_workbook(stores: BinWorkbook.earnings_stores)
     refresh_audit_views
 
     visit recurring_reports_path
     assert_selector "article.earnings-card"
 
-    vazamento = page.evaluate_script(<<~JS)
+    leak = page.evaluate_script(<<~JS)
       (() => {
         const cards = [...document.querySelectorAll("article.earnings-card")]
         return cards.filter((card) => card.scrollWidth > card.clientWidth + 1).length
       })()
     JS
 
-    assert_equal 0, vazamento, "nenhum card pode transbordar o próprio limite"
+    assert_equal 0, leak, "nenhum card pode transbordar o próprio limite"
   end
 end

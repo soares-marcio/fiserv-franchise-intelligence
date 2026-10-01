@@ -154,10 +154,10 @@
           <%# A anotação é do CNPJ, e aqui a linha já é o cliente: a mesma célula das outras
               telas, com o botão e o ponto de "já tem". O texto fica no modal e na ficha. %>
           <td class="note-col">
-            <% nota = @notes_by_cnpj[company.cnpj] %>
+            <% note = @notes_by_cnpj[company.cnpj] %>
             <%= render "shared/company_note_cell", company_uuid: company.uuid,
               name: present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),
-              note_id: nota&.id, note_updated_at: nota&.updated_at,
+              note_id: note&.id, note_updated_at: note&.updated_at,
               note_params: listing_params(origin: "establishments") %>
           </td>
         </tr>

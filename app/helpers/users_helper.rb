@@ -63,6 +63,6 @@ module UsersHelper
     return "Todas" if user.organization_admin?
     return "Nenhuma" if user.permissions.empty?
 
-    user.permissions.map { |chave| Permission.label(chave) }.to_sentence
+    user.permissions.map { |key| Permission.label(key) }.to_sentence
   end
 end

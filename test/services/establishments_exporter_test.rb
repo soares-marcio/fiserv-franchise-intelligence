@@ -13,43 +13,43 @@ class EstablishmentsExporterTest < ActiveSupport::TestCase
   # O cadastro que diverge entre ECs sai pelo EC de referência — o que não é duplicata de
   # outro —, a mesma regra da tela. Sem isso, arquivo e tela contariam clientes diferentes.
   test "o cadastro vem do EC de referência, não do primeiro da lista" do
-    referencia = criar_ec("11111111", "MIC GOIANIA 4", trade_name: "PADARIA CENTRAL")
-    duplicata = criar_ec("22222222", "MIC CAMPINA GRANDE", trade_name: "OUTRO NOME",
-      primary_establishment: referencia)
+    reference = create_ec("11111111", "MIC GOIANIA 4", trade_name: "PADARIA CENTRAL")
+    duplicate_one = create_ec("22222222", "MIC CAMPINA GRANDE", trade_name: "OUTRO NOME",
+      primary_establishment: reference)
 
-    linha = CSV.parse(exportador([ duplicata, referencia ]).to_csv, headers: true).first
+    row = CSV.parse(exporter([ duplicate_one, reference ]).to_csv, headers: true).first
 
-    assert_equal "PADARIA CENTRAL", linha["Nome fantasia"]
-    assert_equal "12.345.678/0001-95", linha["CNPJ"]
-    assert_equal "2", linha["Quantidade de ECs"]
-    assert_equal "22222222 · 11111111", linha["ECs"], "os ECs saem na ordem recebida"
+    assert_equal "PADARIA CENTRAL", row["Nome fantasia"]
+    assert_equal "12.345.678/0001-95", row["CNPJ"]
+    assert_equal "2", row["Quantidade de ECs"]
+    assert_equal "22222222 · 11111111", row["ECs"], "os ECs saem na ordem recebida"
   end
 
   # Um CNPJ pode ter ECs em MICs diferentes, e a tela lista todos: o arquivo faz igual, em
   # vez de escolher um em silêncio.
   test "os MICs do cliente saem todos, sem repetir" do
-    primeiro = criar_ec("11111111", "MIC GOIANIA 4")
-    segundo = criar_ec("22222222", "MIC CAMPINA GRANDE", primary_establishment: primeiro)
-    terceiro = criar_ec("33333333", "MIC GOIANIA 4", primary_establishment: primeiro)
+    first_item = create_ec("11111111", "MIC GOIANIA 4")
+    second = create_ec("22222222", "MIC CAMPINA GRANDE", primary_establishment: first_item)
+    third = create_ec("33333333", "MIC GOIANIA 4", primary_establishment: first_item)
 
-    linha = CSV.parse(exportador([ primeiro, segundo, terceiro ]).to_csv, headers: true).first
+    row = CSV.parse(exporter([ first_item, second, third ]).to_csv, headers: true).first
 
-    assert_equal "MIC GOIANIA 4 · MIC CAMPINA GRANDE", linha["MIC"]
-    assert_equal "MASTER", linha["Master"]
+    assert_equal "MIC GOIANIA 4 · MIC CAMPINA GRANDE", row["MIC"]
+    assert_equal "MASTER", row["Master"]
   end
 
   test "a busca da tela fica escrita na nota do arquivo" do
-    criar_ec("11111111", "MIC GOIANIA 4")
+    create_ec("11111111", "MIC GOIANIA 4")
 
-    exportador = EstablishmentsExporter.new([ @company ],
+    exporter = EstablishmentsExporter.new([ @company ],
       establishments_by_company: { @company => @company.establishments.to_a }, query: "PADARIA")
 
-    assert_match(/busca: PADARIA/, exportador.send(:note))
+    assert_match(/busca: PADARIA/, exporter.send(:note))
   end
 
   private
 
-  def criar_ec(ec, mic, primary_establishment: nil, trade_name: "PADARIA CENTRAL")
+  def create_ec(ec, mic, primary_establishment: nil, trade_name: "PADARIA CENTRAL")
     sub_channel = @channel.sub_channels.find_or_create_by!(name: mic)
     establishment = Establishment.create!(ec:, company: @company, channel: @channel,
       primary_establishment:)
@@ -59,7 +59,7 @@ class EstablishmentsExporterTest < ActiveSupport::TestCase
     establishment
   end
 
-  def exportador(establishments)
+  def exporter(establishments)
     EstablishmentsExporter.new([ @company ],
       establishments_by_company: { @company => establishments })
   end

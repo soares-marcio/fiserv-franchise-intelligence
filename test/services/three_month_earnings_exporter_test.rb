@@ -21,38 +21,38 @@ class ThreeMonthEarningsExporterTest < ActiveSupport::TestCase
   end
 
   test "uma linha por MIC, com os três meses em colunas rotuladas M0, M1 e M2" do
-    tabela = CSV.parse(exporter.to_csv, headers: true)
+    table = CSV.parse(exporter.to_csv, headers: true)
 
-    assert_equal "MIC", tabela.headers.first
-    inicio = tabela.headers.index("M0 Débito")
-    assert_equal %w[M0\ Débito M0\ Crédito M0\ Total], tabela.headers[inicio, 3],
+    assert_equal "MIC", table.headers.first
+    start_on = table.headers.index("M0 Débito")
+    assert_equal %w[M0\ Débito M0\ Crédito M0\ Total], table.headers[start_on, 3],
       "os três meses saem em colunas consecutivas, rotuladas pelo índice na janela"
-    assert_equal 1, tabela.size
-    assert_equal "3000.0", tabela[0]["M0 Total"]
+    assert_equal 1, table.size
+    assert_equal "3000.0", table[0]["M0 Total"]
   end
 
   # Mês sem cobertura sai vazio, e não zerado: "não sabemos" não é "não faturou" — a mesma
   # distinção que a tela faz com o travessão.
   test "mês sem cobertura fica em branco" do
-    linha = CSV.parse(exporter.to_csv, headers: true).first
+    row = CSV.parse(exporter.to_csv, headers: true).first
 
-    assert_nil linha["M1 Débito"]
-    assert_nil linha["M1 Total"]
-    assert_equal "1200.0", linha["M2 Total"]
+    assert_nil row["M1 Débito"]
+    assert_nil row["M1 Total"]
+    assert_equal "1200.0", row["M2 Total"]
   end
 
   # O adicional sai resolvido pela modalidade contratada (Anexo C). As duas hipóteses seguem
   # no fim do arquivo, como na view: é contra elas que o valor resolvido se confere.
   test "o prêmio sai resolvido, com as duas hipóteses no fim para conferência" do
-    linha = CSV.parse(exporter.to_csv, headers: true).first
+    row = CSV.parse(exporter.to_csv, headers: true).first
 
-    assert_equal "3", linha["ECs no M0"]
-    assert_equal "90.0", linha["Digitalização"]
-    assert_equal "260.0", linha["Adicional por faturamento"]
-    assert_equal "350.0", linha["Prêmio de entrada"], "digitalização mais o adicional resolvido"
-    assert_equal "0", linha["ECs sem modalidade"]
-    assert_equal "150.0", linha["Adicional sem auto/flex"]
-    assert_equal "260.0", linha["Adicional com auto/flex"]
+    assert_equal "3", row["ECs no M0"]
+    assert_equal "90.0", row["Digitalização"]
+    assert_equal "260.0", row["Adicional por faturamento"]
+    assert_equal "350.0", row["Prêmio de entrada"], "digitalização mais o adicional resolvido"
+    assert_equal "0", row["ECs sem modalidade"]
+    assert_equal "150.0", row["Adicional sem auto/flex"]
+    assert_equal "260.0", row["Adicional com auto/flex"]
   end
 
   test "a janela fica escrita na nota do xlsx: M0 sozinho não diz de quando é o arquivo" do

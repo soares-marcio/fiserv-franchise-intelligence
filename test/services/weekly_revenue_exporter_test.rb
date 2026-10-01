@@ -6,32 +6,32 @@ class WeeklyRevenueExporterTest < ActiveSupport::TestCase
   # Agosto de 2026 coberto só até o dia 3: os outros 28 dias não são zero, são desconhecidos.
   setup do
     @period = Date.new(2026, 8, 1)
-    dias = [
+    days = [
       { "day" => 1, "revenue" => "100.0", "establishments" => 2 },
       { "day" => 2, "revenue" => "0.0", "establishments" => 0 },
       { "day" => 3, "revenue" => "250.0", "establishments" => 3 }
     ]
-    semanas = [ { "week_start" => "2026-07-26", "revenue" => "100.0", "establishments" => 2 } ]
-    @calendar = RevenueCalendar.new(period: @period, covered_days: 3, days: dias, weeks: semanas)
+    weeks = [ { "week_start" => "2026-07-26", "revenue" => "100.0", "establishments" => 2 } ]
+    @calendar = RevenueCalendar.new(period: @period, covered_days: 3, days: days, weeks: weeks)
   end
 
   test "um dia por linha, só os dias que o arquivo cobre" do
-    tabela = CSV.parse(exporter.to_csv, headers: true)
+    table = CSV.parse(exporter.to_csv, headers: true)
 
-    assert_equal WeeklyRevenueExporter::HEADERS, tabela.headers
-    dias = tabela.reject { |linha| linha["Semana"] == "TOTAL" }
-    assert_equal %w[1 2 3], dias.map { |linha| linha["Dia"] },
+    assert_equal WeeklyRevenueExporter::HEADERS, table.headers
+    days = table.reject { |row| row["Semana"] == "TOTAL" }
+    assert_equal %w[1 2 3], days.map { |row| row["Dia"] },
       "dia além da cobertura não vira linha zerada: seria afirmar que a carteira não vendeu"
-    assert_equal "100.0", dias.first["Faturamento"]
-    assert_equal "2", dias.first["ECs com movimento"]
+    assert_equal "100.0", days.first["Faturamento"]
+    assert_equal "2", days.first["ECs com movimento"]
   end
 
   # Dia coberto sem venda é zero de verdade — é o buraco que se abre a tela para ver.
   test "dia coberto sem venda sai zerado, e não vazio" do
-    linha = CSV.parse(exporter.to_csv, headers: true).find { |l| l["Dia"] == "2" }
+    row = CSV.parse(exporter.to_csv, headers: true).find { |l| l["Dia"] == "2" }
 
-    assert_equal "0.0", linha["Faturamento"]
-    assert_equal "0", linha["ECs com movimento"]
+    assert_equal "0.0", row["Faturamento"]
+    assert_equal "0", row["ECs com movimento"]
   end
 
   # Somar ECs por dia contaria o mesmo EC uma vez por dia. A tela fala em "ECs distintos" e
@@ -48,9 +48,9 @@ class WeeklyRevenueExporterTest < ActiveSupport::TestCase
     File.binwrite(path, WeeklyRevenueExporter.new(@calendar, period: @period,
       channel_name: "MASTER A").to_xlsx)
 
-    nota = Roo::Excelx.new(path.to_s).row(1).first
-    assert_match(/08\/2026/, nota)
-    assert_match(/MASTER A/, nota)
+    note = Roo::Excelx.new(path.to_s).row(1).first
+    assert_match(/08\/2026/, note)
+    assert_match(/MASTER A/, note)
   ensure
     File.delete(path) if path && File.exist?(path)
   end

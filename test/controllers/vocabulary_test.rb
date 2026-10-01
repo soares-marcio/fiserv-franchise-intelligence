@@ -43,10 +43,10 @@ class VocabularyTest < ActionDispatch::IntegrationTest
       reports_path => "span.section-label",
       recurring_reports_path => "span.section-label",
       three_months_reports_path => "label.filter-pill__label"
-    }.each do |path, seletor|
+    }.each do |path, selector|
       get path
 
-      assert_select seletor, { text: /Master/ }, path
+      assert_select selector, { text: /Master/ }, path
       assert_no_match(/Canal da carteira|Todos os canais/, response.body, path)
     end
   end

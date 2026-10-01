@@ -20,19 +20,19 @@ module Accounts
 
   # Ator que pode tudo **na organização padrão**: o administrador dela. É o padrão dos
   # testes que não falam de permissão: eles descrevem telas e números, não autorização.
-  def admin_user(email: "chefe@exemplo.com", **atributos)
-    create_user(email:, organization_admin: true, **atributos)
+  def admin_user(email: "chefe@exemplo.com", **attributes)
+    create_user(email:, organization_admin: true, **attributes)
   end
 
   # A conta da plataforma: cria organizações e não vê dado nenhum.
-  def platform_admin_user(email: "plataforma@exemplo.com", **atributos)
-    create_user(email:, platform_admin: true, **atributos)
+  def platform_admin_user(email: "plataforma@exemplo.com", **attributes)
+    create_user(email:, platform_admin: true, **attributes)
   end
 
   # Ator com recorte e permissões explícitas — para os testes que afirmam o que alguém
   # **não** pode ver ou fazer.
-  def scoped_user(permissions:, channel: nil, sub_channel: nil, email: "convidado@exemplo.com", **atributos)
-    user = create_user(email:, permissions:, **atributos)
+  def scoped_user(permissions:, channel: nil, sub_channel: nil, email: "convidado@exemplo.com", **attributes)
+    user = create_user(email:, permissions:, **attributes)
     if sub_channel
       user.access_grants.create!(channel: sub_channel.channel, sub_channel:)
     elsif channel
@@ -41,31 +41,31 @@ module Accounts
     user
   end
 
-  def create_user(email:, name: "Teste", permissions: [], **atributos)
+  def create_user(email:, name: "Teste", permissions: [], **attributes)
     # A conta da plataforma não tem organização; toda outra nasce na padrão.
-    atributos = { organization: default_organization }.merge(atributos) unless atributos[:platform_admin]
+    attributes = { organization: default_organization }.merge(attributes) unless attributes[:platform_admin]
     User.create!(
       email_address: email, name:, password: PASSWORD, permissions:,
       otp_secret: OTP_SECRET, mfa_enabled_at: Time.current, must_change_password: false,
-      **atributos
+      **attributes
     )
   end
 
   # A organização padrão inteira — o que o administrador dela enxerga.
-  def escopo_da_organizacao(organization = default_organization)
+  def organization_scope(organization = default_organization)
     AccessScope.organization_wide(organization)
   end
 
   # Escopo de um Master inteiro — o que a maioria dos testes de serviço quer dizer quando
   # antes passava channel_id.
-  def escopo_do_canal(channel_id)
+  def channel_scope(channel_id)
     ids = Array(channel_id)
     AccessScope.new(organization_id: Channel.find(ids.first).organization_id, full_channel_ids: ids,
       sub_channel_ids: [])
   end
 
   # Escopo de um MIC avulso, para os testes de vazamento entre MICs do mesmo Master.
-  def escopo_do_mic(sub_channel)
+  def mic_scope(sub_channel)
     AccessScope.new(organization_id: sub_channel.channel.organization_id, full_channel_ids: [],
       sub_channel_ids: [ sub_channel.id ])
   end

@@ -87,7 +87,7 @@
         <label class="form-control">
           <span class="label-text">Liberar para</span>
           <%= form.select :user_id,
-            @eligible.map { |pessoa| [ "#{pessoa.name} · #{pessoa.email_address}", pessoa.to_param ] },
+            @eligible.map { |person| [ "#{person.name} · #{person.email_address}", person.to_param ] },
             {}, class: "select select-bordered" %>
         </label>
         <%= form.submit "Liberar arquivo", class: "btn btn-outline btn--field" %>

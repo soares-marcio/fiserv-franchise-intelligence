@@ -123,19 +123,19 @@ module BinImport
     # Plural escrito à mão: pluralize e to_sentence flexionam em inglês, e a mensagem é lida
     # em português por quem está com a planilha aberta.
     def self.header_error_message(sheet_name, missing, extras)
-      uma = missing.one?
-      rotulo = uma ? "a coluna" : "as colunas"
-      pista = if extras.any?
-        "No lugar apareceu #{lista(extras)}, então é provável que #{uma ? 'ela tenha' : 'elas tenham'} " \
-          "sido #{uma ? 'renomeada' : 'renomeadas'}. O nome precisa ser idêntico ao esperado, " \
+      single = missing.one?
+      label = single ? "a coluna" : "as colunas"
+      hint = if extras.any?
+        "No lugar apareceu #{lista(extras)}, então é provável que #{single ? 'ela tenha' : 'elas tenham'} " \
+          "sido #{single ? 'renomeada' : 'renomeadas'}. O nome precisa ser idêntico ao esperado, " \
           "com acentos e maiúsculas."
       else
-        "#{uma ? 'Ela pode ter sido removida ou renomeada' : 'Elas podem ter sido removidas ou renomeadas'}. " \
+        "#{single ? 'Ela pode ter sido removida ou renomeada' : 'Elas podem ter sido removidas ou renomeadas'}. " \
           "Coluna a mais a planilha pode ter; coluna a menos, não."
       end
 
-      "A aba \"#{sheet_name}\" está sem #{rotulo} #{lista(missing)}. " \
-        "#{pista} Corrija o cabeçalho na planilha e envie o arquivo de novo."
+      "A aba \"#{sheet_name}\" está sem #{label} #{lista(missing)}. " \
+        "#{hint} Corrija o cabeçalho na planilha e envie o arquivo de novo."
     end
 
     def self.lista(headers)

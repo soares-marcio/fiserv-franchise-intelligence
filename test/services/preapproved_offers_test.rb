@@ -5,24 +5,24 @@ require "test_helper"
 # seja, todos os ECs de um CNPJ trazem a mesma oferta. A listagem existe por causa disso.
 class PreapprovedOffersTest < ActiveSupport::TestCase
   setup do
-    import_synthetic_workbook(lojas: lojas)
+    import_synthetic_workbook(stores: stores)
   end
 
   test "uma linha por CNPJ, com os quatro campos da planilha" do
-    linhas = PreapprovedOffers.new(scope: escopo_da_organizacao).call
+    rows = PreapprovedOffers.new(scope: organization_scope).call
 
-    assert_equal 1, linhas.size, "dois ECs do mesmo CNPJ são um cliente"
-    linha = linhas.first
-    assert_equal "11222333000181", linha["cnpj"]
-    assert_equal "ALFA COMERCIO LTDA", linha["legal_name"]
-    assert_equal 3, linha["establishments"].to_i, "três ECs do mesmo CNPJ, numa linha só"
-    assert_equal 350_000.to_d, linha["preapproved_volume"].to_d
-    assert_equal 24, linha["preapproved_term"].to_i
-    assert_equal 3.28.to_d, linha["preapproved_rate"].to_d
+    assert_equal 1, rows.size, "dois ECs do mesmo CNPJ são um cliente"
+    row = rows.first
+    assert_equal "11222333000181", row["cnpj"]
+    assert_equal "ALFA COMERCIO LTDA", row["legal_name"]
+    assert_equal 3, row["establishments"].to_i, "três ECs do mesmo CNPJ, numa linha só"
+    assert_equal 350_000.to_d, row["preapproved_volume"].to_d
+    assert_equal 24, row["preapproved_term"].to_i
+    assert_equal 3.28.to_d, row["preapproved_rate"].to_d
   end
 
   test "CNPJ sem oferta na planilha fica de fora" do
-    assert_empty PreapprovedOffers.new(scope: escopo_da_organizacao).call.select { |row| row["cnpj"] == "22333444000105" }
+    assert_empty PreapprovedOffers.new(scope: organization_scope).call.select { |row| row["cnpj"] == "22333444000105" }
   end
 
   # A invariante que o usuário declarou e que a carteira confirma. Se uma planilha futura
@@ -32,9 +32,9 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     MapSnapshot.joins(:establishment).where(establishments: { ec: "30000002" })
       .update_all(preapproved_volume: 999)
 
-    assert_equal 1, PreapprovedOffers.new(scope: escopo_da_organizacao).call.size,
+    assert_equal 1, PreapprovedOffers.new(scope: organization_scope).call.size,
       "a listagem continua com uma linha por CNPJ"
-    assert PreapprovedOffers.new(scope: escopo_da_organizacao).diverging_cnpjs.any?,
+    assert PreapprovedOffers.new(scope: organization_scope).diverging_cnpjs.any?,
       "e a divergência precisa ser detectável, não silenciosa"
   end
 
@@ -46,11 +46,11 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
     MapSnapshot.joins(:establishment).where(establishments: { ec: "30000002" })
       .update_all(legal_name: "ZZZ NOME FANTASIA")
 
-    linha = PreapprovedOffers.new(scope: escopo_da_organizacao).call.first
+    row = PreapprovedOffers.new(scope: organization_scope).call.first
 
-    assert_equal "ALFA COMERCIO LTDA", linha["legal_name"],
+    assert_equal "ALFA COMERCIO LTDA", row["legal_name"],
       "dois ECs dizem a razão social e um discorda: vence a maioria, não o alfabeto"
-    assert_includes PreapprovedOffers.new(scope: escopo_da_organizacao).diverging_name_cnpjs, "11222333000181",
+    assert_includes PreapprovedOffers.new(scope: organization_scope).diverging_name_cnpjs, "11222333000181",
       "e a divergência aparece, em vez de a tela escolher em silêncio"
   end
 
@@ -59,18 +59,18 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   test "a anotação chega sem quebrar a linha por CNPJ" do
     Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Ligar.</div>")
 
-    linhas = PreapprovedOffers.new(scope: escopo_da_organizacao).call
+    rows = PreapprovedOffers.new(scope: organization_scope).call
 
-    assert_equal 1, linhas.size
-    assert_predicate linhas.first["company_uuid"], :present?
-    assert_predicate linhas.first["note_id"], :present?
+    assert_equal 1, rows.size
+    assert_predicate rows.first["company_uuid"], :present?
+    assert_predicate rows.first["note_id"], :present?
   end
 
   # A coluna PARCELA_PRE_APROVADA existe no arquivo da Fiserv e nunca trouxe valor: zero em
   # 2.220 snapshots. A consulta a expõe assim mesmo — quem lê a tela precisa ver a lacuna,
   # não um número inventado a partir de volume, prazo e taxa.
   test "a parcela vem como veio da planilha, sem cálculo" do
-    assert_nil PreapprovedOffers.new(scope: escopo_da_organizacao).call.first["preapproved_installment"]
+    assert_nil PreapprovedOffers.new(scope: organization_scope).call.first["preapproved_installment"]
   end
 
   # O MIC virou filtro da tela: sem escolha, vêm todos; com escolha, só os clientes daquele
@@ -79,23 +79,23 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
   test "filtra por MIC, e só oferece MIC que tem cliente com oferta" do
     # Segundo import com conteúdo diferente: dois iguais no mesmo segundo dão o mesmo
     # SHA-256 e o segundo é recusado.
-    import_synthetic_workbook(lojas: lojas + lojas_de_outros_mics, filename: "b.xlsx")
+    import_synthetic_workbook(stores: stores + stores_of_other_mics, filename: "b.xlsx")
 
     alfa = SubChannel.find_by!(name: "MIC ALFA")
-    gama = SubChannel.find_by!(name: "MIC GAMA")
+    gamma = SubChannel.find_by!(name: "MIC GAMA")
 
     assert_equal %w[11222333000181 44555666000177].sort,
-      PreapprovedOffers.new(scope: escopo_da_organizacao).call.map { |linha| linha["cnpj"] }.sort
+      PreapprovedOffers.new(scope: organization_scope).call.map { |row| row["cnpj"] }.sort
     assert_equal [ "11222333000181" ],
-      PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: alfa.id).call.map { |linha| linha["cnpj"] }
+      PreapprovedOffers.new(scope: organization_scope, sub_channel_id: alfa.id).call.map { |row| row["cnpj"] }
     assert_equal [ "44555666000177" ],
-      PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: gama.id).call.map { |linha| linha["cnpj"] }
+      PreapprovedOffers.new(scope: organization_scope, sub_channel_id: gamma.id).call.map { |row| row["cnpj"] }
 
     # "MIC BETA" veio na mesma planilha, mas o cliente dele não tem oferta: não é oferecido.
     assert_equal [ "MIC ALFA", "MIC GAMA" ],
-      PreapprovedOffers.new(scope: escopo_da_organizacao).sub_channel_options.map { |mic| mic["name"] }
+      PreapprovedOffers.new(scope: organization_scope).sub_channel_options.map { |mic| mic["name"] }
     assert_equal [ "MIC ALFA", "MIC GAMA" ],
-      PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: alfa.id).sub_channel_options.map { |mic| mic["name"] },
+      PreapprovedOffers.new(scope: organization_scope, sub_channel_id: alfa.id).sub_channel_options.map { |mic| mic["name"] },
       "escolher um MIC não faz os outros sumirem da própria lista"
   end
 
@@ -108,10 +108,10 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
       ).id)
 
     delta = SubChannel.find_by!(name: "MIC DELTA")
-    linha = PreapprovedOffers.new(scope: escopo_da_organizacao, sub_channel_id: delta.id).call.sole
+    row = PreapprovedOffers.new(scope: organization_scope, sub_channel_id: delta.id).call.sole
 
-    assert_equal "11222333000181", linha["cnpj"]
-    assert_equal 3, linha["establishments"].to_i,
+    assert_equal "11222333000181", row["cnpj"]
+    assert_equal 3, row["establishments"].to_i,
       "o filtro escolhe o cliente; a linha continua contando os três ECs dele"
   end
 
@@ -119,50 +119,50 @@ class PreapprovedOffersTest < ActiveSupport::TestCase
 
   # Um MIC com oferta e um MIC sem: é o par que prova a lista de opções, porque só o
   # primeiro pode ser oferecido no filtro.
-  def lojas_de_outros_mics
+  def stores_of_other_mics
     [
-      BinWorkbook::Loja.new(
+      BinWorkbook::Store.new(
         ec: "30000005", cnpj: "44555666000177", sub_channel_name: "MIC GAMA",
         legal_name: "GAMA TRANSPORTES LTDA", trade_name: "GAMA EXPRESS",
-        contract_status: "Active", dias_m1: { 1 => 90 }, dias_atual: { 1 => 95 },
+        contract_status: "Active", previous_days: { 1 => 90 }, current_days: { 1 => 95 },
         preapproved_volume: 120_000, preapproved_term: 18, preapproved_rate: 2.7
       ),
-      BinWorkbook::Loja.new(
+      BinWorkbook::Store.new(
         ec: "30000006", cnpj: "55666777000148", sub_channel_name: "MIC BETA",
         legal_name: "BETA LOGISTICA LTDA", trade_name: "BETA CARGO",
-        contract_status: "Active", dias_m1: { 1 => 70 }, dias_atual: { 1 => 60 }
+        contract_status: "Active", previous_days: { 1 => 70 }, current_days: { 1 => 60 }
       )
     ]
   end
 
-  def lojas
+  def stores
     [
       # Dois ECs do mesmo CNPJ, com a mesma oferta: é o caso real.
-      BinWorkbook::Loja.new(
+      BinWorkbook::Store.new(
         ec: "30000001", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
         legal_name: "ALFA COMERCIO LTDA", trade_name: "ALFA LANCHES",
-        contract_status: "Active", dias_m1: { 1 => 100 }, dias_atual: { 1 => 150 },
+        contract_status: "Active", previous_days: { 1 => 100 }, current_days: { 1 => 150 },
         preapproved_volume: 350_000, preapproved_term: 24, preapproved_rate: 3.28
       ),
-      BinWorkbook::Loja.new(
+      BinWorkbook::Store.new(
         ec: "30000002", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
         legal_name: "ALFA COMERCIO LTDA", trade_name: "ALFA EXPRESS",
-        contract_status: "Active", dias_m1: { 1 => 50 }, dias_atual: { 1 => 20 },
+        contract_status: "Active", previous_days: { 1 => 50 }, current_days: { 1 => 20 },
         preapproved_volume: 350_000, preapproved_term: 24, preapproved_rate: 3.28
       ),
       # Um terceiro EC no mesmo CNPJ: com dois contra um, "a maioria declara" é uma maioria
       # de verdade, não um desempate alfabético disfarçado.
-      BinWorkbook::Loja.new(
+      BinWorkbook::Store.new(
         ec: "30000004", cnpj: "11222333000181", sub_channel_name: "MIC ALFA",
         legal_name: "ALFA COMERCIO LTDA", trade_name: "ALFA DELIVERY",
-        contract_status: "Active", dias_m1: { 1 => 30 }, dias_atual: { 1 => 40 },
+        contract_status: "Active", previous_days: { 1 => 30 }, current_days: { 1 => 40 },
         preapproved_volume: 350_000, preapproved_term: 24, preapproved_rate: 3.28
       ),
       # Sem oferta: a maioria da carteira (531 dos 561 ECs do lote real).
-      BinWorkbook::Loja.new(
+      BinWorkbook::Store.new(
         ec: "30000003", cnpj: "22333444000105", sub_channel_name: "MIC ALFA",
         legal_name: "BETA SERVICOS LTDA", trade_name: "BETA CAFE",
-        contract_status: "Active", dias_m1: { 1 => 400 }, dias_atual: { 1 => 300 }
+        contract_status: "Active", previous_days: { 1 => 400 }, current_days: { 1 => 300 }
       )
     ]
   end

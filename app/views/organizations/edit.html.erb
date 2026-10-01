@@ -8,8 +8,8 @@
 
 <% if @organization.errors.any? %>
   <ul class="mt-4 grid gap-1 text-sm text-error">
-    <% @organization.errors.full_messages.each do |mensagem| %>
-      <li><%= mensagem %></li>
+    <% @organization.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
     <% end %>
   </ul>
 <% end %>

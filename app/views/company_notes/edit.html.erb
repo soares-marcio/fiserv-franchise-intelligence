@@ -35,9 +35,9 @@
       <%= hidden_field_tag :origin, "sub_channel" %>
       <%= hidden_field_tag :sub_channel_id, sub_channel_id %>
       <%# O recorte da listagem volta junto para a tela reabrir onde estava. %>
-      <% CompanyNotesController::LISTING_PARAM_KEYS.each do |chave| %>
-        <% Array(params[chave]).compact_blank.each do |valor| %>
-          <%= hidden_field_tag "#{chave}#{'[]' if params[chave].is_a?(Array)}", valor %>
+      <% CompanyNotesController::LISTING_PARAM_KEYS.each do |key| %>
+        <% Array(params[key]).compact_blank.each do |value| %>
+          <%= hidden_field_tag "#{key}#{'[]' if params[key].is_a?(Array)}", value %>
         <% end %>
       <% end %>
     <% end %>

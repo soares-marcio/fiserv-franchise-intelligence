@@ -5,13 +5,13 @@ require "test_helper"
 # administrador quando as variáveis existem, e não criar nada quando não existem.
 class AdminSeedTest < ActiveSupport::TestCase
   setup do
-    @antes = ENV.slice("ADMIN_EMAIL", "ADMIN_PASSWORD", "ADMIN_NAME")
-    %w[ADMIN_EMAIL ADMIN_PASSWORD ADMIN_NAME].each { |chave| ENV.delete(chave) }
+    @before = ENV.slice("ADMIN_EMAIL", "ADMIN_PASSWORD", "ADMIN_NAME")
+    %w[ADMIN_EMAIL ADMIN_PASSWORD ADMIN_NAME].each { |key| ENV.delete(key) }
   end
 
   teardown do
-    %w[ADMIN_EMAIL ADMIN_PASSWORD ADMIN_NAME].each { |chave| ENV.delete(chave) }
-    @antes.each { |chave, valor| ENV[chave] = valor }
+    %w[ADMIN_EMAIL ADMIN_PASSWORD ADMIN_NAME].each { |key| ENV.delete(key) }
+    @before.each { |key, value| ENV[key] = value }
   end
 
   test "sem as variáveis, o seed não cria usuário nenhum" do
@@ -42,10 +42,10 @@ class AdminSeedTest < ActiveSupport::TestCase
     ENV["ADMIN_EMAIL"] = "chefe@exemplo.com"
     ENV["ADMIN_PASSWORD"] = "curta12"
 
-    erro = assert_raises(SystemExit) { Rails.application.load_seed }
+    error = assert_raises(SystemExit) { Rails.application.load_seed }
 
-    assert_match(/8 caracteres/, erro.message)
-    assert_no_match(/curta12/, erro.message)
+    assert_match(/8 caracteres/, error.message)
+    assert_no_match(/curta12/, error.message)
     assert_nil User.find_by(email_address: "chefe@exemplo.com")
   end
 

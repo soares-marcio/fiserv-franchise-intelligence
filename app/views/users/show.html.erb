@@ -44,7 +44,7 @@
       <p class="metric-hint mt-2">Administrador da organização: tudo, em toda carteira dela.</p>
     <% elsif @user.permissions.any? %>
       <ul class="mt-3 grid gap-1 text-sm">
-        <% @user.permissions.each do |chave| %><li><%= Permission.label(chave) %></li><% end %>
+        <% @user.permissions.each do |key| %><li><%= Permission.label(key) %></li><% end %>
       </ul>
     <% else %>
       <p class="metric-hint mt-2">Nenhuma permissão marcada.</p>

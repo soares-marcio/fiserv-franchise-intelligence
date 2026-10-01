@@ -13,9 +13,9 @@ module IndicatorsHelper
     if reading[:value].nil?
       indicator == :quality ? "Nenhuma proposta com data neste mês" : "Sem Mapa importado desta competência"
     elsif reading[:denominator]
-      texto = "#{reading[:numerator]} de #{reading[:denominator]}"
-      texto += " · #{pluralize(reading[:pending], 'pendente', 'pendentes')}" if reading[:pending].to_i.positive?
-      texto
+      text = "#{reading[:numerator]} de #{reading[:denominator]}"
+      text += " · #{pluralize(reading[:pending], 'pendente', 'pendentes')}" if reading[:pending].to_i.positive?
+      text
     end
   end
 

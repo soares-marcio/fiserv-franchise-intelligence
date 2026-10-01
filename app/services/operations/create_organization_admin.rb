@@ -7,11 +7,11 @@ module Operations
   # acesso, como no convite; a plataforma a vê na tela da organização para entregar.
   class CreateOrganizationAdmin
     def self.call(name:, email_address:, actor:, organization: nil)
-      senha = SecureRandom.alphanumeric(14)
+      password = SecureRandom.alphanumeric(14)
       ApplicationRecord.transaction do
         organization ||= Organization.create!
         User.create!(
-          name:, email_address:, password: senha, provisional_password: senha,
+          name:, email_address:, password: password, provisional_password: password,
           must_change_password: true, organization:, organization_admin: true, created_by: actor
         )
       end

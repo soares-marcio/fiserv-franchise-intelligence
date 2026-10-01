@@ -39,7 +39,7 @@ module AuditEventsHelper
   def audit_metadata_summary(metadata)
     return "—" if metadata.blank?
 
-    metadata.map { |chave, valor| "#{chave.to_s.humanize.downcase}: #{Array(valor).join(', ')}" }
+    metadata.map { |key, value| "#{key.to_s.humanize.downcase}: #{Array(value).join(', ')}" }
       .join(" · ")
   end
 end

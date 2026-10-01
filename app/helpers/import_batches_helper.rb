@@ -77,13 +77,13 @@ module ImportBatchesHelper
   def file_status_hint(freshness)
     return "Importe o primeiro arquivo BIN para começar." unless freshness.any_file?
 
-    atrasados = freshness.stale_entries.size
-    if atrasados.zero?
+    stale_count = freshness.stale_entries.size
+    if stale_count.zero?
       return "Arquivo e dados dentro do esperado. O alerta começa em " \
         "#{ImportBatch::STALE_AFTER_DAYS} dias."
     end
 
-    "#{pluralize(atrasados, 'master', 'masters')} com dados desatualizados. " \
+    "#{pluralize(stale_count, 'master', 'masters')} com dados desatualizados. " \
       "Veja quais na tela de importação."
   end
 

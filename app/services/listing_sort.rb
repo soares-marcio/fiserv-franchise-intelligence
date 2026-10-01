@@ -73,10 +73,10 @@ class ListingSort
     # Linha sem valor não tem lugar na ordem — variação sem base comparável, por exemplo.
     # Vai para o fim nos dois sentidos, como o NULLS LAST do SQL; sem isso ela viraria zero
     # e apareceria no meio, entre quem caiu e quem cresceu.
-    sem_valor, com_valor = rows.partition { |row| extractor.call(row).nil? }
-    ordenadas = com_valor.sort_by { |row| comparable(extractor.call(row)) }
-    ordenadas.reverse! if direction == "desc"
-    ordenadas + sem_valor
+    without_value, with_value = rows.partition { |row| extractor.call(row).nil? }
+    sorted_rows = with_value.sort_by { |row| comparable(extractor.call(row)) }
+    sorted_rows.reverse! if direction == "desc"
+    sorted_rows + without_value
   end
 
   private

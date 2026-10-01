@@ -65,9 +65,9 @@ module BinImport
         persist_activation_rows(batch, rows.fetch("Ativacao"), establishments)
         detect_anomalies!(batch)
 
-        motivos = BatchReview.new(batch).review_reasons(uploader: batch.uploaded_by)
-        if motivos.any?
-          batch.update!(status: "pending_review", review_reasons: motivos.map(&:to_s))
+        reasons = BatchReview.new(batch).review_reasons(uploader: batch.uploaded_by)
+        if reasons.any?
+          batch.update!(status: "pending_review", review_reasons: reasons.map(&:to_s))
           next
         end
 

@@ -7,24 +7,24 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
   ALFA = "MIC ALFA".freeze
 
   setup do
-    @loja = BinWorkbook::Loja.new(
+    @store = BinWorkbook::Store.new(
       ec: "30000001", cnpj: "11222333000181", sub_channel_name: ALFA,
       legal_name: "ALFA LANCHES LTDA", trade_name: "ALFA LANCHES", contract_status: "Active",
-      dias_m1: { 1 => 100, 2 => 200, 25 => 700 }, dias_atual: { 1 => 150, 2 => 50, 10 => 300 }
+      previous_days: { 1 => 100, 2 => 200, 25 => 700 }, current_days: { 1 => 150, 2 => 50, 10 => 300 }
     )
-    import_synthetic_workbook(lojas: [ @loja ])
-    @establishment = Establishment.find_by!(ec: @loja.ec)
-    @scope = ReportScope.new(scope: escopo_do_canal(@establishment.channel_id))
+    import_synthetic_workbook(stores: [ @store ])
+    @establishment = Establishment.find_by!(ec: @store.ec)
+    @scope = ReportScope.new(scope: channel_scope(@establishment.channel_id))
   end
 
   test "traz um dia por linha, com os dois meses lado a lado" do
     rows = daily(from_day: 1, to_day: 31)
 
     assert_equal (1..31).to_a, rows.map { |row| row["day"].to_i }
-    assert_equal 150.to_d, valor(rows, 1, "current_amount")
-    assert_equal 100.to_d, valor(rows, 1, "previous_amount")
-    assert_equal 300.to_d, valor(rows, 10, "current_amount")
-    assert_equal 700.to_d, valor(rows, 25, "previous_amount")
+    assert_equal 150.to_d, value(rows, 1, "current_amount")
+    assert_equal 100.to_d, value(rows, 1, "previous_amount")
+    assert_equal 300.to_d, value(rows, 10, "current_amount")
+    assert_equal 700.to_d, value(rows, 25, "previous_amount")
   end
 
   # Dia sem venda chega como zero na planilha e continua zero aqui: some-lo da lista
@@ -32,8 +32,8 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
   test "dia sem movimento aparece zerado, não sumido" do
     rows = daily(from_day: 1, to_day: 31)
 
-    assert_equal 0.to_d, valor(rows, 3, "current_amount")
-    assert_equal 0.to_d, valor(rows, 3, "previous_amount")
+    assert_equal 0.to_d, value(rows, 3, "current_amount")
+    assert_equal 0.to_d, value(rows, 3, "previous_amount")
   end
 
   # O modal é a leitura do lançamento, não o recorte da comparação: mostra o mês inteiro
@@ -42,12 +42,12 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
     rows = daily(from_day: 2, to_day: 10)
 
     assert_equal (1..31).to_a, rows.map { |row| row["day"].to_i }
-    assert_equal 50.to_d, valor(rows, 2, "current_amount")
-    assert_equal 700.to_d, valor(rows, 25, "previous_amount")
+    assert_equal 50.to_d, value(rows, 2, "current_amount")
+    assert_equal 700.to_d, value(rows, 25, "previous_amount")
   end
 
   test "EC sem lançamento no recorte responde vazio, sem erro" do
-    assert_empty daily(from_day: 1, to_day: 31, establishments: [ sem_lancamento ])
+    assert_empty daily(from_day: 1, to_day: 31, establishments: [ without_entries ])
       .select { |row| row["current_amount"].to_d.positive? }
   end
 
@@ -58,23 +58,23 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
   # O modal passou a somar o CNPJ: dois ECs do mesmo cliente entram no mesmo dia. Sem isso, o
   # modal mostraria um ponto de venda enquanto a linha da listagem mostra a soma dos dois.
   test "soma os ECs do cliente no mesmo dia" do
-    irmao = BinWorkbook::Loja.new(
-      ec: "90000001", cnpj: @loja.cnpj, sub_channel_name: ALFA,
+    sibling = BinWorkbook::Store.new(
+      ec: "90000001", cnpj: @store.cnpj, sub_channel_name: ALFA,
       legal_name: "ALFA LANCHES LTDA", trade_name: "ALFA EXPRESS", contract_status: "Active",
-      dias_m1: { 1 => 20 }, dias_atual: { 1 => 35 }
+      previous_days: { 1 => 20 }, current_days: { 1 => 35 }
     )
-    import_synthetic_workbook(lojas: [ @loja, irmao ], filename: "BIN_TESTE_20260812.xlsx")
-    ecs = Establishment.where(ec: [ @loja.ec, irmao.ec ]).to_a
+    import_synthetic_workbook(stores: [ @store, sibling ], filename: "BIN_TESTE_20260812.xlsx")
+    ecs = Establishment.where(ec: [ @store.ec, sibling.ec ]).to_a
 
     rows = daily(from_day: 1, to_day: 31, establishments: ecs)
 
-    assert_equal 150 + 35, valor(rows, 1, "current_amount")
-    assert_equal 100 + 20, valor(rows, 1, "previous_amount")
+    assert_equal 150 + 35, value(rows, 1, "current_amount")
+    assert_equal 100 + 20, value(rows, 1, "previous_amount")
   end
 
   private
 
-  def sem_lancamento
+  def without_entries
     Establishment.create!(
       ec: "99999999", channel_id: @establishment.channel_id, company_id: @establishment.company_id
     )
@@ -85,7 +85,7 @@ class EstablishmentDailyRevenueQueryTest < ActiveSupport::TestCase
     @scope.establishment_daily_revenues(establishment_ids: establishments.map(&:id), window:)
   end
 
-  def valor(rows, day, column)
+  def value(rows, day, column)
     rows.find { |row| row["day"].to_i == day }[column].to_d
   end
 end

@@ -16,14 +16,14 @@ class OrganizationTest < ActiveSupport::TestCase
   end
 
   test "conta da plataforma não tem organização; conta comum precisa de uma" do
-    plataforma = User.new(email_address: "p@exemplo.com", name: "P", password: "senha-bem-longa-1",
+    platform = User.new(email_address: "p@exemplo.com", name: "P", password: "senha-bem-longa-1",
       platform_admin: true, organization: default_organization)
-    assert_not plataforma.valid?
-    assert_includes plataforma.errors[:organization].join, "plataforma"
+    assert_not platform.valid?
+    assert_includes platform.errors[:organization].join, "plataforma"
 
-    comum = User.new(email_address: "c@exemplo.com", name: "C", password: "senha-bem-longa-1")
-    assert_not comum.valid?
-    assert_includes comum.errors[:organization].join, "obrigatória"
+    shared = User.new(email_address: "c@exemplo.com", name: "C", password: "senha-bem-longa-1")
+    assert_not shared.valid?
+    assert_includes shared.errors[:organization].join, "obrigatória"
 
     admin = User.new(email_address: "a@exemplo.com", name: "A", password: "senha-bem-longa-1",
       platform_admin: true, organization_admin: true)
@@ -33,26 +33,26 @@ class OrganizationTest < ActiveSupport::TestCase
   # As FKs compostas: usuário e Master de organizações diferentes não se ligam nem por
   # console — a validação do modelo dá a mensagem, o banco dá a garantia.
   test "concessão a Master de outra organização é recusada pelo modelo e pelo banco" do
-    outra = Organization.create!(name: "Outra")
-    canal_alheio = Channel.create!(organization: outra, external_id: "9001", name: "MASTER ALHEIO")
-    pessoa = create_user(email: "pessoa@exemplo.com")
+    other = Organization.create!(name: "Outra")
+    foreign_channel = Channel.create!(organization: other, external_id: "9001", name: "MASTER ALHEIO")
+    person = create_user(email: "pessoa@exemplo.com")
 
-    grant = AccessGrant.new(user: pessoa, channel: canal_alheio)
+    grant = AccessGrant.new(user: person, channel: foreign_channel)
     assert_not grant.valid?
     assert_includes grant.errors[:channel].join, "outra organização"
 
     assert_raises(ActiveRecord::InvalidForeignKey) do
-      AccessGrant.insert!({ user_id: pessoa.id, channel_id: canal_alheio.id, organization_id: outra.id,
+      AccessGrant.insert!({ user_id: person.id, channel_id: foreign_channel.id, organization_id: other.id,
         created_at: Time.current, updated_at: Time.current })
     end
   end
 
   test "lote e Master de organizações diferentes não se ligam" do
-    outra = Organization.create!(name: "Outra")
-    canal_alheio = Channel.create!(organization: outra, external_id: "9001", name: "MASTER ALHEIO")
+    other = Organization.create!(name: "Outra")
+    foreign_channel = Channel.create!(organization: other, external_id: "9001", name: "MASTER ALHEIO")
 
     assert_raises(ActiveRecord::InvalidForeignKey) do
-      ImportBatch.insert!({ organization_id: default_organization.id, channel_id: canal_alheio.id,
+      ImportBatch.insert!({ organization_id: default_organization.id, channel_id: foreign_channel.id,
         source_filename: "x.xlsx", file_checksum: "x-1", status: "failed",
         created_at: Time.current, updated_at: Time.current })
     end

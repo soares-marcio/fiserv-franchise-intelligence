@@ -58,8 +58,8 @@ module Authentication
     end
 
     def after_authentication_url
-      destino = session.delete(:return_to_after_authenticating)
-      safe_return_path?(destino) ? destino : root_url
+      destination = session.delete(:return_to_after_authenticating)
+      safe_return_path?(destination) ? destination : root_url
     end
 
     # Caminho interno é o que começa com uma barra só: "//exemplo.com" é URL de outro host

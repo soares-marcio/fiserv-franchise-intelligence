@@ -66,7 +66,7 @@ class CompanyNotesController < ApplicationController
         render turbo_stream: [
           turbo_stream.replace(
             helpers.company_note_cell_id(company.uuid),
-            partial: "shared/company_note_cell", locals: celula(company, note)
+            partial: "shared/company_note_cell", locals: cell_locals(company, note)
           ),
           # A ficha do cliente mostra o texto; as telas de tabela não têm este alvo, e o Turbo
           # ignora em silêncio o que não encontra.
@@ -83,7 +83,7 @@ class CompanyNotesController < ApplicationController
     end
   end
 
-  def celula(company, note)
+  def cell_locals(company, note)
     {
       company_uuid: company.uuid,
       name: company.establishments.in_scope(Current.access_scope).first&.current_map_snapshot&.trade_name.to_s,

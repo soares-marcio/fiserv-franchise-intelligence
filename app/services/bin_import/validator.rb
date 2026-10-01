@@ -47,7 +47,7 @@ module BinImport
         required = Template::REQUIRED_HEADERS.fetch(sheet_name)
         sheet_rows.each do |row|
           missing = required.select { |header| row[header].blank? }
-          missing.delete("CANAL") if canal_dispensavel?(sheet_name)
+          missing.delete("CANAL") if channel_optional?(sheet_name)
           next if missing.empty?
 
           raise ArgumentError, "Na aba \"#{sheet_name}\", linha #{row['_row_number']} da planilha, " \
@@ -60,14 +60,14 @@ module BinImport
     # O Mapa sempre tolera linha sem CANAL — vira anomalia. As outras abas só toleram quando
     # o arquivo inteiro chega sem canal: aí a carteira entra sob o nome fictício. Arquivo
     # parcialmente preenchido continua sendo recusado, porque aí falta dado, não a coluna.
-    def canal_dispensavel?(sheet_name)
-      sheet_name == "Mapa de Clientes BIN" || sem_canal_no_arquivo?
+    def channel_optional?(sheet_name)
+      sheet_name == "Mapa de Clientes BIN" || file_without_channel?
     end
 
-    def sem_canal_no_arquivo?
-      return @sem_canal unless @sem_canal.nil?
+    def file_without_channel?
+      return @without_channel unless @without_channel.nil?
 
-      @sem_canal = @rows.values.flat_map { |sheet_rows| values(sheet_rows, "CANAL") }.empty?
+      @without_channel = @rows.values.flat_map { |sheet_rows| values(sheet_rows, "CANAL") }.empty?
     end
 
     def validate_ec_identity!
@@ -115,9 +115,9 @@ module BinImport
         ec unless map_ecs.include?(ec)
       end
       if missing.any?
-        amostra = missing.first(10).join(", ")
+        sample = missing.first(10).join(", ")
         raise ArgumentError, "#{missing.size} #{missing.one? ? 'EC da aba Faturamento não está' : 'ECs da aba Faturamento não estão'} " \
-          "na aba Mapa de Clientes BIN: #{amostra}#{'…' if missing.size > 10}. Todo EC que fatura " \
+          "na aba Mapa de Clientes BIN: #{sample}#{'…' if missing.size > 10}. Todo EC que fatura " \
           "precisa estar no Mapa — exporte as duas abas do mesmo momento."
       end
     end
@@ -178,15 +178,15 @@ module BinImport
         [ period, score ]
       end
       best = scores.max_by { |_period, score| score }
-      meses = @covered_periods.map { |period| I18n.l(period, format: "%b/%Y") }.to_sentence
+      months = @covered_periods.map { |period| I18n.l(period, format: "%b/%Y") }.to_sentence
       if best.last.zero?
         raise ArgumentError, "Não deu para descobrir de que mês é a coluna \"#{revenue_header}\": " \
-          "o valor dela não bateu com nenhuma coluna de volume do Mapa (#{meses}). As duas abas " \
+          "o valor dela não bateu com nenhuma coluna de volume do Mapa (#{months}). As duas abas " \
           "precisam vir da mesma exportação."
       end
       if scores.values.count(best.last) > 1
         raise ArgumentError, "A coluna \"#{revenue_header}\" bateu igualmente com mais de uma " \
-          "competência do Mapa (#{meses}), então não dá para dizer de que mês ela é. Isso " \
+          "competência do Mapa (#{months}), então não dá para dizer de que mês ela é. Isso " \
           "costuma acontecer quando dois meses trazem os mesmos valores."
       end
 

@@ -6,8 +6,8 @@ class OrganizationOnboardingTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   setup do
-    @sem_nome = Organization.create!
-    @admin = create_user(email: "admin@exemplo.com", organization: @sem_nome, organization_admin: true)
+    @unnamed = Organization.create!
+    @admin = create_user(email: "admin@exemplo.com", organization: @unnamed, organization_admin: true)
   end
 
   test "administrador de organização sem nome é levado a nomeá-la em qualquer tela" do
@@ -29,11 +29,11 @@ class OrganizationOnboardingTest < ActionDispatch::IntegrationTest
 
     patch organization_path, params: { name: "   " }
     assert_response :unprocessable_entity
-    assert_not @sem_nome.reload.named?
+    assert_not @unnamed.reload.named?
 
     patch organization_path, params: { name: "Franquia Norte" }
     assert_redirected_to root_path
-    assert_equal "Franquia Norte", @sem_nome.reload.name
+    assert_equal "Franquia Norte", @unnamed.reload.name
     assert_equal "Franquia Norte", AuditEvent.find_by(action: "organization.named").metadata["nome"]
 
     get reports_path
@@ -47,18 +47,18 @@ class OrganizationOnboardingTest < ActionDispatch::IntegrationTest
     patch organization_path, params: { name: default_organization.name }
 
     assert_response :unprocessable_entity
-    assert_not @sem_nome.reload.named?
+    assert_not @unnamed.reload.named?
   end
 
   test "colaborador e plataforma não são redirecionados, nem nomeiam" do
-    colaborador = scoped_user(permissions: [ Permission::REPORTS_READ ], email: "colab@exemplo.com",
-      organization: @sem_nome)
-    sign_in_as(colaborador)
+    collaborator = scoped_user(permissions: [ Permission::REPORTS_READ ], email: "colab@exemplo.com",
+      organization: @unnamed)
+    sign_in_as(collaborator)
     get reports_path
     assert_response :success
     patch organization_path, params: { name: "Tentativa" }
     assert_response :forbidden
-    assert_not @sem_nome.reload.named?
+    assert_not @unnamed.reload.named?
     sign_out
 
     travel 31.seconds
@@ -71,7 +71,7 @@ class OrganizationOnboardingTest < ActionDispatch::IntegrationTest
 
   # Nomear é uma vez: depois disso a tela não abre mais por acidente.
   test "organização já nomeada não volta ao onboarding" do
-    @sem_nome.update!(name: "Já Nomeada")
+    @unnamed.update!(name: "Já Nomeada")
     sign_in_as(@admin)
 
     get reports_path

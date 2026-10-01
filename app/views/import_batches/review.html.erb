@@ -22,8 +22,8 @@
 
     <%# Por que parou: o motivo é o que a pessoa precisa entender antes de olhar as listas. %>
     <ul class="mt-6 grid gap-2">
-      <% @import_batch.review_reasons.each do |motivo| %>
-        <li class="metric-hint"><strong><%= review_reason_label(motivo) %></strong></li>
+      <% @import_batch.review_reasons.each do |reason| %>
+        <li class="metric-hint"><strong><%= review_reason_label(reason) %></strong></li>
       <% end %>
     </ul>
   </section>
@@ -44,8 +44,8 @@
           <table class="table batches-table">
             <thead><tr><th scope="col">EC</th><th scope="col">CNPJ</th><th scope="col">MIC</th></tr></thead>
             <tbody>
-              <% @review.leaving.each do |ec, linha| %>
-                <tr><td><%= ec %></td><td><%= formatted_cnpj(linha[:cnpj]) %></td><td><%= linha[:sub_channel] %></td></tr>
+              <% @review.leaving.each do |ec, row| %>
+                <tr><td><%= ec %></td><td><%= formatted_cnpj(row[:cnpj]) %></td><td><%= row[:sub_channel] %></td></tr>
               <% end %>
             </tbody>
           </table>
@@ -65,8 +65,8 @@
           <table class="table batches-table">
             <thead><tr><th scope="col">EC</th><th scope="col">CNPJ</th><th scope="col">MIC</th></tr></thead>
             <tbody>
-              <% @review.entering.each do |ec, linha| %>
-                <tr><td><%= ec %></td><td><%= formatted_cnpj(linha[:cnpj]) %></td><td><%= linha[:sub_channel] %></td></tr>
+              <% @review.entering.each do |ec, row| %>
+                <tr><td><%= ec %></td><td><%= formatted_cnpj(row[:cnpj]) %></td><td><%= row[:sub_channel] %></td></tr>
               <% end %>
             </tbody>
           </table>
@@ -90,8 +90,8 @@
           <table class="table batches-table">
             <thead><tr><th scope="col">EC</th><th scope="col">De</th><th scope="col">Para</th></tr></thead>
             <tbody>
-              <% @review.moving.each do |ec, linha| %>
-                <tr><td><%= ec %></td><td><%= linha[:from] %></td><td><%= linha[:to] %></td></tr>
+              <% @review.moving.each do |ec, row| %>
+                <tr><td><%= ec %></td><td><%= row[:from] %></td><td><%= row[:to] %></td></tr>
               <% end %>
             </tbody>
           </table>

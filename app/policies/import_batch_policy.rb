@@ -75,13 +75,13 @@ class ImportBatchPolicy < ApplicationPolicy
       base = scope.where(organization_id: user.organization_id)
       return base if user.organization_admin?
 
-      alcance = base.where(uploaded_by_id: user.id)
+      reach = base.where(uploaded_by_id: user.id)
         .or(base.where(id: BatchGrant.where(user_id: user.id).select(:import_batch_id)))
-      return alcance unless user.permitted?(Permission::BATCHES_APPROVE)
+      return reach unless user.permitted?(Permission::BATCHES_APPROVE)
 
       # Quem aprova enxerga também o que está esperando decisão nos Masters que tem
       # inteiros — sem isso, revisar exigiria uma liberação para cada arquivo.
-      alcance.or(base.where(status: "pending_review", channel_id: AccessScope.for(user).full_channel_ids))
+      reach.or(base.where(status: "pending_review", channel_id: AccessScope.for(user).full_channel_ids))
     end
   end
 end

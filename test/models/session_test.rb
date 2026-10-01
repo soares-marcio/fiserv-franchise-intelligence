@@ -6,30 +6,30 @@ class SessionTest < ActiveSupport::TestCase
   end
 
   test "expira por inatividade e por tempo absoluto" do
-    ativa = @user.sessions.create!(last_active_at: Time.current)
-    parada = @user.sessions.create!(last_active_at: 3.hours.ago)
-    velha = @user.sessions.create!(last_active_at: Time.current)
-    velha.update_column(:created_at, 13.hours.ago)
+    active = @user.sessions.create!(last_active_at: Time.current)
+    stop = @user.sessions.create!(last_active_at: 3.hours.ago)
+    old_one = @user.sessions.create!(last_active_at: Time.current)
+    old_one.update_column(:created_at, 13.hours.ago)
 
-    assert_not ativa.expired?
-    assert parada.expired?, "duas horas sem uso derruba a sessão"
-    assert velha.reload.expired?, "doze horas derrubam mesmo em uso contínuo"
-    assert_equal [ parada.id, velha.id ].sort, Session.expired.pluck(:id).sort
+    assert_not active.expired?
+    assert stop.expired?, "duas horas sem uso derruba a sessão"
+    assert old_one.reload.expired?, "doze horas derrubam mesmo em uso contínuo"
+    assert_equal [ stop.id, old_one.id ].sort, Session.expired.pluck(:id).sort
   end
 
   # Sem o intervalo, toda requisição viraria um UPDATE — e a tela de importação faz várias
   # por segundo enquanto o arquivo processa.
   test "a marca de atividade só é reescrita depois do intervalo" do
-    sessao = @user.sessions.create!(last_active_at: 10.seconds.ago)
-    antes = sessao.last_active_at
+    session_row = @user.sessions.create!(last_active_at: 10.seconds.ago)
+    before = session_row.last_active_at
 
-    sessao.touch_activity
+    session_row.touch_activity
 
-    assert_equal antes.to_i, sessao.reload.last_active_at.to_i
+    assert_equal before.to_i, session_row.reload.last_active_at.to_i
 
-    sessao.update_column(:last_active_at, 2.minutes.ago)
-    sessao.touch_activity
+    session_row.update_column(:last_active_at, 2.minutes.ago)
+    session_row.touch_activity
 
-    assert_operator sessao.reload.last_active_at, :>, 1.minute.ago
+    assert_operator session_row.reload.last_active_at, :>, 1.minute.ago
   end
 end

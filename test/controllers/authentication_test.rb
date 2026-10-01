@@ -57,21 +57,21 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
 
   test "e-mail inexistente e senha errada dão a mesma resposta" do
     post session_path, params: { email_address: "ninguem@exemplo.com", password: "qualquer-coisa-12" }
-    inexistente = flash[:alert]
+    nonexistent = flash[:alert]
 
     post session_path, params: { email_address: @user.email_address, password: "senha-errada-123" }
 
-    assert_equal inexistente, flash[:alert], "a diferença contaria quem existe no portal"
+    assert_equal nonexistent, flash[:alert], "a diferença contaria quem existe no portal"
   end
 
   # Uma conta comum: o último administrador da plataforma ativo não se desativa (User#keep_one_active_platform_admin).
   test "conta desativada não entra, e sem dizer por quê" do
-    comum = scoped_user(permissions: [], email: "comum@exemplo.com")
-    comum.update!(deactivated_at: Time.current)
+    shared = scoped_user(permissions: [], email: "comum@exemplo.com")
+    shared.update!(deactivated_at: Time.current)
 
-    post session_path, params: { email_address: comum.email_address, password: Accounts::PASSWORD }
+    post session_path, params: { email_address: shared.email_address, password: Accounts::PASSWORD }
 
-    assert_redirected_to new_session_path(email_address: comum.email_address)
+    assert_redirected_to new_session_path(email_address: shared.email_address)
     assert_equal 0, Session.count
   end
 
@@ -89,30 +89,30 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
   end
 
   test "o código do autenticador não vale duas vezes" do
-    codigo = current_otp(@user)
+    code = current_otp(@user)
     post session_path, params: { email_address: @user.email_address, password: Accounts::PASSWORD }
-    post mfa_path, params: { code: codigo }
+    post mfa_path, params: { code: code }
 
     assert_equal 1, Session.count
 
     delete session_path
     post session_path, params: { email_address: @user.email_address, password: Accounts::PASSWORD }
-    post mfa_path, params: { code: codigo }
+    post mfa_path, params: { code: code }
 
     assert_equal 0, Session.count, "o mesmo código não pode abrir uma segunda sessão"
   end
 
   test "código de recuperação entra uma vez só" do
-    codigos = RecoveryCode.generate_for(@user)
+    codes = RecoveryCode.generate_for(@user)
     post session_path, params: { email_address: @user.email_address, password: Accounts::PASSWORD }
-    post mfa_path, params: { code: codigos.first }
+    post mfa_path, params: { code: codes.first }
 
     assert_equal 1, Session.count
     assert_equal 1, @user.recovery_codes.where.not(used_at: nil).count
 
     delete session_path
     post session_path, params: { email_address: @user.email_address, password: Accounts::PASSWORD }
-    post mfa_path, params: { code: codigos.first }
+    post mfa_path, params: { code: codes.first }
 
     assert_equal 0, Session.count, "código gasto não abre sessão de novo"
   end
@@ -139,9 +139,9 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
   end
 
   test "desativar o usuário derruba quem já estava dentro" do
-    comum = scoped_user(permissions: [], email: "comum@exemplo.com")
-    sign_in_as(comum)
-    comum.update!(deactivated_at: Time.current)
+    shared = scoped_user(permissions: [], email: "comum@exemplo.com")
+    sign_in_as(shared)
+    shared.update!(deactivated_at: Time.current)
 
     get root_path
 

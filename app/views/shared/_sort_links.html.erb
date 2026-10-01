@@ -3,12 +3,12 @@
     o link mora. Espera `sort` (um ListingSort), `path`, a lambda que monta a URL da tela,
     e `label`, o que a navegação ordena. %>
 <nav class="earnings-card-bar__sort" aria-label="<%= label %>">
-  <% sort.columns.each do |column, rotulo| %>
+  <% sort.columns.each do |column, column_label| %>
     <%= link_to path.call(sort: column, direction: sort.next_direction_for(column)),
       class: "sort-link #{"is-sorted" if sort.active?(column)}",
       aria: { current: ("true" if sort.active?(column)) } do %>
       <span class="sort-link__label">
-        <%= rotulo %><%= sort_indicator(column, sort.column, sort.direction) %>
+        <%= column_label %><%= sort_indicator(column, sort.column, sort.direction) %>
       </span>
     <% end %>
   <% end %>

@@ -16,39 +16,39 @@ class RecurringEarningsExporterTest < ActiveSupport::TestCase
   end
 
   test "uma linha por MIC e competência, na ordem da série" do
-    tabela = CSV.parse(exporter.to_csv, headers: true)
+    table = CSV.parse(exporter.to_csv, headers: true)
 
-    assert_equal RecurringEarningsExporter::HEADERS, tabela.headers
-    assert_equal [ "07/2026", "08/2026", nil ], tabela.map { |linha| linha["Competência"] }
-    assert_equal [ "MIC ALFA", "MIC ALFA", "TOTAL" ], tabela.map { |linha| linha["MIC"] }
+    assert_equal RecurringEarningsExporter::HEADERS, table.headers
+    assert_equal [ "07/2026", "08/2026", nil ], table.map { |row| row["Competência"] }
+    assert_equal [ "MIC ALFA", "MIC ALFA", "TOTAL" ], table.map { |row| row["MIC"] }
   end
 
   # A tela mostra travessão onde não há ajuste e † onde o Net MDR veio de outro arquivo. O
   # arquivo diz as duas coisas sem inventar número: célula vazia e a origem em texto.
   test "ajuste zerado e Net MDR ausente saem vazios, com a origem marcada" do
-    tabela = CSV.parse(exporter.to_csv, headers: true)
+    table = CSV.parse(exporter.to_csv, headers: true)
 
-    assert_nil tabela[0]["Ajuste"]
-    assert_equal "1.5", tabela[0]["Net MDR %"]
-    assert_nil tabela[0]["Origem do Net MDR"]
-    assert_nil tabela[1]["Net MDR %"]
-    assert_equal "arquivo anterior", tabela[1]["Origem do Net MDR"]
-    assert_equal "sim", tabela[1]["Competência parcial"]
+    assert_nil table[0]["Ajuste"]
+    assert_equal "1.5", table[0]["Net MDR %"]
+    assert_nil table[0]["Origem do Net MDR"]
+    assert_nil table[1]["Net MDR %"]
+    assert_equal "arquivo anterior", table[1]["Origem do Net MDR"]
+    assert_equal "sim", table[1]["Competência parcial"]
   end
 
   # A Participação do mês é repasse + credenciamento + ajuste (Anexo C, item 1). A parcela
   # aparece na coluna própria porque é ela que entra na base do redutor.
   test "a participação do mês soma repasse, credenciamento e ajuste, e o total fecha" do
-    tabela = CSV.parse(exporter.to_csv, headers: true)
+    table = CSV.parse(exporter.to_csv, headers: true)
 
-    assert_nil tabela[0]["Credenciamento"], "sem parcela, célula vazia e não zero"
-    assert_equal "30.0", tabela[0]["Participação do mês"]
-    assert_equal "89.0", tabela[1]["Credenciamento"]
-    assert_equal "104.0", tabela[1]["Participação do mês"],
+    assert_nil table[0]["Credenciamento"], "sem parcela, célula vazia e não zero"
+    assert_equal "30.0", table[0]["Participação do mês"]
+    assert_equal "89.0", table[1]["Credenciamento"]
+    assert_equal "104.0", table[1]["Participação do mês"],
       "10 de repasse, 89 de credenciamento e 5 de acelerador"
-    assert_equal "134.0", tabela[2]["Participação do mês"]
-    assert_equal "40.0", tabela[2]["Repasse"]
-    assert_equal "89.0", tabela[2]["Credenciamento"]
+    assert_equal "134.0", table[2]["Participação do mês"]
+    assert_equal "40.0", table[2]["Repasse"]
+    assert_equal "89.0", table[2]["Credenciamento"]
   end
 
   private

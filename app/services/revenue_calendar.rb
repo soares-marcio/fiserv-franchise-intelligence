@@ -67,9 +67,9 @@ class RevenueCalendar
   # explicar sozinha: "dia 1" e "30–31" dizem por que somam menos que as outras, onde
   # "semana 1" e "semana 5" sugeriam desempenho.
   def label_for(cells)
-    dias = cells.reject(&:outside?).map(&:day)
-    return if dias.empty?
+    days = cells.reject(&:outside?).map(&:day)
+    return if days.empty?
 
-    dias.first == dias.last ? "dia #{dias.first}" : "#{dias.first}–#{dias.last}"
+    days.first == days.last ? "dia #{days.first}" : "#{days.first}–#{days.last}"
   end
 end

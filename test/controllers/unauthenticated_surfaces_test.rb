@@ -51,30 +51,30 @@ class BlobAuthorizationTest < ActionDispatch::IntegrationTest
   setup do
     import_synthetic_workbook
     @company = Establishment.find_by!(ec: "30000001").company
-    @anexo = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("conteúdo"),
+    @attachment = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("conteúdo"),
       filename: "recibo.pdf", content_type: "application/pdf")
     # Como a tela grava: o anexo vem embutido na marcação do corpo, e é o Action Text que
     # cria o vínculo ao salvar. Anexar pelo `embeds` não persiste nada.
-    @nota = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj,
-      body: %(<div>Com anexo</div><action-text-attachment sgid="#{@anexo.attachable_sgid}"></action-text-attachment>))
-    @canal = Channel.find_by!(name: BinWorkbook::CANAL)
-    @outro = Channel.create!(organization: default_organization, external_id: "7777", name: "MASTER DE FORA")
+    @note = Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj,
+      body: %(<div>Com attachment</div><action-text-attachment sgid="#{@attachment.attachable_sgid}"></action-text-attachment>))
+    @channel = Channel.find_by!(name: BinWorkbook::CHANNEL)
+    @another = Channel.create!(organization: default_organization, external_id: "7777", name: "MASTER DE FORA")
   end
 
   test "quem não alcança o cliente não baixa o anexo da anotação dele" do
-    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: @outro,
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: @another,
       email: "de-fora@exemplo.com"))
 
-    get rails_blob_path(@anexo, disposition: "attachment")
+    get rails_blob_path(@attachment, disposition: "attachment")
 
     assert_response :not_found
   end
 
   test "quem alcança o cliente baixa normalmente" do
-    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: @canal,
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ, Permission::NOTES_READ ], channel: @channel,
       email: "de-dentro@exemplo.com"))
 
-    get rails_blob_path(@anexo, disposition: "attachment")
+    get rails_blob_path(@attachment, disposition: "attachment")
 
     assert_response :redirect
     assert_no_match(/session/, response.location.to_s)

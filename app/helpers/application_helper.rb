@@ -232,9 +232,9 @@ module ApplicationHelper
       data: { tip: verb }, tabindex: 0)
   end
 
-  def variation_chip(previous, current, novo: nil)
+  def variation_chip(previous, current, newcomer: nil)
     direction = variation_direction(previous, current)
-    return zero_base_chip(current, novo:) if direction == :unavailable
+    return zero_base_chip(current, newcomer:) if direction == :unavailable
 
     verb = VARIATION_VERBS.fetch(direction)
     value = signed_variation(previous, current)
@@ -251,9 +251,9 @@ module ApplicationHelper
   # estava zerado e vendeu (mora na aba de queda — é atenção, não crescimento); e
   # "Sem venda" quando segue zerado. `novo: nil` preserva a leitura otimista para
   # chamadores sem data, como a listagem por subcanal.
-  def zero_base_chip(current, novo: nil)
+  def zero_base_chip(current, newcomer: nil)
     if current.to_d.positive?
-      if novo == false
+      if newcomer == false
         content_tag(:span, class: "variation-chip variation-chip--flat",
           aria: { label: "voltou a vender: sem venda no mês anterior, ativação antiga" }) do
           safe_join([ variation_icon_tip(:flat, "Sem venda no mês anterior; ativação antiga"),
@@ -335,8 +335,8 @@ module ApplicationHelper
   # do Mapa não trouxe nome.
   def client_crumb_label
     snapshot = @snapshot
-    nome = snapshot&.trade_name.presence || snapshot&.legal_name.presence
-    nome || (@company ? formatted_cnpj(@company.cnpj) : params[:id])
+    name = snapshot&.trade_name.presence || snapshot&.legal_name.presence
+    name || (@company ? formatted_cnpj(@company.cnpj) : params[:id])
   end
 
   def period_option_label(date)
@@ -361,9 +361,9 @@ module ApplicationHelper
   SORT_ICONS = { idle: "caret-up-down", "desc" => "caret-down", "asc" => "caret-up" }.freeze
 
   def sort_indicator(column, current_sort, current_direction)
-    ativa = column == current_sort
-    nome = ativa ? SORT_ICONS.fetch(current_direction) : SORT_ICONS.fetch(:idle)
-    tag.span(icon(nome, css: "sort-icon"), class: "sort-indicator #{"is-idle" unless ativa}")
+    active = column == current_sort
+    name = active ? SORT_ICONS.fetch(current_direction) : SORT_ICONS.fetch(:idle)
+    tag.span(icon(name, css: "sort-icon"), class: "sort-indicator #{"is-idle" unless active}")
   end
 
   def day_range_label(from_day, to_day)
@@ -415,24 +415,24 @@ module ApplicationHelper
     total = total_pages.to_i
     return [] if total < 2
 
-    atual = page.to_i.clamp(1, total)
-    numeros = pagination_numbers(atual, total)
+    current_page = page.to_i.clamp(1, total)
+    numbers = pagination_numbers(current_page, total)
     # Salto de uma página só não merece "…": o número ocupa o mesmo espaço e é clicável.
-    numeros.flat_map { |numero| pagination_fill(numeros, numero) }
-      .slice_when { |anterior, seguinte| seguinte - anterior > 1 }.to_a
+    numbers.flat_map { |number| pagination_fill(numbers, number) }
+      .slice_when { |previous, following| following - previous > 1 }.to_a
   end
 
-  def pagination_numbers(atual, total)
+  def pagination_numbers(current_page, total)
     return (1..total).to_a if total <= PAGINATION_WINDOW + 2
 
-    primeira = (atual - PAGINATION_WINDOW / 2).clamp(1, total - PAGINATION_WINDOW + 1)
-    ([ 1, total ] + (primeira...(primeira + PAGINATION_WINDOW)).to_a).uniq.sort
+    first_page = (current_page - PAGINATION_WINDOW / 2).clamp(1, total - PAGINATION_WINDOW + 1)
+    ([ 1, total ] + (first_page...(first_page + PAGINATION_WINDOW)).to_a).uniq.sort
   end
 
-  def pagination_fill(numeros, numero)
-    return [ numero, numero + 1 ] if numeros.include?(numero + 2) && numeros.exclude?(numero + 1)
+  def pagination_fill(numbers, number)
+    return [ number, number + 1 ] if numbers.include?(number + 2) && numbers.exclude?(number + 1)
 
-    [ numero ]
+    [ number ]
   end
 
   # Net MDR do cliente na listagem por subcanal: entra só porcentagem positiva (pedido do
@@ -442,9 +442,9 @@ module ApplicationHelper
   def client_net_mdr_label(minimum, maximum)
     return if minimum.blank?
 
-    menor = net_mdr_label(minimum)
-    maior = net_mdr_label(maximum)
-    menor == maior ? menor : "#{menor} a #{maior}"
+    lowest = net_mdr_label(minimum)
+    highest = net_mdr_label(maximum)
+    lowest == highest ? lowest : "#{lowest} a #{highest}"
   end
 
   # Endereço da célula da anotação para o turbo_stream de salvar. Vive aqui porque duas pontas
@@ -522,10 +522,10 @@ module ApplicationHelper
   # parte que se l\u00EA por \u00FAltimo. Medido: devolve 15px dos 26 que faltavam.
   # Ver a regra de .metric-value, que tamb\u00E9m deixou de cortar com retic\u00EAncias.
   def brl_metric(amount)
-    formatado = brl(amount)
-    inteiro, virgula, centavos = formatado.rpartition(",")
-    return formatado if virgula.blank?
+    formatted = brl(amount)
+    integer_part, comma, cents = formatted.rpartition(",")
+    return formatted if comma.blank?
 
-    safe_join([ inteiro, content_tag(:span, "#{virgula}#{centavos}", class: "metric-value__cents") ])
+    safe_join([ integer_part, content_tag(:span, "#{comma}#{cents}", class: "metric-value__cents") ])
   end
 end

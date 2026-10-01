@@ -15,25 +15,25 @@ module BlobAuthorization
   private
 
   def authorize_blob_owner!
-    dono = @blob&.attachments&.first&.record
-    return if dono.nil? # Blob recém-criado, ainda sem anexo: tratado no upload, não aqui.
+    owner = @blob&.attachments&.first&.record
+    return if owner.nil? # Blob recém-criado, ainda sem anexo: tratado no upload, não aqui.
 
-    case dono
+    case owner
     when ActionText::RichText
-      nota = CompanyNote.find_by(id: dono.record_id) if dono.record_type == "CompanyNote"
-      return head :forbidden if nota.nil?
+      note = CompanyNote.find_by(id: owner.record_id) if owner.record_type == "CompanyNote"
+      return head :forbidden if note.nil?
 
-      head :not_found unless note_in_scope?(nota)
+      head :not_found unless note_in_scope?(note)
     when ImportBatch
       # A planilha original traz a carteira inteira de um Master num arquivo só: vale a
       # mesma regra do lote — os próprios envios e os que foram liberados.
-      head :not_found unless ImportBatchPolicy.new(Current.user, dono).download_source_file?
+      head :not_found unless ImportBatchPolicy.new(Current.user, owner).download_source_file?
     else
       head :forbidden
     end
   end
 
-  def note_in_scope?(nota)
-    CompanyNotePolicy::Scope.new(Current.user, CompanyNote).resolve.exists?(id: nota.id)
+  def note_in_scope?(note)
+    CompanyNotePolicy::Scope.new(Current.user, CompanyNote).resolve.exists?(id: note.id)
   end
 end

@@ -4,24 +4,24 @@ require "test_helper"
 # descobrir entrando.
 class PermissionTest < ActiveSupport::TestCase
   test "toda chave ou vale sozinha ou declara a base que exige" do
-    sozinhas = Permission::KEYS - Permission::REQUIRES.keys
+    standalone = Permission::KEYS - Permission::REQUIRES.keys
 
     assert_equal %w[reports_read establishments_read batches_read batches_upload batches_approve
-      metabase_read users_invite].sort, sozinhas.sort
+      metabase_read users_invite].sort, standalone.sort
   end
 
   test "chave sem a base é recusada no usuário, com a base no motivo" do
-    Permission::REQUIRES.each do |chave, bases|
+    Permission::REQUIRES.each do |key, bases|
       user = User.new(organization: default_organization, email_address: "x@exemplo.com", name: "X",
-        password: Accounts::PASSWORD, permissions: [ chave ])
+        password: Accounts::PASSWORD, permissions: [ key ])
 
-      assert_not user.valid?, chave
-      assert_match(/#{Regexp.escape(Permission.label(chave))}.*requer.*#{Regexp.escape(Permission.label(bases.first))}/,
-        user.errors[:permissions].join, chave)
+      assert_not user.valid?, key
+      assert_match(/#{Regexp.escape(Permission.label(key))}.*requer.*#{Regexp.escape(Permission.label(bases.first))}/,
+        user.errors[:permissions].join, key)
 
-      user.permissions = com_as_bases(chave)
+      user.permissions = with_bases(key)
       user.valid?
-      assert_empty user.errors[:permissions], "#{chave} com as bases deveria passar"
+      assert_empty user.errors[:permissions], "#{key} com as bases deveria passar"
     end
   end
 
@@ -37,10 +37,10 @@ class PermissionTest < ActiveSupport::TestCase
   private
 
   # A base de uma chave pode ter base própria (editar anotação → ver anotação → uma tela).
-  def com_as_bases(chave)
-    bases = Permission::REQUIRES.fetch(chave, [])
-    return [ chave ] if bases.empty?
+  def with_bases(key)
+    bases = Permission::REQUIRES.fetch(key, [])
+    return [ key ] if bases.empty?
 
-    [ chave, *com_as_bases(bases.first) ]
+    [ key, *with_bases(bases.first) ]
   end
 end

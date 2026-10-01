@@ -22,12 +22,12 @@ class MfaController < ApplicationController
   def create
     if verify_second_factor
       @user.update!(failed_attempts: 0, locked_until: nil)
-      destino = pending_return_to
+      destination = pending_return_to
       clear_pending_authentication
       start_new_session_for(@user)
       Audit.record("session.start", user: @user, request:)
       # Depois do reset_session da sessão nova: antes dele, o destino seria apagado.
-      session[:return_to_after_authenticating] = destino if destino
+      session[:return_to_after_authenticating] = destination if destination
       redirect_to after_authentication_url
     else
       register_failure
@@ -52,10 +52,10 @@ class MfaController < ApplicationController
   end
 
   def spend_recovery_code
-    codigo = @user.unused_recovery_codes.find { |registro| registro.matches?(params[:code]) }
-    return false unless codigo
+    code = @user.unused_recovery_codes.find { |entry| entry.matches?(params[:code]) }
+    return false unless code
 
-    codigo.update!(used_at: Time.current)
+    code.update!(used_at: Time.current)
     Audit.record("mfa.recovery_code_used", user: @user, request:,
       metadata: { restantes: @user.unused_recovery_codes.count })
     flash[:notice] = "Código de recuperação usado. Restam #{@user.unused_recovery_codes.count}."

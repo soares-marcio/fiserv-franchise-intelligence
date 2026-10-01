@@ -19,17 +19,17 @@
   <% end %>
 
   <div class="pagination-bar__pages">
-    <% pagination_page_groups(page, total_pages).each_with_index do |bloco, indice| %>
-      <% if indice.positive? %>
+    <% pagination_page_groups(page, total_pages).each_with_index do |page_group, index| %>
+      <% if index.positive? %>
         <span class="pagination-bar__gap" aria-hidden="true">…</span>
       <% end %>
       <div class="join">
-        <% bloco.each do |numero| %>
-          <% if numero == page %>
-            <span class="join-item btn btn-sm btn-primary" aria-current="page"><%= numero %></span>
+        <% page_group.each do |number| %>
+          <% if number == page %>
+            <span class="join-item btn btn-sm btn-primary" aria-current="page"><%= number %></span>
           <% else %>
-            <%= link_to numero, path.call(numero), class: "join-item btn btn-sm btn-outline",
-              aria: { label: "Página #{numero}" } %>
+            <%= link_to number, path.call(number), class: "join-item btn btn-sm btn-outline",
+              aria: { label: "Página #{number}" } %>
           <% end %>
         <% end %>
       </div>

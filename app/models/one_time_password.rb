@@ -21,10 +21,10 @@ class OneTimePassword
   # Devolve true e carimba o instante aceito. O carimbo é o que impede reutilizar o mesmo
   # código dentro da janela — quem o interceptar na tela não o usa depois.
   def verify(code)
-    aceito = totp.verify(code.to_s.strip, after: @user.otp_last_used_at&.to_i, drift_behind: DRIFT)
-    return false unless aceito
+    accepted = totp.verify(code.to_s.strip, after: @user.otp_last_used_at&.to_i, drift_behind: DRIFT)
+    return false unless accepted
 
-    @user.update_column(:otp_last_used_at, Time.at(aceito).utc)
+    @user.update_column(:otp_last_used_at, Time.at(accepted).utc)
     true
   end
 

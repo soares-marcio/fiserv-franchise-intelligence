@@ -8,15 +8,15 @@ class MfaEnrollmentTest < ApplicationSystemTestCase
   self.skip_default_login = true
 
   test "concluir o cadastro mostra os códigos de recuperação" do
-    novato = create_user(email: "novato@exemplo.com", otp_secret: nil, mfa_enabled_at: nil)
-    sign_in_through_ui(novato)
+    newcomer = create_user(email: "novato@exemplo.com", otp_secret: nil, mfa_enabled_at: nil)
+    sign_in_through_ui(newcomer)
 
     assert_text "Segundo fator"
-    fill_in "Código gerado pelo aplicativo", with: current_otp(novato.reload)
+    fill_in "Código gerado pelo aplicativo", with: current_otp(newcomer.reload)
     click_on "Concluir cadastro"
 
     assert_text "Guarde estes códigos"
     assert_selector "li.font-mono", count: RecoveryCode::HOW_MANY
-    assert novato.reload.mfa_enabled?
+    assert newcomer.reload.mfa_enabled?
   end
 end
