@@ -57,6 +57,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     visit platform_organization_path(organization)
     page.driver.browser.manage.window.resize_to(1024, 768)
 
+    assert_selector ".user-status-indicator", text: "Ativo"
     medidas = page.evaluate_script(<<~JS)
       [...document.querySelectorAll(".support-actions .btn")].map((botao) => ({
         texto_cabe: botao.scrollWidth <= botao.clientWidth,
@@ -69,6 +70,33 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     assert medidas.all? { |medida| medida["texto_cabe"] }, "nenhum rótulo pode ser cortado"
     assert medidas.all? { |medida| medida["fonte"] >= 13 }, "ações precisam manter texto de ao menos 13px"
     assert medidas.all? { |medida| medida["altura"] >= 36 }, "ações compactas ainda precisam de altura legível"
+
+    status = page.evaluate_script(<<~JS)
+      (() => {
+        const indicador = document.querySelector(".user-status-indicator")
+        const selo = indicador.querySelector(".badge")
+        const estilo = getComputedStyle(selo)
+        const ponto = getComputedStyle(selo, "::before")
+        const coluna = indicador.closest("li").querySelector(":scope > div")
+        return {
+          fundo: estilo.backgroundColor,
+          borda: parseFloat(estilo.borderLeftWidth),
+          sombra: estilo.boxShadow,
+          padding: parseFloat(estilo.paddingLeft),
+          ponto: parseFloat(ponto.width),
+          ultimo: coluna.lastElementChild.contains(indicador),
+          esquerda: Math.abs(indicador.getBoundingClientRect().left - coluna.getBoundingClientRect().left) <= 1
+        }
+      })()
+    JS
+
+    assert_equal "rgba(0, 0, 0, 0)", status["fundo"], "o estado não deve parecer um botão"
+    assert_equal 0, status["borda"], "o estado não deve ter contorno"
+    assert_equal "none", status["sombra"], "o estado não deve ter sombra"
+    assert_equal 0, status["padding"], "o estado não deve manter o formato de pill"
+    assert_operator status["ponto"], :>=, 6, "o ponto de estado precisa continuar visível"
+    assert status["ultimo"], "o estado precisa ser o último elemento da identificação"
+    assert status["esquerda"], "o estado precisa ficar alinhado à esquerda"
   ensure
     page.driver.browser.manage.window.resize_to(1400, 1000)
   end

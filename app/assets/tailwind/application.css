@@ -3578,6 +3578,19 @@
   box-shadow: none;
 }
 
+.btn-outline:hover,
+.btn-outline:focus-visible,
+.btn.btn-outline:hover,
+.btn.btn-outline:focus-visible,
+.btn-neutral:hover,
+.btn-neutral:focus-visible,
+.btn.btn-neutral:hover,
+.btn.btn-neutral:focus-visible {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-primary-content);
+}
+
 .btn-ghost,
 .btn.btn-ghost {
   --btn-bg: transparent;
@@ -3659,6 +3672,57 @@
   color: color-mix(in oklab, var(--color-base-content) 35%, transparent);
 }
 
+/* Nesta lista, estado é metadado, não ação. Fora de camada para vencer as cores de fundo
+   sem camada que o daisyUI aplica às variantes de badge. */
+.user-status-indicator .badge {
+  display: inline-flex;
+  min-height: 0;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background-color: transparent;
+  box-shadow: none;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.user-status-indicator .badge::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background-color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+  content: "";
+}
+
+.user-status-indicator .badge-success {
+  color: var(--color-success-content);
+}
+
+.user-status-indicator .badge-success::before {
+  background-color: var(--color-success);
+}
+
+.user-status-indicator .badge-warning {
+  color: var(--color-warning-content);
+}
+
+.user-status-indicator .badge-warning::before {
+  background-color: var(--color-warning);
+}
+
+.user-status-indicator .badge-error {
+  color: var(--color-error-content);
+}
+
+.user-status-indicator .badge-error::before {
+  background-color: var(--color-error);
+}
+
 .btn svg,
 .btn.btn svg {
   fill: currentcolor;
@@ -3698,31 +3762,19 @@
    padding de 1rem do daisyUI).
    -------------------------------------------------------------------------------------- */
 
-/* Aperto da coluna de variação, sem tirar nada de dentro dela: o ícone, a pílula e os
-   rótulos por extenso continuam.
-
-   Quem ditava a largura era o chip mais longo, "Voltou a vender", com 139,3px numa linha só.
-   Deixá-lo quebrar tira a régua da mão dele; o resto é moldura — o vão da célula, o do chip
-   e o intervalo do ícone. Medido em sequência: 171,3px no começo, 158,5 com a célula em
-   0,6rem, 117,1 com a quebra, 110,7 com o chip mais justo e 102,7 com a célula em 0,35rem.
-
-   O preço é a altura: as células com esse rótulo passam de 27px para 43px. Vale porque são
-   poucas e porque a alternativa era encurtar o texto ou tirar o ícone.
-
-   Só nesta tabela: a mesma classe serve a listagem de MICs em /reports, que não tem esse
-   aperto de colunas e segue com o chip em linha única. */
-.establishment-revenue-table .variation-col {
-  padding-inline: 0.35rem;
-}
-
+/* O percentual precisa caber inteiro ao lado do ícone. A quebra geral da tabela parte o
+   texto em qualquer caractere, e com a coluna encolhida "-6,9%" virava uma pilha vertical.
+   Rótulos longos, como "Voltou a vender", continuam na mesma linha: a tabela já rola. */
 .establishment-revenue-table .variation-col,
-.establishment-revenue-table .variation-col .variation-chip {
-  white-space: normal;
+.establishment-revenue-table .variation-col .variation-chip,
+.establishment-revenue-table .variation-col .variation-chip__value {
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 
-.establishment-revenue-table .variation-col .variation-chip {
-  gap: 0.2rem;
-  padding: 0.15rem 0.35rem 0.15rem 0.2rem;
+.establishment-revenue-table .variation-col {
+  min-width: 7.5rem;
+  padding-inline: 0.55rem;
 }
 
 /* Estas regras ficam fora da camada porque o daisyUI também declara as medidas do botão sem

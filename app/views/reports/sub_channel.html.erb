@@ -1,4 +1,9 @@
 <% content_for :title, @sub_channel.name %>
+<%# A cópia em cache dessa tela, mostrada antes da resposta, aparecia no topo e depois
+    descia. Sem preview, a aba só troca quando a listagem nova chega. %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-preview">
+<% end %>
 
 <% caminho_da_ordem = ->(ordem) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(**ordem)) } %>
 
@@ -284,7 +289,8 @@
   <div class="variation-tabs-wrap">
   <%# Links de navegação, não um tablist: cada aba troca a página inteira, e a atual se
       anuncia com aria-current. %>
-  <nav class="variation-tabs" aria-label="Filtro por variação">
+  <nav class="variation-tabs" aria-label="Filtro por variação"
+    data-controller="preserve-scroll" data-action="click->preserve-scroll#navigate">
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
       class: ("is-active" if @selected_variation.nil?),
       aria: { current: ("page" if @selected_variation.nil?) } do %>

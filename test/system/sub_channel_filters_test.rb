@@ -30,6 +30,57 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     @sub_channel = SubChannel.find_by!(name: "MIC ALFA")
   end
 
+  test "o percentual da variação permanece ao lado do ícone" do
+    visit sub_channel_report_path(@sub_channel)
+
+    medida = page.evaluate_script(<<~JS)
+      (() => {
+        const valor = document.querySelector(".establishment-revenue-table .variation-chip__value")
+        const estilo = getComputedStyle(valor)
+        const linha = parseFloat(estilo.lineHeight)
+        const caixa = valor.getBoundingClientRect()
+        return {
+          linhas: caixa.height / linha,
+          cabe: valor.scrollWidth <= valor.clientWidth + 1,
+          horizontal: caixa.width > caixa.height
+        }
+      })()
+    JS
+
+    assert_operator medida["linhas"], :<=, 1.2, "o percentual não pode quebrar em várias linhas"
+    assert medida["cabe"], "o percentual precisa caber na própria caixa"
+    assert medida["horizontal"], "o percentual não pode ficar empilhado na vertical"
+  end
+
+  test "trocar de aba posiciona a barra no início da área útil" do
+    visit sub_channel_report_path(@sub_channel)
+    page.driver.browser.manage.window.resize_to(1200, 500)
+    page.execute_script("window.scrollTo(0, 420)")
+    assert_operator page.evaluate_script("window.scrollY"), :>, 100,
+      "a página de teste precisa ter rolagem vertical"
+    page.execute_script(<<~JS)
+      document.addEventListener("turbo:before-fetch-request", () => {
+        window.__variationRequestDelay = performance.now() - window.__variationClickStartedAt
+      }, { once: true })
+    JS
+
+    click_variation_tab("Em crescimento")
+    assert_selector "nav.variation-tabs a.is-active", text: /Em crescimento/
+    assert_operator page.evaluate_script("window.__variationRequestDelay"), :<, 150,
+      "a requisição precisa começar junto com o clique, antes de a transição terminar"
+    assert_variation_tabs_at_fold "Em crescimento"
+
+    click_variation_tab("Em queda")
+    assert_selector "nav.variation-tabs a.is-active", text: /Em queda/
+    assert_variation_tabs_at_fold "Em queda"
+
+    click_variation_tab("Todos")
+    assert_selector "nav.variation-tabs a.is-active", text: /Todos/
+    assert_variation_tabs_at_fold "Todos"
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
+
   test "escolhe um intervalo no calendário e o filtro chega na URL" do
     visit sub_channel_report_path(@sub_channel)
 
@@ -396,6 +447,26 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
   def faixa
     estilo = find("[data-revenue-filter-target=band]", visible: :all)[:style].to_s
     estilo.scan(/([\w-]+):\s*([^;]+)/).to_h { |chave, valor| [ chave, valor.strip ] }
+  end
+
+  def click_variation_tab(label)
+    page.execute_script(<<~JS, label)
+      window.__variationClickStartedAt = performance.now()
+      const tab = Array.from(document.querySelectorAll("nav.variation-tabs a"))
+        .find((aba) => aba.textContent.includes(arguments[0]))
+      tab.click()
+    JS
+  end
+
+  def assert_variation_tabs_at_fold(label)
+    positions = page.evaluate_script(<<~JS)
+      ({
+        tabs: document.querySelector("nav.variation-tabs").getBoundingClientRect().top,
+        content: document.querySelector(".topbar").getBoundingClientRect().bottom
+      })
+    JS
+    assert_in_delta positions["content"], positions["tabs"], 2,
+      "#{label} precisa começar logo abaixo do cabeçalho"
   end
 
   def z_index(id)
