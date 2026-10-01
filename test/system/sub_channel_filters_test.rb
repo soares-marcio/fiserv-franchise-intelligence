@@ -87,24 +87,30 @@ class SubChannelFiltersTest < ApplicationSystemTestCase
     find("#date_range_trigger").click
     assert_selector "#date_range_panel", visible: true
 
-    # O calendário do subcanal abre no mês corrente; um passo atrás traz agosto, e
-    # setembro fica ao lado.
-    click_button "Mês anterior"
-    assert_selector ".datepicker__month", text: /agosto de 2026/i
-    assert_selector ".datepicker__month", text: /setembro de 2026/i
+    # O calendário abre no mês corrente **do navegador**, e um passo atrás traz o mês
+    # anterior com o corrente ao lado. Os meses vêm da data do navegador, não de datas
+    # fixas: escrito em setembro com "agosto", o teste quebrou na virada para outubro.
+    today = Date.parse(page.evaluate_script("new Date().toDateString()"))
+    previous = today.prev_month.beginning_of_month
+    start_on = previous.change(day: 5)
+    end_on = previous.change(day: 9)
 
-    find("#date_range_panel button[data-date='2026-08-05']").click
-    find("#date_range_panel button[data-date='2026-08-09']").click
+    click_button "Mês anterior"
+    assert_selector ".datepicker__month", text: /#{I18n.l(previous, format: "%B de %Y")}/i
+    assert_selector ".datepicker__month", text: /#{I18n.l(today.beginning_of_month, format: "%B de %Y")}/i
+
+    find("#date_range_panel button[data-date='#{start_on.iso8601}']").click
+    find("#date_range_panel button[data-date='#{end_on.iso8601}']").click
     click_button "Concluir"
 
     assert_no_selector "#date_range_panel", visible: true
-    assert_selector "#date_range_trigger", text: "05/08/2026 a 09/08/2026"
+    assert_selector "#date_range_trigger", text: "#{start_on.strftime('%d/%m/%Y')} a #{end_on.strftime('%d/%m/%Y')}"
 
     click_button "Filtrar"
 
     # assert_current_path espera a navegação terminar; current_url leria a URL anterior.
-    assert_current_path(/from_date=2026-08-05/, url: true)
-    assert_current_path(/to_date=2026-08-09/, url: true)
+    assert_current_path(/from_date=#{start_on.iso8601}/, url: true)
+    assert_current_path(/to_date=#{end_on.iso8601}/, url: true)
   end
 
   test "marca dois tipos de data, remove um pelo chip e envia só o que sobrou" do
