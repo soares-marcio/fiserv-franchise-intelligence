@@ -25,11 +25,11 @@ module Platform
     def history
       authorize :organization, :history?
       @organization = load_organization
-      eventos = AuditEvent.where(organization_id: @organization.id).recent
+      events = AuditEvent.where(organization_id: @organization.id).recent
       @page = [ params[:page].to_i, 1 ].max
       offset = (@page - 1) * AuditEventsController::PER_PAGE
-      @events = eventos.includes(:user).limit(AuditEventsController::PER_PAGE).offset(offset)
-      @has_more = eventos.limit(1).offset(offset + AuditEventsController::PER_PAGE).any?
+      @events = events.includes(:user).limit(AuditEventsController::PER_PAGE).offset(offset)
+      @has_more = events.limit(1).offset(offset + AuditEventsController::PER_PAGE).any?
     end
 
     # Renomear a pedido da organização. O nome em branco chega ao modelo como string vazia,
@@ -37,10 +37,10 @@ module Platform
     def rename
       authorize :organization, :rename?
       @organization = load_organization
-      anterior = @organization.name
+      previous_name = @organization.name
       if @organization.update(name: params[:name].to_s.strip)
         Audit.record("organization.renamed", record: @organization, request:,
-          metadata: { de: anterior, para: @organization.name })
+          metadata: { de: previous_name, para: @organization.name })
         redirect_to platform_organization_path(@organization), notice: "Organização renomeada."
       else
         redirect_to platform_organization_path(@organization),

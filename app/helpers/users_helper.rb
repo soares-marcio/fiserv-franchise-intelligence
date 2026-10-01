@@ -31,11 +31,11 @@ module UsersHelper
   # organização — é a quem recorrer. O administrador foi criado pela plataforma, e o nome
   # de quem a opera não pertence à organização.
   def user_origin_line(user)
-    data = l(user.created_at.to_date)
-    return "Desde #{data}" if user.created_by.nil?
-    return "Criado pela plataforma em #{data}" if user.created_by.platform_admin?
+    date = l(user.created_at.to_date)
+    return "Desde #{date}" if user.created_by.nil?
+    return "Criado pela plataforma em #{date}" if user.created_by.platform_admin?
 
-    "Convidado por #{user.created_by.name} em #{data}"
+    "Convidado por #{user.created_by.name} em #{date}"
   end
 
   def user_first_access_hint(user)

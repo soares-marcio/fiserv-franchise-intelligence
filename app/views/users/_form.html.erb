@@ -52,8 +52,8 @@
                 id: "permission_#{chave}", class: "checkbox checkbox-sm mt-0.5" %>
               <span>
                 <%= Permission.label(chave) %>
-                <% if (requisito = Permission.requirement_text(chave)) %>
-                  <span class="block text-xs opacity-70"><%= requisito %></span>
+                <% if (requirement = Permission.requirement_text(chave)) %>
+                  <span class="block text-xs opacity-70"><%= requirement %></span>
                 <% end %>
               </span>
             </label>
