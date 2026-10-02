@@ -25,6 +25,8 @@ module Operations
 
       batch = nil
       ApplicationRecord.transaction do
+        # Master novo nasce junto com o cadastro, nunca antes dele.
+        channel.save! if channel.new_record?
         template = BinImport::Template.register!
         batch = ImportBatch.create!(
           channel:, organization: @organization, import_template: template, source_filename: "manual",

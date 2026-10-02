@@ -38,8 +38,10 @@ module BinImport
       # de outra organização.
       report_id, name = channel_identity!(rows.fetch("Mapa de Clientes BIN"))
       channel = ChannelResolver.call(report_id:, name:, organization:, actor: batch.uploaded_by)
+      # O lote só aponta para o Master quando ele já existe; o novo nasce na transação abaixo.
       batch.assign_attributes(
-        channel:, organization:, import_template: template, source_filename: @source_filename,
+        channel: (channel if channel.persisted?), organization:, import_template: template,
+        source_filename: @source_filename,
         source_file_date: source_file_date, status: "pending", validation_errors: []
       )
       batch.save!
@@ -53,12 +55,19 @@ module BinImport
         covered_periods: validation.covered_periods.map(&:to_s),
         current_month_cutoff_day: Cutoff.day(rows.fetch("Faturamento"))
       )
-      detect_short_cutoff!(batch)
 
       # Os snapshots são gravados sempre; o que a revisão decide é se eles passam a valer.
       # Isso é possível porque as telas só enxergam lotes validados: um lote em revisão não
       # entra em relatório nenhum, e a comparação com a carteira vigente já pode ser feita.
+      #
+      # Tudo o que o arquivo cria nasce aqui dentro — inclusive o Master novo e a anomalia de
+      # corte curto: arquivo que falha deixa só o lote falho, com o motivo, e nada mais.
       ApplicationRecord.transaction do
+        if channel.new_record?
+          channel.save!
+          batch.update!(channel:)
+        end
+        detect_short_cutoff!(batch)
         persist_raw_rows(batch, rows)
         establishments = persist_map_rows(batch, rows.fetch("Mapa de Clientes BIN"))
         persist_revenue_rows(batch, rows.fetch("Faturamento"), establishments)

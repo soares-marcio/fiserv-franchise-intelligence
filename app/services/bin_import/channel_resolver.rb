@@ -30,7 +30,10 @@ module BinImport
           "confira se o CANAL da planilha está correto."
       end
 
-      channel || Channel.create!(external_id: report_id, name: resolved, organization:)
+      # Master novo volta sem salvar: quem o grava é a mesma transação que grava os dados do
+      # arquivo. Planilha que falha na validação não deixa um Master vazio para trás
+      # (homologação de 01/10/2026: um EC duplicado criou "MASTER RAMOS E SILVA" sem dado).
+      channel || Channel.new(external_id: report_id, name: resolved, organization:)
     end
 
     def self.authorize!(channel, actor)
