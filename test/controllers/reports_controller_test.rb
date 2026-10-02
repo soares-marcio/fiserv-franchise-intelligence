@@ -89,6 +89,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get stalled_reports_path
 
     assert_response :success
+    assert_select "form.filter-bar"
+    assert_select ".filter-pill.filter-pill--select"
     # Duas opções de MIC mais o "Todas", que é o que abre selecionado.
     assert_select "select[name=sub_channel_id] option", count: 3
     assert_select "select[name=sub_channel_id] option:first-of-type", text: "Todas"
@@ -101,6 +103,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "tbody tr", count: 1
     assert_select "tbody tr", text: /GAMA TRANSPORTES LTDA/
     assert_select "select[name=sub_channel_id] option[selected][value=?]", gamma.uuid
+    assert_select "a.filter-bar__clear[href=?]", stalled_reports_path, text: "Limpar"
     # A contagem do topo acompanha o filtro, senão diria um número que a tabela desmente.
     assert_select ".badge", text: "1 cliente"
     # O MIC escolhido continua no endereço que o botão da anotação carrega: salvar sem
@@ -870,8 +873,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get reports_path(channel_id: selected.uuid)
 
     assert_response :success
+    assert_select "form.filter-bar"
+    assert_select ".filter-pill.filter-pill--select"
     assert_select "select[name='channel_id'] option[selected]", text: "CANAL A"
     assert_select "select[name='channel_id'] option", text: "CANAL B"
+    assert_select "a.filter-bar__clear[href=?]", reports_path, text: "Limpar"
   end
 
   test "liga cada MIC à sua listagem de estabelecimentos" do
