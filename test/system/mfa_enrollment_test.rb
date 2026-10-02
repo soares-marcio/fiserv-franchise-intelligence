@@ -15,7 +15,10 @@ class MfaEnrollmentTest < ApplicationSystemTestCase
     fill_in "Código gerado pelo aplicativo", with: current_otp(newcomer.reload)
     click_on "Concluir cadastro"
 
-    assert_text "Guarde estes códigos"
+    # O formulário sai sem Turbo e a resposta é a página dos códigos no mesmo endereço: não há
+    # troca de URL para esperar, e na CI a recarga passa dos 2 s padrão — o Capybara procurava
+    # a página no meio da troca ("Unable to find xpath /html").
+    assert_text "Guarde estes códigos", wait: 15
     assert_selector "li.font-mono", count: RecoveryCode::HOW_MANY
     assert newcomer.reload.mfa_enabled?
   end
