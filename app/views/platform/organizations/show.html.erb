@@ -109,6 +109,49 @@
   <% end %>
 </section>
 
+<% deleted_channels = @profile.deleted_channels %>
+<% deleted_sub_channels = @profile.deleted_sub_channels %>
+<% if deleted_channels.any? || deleted_sub_channels.any? %>
+  <section class="surface-card mt-5 p-6">
+    <p class="section-label">Masters e MICs apagados</p>
+    <p class="metric-hint mt-1">
+      Apagados pelo administrador da organização, com os dados guardados. Pelo REPORT_ID: o mesmo
+      REPORT_ID aparece mais de uma vez quando foi apagado, reimportado e apagado de novo.
+    </p>
+    <ul class="mt-3 grid gap-3">
+      <% deleted_channels.each do |channel| %>
+        <% counts = @profile.deleted_counts(channel) %>
+        <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-300 p-3">
+          <div class="min-w-0">
+            <p class="font-semibold">Master · REPORT_ID <%= channel.external_id %></p>
+            <p class="text-xs opacity-70">
+              Apagado em <%= channel.deleted_at.strftime("%d/%m/%Y %H:%M") %>
+              <%= "por #{channel.deleted_by.name}" if channel.deleted_by %> ·
+              <%= pluralize(counts[:batches], "arquivo", "arquivos") %> ·
+              <%= pluralize(counts[:establishments], "EC", "ECs") %>
+            </p>
+          </div>
+          <%= button_to "Restaurar", restore_platform_channel_path(channel), class: "btn btn-outline btn-sm",
+            form: { data: { turbo_confirm: "Restaurar o Master do REPORT_ID #{channel.external_id}?" } } %>
+        </li>
+      <% end %>
+      <% deleted_sub_channels.each do |sub_channel| %>
+        <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-300 p-3">
+          <div class="min-w-0">
+            <p class="font-semibold">MIC do Master REPORT_ID <%= sub_channel.channel.external_id %></p>
+            <p class="text-xs opacity-70">
+              Apagado em <%= sub_channel.deleted_at.strftime("%d/%m/%Y %H:%M") %>
+              <%= "por #{sub_channel.deleted_by.name}" if sub_channel.deleted_by %>
+            </p>
+          </div>
+          <%= button_to "Restaurar", restore_platform_sub_channel_path(sub_channel), class: "btn btn-outline btn-sm",
+            form: { data: { turbo_confirm: "Restaurar este MIC?" } } %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
+
 <section class="surface-card mt-5 p-6">
   <p class="section-label">O que a plataforma fez aqui</p>
   <p class="metric-hint mt-1">

@@ -16,7 +16,11 @@ class Establishment < ApplicationRecord
   }, class_name: "MapSnapshot"
   has_many :revenue_snapshots, dependent: :restrict_with_exception
 
-  validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: true
+  # Único entre os ativos: os ECs de um Master apagado continuam no banco, e a planilha
+  # seguinte do mesmo REPORT_ID cria os mesmos ECs num Master novo.
+  validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: { conditions: -> { active } }
+
+  scope :active, -> { where(deleted_at: nil) }
 
   # A regra do escopo, escrita uma vez. O SQL cru dos relatórios deriva o CTE deste mesmo
   # lugar (AccessScope#establishments_cte): duas definições da mesma regra divergiriam em

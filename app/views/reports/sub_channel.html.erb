@@ -36,6 +36,9 @@
           class: "btn btn-neutral export-action" %>
         <%= link_to "Voltar à listagem", reports_path(channel_id: @selected_channel&.uuid),
           class: "btn btn-outline" %>
+        <% if policy(@sub_channel).destroy? %>
+          <%= link_to "Apagar MIC", new_sub_channel_deletion_path(@sub_channel), class: "btn btn-danger" %>
+        <% end %>
       </div>
     </div>
 

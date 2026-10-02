@@ -114,7 +114,7 @@ class UsersController < ApplicationController
   def load_options
     scope = Current.access_scope
     @channels = Channel.where(id: scope.channel_ids).order(:name)
-    @sub_channels = SubChannel.where(channel_id: @channels.select(:id)).order(:name)
+    @sub_channels = SubChannel.active.where(channel_id: @channels.select(:id)).order(:name)
     @permissions = Permission::KEYS.select { |key| Current.user.permitted?(key) }
   end
 
@@ -142,7 +142,7 @@ class UsersController < ApplicationController
     grants.keys.filter_map do |key|
       grant = grants.require(key).permit(:channel_id, :sub_channel_id)
       if grant[:sub_channel_id].present?
-        mic = SubChannel.find_by(id: grant[:sub_channel_id])
+        mic = SubChannel.active.find_by(id: grant[:sub_channel_id])
         { channel_id: mic.channel_id, sub_channel_id: mic.id } if mic
       elsif grant[:channel_id].present?
         { channel_id: grant[:channel_id].to_i, sub_channel_id: nil }

@@ -387,9 +387,17 @@ CREATE TABLE public.establishments (
     duplicate_confirmed_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    deleted_at timestamp(6) without time zone,
     CONSTRAINT establishments_ec_format CHECK (((ec)::text ~ '^[0-9]{8}$'::text)),
     CONSTRAINT establishments_not_self_primary CHECK (((primary_establishment_id IS NULL) OR (primary_establishment_id <> id)))
 );
+
+
+--
+-- Name: COLUMN establishments.deleted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.establishments.deleted_at IS 'Marcado junto com o Master apagado';
 
 
 --
@@ -418,6 +426,7 @@ CREATE TABLE public.import_batches (
     review_note text,
     review_reasons character varying[] DEFAULT '{}'::character varying[] NOT NULL,
     organization_id bigint NOT NULL,
+    deleted_at timestamp(6) without time zone,
     CONSTRAINT import_batches_valid_cutoff CHECK (((current_month_cutoff_day >= 1) AND (current_month_cutoff_day <= 31))),
     CONSTRAINT import_batches_valid_status CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('validated'::character varying)::text, ('failed'::character varying)::text, ('superseded'::character varying)::text, ('pending_review'::character varying)::text, ('rejected'::character varying)::text])))
 );
@@ -435,6 +444,13 @@ COMMENT ON COLUMN public.import_batches.review_note IS 'Motivo registrado por qu
 --
 
 COMMENT ON COLUMN public.import_batches.review_reasons IS 'Motivos que levaram o lote à revisão: sem permissão de aprovar, remoção de ECs, troca de MIC, queda de faturamento';
+
+
+--
+-- Name: COLUMN import_batches.deleted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.import_batches.deleted_at IS 'Marcado junto com o Master apagado';
 
 
 --
@@ -1398,7 +1414,9 @@ CREATE TABLE public.sub_channels (
     channel_id bigint NOT NULL,
     name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    deleted_at timestamp(6) without time zone,
+    deleted_by_id bigint
 );
 
 
@@ -1407,6 +1425,13 @@ CREATE TABLE public.sub_channels (
 --
 
 COMMENT ON COLUMN public.sub_channels.name IS 'Origem: coluna "SUB-CANAL" das abas Mapa de Clientes BIN, Faturamento e Ativacao';
+
+
+--
+-- Name: COLUMN sub_channels.deleted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.sub_channels.deleted_at IS 'MIC apagado: some das telas e dos totais do Master';
 
 
 --
@@ -1576,7 +1601,9 @@ CREATE TABLE public.channels (
     name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    organization_id bigint NOT NULL
+    organization_id bigint NOT NULL,
+    deleted_at timestamp(6) without time zone,
+    deleted_by_id bigint
 );
 
 
@@ -1585,6 +1612,13 @@ CREATE TABLE public.channels (
 --
 
 COMMENT ON COLUMN public.channels.name IS 'Origem: coluna "CANAL" da aba Mapa de Clientes BIN; Faturamento e Ativacao repetem a coluna';
+
+
+--
+-- Name: COLUMN channels.deleted_at; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.channels.deleted_at IS 'Apagado pelo administrador da organização; só a plataforma restaura';
 
 
 --
@@ -3938,10 +3972,17 @@ CREATE UNIQUE INDEX index_batch_grants_on_user_id_and_import_batch_id ON public.
 
 
 --
+-- Name: index_channels_on_deleted_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_channels_on_deleted_by_id ON public.channels USING btree (deleted_by_id);
+
+
+--
 -- Name: index_channels_on_external_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_channels_on_external_id ON public.channels USING btree (external_id);
+CREATE UNIQUE INDEX index_channels_on_external_id ON public.channels USING btree (external_id) WHERE (deleted_at IS NULL);
 
 
 --
@@ -4137,7 +4178,7 @@ CREATE INDEX index_establishments_on_company_id ON public.establishments USING b
 -- Name: index_establishments_on_ec; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_establishments_on_ec ON public.establishments USING btree (ec);
+CREATE UNIQUE INDEX index_establishments_on_ec ON public.establishments USING btree (ec) WHERE (deleted_at IS NULL);
 
 
 --
@@ -4179,7 +4220,7 @@ CREATE INDEX index_import_batches_on_channel_id_and_current_period ON public.imp
 -- Name: index_import_batches_on_file_checksum; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_import_batches_on_file_checksum ON public.import_batches USING btree (file_checksum);
+CREATE UNIQUE INDEX index_import_batches_on_file_checksum ON public.import_batches USING btree (file_checksum) WHERE (deleted_at IS NULL);
 
 
 --
@@ -4781,7 +4822,14 @@ CREATE INDEX index_sub_channels_on_channel_id ON public.sub_channels USING btree
 -- Name: index_sub_channels_on_channel_id_and_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_sub_channels_on_channel_id_and_name ON public.sub_channels USING btree (channel_id, name);
+CREATE UNIQUE INDEX index_sub_channels_on_channel_id_and_name ON public.sub_channels USING btree (channel_id, name) WHERE (deleted_at IS NULL);
+
+
+--
+-- Name: index_sub_channels_on_deleted_by_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_sub_channels_on_deleted_by_id ON public.sub_channels USING btree (deleted_by_id);
 
 
 --
@@ -5081,6 +5129,14 @@ ALTER TABLE ONLY public.map_snapshot_actions
 
 
 --
+-- Name: sub_channels fk_rails_2c0e45702a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sub_channels
+    ADD CONSTRAINT fk_rails_2c0e45702a FOREIGN KEY (deleted_by_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: import_batches fk_rails_2d1abab0ab; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5361,6 +5417,14 @@ ALTER TABLE ONLY public.data_anomalies
 
 
 --
+-- Name: channels fk_rails_942e98c857; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.channels
+    ADD CONSTRAINT fk_rails_942e98c857 FOREIGN KEY (deleted_by_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: data_anomalies fk_rails_960274a47a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5615,6 +5679,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261001120000'),
 ('20260930150000'),
 ('20260930130000'),
 ('20260930120000'),

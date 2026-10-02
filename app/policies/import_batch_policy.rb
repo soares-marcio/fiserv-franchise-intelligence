@@ -72,7 +72,8 @@ class ImportBatchPolicy < ApplicationPolicy
 
       # A organização recorta primeiro, mesmo para o delegado: um lote liberado por engano
       # a alguém de fora não atravessa.
-      base = scope.where(organization_id: user.organization_id)
+      # Lote de Master apagado sai da lista com ele.
+      base = scope.active.where(organization_id: user.organization_id)
       return base if user.organization_admin?
 
       reach = base.where(uploaded_by_id: user.id)
@@ -81,7 +82,7 @@ class ImportBatchPolicy < ApplicationPolicy
 
       # Quem aprova enxerga também o que está esperando decisão nos Masters que tem
       # inteiros — sem isso, revisar exigiria uma liberação para cada arquivo.
-      reach.or(base.where(status: "pending_review", channel_id: AccessScope.for(user).full_channel_ids))
+      reach.or(base.where(status: "pending_review", channel_id: AccessScope.for(user).whole_channel_ids))
     end
   end
 end

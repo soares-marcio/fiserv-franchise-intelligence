@@ -6,7 +6,7 @@
 # O "geral" que o selo mostra é sempre o **pior** de cada sinal, nunca o mais recente: é a mesma
 # regra do corte de período em ReportScope#cutoff_day — o observado não superestima a cobertura.
 class FileFreshness
-  Entry = Data.define(:name, :received_at, :covered_on) do
+  Entry = Data.define(:name, :uuid, :received_at, :covered_on) do
     # O valor cru da consulta volta em UTC; sem converter, um arquivo recebido às 21h de
     # ontem já conta como de hoje e o selo diz um dia a menos que a tela de importação.
     def received_on = received_at&.in_time_zone&.to_date
@@ -33,7 +33,7 @@ class FileFreshness
   def entries
     @entries ||= rows.map do |row|
       Entry.new(
-        name: row["name"],
+        name: row["name"], uuid: row["uuid"],
         received_at: row["received_at"],
         covered_on: coverage_date(row["period"], row["max_known_day"])
       )
@@ -72,7 +72,7 @@ class FileFreshness
     return [] if @organization.nil?
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization.id ])
-      SELECT channel.name,
+      SELECT channel.name, channel.uuid,
         (
           SELECT MAX(batch.created_at) FROM import_batches batch
           WHERE batch.channel_id = channel.id AND batch.status = 'validated'
@@ -85,7 +85,7 @@ class FileFreshness
         ORDER BY period DESC
         LIMIT 1
       ) coverage ON TRUE
-      WHERE channel.organization_id = :organization_id
+      WHERE channel.organization_id = :organization_id AND channel.deleted_at IS NULL
       ORDER BY channel.name
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a

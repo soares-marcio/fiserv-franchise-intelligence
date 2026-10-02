@@ -31,7 +31,7 @@ module BinImport
       return if candidates.empty?
 
       pairs = candidates.to_h { |snapshot| [ snapshot, paired_ec(snapshot) ] }
-      existing = Establishment.where(ec: pairs.values).pluck(:ec, :company_id).to_set
+      existing = Establishment.active.where(ec: pairs.values).pluck(:ec, :company_id).to_set
       pairs.each do |snapshot, paired_ec|
         establishment = snapshot.establishment
         next unless existing.include?([ paired_ec, establishment.company_id ])

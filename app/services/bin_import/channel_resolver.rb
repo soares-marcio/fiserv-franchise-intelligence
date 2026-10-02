@@ -14,7 +14,8 @@ module BinImport
     # da organização cria — a planilha é a carteira inteira, e um colaborador não a inaugura.
     # Sem ator (console, cadastro manual, teste) a checagem de escopo não se aplica.
     def self.call(report_id:, name:, organization:, actor: nil)
-      channel = Channel.find_by(external_id: report_id)
+      # Só entre os ativos: o REPORT_ID de um Master apagado nasce como Master novo.
+      channel = Channel.active.find_by(external_id: report_id)
       if channel && channel.organization_id != organization.id
         raise ArgumentError, "O REPORT_ID deste arquivo não pertence à sua organização. Confira se a " \
           "planilha enviada é a da sua carteira."

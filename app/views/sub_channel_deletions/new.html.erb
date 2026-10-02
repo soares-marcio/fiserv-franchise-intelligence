@@ -1,0 +1,31 @@
+<% content_for :title, "Apagar MIC" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Visão comercial · <%= channel_name(@sub_channel.channel) %></p>
+  <h1 class="page-title">Apagar <%= @sub_channel.name %></h1>
+  <p class="page-description">
+    O MIC some das telas e dos totais do Master, para todos da organização. Os dados ficam
+    guardados e só a plataforma pode restaurá-lo. Se uma planilha nova trouxer um MIC com este
+    nome, ele entra como MIC novo e volta a aparecer.
+  </p>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">O que sai das telas</p>
+  <p class="mt-2 text-sm">
+    <%= pluralize(@establishments_count, "EC ligado", "ECs ligados") %> a este MIC no último arquivo.
+    Eles continuam no Master e voltam a aparecer quando uma planilha nova os ligar a um MIC ativo.
+  </p>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <%= form_with url: sub_channel_deletion_path(@sub_channel), method: :post, class: "grid gap-3" do |form| %>
+    <%= form.label :confirmation, "Para confirmar, digite o nome do MIC: #{@sub_channel.name}", class: "label text-sm" %>
+    <%= form.text_field :confirmation, autocomplete: "off", required: true, class: "input input-bordered w-full" %>
+    <div class="action-group">
+      <%= form.submit "Apagar #{@sub_channel.name}", class: "btn btn-danger",
+        data: { turbo_confirm: "Apagar o MIC #{@sub_channel.name}? Só a plataforma restaura." } %>
+      <%= link_to "Cancelar", sub_channel_report_path(@sub_channel), class: "btn btn-outline" %>
+    </div>
+  <% end %>
+</section>

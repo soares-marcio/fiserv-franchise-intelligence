@@ -117,9 +117,9 @@ module Operations
 
     def persist!(batch, channel, rows)
       map = rows.fetch("Mapa de Clientes BIN").first
-      sub_channel = channel.sub_channels.find_or_create_by!(name: sub_channel_name)
+      sub_channel = channel.sub_channels.active.find_or_create_by!(name: sub_channel_name)
       company = Company.find_or_create_by!(cnpj: BinImport::Normalizer.cnpj(map["CNPJ"]))
-      establishment = Establishment.find_or_create_by!(ec: BinImport::Normalizer.ec(map["EC"])) do |record|
+      establishment = Establishment.active.find_or_create_by!(ec: BinImport::Normalizer.ec(map["EC"])) do |record|
         record.company = company
         record.channel = channel
       end

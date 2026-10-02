@@ -26,7 +26,10 @@ class ImportBatch < ApplicationRecord
   has_many :daily_revenues, dependent: :restrict_with_exception
   has_many :monthly_volumes, dependent: :restrict_with_exception
 
-  validates :file_checksum, uniqueness: true
+  # Único entre os ativos: o operador pode reenviar o mesmo arquivo depois de apagar o Master.
+  validates :file_checksum, uniqueness: { conditions: -> { active } }
+
+  scope :active, -> { where(deleted_at: nil) }
 
   scope :validated, -> { where(status: "validated") }
   scope :pending_review, -> { where(status: "pending_review") }

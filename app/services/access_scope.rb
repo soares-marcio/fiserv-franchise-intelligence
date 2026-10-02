@@ -16,12 +16,31 @@ class AccessScope
     return empty if user.nil? || user.platform_admin?
     return organization_wide(user.organization) if user.organization_admin?
 
-    grants = user.access_grants.pluck(:channel_id, :sub_channel_id)
-    full = grants.filter_map { |channel_id, sub_channel_id| channel_id if sub_channel_id.nil? }.uniq
+    grants = active_grants(user).pluck(:channel_id, :sub_channel_id)
+    whole = grants.filter_map { |channel_id, sub_channel_id| channel_id if sub_channel_id.nil? }.uniq
     # MIC de um Master que o ator já tem inteiro é redundante: some daqui para o predicado
     # não carregar CTE à toa.
-    subs = grants.filter_map { |channel_id, sub| sub if sub && full.exclude?(channel_id) }.uniq
-    new(organization_id: user.organization_id, full_channel_ids: full, sub_channel_ids: subs)
+    subs = grants.filter_map { |channel_id, sub| sub if sub && whole.exclude?(channel_id) }.uniq
+    build(organization_id: user.organization_id, whole_channel_ids: whole, sub_channel_ids: subs)
+  end
+
+  # A concessão de um Master ou MIC apagado continua guardada, para a restauração devolver
+  # o acesso inteiro, mas não vale enquanto ele estiver apagado.
+  def self.active_grants(user)
+    user.access_grants.joins(:channel).merge(Channel.active)
+      .left_joins(:sub_channel).where(sub_channels: { deleted_at: nil })
+  end
+  private_class_method :active_grants
+
+  # Um Master com MIC apagado é lido como a lista dos MICs ativos dele, e não como o Master
+  # inteiro: assim o recorte por MIC, que já é testado contra vazamento em toda tela, esconde
+  # o MIC apagado sem um predicado novo em cada consulta. Para autorizar (importar o Master,
+  # revisar, liberar arquivo) o ator continua tendo o Master inteiro — `whole?`.
+  def self.build(organization_id:, whole_channel_ids:, sub_channel_ids: [], organization_wide: false)
+    trimmed = SubChannel.deleted.where(channel_id: whole_channel_ids).distinct.pluck(:channel_id)
+    visible_subs = SubChannel.active.where(channel_id: trimmed).pluck(:id)
+    new(organization_id:, organization_wide:, whole_channel_ids:,
+      full_channel_ids: whole_channel_ids - trimmed, sub_channel_ids: (sub_channel_ids + visible_subs).uniq)
   end
 
   def self.empty = new
@@ -30,17 +49,21 @@ class AccessScope
   # lista real dos Masters dela: assim todo predicado que já recorta por canal recorta
   # também a organização, sem ramo especial.
   def self.organization_wide(organization)
-    new(organization_id: organization.id, organization_wide: true,
-      full_channel_ids: Channel.where(organization_id: organization.id).pluck(:id), sub_channel_ids: [])
+    build(organization_id: organization.id, organization_wide: true,
+      whole_channel_ids: Channel.active.where(organization_id: organization.id).pluck(:id))
   end
 
-  attr_reader :organization_id, :full_channel_ids, :sub_channel_ids
+  attr_reader :organization_id, :full_channel_ids, :sub_channel_ids, :whole_channel_ids
 
-  def initialize(organization_id: nil, full_channel_ids: [], sub_channel_ids: [], organization_wide: false)
+  # `full_channel_ids` é o que se lê inteiro; `whole_channel_ids` é o que se possui inteiro.
+  # Só diferem quando o Master tem MIC apagado.
+  def initialize(organization_id: nil, full_channel_ids: [], sub_channel_ids: [], organization_wide: false,
+    whole_channel_ids: nil)
     @organization_id = organization_id
     @full_channel_ids = full_channel_ids
     @sub_channel_ids = sub_channel_ids
     @organization_wide = organization_wide
+    @whole_channel_ids = whole_channel_ids || full_channel_ids
   end
 
   # Só importa onde a lista de canais não responde: um Master que ainda não existe.
@@ -56,7 +79,7 @@ class AccessScope
   # por MIC — a planilha importada é a carteira inteira num arquivo, e a revisão de um lote
   # mostra o diff do Master todo.
   def whole?(channel_id)
-    full_channel_ids.include?(channel_id)
+    whole_channel_ids.include?(channel_id)
   end
 
   # Todos os canais alcançáveis, por qualquer via. Serve ao seletor de canal da tela e aos

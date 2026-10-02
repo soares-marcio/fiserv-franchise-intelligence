@@ -70,6 +70,12 @@ module ApplicationHelper
     when "users" then users_breadcrumb_items
     when "company_notes" then company_notes_breadcrumb_items
     when "audit_events" then [ breadcrumb_current("Histórico") ]
+    when "channel_deletions"
+      [ breadcrumb_link("Importar arquivo", import_batches_path), breadcrumb_current("Apagar Master") ]
+    when "sub_channel_deletions"
+      [ breadcrumb_link("Faturamento", reports_path),
+        (breadcrumb_link(@sub_channel.name, sub_channel_report_path(@sub_channel)) if @sub_channel),
+        breadcrumb_current("Apagar MIC") ].compact
     when "platform/organizations" then platform_breadcrumb_items
     when "platform/organization_admins"
       [ breadcrumb_link("Organizações", platform_organizations_path),

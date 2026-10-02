@@ -58,9 +58,9 @@ module Operations
         channel_id = grant[:channel_id].to_i
         sub_channel_id = grant[:sub_channel_id].presence&.to_i
         if sub_channel_id
-          scope.full_channel_ids.include?(channel_id) || scope.sub_channel_ids.include?(sub_channel_id)
+          scope.whole_channel_ids.include?(channel_id) || scope.sub_channel_ids.include?(sub_channel_id)
         else
-          scope.full_channel_ids.include?(channel_id)
+          scope.whole_channel_ids.include?(channel_id)
         end
       end
     end
@@ -68,8 +68,11 @@ module Operations
 
     # Conceder o Master inteiro apaga as concessões de MIC dele: sem isso, o escopo
     # carregaria um recorte fino que já não recorta nada.
+    # A concessão de Master ou MIC apagado não aparece no formulário e fica guardada: é ela
+    # que devolve o acesso quando a plataforma restaura.
     def self.replace_grants(user:, grants:, actor:)
-      user.access_grants.destroy_all
+      user.access_grants.joins(:channel).merge(Channel.active)
+        .left_joins(:sub_channel).where(sub_channels: { deleted_at: nil }).destroy_all
       grants.each do |grant|
         user.access_grants.create!(channel_id: grant[:channel_id],
           sub_channel_id: grant[:sub_channel_id].presence, created_by: actor)

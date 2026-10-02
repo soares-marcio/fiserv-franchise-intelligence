@@ -32,13 +32,13 @@ module Operations
     end
 
     def self.claim_batch(checksum, filename, uploaded_by, organization)
-      batch = ImportBatch.find_by(file_checksum: checksum)
+      batch = ImportBatch.active.find_by(file_checksum: checksum)
       return handle_existing(batch, filename, organization) if batch
 
       ImportBatch.create!(source_filename: filename, file_checksum: checksum, status: "pending",
         uploaded_by:, organization:)
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => error
-      batch = ImportBatch.find_by(file_checksum: checksum)
+      batch = ImportBatch.active.find_by(file_checksum: checksum)
       raise error unless batch
 
       handle_existing(batch, filename, organization)

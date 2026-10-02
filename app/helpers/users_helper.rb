@@ -55,8 +55,10 @@ module UsersHelper
     grants = user.access_grants
     return "Nada" if grants.empty?
 
-    grants.map { |grant| grant.sub_channel_id ? grant.sub_channel&.name : grant.channel&.name }
-      .compact.to_sentence
+    # Concessão de Master ou MIC apagado fica guardada, mas não vale: não aparece.
+    grants.reject { |grant| grant.channel&.deleted? || grant.sub_channel&.deleted? }
+      .map { |grant| grant.sub_channel_id ? grant.sub_channel&.name : grant.channel&.name }
+      .compact.to_sentence.presence || "Nada"
   end
 
   def user_permissions_summary(user)

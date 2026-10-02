@@ -29,6 +29,15 @@ Rails.application.routes.draw do
   # Clientes que venderam num dia do calendário, carregados sob demanda no modal do ritmo.
   get "reports/weekly/day/:day", to: "reports#weekly_day", as: :weekly_day_report
   get "reports/three_months/:id", to: "reports#three_months_sub_channel", as: :three_months_sub_channel_report
+  # Apagar Master e MIC é marcar: a tela confirma com o nome digitado, e só a plataforma
+  # restaura (ver platform/channels e platform/sub_channels).
+  resources :channels, only: [] do
+    resource :deletion, only: %i[new create], controller: "channel_deletions"
+  end
+  resources :sub_channels, only: [] do
+    resource :deletion, only: %i[new create], controller: "sub_channel_deletions"
+  end
+
   resources :import_batches, only: %i[index show create destroy] do
     member do
       patch :update_cutoff
@@ -67,6 +76,12 @@ Rails.application.routes.draw do
   # A plataforma: cria organizações e o administrador de cada uma, vê quem existe e presta
   # suporte às contas — e não abre tela de dado nenhuma.
   namespace :platform do
+    resources :channels, only: [] do
+      member { post :restore }
+    end
+    resources :sub_channels, only: [] do
+      member { post :restore }
+    end
     resources :organizations, only: %i[index show new create] do
       resources :admins, only: %i[new create], controller: "organization_admins"
       member do

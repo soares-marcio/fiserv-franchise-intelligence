@@ -4,7 +4,7 @@ module BinImport
       entries = rows.values.flatten
       # Duas consultas para a planilha inteira: era um SELECT de estabelecimento e outro de
       # empresa por linha de cada aba, e as três abas repetem os mesmos ECs.
-      known = Establishment.where(ec: entries.map { |row| Normalizer.ec(row["EC"]) }.uniq)
+      known = Establishment.active.where(ec: entries.map { |row| Normalizer.ec(row["EC"]) }.uniq)
         .includes(:company, :channel).index_by(&:ec)
 
       entries.each do |row|

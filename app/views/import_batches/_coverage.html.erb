@@ -34,6 +34,10 @@
             Arquivo <%= file_age_label(entry.received_days) %>
           </span>
         </span>
+        <% if policy(:channel).destroy? %>
+          <%= link_to "Apagar", new_channel_deletion_path(entry.uuid), class: "link text-xs",
+            aria: { label: "Apagar o Master #{entry.name}" } %>
+        <% end %>
       </li>
     <% end %>
   </ul>

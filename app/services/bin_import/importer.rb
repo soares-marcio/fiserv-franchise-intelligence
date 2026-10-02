@@ -20,7 +20,7 @@ module BinImport
     def call
       Template.validate!(@workbook)
       checksum = Digest::SHA256.file(@path).hexdigest
-      if ImportBatch.where(status: "validated").exists?(file_checksum: checksum)
+      if ImportBatch.active.where(status: "validated").exists?(file_checksum: checksum)
         raise ArgumentError, "Este arquivo já foi importado antes — o conteúdo é idêntico ao " \
         "de um lote validado. Se a planilha foi atualizada, exporte de novo da origem: um " \
         "arquivo com qualquer alteração tem outro checksum."
@@ -28,7 +28,7 @@ module BinImport
 
       template = Template.register!(@workbook)
       rows = Template::SHEETS.to_h { |sheet| [ sheet, rows_for(sheet) ] }
-      batch = ImportBatch.find_or_initialize_by(file_checksum: checksum)
+      batch = ImportBatch.active.find_or_initialize_by(file_checksum: checksum)
       organization = batch.organization || @organization || batch.uploaded_by&.organization
       raise ArgumentError, "Importação sem organização: informe a organização dona do arquivo." if organization.nil?
 
@@ -180,7 +180,7 @@ module BinImport
 
     def find_sub_channel(channel, value)
       name = value.to_s.strip
-      (@sub_channels ||= {})[name] ||= channel.sub_channels.find_or_create_by!(name: name)
+      (@sub_channels ||= {})[name] ||= channel.sub_channels.active.find_or_create_by!(name: name)
     end
 
     # Do segundo lote em diante quase tudo já existe: duas consultas trazem os conhecidos, e
@@ -189,7 +189,7 @@ module BinImport
       cnpjs = rows.map { |row| Normalizer.cnpj(row["CNPJ"]) }.uniq
       ecs = rows.map { |row| Normalizer.ec(row["EC"]) }.uniq
       @companies = Company.where(cnpj: cnpjs).index_by(&:cnpj)
-      @establishments = Establishment.where(ec: ecs).index_by(&:ec)
+      @establishments = Establishment.active.where(ec: ecs).index_by(&:ec)
     end
 
     def find_company(cnpj)
@@ -202,7 +202,7 @@ module BinImport
 
       company = find_company(cnpj)
       ec = Normalizer.ec(row["EC"])
-      (@establishments ||= {})[ec] ||= Establishment.find_or_create_by!(ec:) do |establishment|
+      (@establishments ||= {})[ec] ||= Establishment.active.find_or_create_by!(ec:) do |establishment|
         establishment.company = company
         establishment.channel = channel
       end
