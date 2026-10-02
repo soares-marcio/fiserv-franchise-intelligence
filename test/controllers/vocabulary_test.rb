@@ -36,11 +36,11 @@ class VocabularyTest < ActionDispatch::IntegrationTest
   end
 
   # O que o vocabulário exige é a palavra Master no rótulo do filtro, e nunca "canal" — não o
-  # tamanho da frase. Duas telas trazem o rótulo por extenso acima do campo; Ganhos 3M usa a
-  # barra em pílulas, onde o rótulo mora dentro do controle e é curto.
+  # tamanho da frase. Auditoria e Ganhos 3M usam a barra em pílulas, onde o rótulo mora
+  # dentro do controle e é curto; Ganho recorrente ainda traz o rótulo acima do campo.
   test "o filtro da carteira diz Master nas três telas que o oferecem" do
     {
-      reports_path => "span.section-label",
+      reports_path => "label.filter-pill__label",
       recurring_reports_path => "span.section-label",
       three_months_reports_path => "label.filter-pill__label"
     }.each do |path, selector|

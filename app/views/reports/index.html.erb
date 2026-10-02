@@ -50,16 +50,19 @@
 
   <section class="filter-panel">
     <%= form_with url: reports_path, method: :get,
-      class: "flex flex-wrap items-end gap-3" do %>
-      <label class="grid gap-1.5">
-        <span class="section-label">Master da carteira</span>
-        <%# w-auto: o select se dimensiona pela opção mais longa, não pela largura da página %>
+      class: "filter-bar" do %>
+      <div class="filter-pill filter-pill--select">
+        <label class="filter-pill__label" for="channel_id">Master</label>
         <%= select_tag :channel_id,
-          options_for_select([["Todos os Masters", ""]] + @channels.map { |channel| [channel_name(channel), channel.uuid] },
+          options_for_select([["todos", ""]] + @channels.map { |channel| [channel_name(channel), channel.uuid] },
             @selected_channel&.uuid),
-          class: "select select-bordered w-auto min-w-52 max-w-full" %>
-      </label>
-      <%= button_tag icon_label("funnel", "Aplicar filtro"), type: "submit", class: "btn btn-primary btn--field" %>
+          class: "filter-pill__native" %>
+      </div>
+      <%= button_tag icon_label("funnel", "Filtrar"), type: "submit",
+        class: "btn btn-primary filter-pill__submit" %>
+      <% if @selected_channel %>
+        <%= link_to "Limpar", reports_path, class: "filter-bar__clear" %>
+      <% end %>
     <% end %>
   </section>
 
@@ -70,11 +73,15 @@
         <h2 class="table-title"><%= channel_name(@selected_channel) || "Todos os MICs" %></h2>
       </div>
       <% if @reports.any? %>
-        <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
-        <%= render "shared/sort_status", sort: @order,
-          path: ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
+        <div class="table-toolbar__meta">
+          <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
+          <%= render "shared/sort_status", sort: @order,
+            path: ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
+        </div>
       <% end %>
     </div>
+
+    <p class="table-scroll-hint">Deslize a tabela para ver todos os dados.</p>
 
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Faturamento por MIC, rolável na horizontal">
