@@ -35,8 +35,8 @@
           </span>
         </span>
         <% if policy(:channel).destroy? %>
-          <%= link_to "Apagar", new_channel_deletion_path(entry.uuid), class: "link text-xs",
-            aria: { label: "Apagar o Master #{entry.name}" } %>
+          <%= link_to icon_label("trash", "Apagar"), new_channel_deletion_path(entry.uuid),
+            class: "btn btn-danger btn-sm coverage-panel__action", aria: { label: "Apagar o Master #{entry.name}" } %>
         <% end %>
       </li>
     <% end %>

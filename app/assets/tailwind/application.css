@@ -2383,9 +2383,14 @@
 
   .coverage-panel__item {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.6rem;
     flex-wrap: wrap;
+  }
+
+  /* A ação destrutiva fica na ponta direita da linha, como Descartar na lista de lotes. */
+  .coverage-panel__action {
+    margin-left: auto;
   }
 
   .coverage-panel__name {
