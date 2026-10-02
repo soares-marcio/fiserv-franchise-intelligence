@@ -270,6 +270,13 @@ contornadas por conveniência:
 - **Mensagem neutra na importação**: Master ou EC de outra organização é recusado sem
   revelar nome — o texto vai para a tela de lotes. A ordem do `IdentityGuard` (organização
   antes de CNPJ e de canal) existe por isso.
+- **Master e MIC apagados são marcados, não removidos** (desde 01/10/2026; README, "Apagar
+  Master ou MIC"). Quem os esconde é o `AccessScope`: lista só Masters ativos, e um Master com
+  MIC apagado é **lido** como a lista dos MICs ativos dele (o recorte por MIC, já testado contra
+  vazamento, faz o resto), enquanto `whole?` continua dizendo que o ator o possui inteiro.
+  Toda busca por EC, REPORT_ID, checksum ou nome de MIC fora do escopo precisa de `.active`:
+  os índices únicos são parciais e o banco só barra colisão entre ativos — um `find_by(ec:)`
+  sem `.active` acha o EC do Master apagado.
 
 A trilha ganha `organization_id`; ação da plataforma fica sem organização mesmo quando o
 registro tem uma (é o que separa o que cada papel lê). O papel `metabase_ro` lê as views de

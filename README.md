@@ -297,6 +297,29 @@ anotação e toda mudança de acesso — convite, alteração de permissão ou e
 segundo fator, desativação. Guarda a ação e o contexto, **nunca o conteúdo** — sem CNPJ, sem faturamento, sem o
 texto das anotações: uma trilha que repete o dado protegido vira um segundo vazamento.
 
+### Apagar Master ou MIC
+
+O administrador da organização apaga um Master pela tela de importação (link **Apagar** no
+painel de cobertura) e um MIC pela tela do MIC (**Apagar MIC**). A confirmação exige digitar o
+nome. Apagar é **marcar**, não remover: os dados ficam, a carteira some de toda tela para todos
+da organização, e só a **plataforma restaura**, pela ficha da organização, onde os apagados
+aparecem pelo REPORT_ID.
+
+- **Master apagado** marca junto os ECs e os lotes dele. Quem tinha acesso sai do portal e
+  entra de novo sem ele; a concessão fica guardada e volta com a restauração. Lote em
+  processamento ou em revisão impede a exclusão.
+- **Planilha do REPORT_ID apagado** cria um **Master novo**, do zero, e o apagado continua
+  apagado. Apagar o novo depois faz a plataforma listar os dois. Por isso EC, REPORT_ID, arquivo
+  (checksum) e nome de MIC são únicos **só entre os ativos** (índices parciais
+  `WHERE deleted_at IS NULL`).
+- **MIC apagado** sai das telas e dos totais do Master. Os ECs dele continuam no Master e
+  voltam a aparecer quando uma planilha nova os ligar a um MIC ativo; se a planilha trouxer um
+  MIC com o mesmo nome, ele nasce como MIC novo.
+- **Restaurar** é tudo ou nada e recusa quando uma planilha nova já ocupou o REPORT_ID, um EC,
+  o arquivo ou o nome do MIC.
+- As anotações não são marcadas: elas são do CNPJ e voltam a aparecer se o CNPJ estiver em
+  outro Master ou numa planilha nova.
+
 ### Primeiro acesso de um banco novo
 
 `ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` fazem o seed criar o **administrador da
