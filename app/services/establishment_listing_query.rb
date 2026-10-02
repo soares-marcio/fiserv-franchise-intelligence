@@ -94,10 +94,12 @@ class EstablishmentListingQuery
       "OR COALESCE(activated_on, accredited_on) < :previous_period))"
   }.freeze
 
-  def initialize(channel_id:, sub_channel_id:, window:, statuses: [], date_kinds: [],
+  include ScopedQuery
+
+  def initialize(scope:, sub_channel_id:, window:, statuses: [], date_kinds: [],
     from_date: nil, to_date: nil, query: nil, variation: nil, sort: nil, direction: nil,
     min_revenue: nil, max_revenue: nil, revenue_basis: nil, page: 1, per_page: nil)
-    @channel_id = channel_id
+    @scope = scope
     @sub_channel_id = sub_channel_id
     @window = window
     @statuses = Array(statuses).map(&:to_s).compact_blank.uniq
@@ -123,14 +125,14 @@ class EstablishmentListingQuery
   def self.normalize_max_revenue(value)
     return if value.blank?
 
-    teto = value.to_i.clamp(0, LOW_REVENUE_THRESHOLD)
-    REVENUE_STOPS.reverse_each.find { |parada| parada <= teto }
+    ceiling = value.to_i.clamp(0, LOW_REVENUE_THRESHOLD)
+    REVENUE_STOPS.reverse_each.find { |stop| stop <= ceiling }
   end
 
   # Posição da alça para um valor já normalizado. Fora das paradas, a de baixo — é a mesma
   # regra da normalização, e as duas precisam concordar.
   def self.revenue_stop_index(value)
-    REVENUE_STOPS.rindex { |parada| parada <= value.to_i } || 0
+    REVENUE_STOPS.rindex { |stop| stop <= value.to_i } || 0
   end
 
   # As duas alças de uma vez: cada uma presa à escala e ao passo, e as duas em ordem. Podem
@@ -201,12 +203,12 @@ class EstablishmentListingQuery
   def binds
     @binds ||= begin
       values = @window.to_binds.merge(
-        channel_id: @channel_id, sub_channel_id: @sub_channel_id, statuses: @statuses,
+        sub_channel_id: @sub_channel_id, statuses: @statuses,
         low_revenue: low_revenue_ceiling, low_revenue_floor: low_revenue_floor,
         min_revenue: @min_revenue, max_revenue: @max_revenue
       )
       values.merge!(from_date: @from_date, to_date: @to_date) if lifecycle_filter?
-      values.merge(search_binds)
+      values.merge(search_binds).merge(scope_binds)
     end
   end
 
@@ -266,9 +268,9 @@ class EstablishmentListingQuery
   # status (EstablishmentsHelper::CONTRACT_STATUSES); se surgir um terceiro, ele cai em
   # suspensos e este cálculo precisa mudar.
   def status_counts(row)
-    clientes = row["total_count"].to_i
+    total_count = row["total_count"].to_i
     active = row["active_count"].to_i
-    { "Active" => active, "Suspended" => clientes - active }
+    { "Active" => active, "Suspended" => total_count - active }
   end
 
   # Decisão do usuário: os totais da primeira dobra seguem a aba ativa, somando só o que
@@ -400,7 +402,7 @@ class EstablishmentListingQuery
   # carrega filtro nenhum da tela — quem filtra é o HAVING, pelo motivo explicado lá.
   def ec_listing_sql
     <<~SQL
-      WITH #{AuditViews.latest_batches_sql(channel_predicate: "(:channel_id IS NULL OR ib.channel_id = :channel_id)").strip}
+      WITH #{AuditViews.latest_batches_sql(channel_predicate: channel_predicate("ib")).strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.uuid AS establishment_uuid,
         establishment.ec, company.cnpj, company.uuid AS company_uuid,
@@ -427,7 +429,7 @@ class EstablishmentListingQuery
       -- A anotação do cliente se liga pelo CNPJ, não por FK: id e uuid de companies são
       -- regenerados a cada recriação do banco. Aqui só vêm a existência e a data; o corpo é
       -- rich text e é carregado à parte.
-      LEFT JOIN company_notes note ON note.cnpj = company.cnpj
+      LEFT JOIN company_notes note ON note.cnpj = company.cnpj AND #{organization_predicate('note')}
       LEFT JOIN LATERAL (
         SELECT mapa.accredited_on, mapa.activated_on, mapa.suspended_on,
           mapa.last_app_access_at, mapa.best_conversation_raw,

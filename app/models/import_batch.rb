@@ -10,6 +10,15 @@ class ImportBatch < ApplicationRecord
 
   # Canal e template ficam nulos entre o upload e o fim do parse.
   belongs_to :channel, optional: true
+  # A organização existe antes do parse — vem de quem enviou, ou do canal quando o lote
+  # nasce com ele. É o que recorta a listagem de lotes ainda sem canal.
+  belongs_to :organization
+  before_validation { self.organization ||= channel&.organization || uploaded_by&.organization }
+  # Quem enviou e quem revisou. Nuláveis: os lotes anteriores ao login não têm autor, e um
+  # lote só ganha revisor quando passa pela quarentena.
+  belongs_to :uploaded_by, class_name: "User", optional: true
+  belongs_to :reviewed_by, class_name: "User", optional: true
+  has_many :batch_grants, dependent: :destroy
   belongs_to :import_template, optional: true
   has_many :revenue_snapshots, dependent: :restrict_with_exception
   has_many :map_snapshots, dependent: :restrict_with_exception
@@ -17,9 +26,17 @@ class ImportBatch < ApplicationRecord
   has_many :daily_revenues, dependent: :restrict_with_exception
   has_many :monthly_volumes, dependent: :restrict_with_exception
 
-  validates :file_checksum, uniqueness: true
+  # Único entre os ativos: o operador pode reenviar o mesmo arquivo depois de apagar o Master.
+  validates :file_checksum, uniqueness: { conditions: -> { active } }
+
+  scope :active, -> { where(deleted_at: nil) }
 
   scope :validated, -> { where(status: "validated") }
+  scope :pending_review, -> { where(status: "pending_review") }
+
+  def validated? = status == "validated"
+  def pending_review? = status == "pending_review"
+  def rejected? = status == "rejected"
 
   # Atualiza a tela de importação sozinha quando o lote muda de status.
   broadcasts_refreshes_to ->(_batch) { "import_batches" }
@@ -36,19 +53,22 @@ class ImportBatch < ApplicationRecord
     heartbeat.present? && heartbeat > WORKER_HEARTBEAT_TIMEOUT.ago
   end
 
-  def self.last_received_at
-    validated.maximum(:created_at)
+  # Os três sinais são da carteira de uma organização; sem organização não há sinal.
+  def self.last_received_at(organization:)
+    return if organization.nil?
+
+    validated.where(organization:).maximum(:created_at)
   end
 
-  def self.days_since_last_file
-    received = last_received_at
+  def self.days_since_last_file(organization:)
+    received = last_received_at(organization:)
     return unless received
 
     (Date.current - received.to_date).to_i
   end
 
-  def self.stale?
-    days = days_since_last_file
+  def self.stale?(organization:)
+    days = days_since_last_file(organization:)
     days.nil? || days >= STALE_AFTER_DAYS
   end
 

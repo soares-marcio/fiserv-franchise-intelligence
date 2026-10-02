@@ -10,6 +10,9 @@ module Operations
 
     def initialize(attrs)
       @attrs = attrs.to_h.stringify_keys
+      # Cadastro manual também cria Master: precisa saber de que organização ele é.
+      @organization = @attrs.delete("organization")
+      raise ArgumentError, "Cadastro manual sem organização: informe a organização dona do EC." if @organization.nil?
     end
 
     def call
@@ -17,14 +20,16 @@ module Operations
       validate_competencies!
       rows = sheet_rows
       BinImport::Validator.new(rows).validate_identity!
-      channel = BinImport::ChannelResolver.call(report_id:, name: channel_name)
+      channel = BinImport::ChannelResolver.call(report_id:, name: channel_name, organization: @organization)
       BinImport::IdentityGuard.assert_existing!(channel, rows)
 
       batch = nil
       ApplicationRecord.transaction do
+        # Master novo nasce junto com o cadastro, nunca antes dele.
+        channel.save! if channel.new_record?
         template = BinImport::Template.register!
         batch = ImportBatch.create!(
-          channel:, import_template: template, source_filename: "manual",
+          channel:, organization: @organization, import_template: template, source_filename: "manual",
           file_checksum: checksum, previous_period:, current_period:,
           current_month_cutoff_day: cutoff_day, status: "pending"
         )
@@ -114,9 +119,9 @@ module Operations
 
     def persist!(batch, channel, rows)
       map = rows.fetch("Mapa de Clientes BIN").first
-      sub_channel = channel.sub_channels.find_or_create_by!(name: sub_channel_name)
+      sub_channel = channel.sub_channels.active.find_or_create_by!(name: sub_channel_name)
       company = Company.find_or_create_by!(cnpj: BinImport::Normalizer.cnpj(map["CNPJ"]))
-      establishment = Establishment.find_or_create_by!(ec: BinImport::Normalizer.ec(map["EC"])) do |record|
+      establishment = Establishment.active.find_or_create_by!(ec: BinImport::Normalizer.ec(map["EC"])) do |record|
         record.company = company
         record.channel = channel
       end

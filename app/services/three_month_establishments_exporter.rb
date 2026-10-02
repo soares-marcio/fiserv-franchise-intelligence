@@ -35,25 +35,25 @@ class ThreeMonthEstablishmentsExporter
   end
 
   def note
-    janela = Array(@window).map { |period| I18n.l(period, format: "%m/%Y") }.join(" · ")
-    "#{@sub_channel_name} · ECs credenciados na janela #{janela}"
+    window_label = Array(@window).map { |period| I18n.l(period, format: "%m/%Y") }.join(" · ")
+    "#{@sub_channel_name} · ECs credenciados na janela #{window_label}"
   end
 
   def export_row(report)
-    credenciamento = report[:accreditation] || {}
+    accreditation = report[:accreditation] || {}
     [
       report[:ec],
       report[:trade_name] || report[:legal_name],
-      date(credenciamento["accredited_on"]),
-      credenciamento["months_observed"]&.to_i,
-      MODALITY_LABELS[credenciamento["auto_flex"]],
-      credenciamento["digitalization_amount"]&.to_d,
-      credenciamento["addon_amount"]&.to_d,
-      credenciamento["m0_addon_amount"]&.to_d,
-      credenciamento["m1_addon_amount"]&.to_d,
-      credenciamento["m2_addon_amount"]&.to_d,
-      credenciamento["addon_without_auto"]&.to_d,
-      credenciamento["addon_with_auto"]&.to_d,
+      date(accreditation["accredited_on"]),
+      accreditation["months_observed"]&.to_i,
+      MODALITY_LABELS[accreditation["auto_flex"]],
+      accreditation["digitalization_amount"]&.to_d,
+      accreditation["addon_amount"]&.to_d,
+      accreditation["m0_addon_amount"]&.to_d,
+      accreditation["m1_addon_amount"]&.to_d,
+      accreditation["m2_addon_amount"]&.to_d,
+      accreditation["addon_without_auto"]&.to_d,
+      accreditation["addon_with_auto"]&.to_d,
       *report[:months].flat_map { |month| month_cells(month) }
     ]
   end

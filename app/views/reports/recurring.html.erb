@@ -19,14 +19,14 @@
       </div>
       <%# O arquivo sai com o recorte da tela: os mesmos parâmetros que o link carrega,
           senão o download traz um recorte diferente do que está à vista. %>
-      <% recorte = { channel_id: @selected_channel&.uuid,
+      <% export_params = { channel_id: @selected_channel&.uuid,
         sort: @order.column, direction: @order.direction }.compact %>
       <div class="export-actions relative z-10 flex flex-wrap gap-2">
         <%= link_to icon_label("download-simple", "Exportar CSV"),
-          recurring_reports_path(format: :csv, **recorte),
+          recurring_reports_path(format: :csv, **export_params),
           class: "btn btn-outline export-action" %>
         <%= link_to icon_label("download-simple", "Exportar XLSX"),
-          recurring_reports_path(format: :xlsx, **recorte),
+          recurring_reports_path(format: :xlsx, **export_params),
           class: "btn btn-neutral export-action" %>
       </div>
     </div>
@@ -101,11 +101,11 @@
     </section>
 
     <section class="grid gap-4">
-      <% caminho = ->(ordem) { recurring_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+      <% sort_path = ->(order) { recurring_reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
       <div class="earnings-card-bar">
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
-        <%= render "shared/sort_status", sort: @order, path: caminho %>
-        <%= render "shared/sort_links", sort: @order, path: caminho,
+        <%= render "shared/sort_status", sort: @order, path: sort_path %>
+        <%= render "shared/sort_links", sort: @order, path: sort_path,
           label: "Ordenar os MICs" %>
       </div>
 

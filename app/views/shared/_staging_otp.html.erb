@@ -1,0 +1,9 @@
+<%# Homologação sem celular: o mesmo fluxo, o mesmo verify com anti-replay — só o código
+    aparece aqui em vez de no autenticador. Condicionado à mesma variável da faixa âmbar,
+    que o berry não define. Nunca renderizar fora dela. %>
+<% if staging? %>
+  <div class="env-banner mt-4 rounded-lg" role="status">
+    Homologação — código atual do autenticador:
+    <strong class="font-mono tracking-[0.3em]" data-testid="staging-otp"><%= OneTimePassword.new(user).current_code %></strong>
+  </div>
+<% end %>

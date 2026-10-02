@@ -38,7 +38,7 @@ class RecurringEarningsExporter
   # Célula vazia, não zero, para o que a tela mostra como travessão: "sem ajuste" e "sem Net
   # MDR daquele mês" não são valores, e no Excel zero entra na média.
   def export_row(report, month)
-    ajuste = month[:accelerator] - month[:reducer]
+    adjustment = month[:accelerator] - month[:reducer]
     [
       report[:name],
       I18n.l(month[:period], format: "%m/%Y"),
@@ -49,18 +49,18 @@ class RecurringEarningsExporter
       MDR_SOURCE_LABELS[month[:mdr_source]],
       month[:recurring].to_d,
       (month[:accreditation].to_d unless month[:accreditation].zero?),
-      (ajuste.to_d unless ajuste.zero?),
-      (month[:recurring] + month[:accreditation] + ajuste).to_d
+      (adjustment.to_d unless adjustment.zero?),
+      (month[:recurring] + month[:accreditation] + adjustment).to_d
     ]
   end
 
   def total_row
-    meses = @reports.flat_map { |report| report[:months] }
-    ajuste = meses.sum { |month| month[:accelerator] - month[:reducer] }
-    [ "TOTAL", nil, nil, meses.sum { |month| month[:debit].to_d },
-      meses.sum { |month| month[:credit].to_d }, nil, nil,
-      meses.sum { |month| month[:recurring].to_d },
-      meses.sum { |month| month[:accreditation].to_d }, ajuste.to_d,
-      meses.sum { |month| month[:recurring].to_d + month[:accreditation].to_d } + ajuste.to_d ]
+    months = @reports.flat_map { |report| report[:months] }
+    adjustment = months.sum { |month| month[:accelerator] - month[:reducer] }
+    [ "TOTAL", nil, nil, months.sum { |month| month[:debit].to_d },
+      months.sum { |month| month[:credit].to_d }, nil, nil,
+      months.sum { |month| month[:recurring].to_d },
+      months.sum { |month| month[:accreditation].to_d }, adjustment.to_d,
+      months.sum { |month| month[:recurring].to_d + month[:accreditation].to_d } + adjustment.to_d ]
   end
 end

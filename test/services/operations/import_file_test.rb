@@ -14,7 +14,7 @@ class Operations::ImportFileTest < ActiveJob::TestCase
     batch = nil
 
     assert_enqueued_with(job: ImportBinFileJob) do
-      batch = Operations::ImportFile.call(upload)
+      batch = Operations::ImportFile.call(upload, organization: default_organization)
     end
 
     assert_predicate batch.source_file, :attached?
@@ -23,10 +23,10 @@ class Operations::ImportFileTest < ActiveJob::TestCase
   end
 
   test "não cria outro lote nem outro blob enquanto o mesmo arquivo está pendente" do
-    Operations::ImportFile.call(upload)
+    Operations::ImportFile.call(upload, organization: default_organization)
 
     assert_no_difference [ -> { ImportBatch.count }, -> { ActiveStorage::Blob.count } ] do
-      error = assert_raises(ArgumentError) { Operations::ImportFile.call(upload) }
+      error = assert_raises(ArgumentError) { Operations::ImportFile.call(upload, organization: default_organization) }
       assert_match(/já está na fila de importação/, error.message)
     end
     assert_enqueued_jobs 1, only: ImportBinFileJob
@@ -35,7 +35,7 @@ class Operations::ImportFileTest < ActiveJob::TestCase
   test "mantém arquivo ligado ao lote e marca falha se a fila recusar o job" do
     original_enqueue = ImportBinFileJob.method(:perform_later)
     ImportBinFileJob.define_singleton_method(:perform_later) { |*| raise "fila indisponível" }
-    error = assert_raises(RuntimeError) { Operations::ImportFile.call(upload) }
+    error = assert_raises(RuntimeError) { Operations::ImportFile.call(upload, organization: default_organization) }
 
     batch = ImportBatch.last
     assert_equal "fila indisponível", error.message

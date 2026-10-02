@@ -21,8 +21,16 @@ gem "roo"
 # Exportação dos relatórios recorrentes em XLSX.
 gem "caxlsx"
 
-# Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
-# gem "bcrypt", "~> 3.1.7"
+# Senha do usuário (has_secure_password) e digest dos códigos de recuperação do MFA.
+gem "bcrypt", "~> 3.1"
+
+# Autorização: uma policy por recurso, negando por padrão. A checagem de permissão e o
+# recorte de dados por Master/MIC vivem nas policies, não espalhados pelos controllers.
+gem "pundit"
+
+# Segundo fator: TOTP (app autenticador) e o QR que o usuário lê na inscrição.
+gem "rotp"
+gem "rqrcode"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]

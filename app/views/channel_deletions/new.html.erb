@@ -1,0 +1,36 @@
+<% content_for :title, "Apagar Master" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Importação</p>
+  <h1 class="page-title">Apagar <%= @channel.name %></h1>
+  <p class="page-description">
+    O Master some de todas as telas, para todos da organização. Os dados ficam guardados e só
+    a plataforma pode restaurá-los. Uma planilha nova deste REPORT_ID cria um Master novo, do zero.
+  </p>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">O que sai das telas</p>
+  <dl class="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+    <div><dt class="text-xs opacity-70">Arquivos importados</dt><dd class="font-semibold tabular-nums"><%= @counts["lotes"] %></dd></div>
+    <div><dt class="text-xs opacity-70">ECs</dt><dd class="font-semibold tabular-nums"><%= @counts["ecs"] %></dd></div>
+    <div><dt class="text-xs opacity-70">MICs</dt><dd class="font-semibold tabular-nums"><%= @counts["mics"] %></dd></div>
+    <div><dt class="text-xs opacity-70">Pessoas que perdem o acesso</dt><dd class="font-semibold tabular-nums"><%= @counts["acessos"] %></dd></div>
+  </dl>
+  <p class="metric-hint mt-3">
+    Quem tem acesso a este Master sai do portal agora e entra de novo sem ele. As anotações
+    dos clientes ficam: voltam a aparecer se o CNPJ estiver em outro Master ou numa planilha nova.
+  </p>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <%= form_with url: channel_deletion_path(@channel), method: :post, class: "grid gap-3" do |form| %>
+    <%= form.label :confirmation, "Para confirmar, digite o nome do Master: #{@channel.name}", class: "label text-sm" %>
+    <%= form.text_field :confirmation, autocomplete: "off", required: true, class: "input input-bordered w-full" %>
+    <div class="action-group">
+      <%= form.submit "Apagar #{@channel.name}", class: "btn btn-danger",
+        data: { turbo_confirm: "Apagar o Master #{@channel.name}? Só a plataforma restaura." } %>
+      <%= link_to "Cancelar", import_batches_path, class: "btn btn-outline" %>
+    </div>
+  <% end %>
+</section>

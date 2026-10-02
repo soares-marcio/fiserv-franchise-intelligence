@@ -16,6 +16,7 @@ Dir[Rails.root.join("test/support/**/*.rb")].each { |file| require file }
 
 module ActiveSupport
   class TestCase
+    include Accounts
     # Sem paralelismo por processo: os workers forkados dão segfault no gem pg
     # (pg/connection.rb connect_start) e o processo pai fica pendurado no DRb.
     # A suíte roda em ~35s em processo único; PARALLEL_WORKERS ainda sobrescreve.
@@ -26,13 +27,25 @@ module ActiveSupport
       AuditViews.refresh!
     end
 
-    def import_synthetic_workbook(lojas: BinWorkbook.default_lojas, filename: "BIN_TESTE_20260811.xlsx",
-      volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, canal: BinWorkbook::CANAL)
+    def import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260811.xlsx",
+      volume_months: BinImport::Template::DEFAULT_VOLUME_MONTHS, channel: BinWorkbook::CHANNEL,
+      report_id: BinWorkbook::REPORT_ID, organization: default_organization)
       path = Rails.root.join("tmp", "#{SecureRandom.hex(4)}-#{filename}")
-      BinWorkbook.write(path, lojas:, volume_months:, canal:)
-      BinImport::Importer.new(path, source_filename: filename).call
+      BinWorkbook.write(path, stores:, volume_months:, channel:, report_id:)
+      BinImport::Importer.new(path, source_filename: filename, organization:).call
     ensure
       File.delete(path) if path && File.exist?(path)
     end
   end
+end
+
+# Toda requisição de teste nasce autenticada, com um ator que pode tudo: o assunto destes
+# testes são telas e números, não autorização. Quem testa permissão monta o próprio ator
+# com `scoped_user` e entra de novo.
+class ActionDispatch::IntegrationTest
+  # Quem testa o próprio login (senha errada, bloqueio, segundo fator) desliga isto e
+  # conduz a entrada por conta própria.
+  class_attribute :skip_default_login, default: false
+
+  setup { sign_in_as(admin_user) unless self.class.skip_default_login }
 end

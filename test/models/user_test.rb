@@ -1,0 +1,74 @@
+require "test_helper"
+
+class UserTest < ActiveSupport::TestCase
+  test "normaliza o e-mail e recusa duplicado com outra caixa" do
+    User.create!(organization: default_organization, email_address: " Chefe@Exemplo.com ", name: "Chefe", password: "senha-bem-longa-1")
+
+    assert_equal "chefe@exemplo.com", User.last.email_address
+    duplicate = User.new(organization: default_organization, email_address: "CHEFE@exemplo.com", name: "Outro", password: "senha-bem-longa-1")
+
+    assert_not duplicate.valid?
+  end
+
+  # A senha provisória fica guardada (cifrada) para quem convidou entregar — e só até a
+  # pessoa trocá-la. Depois disso não existe mais em lugar nenhum.
+  test "trocar a senha apaga a provisória" do
+    user = User.create!(organization: default_organization, email_address: "c@exemplo.com", name: "C", password: "provisoria-12345",
+      provisional_password: "provisoria-12345", must_change_password: true)
+    assert_equal "provisoria-12345", user.reload.provisional_password
+
+    user.update!(password: "definitiva-123456", must_change_password: false)
+
+    assert_nil user.reload.provisional_password
+  end
+
+  test "salvar sem mexer na senha mantém a provisória" do
+    user = User.create!(organization: default_organization, email_address: "d@exemplo.com", name: "D", password: "provisoria-12345",
+      provisional_password: "provisoria-12345", must_change_password: true)
+
+    user.update!(name: "D renomeado")
+
+    assert_equal "provisoria-12345", user.reload.provisional_password
+  end
+
+  # O portal passa a ser alcançável pela internet sem o Access na frente: a senha deixa de
+  # ser a segunda barreira e vira a primeira.
+  test "recusa senha curta" do
+    user = User.new(organization: default_organization, email_address: "a@exemplo.com", name: "A", password: "curta1")
+
+    assert_not user.valid?
+    assert_includes user.errors[:password].join, "8"
+  end
+
+  test "permissão fora do catálogo não passa nem pelo model nem pelo banco" do
+    user = User.new(organization: default_organization, email_address: "b@exemplo.com", name: "B", password: "senha-bem-longa-1",
+      permissions: [ Permission::REPORTS_READ, "inventada" ])
+
+    assert_not user.valid?
+    assert_match(/inventada/, user.errors[:permissions].join)
+  end
+
+  # O administrador da organização não recebe chave a chave: guardar a lista inteira nele
+  # criaria dois lugares para acrescentar permissão nova. A plataforma não tem nenhuma.
+  test "administrador da organização tem toda permissão; a plataforma, nenhuma" do
+    boss = User.new(organization: default_organization, organization_admin: true, permissions: [])
+    platform = User.new(platform_admin: true, permissions: [])
+    shared = User.new(organization: default_organization, permissions: [ Permission::REPORTS_READ ])
+
+    assert boss.permitted?(Permission::BATCHES_DISCARD)
+    assert_not platform.permitted?(Permission::REPORTS_READ)
+    assert shared.permitted?(Permission::REPORTS_READ)
+    assert_not shared.permitted?(Permission::BATCHES_DISCARD)
+  end
+
+  test "o segredo do TOTP não fica legível no banco" do
+    user = User.create!(organization: default_organization, email_address: "c@exemplo.com", name: "C", password: "senha-bem-longa-1",
+      otp_secret: "JBSWY3DPEHPK3PXP")
+
+    raw = User.connection.select_value("SELECT otp_secret FROM users WHERE id = #{user.id}")
+
+    assert_equal "JBSWY3DPEHPK3PXP", user.reload.otp_secret
+    assert_not_equal "JBSWY3DPEHPK3PXP", raw
+    assert_no_match(/JBSWY3DPEHPK3PXP/, raw)
+  end
+end

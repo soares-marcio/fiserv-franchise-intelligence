@@ -1,0 +1,29 @@
+<% content_for :title, "Entrar — Auditoria BIN" %>
+
+<h1 class="page-title">Entrar</h1>
+<p class="page-description mt-2">
+  Use o e-mail cadastrado pelo administrador do portal.
+</p>
+
+<%= form_with url: session_path, class: "mt-6 grid gap-4" do |form| %>
+  <label class="form-control">
+    <span class="section-label">E-mail</span>
+    <%= form.email_field :email_address, required: true, autofocus: true,
+      autocomplete: "username", value: params[:email_address],
+      class: "input input-bordered w-full" %>
+  </label>
+
+  <label class="form-control">
+    <span class="section-label">Senha</span>
+    <%# maxlength 72: acima disso o bcrypt ignora o resto em silêncio. %>
+    <%= form.password_field :password, required: true, autocomplete: "current-password",
+      maxlength: 72, class: "input input-bordered w-full" %>
+  </label>
+
+  <%= form.submit "Entrar", class: "btn btn-primary w-full" %>
+<% end %>
+
+<p class="metric-hint mt-6">
+  Esqueceu a senha? Peça ao administrador do portal para gerar uma nova — ela vale uma vez e
+  você escolhe a definitiva ao entrar.
+</p>

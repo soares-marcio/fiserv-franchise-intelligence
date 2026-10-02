@@ -14,13 +14,13 @@
       </div>
       <%# O arquivo sai com o recorte que estiver na tela — o MIC escolhido viaja no link,
           senão o download traria a carteira inteira para quem está olhando um MIC só. %>
-      <% recorte = { channel_id: @selected_channel&.uuid,
+      <% export_params = { channel_id: @selected_channel&.uuid,
         sub_channel_id: @selected_sub_channel&.uuid }.compact_blank %>
       <div class="export-actions relative z-10 flex flex-wrap gap-2">
         <%= link_to icon_label("download-simple", "Exportar CSV"),
-          stalled_reports_path(format: :csv, **recorte), class: "btn btn-outline export-action" %>
+          stalled_reports_path(format: :csv, **export_params), class: "btn btn-outline export-action" %>
         <%= link_to icon_label("download-simple", "Exportar XLSX"),
-          stalled_reports_path(format: :xlsx, **recorte), class: "btn btn-neutral export-action" %>
+          stalled_reports_path(format: :xlsx, **export_params), class: "btn btn-neutral export-action" %>
       </div>
     </div>
   </section>
@@ -36,9 +36,9 @@
       <% end %>
       <label class="grid gap-1.5">
         <span class="section-label">MIC</span>
-        <% opcoes = [ [ "Todas", "" ] ] + @sub_channels.map { |mic| [ mic["name"], mic["uuid"] ] } %>
+        <% options = [ [ "Todas", "" ] ] + @sub_channels.map { |mic| [ mic["name"], mic["uuid"] ] } %>
         <%= select_tag :sub_channel_id,
-          options_for_select(opcoes, @selected_sub_channel&.uuid),
+          options_for_select(options, @selected_sub_channel&.uuid),
           class: "select select-bordered w-auto min-w-52 max-w-full" %>
       </label>
       <%= button_tag icon_label("funnel", "Aplicar"), type: "submit",

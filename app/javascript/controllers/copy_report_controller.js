@@ -7,24 +7,24 @@ export default class extends Controller {
   static targets = ["source", "feedback"]
 
   async copy() {
-    const texto = this.sourceTarget.value
+    const text = this.sourceTarget.value
 
     try {
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(texto)
+        await navigator.clipboard.writeText(text)
       } else {
         this.sourceTarget.select()
         if (!document.execCommand("copy")) throw new Error("execCommand recusou")
       }
-      this.aviso("Relato copiado.")
+      this.notify("Relato copiado.")
     } catch {
       this.sourceTarget.select()
-      this.aviso("Não consegui copiar sozinho. O texto está selecionado: use Cmd+C.")
+      this.notify("Não consegui copiar sozinho. O texto está selecionado: use Cmd+C.")
     }
   }
 
-  aviso(texto) {
-    this.feedbackTarget.textContent = texto
+  notify(text) {
+    this.feedbackTarget.textContent = text
     clearTimeout(this.timer)
     this.timer = setTimeout(() => (this.feedbackTarget.textContent = ""), 6000)
   }

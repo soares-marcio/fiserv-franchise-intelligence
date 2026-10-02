@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="bin">
+  <head>
+    <title><%= content_for(:title) || "Entrar — Auditoria BIN" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+  <%# Layout próprio, sem a navbar: antes de entrar não há tela para navegar, e um menu
+      cheio de links que respondem 302 só confunde. %>
+  <body class="app-body min-h-screen">
+    <% if staging? %>
+      <p class="env-banner" role="status">
+        Homologação — cópia dos dados, não é o ambiente de produção
+      </p>
+    <% end %>
+    <main class="auth-shell">
+      <div class="auth-card">
+        <span class="brand-lockup auth-brand">
+          <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+          <span>
+            <span class="brand-name">Melo Pay</span>
+            <span class="brand-caption">Inteligência de franquias</span>
+          </span>
+        </span>
+
+        <div id="flash" aria-live="polite">
+          <%= render "layouts/flash", notice: flash[:notice], alert: flash[:alert] %>
+        </div>
+
+        <%= yield %>
+      </div>
+    </main>
+  </body>
+</html>

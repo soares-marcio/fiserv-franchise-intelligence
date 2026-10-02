@@ -21,13 +21,13 @@
   <%# O intervalo deixou de ser a regra: a modalidade contratada (SOLUÇÕES FINANCEIRAS) escolhe
       a coluna do adicional, e o valor é um só. Ele sobrevive para o caso em que a origem não
       declara a modalidade — aí a apuração não elege coluna nenhuma, e a tela diz isso. %>
-  <% intervalo = prize[:undefined_modality].positive? %>
+  <% interval = prize[:undefined_modality].positive? %>
   <div class="earnings-card__total">
     <p class="metric-label">Prêmio de entrada</p>
-    <p class="metric-value <%= "metric-value--range" if intervalo %>">
+    <p class="metric-value <%= "metric-value--range" if interval %>">
       <% if prize[:accredited].zero? %>
         —
-      <% elsif intervalo %>
+      <% elsif interval %>
         <%= brl(prize[:digitalization] + prize[:addon_without_auto]) %> –
         <%= brl(prize[:digitalization] + prize[:addon_with_auto]) %>
       <% else %>
@@ -49,7 +49,7 @@
       <div>
         <dt>Adicional por faturamento</dt>
         <dd>
-          <% if intervalo %>
+          <% if interval %>
             <%= brl(prize[:addon_without_auto]) %> – <%= brl(prize[:addon_with_auto]) %>
           <% else %>
             <%= brl(prize[:addon_amount]) %>
@@ -57,7 +57,7 @@
         </dd>
       </div>
     </dl>
-    <% if intervalo %>
+    <% if interval %>
       <p class="earnings-card__breakdown">
         <%= pluralize(prize[:undefined_modality], "EC sem modalidade declarada",
           "ECs sem modalidade declarada") %>: o adicional deles fica em intervalo
@@ -92,14 +92,14 @@
       <tbody>
         <%# A modalidade e a chave que a traz em cada mês; o total fecha em negrito. %>
         <% [ [ "Débito", :debit, nil ], [ "Crédito", :credit, nil ],
-             [ "Total", :total, "font-semibold" ] ].each do |rotulo, chave, peso| %>
+             [ "Total", :total, "font-semibold" ] ].each do |label, key, weight| %>
           <tr>
-            <th scope="row" class="font-normal"><%= rotulo %></th>
+            <th scope="row" class="font-normal"><%= label %></th>
             <% report[:months].each do |month| %>
               <%# Mês sem cobertura: travessão na coluna inteira, não zero — "sem dado" não é
                   "sem faturamento". %>
-              <td class="text-right tabular-nums <%= peso %>">
-                <%= month[:covered] ? brl(month[chave]) : "—" %>
+              <td class="text-right tabular-nums <%= weight %>">
+                <%= month[:covered] ? brl(month[key]) : "—" %>
               </td>
             <% end %>
           </tr>

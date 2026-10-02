@@ -3,25 +3,25 @@
 
     Os defasados vêm primeiro, porque a pergunta que traz alguém a esta tela é "quem está
     atrasado", e não "como está cada um". %>
-<% atrasados = file_freshness.stale_entries %>
-<section class="coverage-panel" data-tone="<%= atrasados.any? ? "rose" : "green" %>">
+<% stale_entries = file_freshness.stale_entries %>
+<section class="coverage-panel" data-tone="<%= stale_entries.any? ? "rose" : "green" %>">
   <div>
     <p class="section-label">Cobertura por master</p>
     <h2 class="table-title">
       <% if !file_freshness.any_file? %>
         Nenhum arquivo importado
-      <% elsif atrasados.empty? %>
+      <% elsif stale_entries.empty? %>
         Todos os masters em dia
       <% else %>
-        <%= pluralize(atrasados.size, "master", "masters") %>
+        <%= pluralize(stale_entries.size, "master", "masters") %>
         com dados desatualizados
       <% end %>
     </h2>
   </div>
 
   <ul class="coverage-panel__list">
-    <% ordenados = file_freshness.entries.partition { |entry| atrasados.include?(entry) } %>
-    <% ordenados.flatten.each do |entry| %>
+    <% ordered_entries = file_freshness.entries.partition { |entry| stale_entries.include?(entry) } %>
+    <% ordered_entries.flatten.each do |entry| %>
       <li class="coverage-panel__item"
         data-tone="<%= entry.received_stale? || entry.covered_stale? ? "rose" : "green" %>">
         <span class="status-dot" aria-hidden="true"></span>
@@ -34,6 +34,10 @@
             Arquivo <%= file_age_label(entry.received_days) %>
           </span>
         </span>
+        <% if policy(:channel).destroy? %>
+          <%= link_to icon_label("trash", "Apagar"), new_channel_deletion_path(entry.uuid),
+            class: "btn btn-danger btn-sm coverage-panel__action", aria: { label: "Apagar o Master #{entry.name}" } %>
+        <% end %>
       </li>
     <% end %>
   </ul>

@@ -1,0 +1,12 @@
+<% content_for :title, "Criar organização" %>
+<section class="page-hero">
+  <p class="eyebrow">Plataforma</p>
+  <h1 class="page-title">Criar organização</h1>
+  <p class="page-description">
+    A organização nasce sem nome e sem dado: quem a nomeia e importa a carteira é o
+    administrador que você cria aqui.
+  </p>
+</section>
+<div class="mt-5">
+  <%= render "admin_form", admin: @admin, url: platform_organizations_path, submit_label: "Criar organização" %>
+</div>

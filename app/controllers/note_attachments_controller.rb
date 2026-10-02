@@ -17,8 +17,8 @@ class NoteAttachmentsController < ActiveStorage::DirectUploadsController
     with: -> { render json: { error: "Muitos envios em sequência. Aguarde um minuto." }, status: :too_many_requests }
 
   def create
-    if (erro = rejection(params[:blob]))
-      render json: { error: erro }, status: :unprocessable_entity
+    if (rejection_message = rejection(params[:blob]))
+      render json: { error: rejection_message }, status: :unprocessable_entity
       return
     end
 
@@ -30,14 +30,14 @@ class NoteAttachmentsController < ActiveStorage::DirectUploadsController
   def rejection(blob)
     return "Envie um arquivo." if blob.blank?
 
-    tipo = blob[:content_type].to_s
-    unless ALLOWED_CONTENT_TYPES.include?(tipo)
-      return "Anexo precisa ser imagem ou PDF, e este é #{tipo.presence || 'de tipo desconhecido'}."
+    content_type = blob[:content_type].to_s
+    unless ALLOWED_CONTENT_TYPES.include?(content_type)
+      return "Anexo precisa ser imagem ou PDF, e este é #{content_type.presence || 'de content_type desconhecido'}."
     end
 
-    tamanho = blob[:byte_size].to_i
-    return if tamanho.positive? && tamanho <= MAX_BYTES
+    byte_size = blob[:byte_size].to_i
+    return if byte_size.positive? && byte_size <= MAX_BYTES
 
-    "O anexo tem #{(tamanho / 1.megabyte.to_f).round(1)} MB e o limite é #{MAX_BYTES / 1.megabyte} MB."
+    "O anexo tem #{(byte_size / 1.megabyte.to_f).round(1)} MB e o limite é #{MAX_BYTES / 1.megabyte} MB."
   end
 end

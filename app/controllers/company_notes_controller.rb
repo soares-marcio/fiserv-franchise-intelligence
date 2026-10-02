@@ -18,24 +18,40 @@ class CompanyNotesController < ApplicationController
   # não pode viajar num data-* do botão: o corpo é HTML com anexos, e vinte linhas de tabela
   # carregariam vinte deles. Chega por Turbo Frame, como o modal do calendário.
   layout -> { turbo_frame_request? ? false : "application" }
+  before_action -> { authorize :company_note, action_name == "edit" ? :show? : :update? }
 
   def edit
-    @company = Company.find_param!(params[:id])
-    @note = CompanyNote.find_or_initialize_by(cnpj: @company.cnpj)
+    @company = company_in_scope
+    @note = policy_scope(CompanyNote).find_by(cnpj: @company.cnpj) ||
+      CompanyNote.new(cnpj: @company.cnpj, organization: Current.organization)
+    # Só os ECs do escopo: o mesmo CNPJ pode ter ECs em outra organização, e o nome que
+    # aparece no modal não pode vir de lá.
     @snapshot = MapSnapshot.joins(:establishment)
+      .merge(Establishment.in_scope(Current.access_scope))
       .where(establishments: { company_id: @company.id })
       .order(id: :desc).first
   end
 
   def update
-    company = Company.find_param!(params[:id])
-    note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body])
+    company = company_in_scope
+    note = Operations::SaveCompanyNote.call(cnpj: company.cnpj, body: params[:body],
+      organization: Current.organization, author: Current.user)
+    # Sem o texto e sem o CNPJ: a trilha diz que houve edição, não o que foi escrito.
+    Audit.record(note ? "note.saved" : "note.removed", record: note || company, request:,
+      metadata: { caracteres: params[:body].to_s.length })
     responder(company, note, notice: note ? "Anotação salva." : "Anotação removida.")
   rescue ArgumentError => error
-    responder(company, CompanyNote.find_by(cnpj: company&.cnpj), alert: error.message)
+    responder(company, policy_scope(CompanyNote).find_by(cnpj: company&.cnpj), alert: error.message)
   end
 
   private
+
+  # O cliente precisa estar no escopo do ator: fora dele, 404 — dizer "existe, mas você não
+  # pode" contaria que aquele CNPJ está na carteira de alguém.
+  def company_in_scope
+    Company.where(id: Establishment.in_scope(Current.access_scope).select(:company_id))
+      .find_param!(params[:id])
+  end
 
   # Salvar não recarrega a tela: troca a célula daquele cliente e o aviso, e pronto. O id vem
   # do mesmo helper que a partial usa para escrevê-lo — é o que impede as duas pontas de
@@ -50,7 +66,7 @@ class CompanyNotesController < ApplicationController
         render turbo_stream: [
           turbo_stream.replace(
             helpers.company_note_cell_id(company.uuid),
-            partial: "shared/company_note_cell", locals: celula(company, note)
+            partial: "shared/company_note_cell", locals: cell_locals(company, note)
           ),
           # A ficha do cliente mostra o texto; as telas de tabela não têm este alvo, e o Turbo
           # ignora em silêncio o que não encontra.
@@ -67,10 +83,10 @@ class CompanyNotesController < ApplicationController
     end
   end
 
-  def celula(company, note)
+  def cell_locals(company, note)
     {
       company_uuid: company.uuid,
-      name: company.establishments.first&.current_map_snapshot&.trade_name.to_s,
+      name: company.establishments.in_scope(Current.access_scope).first&.current_map_snapshot&.trade_name.to_s,
       note_id: note&.id, note_updated_at: note&.updated_at,
       note_params: params[:origin] == "sub_channel" ? origin_params : {}
     }

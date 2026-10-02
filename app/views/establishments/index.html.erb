@@ -78,6 +78,7 @@
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Clientes e estabelecimentos, rolável na horizontal">
   <table class="table">
+    <caption class="sr-only">Estabelecimentos encontrados</caption>
     <thead>
       <tr>
         <th scope="col">Cliente</th>
@@ -153,10 +154,10 @@
           <%# A anotação é do CNPJ, e aqui a linha já é o cliente: a mesma célula das outras
               telas, com o botão e o ponto de "já tem". O texto fica no modal e na ficha. %>
           <td class="note-col">
-            <% nota = @notes_by_cnpj[company.cnpj] %>
+            <% note = @notes_by_cnpj[company.cnpj] %>
             <%= render "shared/company_note_cell", company_uuid: company.uuid,
               name: present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),
-              note_id: nota&.id, note_updated_at: nota&.updated_at,
+              note_id: note&.id, note_updated_at: note&.updated_at,
               note_params: listing_params(origin: "establishments") %>
           </td>
         </tr>
@@ -176,13 +177,23 @@
       </div>
     <% elsif @total_pages > 1 %>
       <nav class="pagination-bar" aria-label="Paginação">
-        <%= link_to icon_label("caret-left", "Anterior"), establishments_path(listing_params(page: [ @page - 1, 1 ].max)),
-          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page <= 1}",
-          aria: { disabled: @page <= 1 } %>
+        <% if @page <= 1 %>
+          <span class="btn btn-sm btn-outline opacity-40" aria-disabled="true">
+            <%= icon_label("caret-left", "Anterior") %>
+          </span>
+        <% else %>
+          <%= link_to icon_label("caret-left", "Anterior"),
+            establishments_path(listing_params(page: @page - 1)), class: "btn btn-sm btn-outline" %>
+        <% end %>
         <span class="pagination-bar__status">Página <%= @page %> de <%= @total_pages %></span>
-        <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]), establishments_path(listing_params(page: [ @page + 1, @total_pages ].min)),
-          class: "btn btn-sm btn-outline #{'pointer-events-none opacity-40' if @page >= @total_pages}",
-          aria: { disabled: @page >= @total_pages } %>
+        <% if @page >= @total_pages %>
+          <span class="btn btn-sm btn-outline opacity-40" aria-disabled="true">
+            <%= safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]) %>
+          </span>
+        <% else %>
+          <%= link_to safe_join([ "Próxima", icon("caret-right", css: "btn-icon") ]),
+            establishments_path(listing_params(page: @page + 1)), class: "btn btn-sm btn-outline" %>
+        <% end %>
       </nav>
     <% end %>
   </section>

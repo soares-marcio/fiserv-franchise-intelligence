@@ -25,7 +25,7 @@ mesma duração. Ver `README.md` para glossário de domínio, setup e formato da
 
 ## Convenção de idioma
 
-**Código em inglês. Comentários em português. Interface em português.**
+**Código em inglês. Comentários em português. Interface em português. Respostas no chat em português.**
 
 | O quê | Idioma | Exemplo |
 | --- | --- | --- |
@@ -33,6 +33,7 @@ mesma duração. Ver `README.md` para glossário de domínio, setup e formato da
 | Comentários no código | português | `# O corte observado nunca superestima a cobertura.` |
 | Textos de tela, rótulos, mensagens de erro ao usuário | português | `"Envie um arquivo .xlsx."` |
 | Nomes de teste | português | `test "recusa EC que muda de CNPJ entre importações"` |
+| Respostas e explicações nesta conversa | português | inclusive mensagens de commit e PR |
 
 Comente o **porquê**, não o quê.
 
@@ -87,6 +88,16 @@ A anotação foi desenhada para o restore ser possível: ela se liga ao **CNPJ**
 `companies.id`, justamente porque id e uuid são regenerados a cada recriação e o CNPJ vem da
 planilha. Dá para recriar o banco, reimportar as planilhas e restaurar só
 `company_notes` + `action_text_rich_texts` + `active_storage_*` que tudo religa sozinho.
+
+**Desde 09/2026 a lista cresceu**: `organizations`, `users`, `sessions`, `recovery_codes`,
+`access_grants`, `batch_grants` e `audit_events` também não vêm de planilha nenhuma. A
+anotação tem `organization_id` obrigatório: restaurá-la num banco novo exige `organizations`
+antes, com os mesmos ids. Restaurar sem elas
+significa reconvidar todo mundo e reinscrever o segundo fator de cada um — e perder a
+trilha, que é o registro de quem fez o quê. As FKs de autoria (`company_notes.author_id`,
+`import_batches.uploaded_by_id`) são nuláveis com `ON DELETE SET NULL` justamente para o
+restore parcial continuar possível: sem os usuários, a anotação volta sem autor em vez de
+falhar.
 
 Fora isso, o schema continua mudando e três comportamentos só aparecem em banco recém-criado
 — os três já quebraram o sistema:
@@ -241,9 +252,35 @@ própria.
 
 ## Controle de acesso
 
-O portal ainda opera sem autenticação **própria** por decisão de escopo. Na LAN isso significa
-o que sempre significou: quem alcança `http://fiserv.bin` faz tudo. Postgres e Metabase seguem
-sem exposição fora de máquina ou rede confiável.
+**O portal passou a exigir login em 09/2026** — senha, segundo fator (TOTP) e permissões por
+ator. O que era decisão de escopo ("sem autenticação por enquanto") deixou de valer quando o
+acesso passou a ser externo e outras pessoas entraram. Ver `README.md`, "Quem entra e o que
+cada um vê".
+
+**Desde 30/09/2026 o portal é multi-organização.** Três regras que não podem ser
+contornadas por conveniência:
+
+- **Não existe escopo "tudo".** `AccessScope` materializa a organização inteira como a lista
+  real dos Masters dela, e a conta da plataforma (`users.platform_admin`) recebe escopo
+  **vazio** e `permitted?` falso para toda chave — ela cria organizações e não vê dado. Um
+  ramo "se for admin, devolve tudo" é exatamente onde uma organização vazaria para outra.
+- **O banco garante o isolamento, não só a policy**: CHECK `users_platform_or_organization`
+  e três FKs compostas (concessão liga usuário e Master da mesma organização; lote só aponta
+  para Master da própria). Anotação é única por `(organization_id, cnpj)`.
+- **Mensagem neutra na importação**: Master ou EC de outra organização é recusado sem
+  revelar nome — o texto vai para a tela de lotes. A ordem do `IdentityGuard` (organização
+  antes de CNPJ e de canal) existe por isso.
+- **Master e MIC apagados são marcados, não removidos** (desde 01/10/2026; README, "Apagar
+  Master ou MIC"). Quem os esconde é o `AccessScope`: lista só Masters ativos, e um Master com
+  MIC apagado é **lido** como a lista dos MICs ativos dele (o recorte por MIC, já testado contra
+  vazamento, faz o resto), enquanto `whole?` continua dizendo que o ator o possui inteiro.
+  Toda busca por EC, REPORT_ID, checksum ou nome de MIC fora do escopo precisa de `.active`:
+  os índices únicos são parciais e o banco só barra colisão entre ativos — um `find_by(ec:)`
+  sem `.active` acha o EC do Master apagado.
+
+A trilha ganha `organization_id`; ação da plataforma fica sem organização mesmo quando o
+registro tem uma (é o que separa o que cada papel lê). O papel `metabase_ro` lê as views de
+todas as organizações: a tela `/metabase` está fechada até haver recorte lá.
 
 **Desde 22/09/2026 há um endereço público**, `https://manager.melopay.com.br`, servido por
 Cloudflare Tunnel (README, "Acesso pela internet"). O requisito de autenticação para
@@ -252,17 +289,36 @@ publicação externa é cumprido **fora do app**, pelo Cloudflare Access: a pol�
 válida toda rota responde `302` para o login — `/up` inclusive. Três consequências que
 precisam estar na conta de quem mexer nisso:
 
-- **Quem passa pelo gate tem tudo**: ler a carteira inteira, importar planilha e descartar
-  lote (irreversível pela tela). Não há papéis, e a anotação continua sem autor. O controle
-  é a lista de e-mails, e nada mais.
-- **A camada é única**: apagar ou afrouxar a política deixa o portal aberto ao mundo, porque
-  não existe login por trás. Autenticação no Rails segue sendo o caminho para defesa em
-  profundidade — e traria o autor das anotações junto.
+- **Quem passa pelo gate não tem mais tudo**: o que cada um vê é o escopo concedido (Masters
+  e/ou MICs) e o que pode fazer são as chaves marcadas no convite. A anotação e o lote agora
+  têm autor, e a trilha registra quem fez o quê.
+- **A camada deixou de ser única**: com o login do app, apagar a política do Access não abre
+  mais o portal — ele responde a tela de entrada. É o que permite aposentar o Access sem
+  deixar a carteira exposta.
 - **O TLS termina na Cloudflare**: CNPJ e faturamento trafegam em claro dentro da
   infraestrutura deles. É inerente ao túnel; a alternativa seria VPN.
 
-Nada disso muda o app: `force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em
-HTTP puro), e o nome público entra por `RAILS_HOSTS`, não por código.
+`force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em HTTP puro), e o nome
+público entra por `RAILS_HOSTS`, não por código. O cookie de sessão é `secure` só quando a
+requisição é HTTPS (`request.ssl?`), justamente porque os dois caminhos convivem.
+
+**Quatro superfícies não passam pelo `ApplicationController`** e precisam ser lembradas em
+qualquer mudança de autenticação: os controllers do Active Storage (downloads, inclusive o da
+planilha original), o `/cable`, o `NoteAttachmentsController` e o `/up`. As três primeiras
+herdam de `ActiveStorage::BaseController` — um `include` cobre todas; o `/up` fica público de
+propósito, porque é o healthcheck do Compose e do `bin/deploy`.
+
+**O recorte de dados tem uma regra só**, em `Establishment.in_scope`, e o SQL cru deriva o CTE
+dela (`AccessScope#establishments_cte`). Duas definições da mesma regra divergiriam na
+primeira correção feita em uma delas, e a divergência apareceria como dado de outro Master
+numa tela. Pela mesma razão, `ReportScope` recebe `scope:` e não `channel_id:` — quem esquecer
+de migrar um ponto quebra no boot, não em produção. **A chave de cache carrega o escopo**:
+predicado novo com chave velha serviria o dado de um recorte a outro, sem erro nenhum.
+
+**Importação pode parar em revisão.** O portal enxerga um lote por Master, então arquivo
+parcial vira a foto oficial e o que não estiver nele some dos relatórios. Lote em
+`pending_review` tem snapshots gravados mas não é lido por tela nenhuma; aprovar é o que
+consolida, pelo mesmo código da importação direta.
 
 **São duas portas de upload, não uma.** A planilha (`import_batches#create`) valida extensão,
 tamanho e assinatura ZIP; os anexos da anotação entram por
@@ -282,7 +338,10 @@ respondia `has-user-setup: false` com `setup-token` presente, verificado em 07/0
 enquanto estiver assim quem alcança o nome na LAN conclui o setup e vira administrador dele.
 O Postgres não está exposto na LAN, mas está na rede do Compose, ao alcance do container —
 e as views de auditoria carregam CNPJ e faturamento reais. Concluir o setup (com senha)
-antes de publicar o nome no Caddy é o mínimo.
+antes de publicar o nome no Caddy é o mínimo. **Com organizações há uma segunda
+pré-condição**: o papel `metabase_ro` lê as views de todas as organizações; até o Metabase
+recortar por organização, a tela `/metabase` fica fechada (`MetabasePolicy#show? = false`)
+e a chave `metabase_read` não é oferecida no convite.
 
 ## Verificação
 

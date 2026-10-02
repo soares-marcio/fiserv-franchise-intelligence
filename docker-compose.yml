@@ -31,10 +31,20 @@ services:
       METABASE_RO_PASSWORD: ${METABASE_RO_PASSWORD:?defina METABASE_RO_PASSWORD no .env}
       QUEUE_DATABASE_URL: postgresql://postgres:postgres@db:5432/fiserv_franchise_intelligence_development
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      # Cifram o segredo do TOTP em repouso. Não há credentials neste projeto (sem
+      # config/master.key), então seguem o mesmo caminho do SECRET_KEY_BASE.
+      AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
+      AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
+      AR_ENCRYPTION_SALT: ${AR_ENCRYPTION_SALT}
       METABASE_URL: ${METABASE_URL:-http://localhost:3001}
       RAILS_HOSTS: ${RAILS_HOSTS:-}
       # Só a máquina de homologação define: é o que põe a faixa no topo da tela.
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-}
+      # Primeiro administrador, lido pelo seed no db:prepare de um banco novo. Só o web
+      # roda o seed; sem as variáveis o seed não cria ninguém (ver db/seeds.rb).
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-}
     # O Caddy que serve fiserv.bin roda em outra máquina da LAN e faz proxy para este IP,
     # então a porta precisa ficar no endereço da rede — não em 127.0.0.1 nem em 0.0.0.0.
     ports:
@@ -67,6 +77,11 @@ services:
       METABASE_RO_PASSWORD: ${METABASE_RO_PASSWORD:?defina METABASE_RO_PASSWORD no .env}
       QUEUE_DATABASE_URL: postgresql://postgres:postgres@db:5432/fiserv_franchise_intelligence_development
       SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      # Cifram o segredo do TOTP em repouso. Não há credentials neste projeto (sem
+      # config/master.key), então seguem o mesmo caminho do SECRET_KEY_BASE.
+      AR_ENCRYPTION_PRIMARY_KEY: ${AR_ENCRYPTION_PRIMARY_KEY}
+      AR_ENCRYPTION_DETERMINISTIC_KEY: ${AR_ENCRYPTION_DETERMINISTIC_KEY}
+      AR_ENCRYPTION_SALT: ${AR_ENCRYPTION_SALT}
     volumes:
       - storage:/rails/storage
     depends_on:

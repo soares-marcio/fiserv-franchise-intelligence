@@ -1,0 +1,47 @@
+<% content_for :title, "Acessos" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Administração</p>
+  <h1 class="page-title">Acessos</h1>
+  <p class="page-description">
+    Quem entra no portal, o que cada um enxerga, o que pode fazer — e o quanto usa.
+  </p>
+  <% if policy(:user).create? %>
+    <%= link_to "Convidar usuário", new_user_path, class: "btn btn-primary relative z-10 mt-6" %>
+  <% end %>
+</section>
+
+<p class="section-label mt-6"><%= pluralize(@users.size, "acesso", "acessos") %> · uso nos últimos 30 dias</p>
+
+<div class="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+  <% @users.each do |user| %>
+    <% usage = @usage.fetch(user.id) %>
+    <article class="user-card surface-card flex flex-col gap-4 p-5">
+      <header class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-base font-bold"><%= link_to user.name, user_path(user), class: "link" %></h2>
+          <p class="truncate text-xs opacity-70"><%= user.email_address %></p>
+        </div>
+        <span class="flex flex-wrap gap-1"><%= user_role_badge(user) %><%= user_status_badge(user) %></span>
+      </header>
+      <%= user_first_access_hint(user) %>
+
+      <dl class="grid gap-1 text-sm">
+        <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Enxerga</dt><dd><%= user_scope_summary(user) %></dd></div>
+        <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Pode</dt><dd><%= user_permissions_summary(user) %></dd></div>
+      </dl>
+
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-base-200 p-3 text-xs">
+        <div><dt class="opacity-70">Último acesso</dt><dd class="font-semibold"><%= usage[:last_access] ? usage[:last_access].strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
+        <div><dt class="opacity-70">Entradas</dt><dd class="font-semibold tabular-nums"><%= usage[:sessions] %></dd></div>
+        <div><dt class="opacity-70">Exportações</dt><dd class="font-semibold tabular-nums"><%= usage[:exports] %></dd></div>
+        <div><dt class="opacity-70">Arquivos enviados</dt><dd class="font-semibold tabular-nums"><%= usage[:uploads] %></dd></div>
+      </dl>
+
+      <%# O nome já abre a ficha; o card não repete o atalho. %>
+      <footer class="mt-auto text-xs opacity-70">
+        <%= user_origin_line(user) %>
+      </footer>
+    </article>
+  <% end %>
+</div>

@@ -1,0 +1,101 @@
+<% content_for :title, @user.name %>
+
+<section class="page-hero">
+  <p class="eyebrow">Acesso</p>
+  <h1 class="page-title"><%= @user.name %></h1>
+  <p class="page-description"><%= @user.email_address %> · <%= user_role_badge(@user) %> <%= user_status_badge(@user) %></p>
+  <%= user_first_access_hint(@user) %>
+
+  <div class="action-group relative z-10 mt-6">
+    <% if policy(@user).update? %>
+      <%= link_to "Editar acesso", edit_user_path(@user), class: "btn btn-primary" %>
+      <%= button_to "Reiniciar segundo fator", reset_mfa_user_path(@user), class: "btn btn-outline",
+        form: { data: { turbo_confirm: "A pessoa terá de cadastrar o autenticador de novo. Continuar?" } } %>
+    <% end %>
+    <% if policy(@user).deactivate? && @user.active? %>
+      <%= button_to "Desativar", deactivate_user_path(@user), class: "btn btn-danger",
+        form: { data: { turbo_confirm: "Desativar este acesso? As sessões abertas caem agora." } } %>
+    <% elsif policy(@user).update? && !@user.active? %>
+      <%= button_to "Reativar", reactivate_user_path(@user), class: "btn btn-outline" %>
+    <% end %>
+  </div>
+</section>
+
+<div class="mt-5 grid gap-5 lg:grid-cols-2">
+  <section class="surface-card p-6">
+    <p class="section-label">Enxerga</p>
+    <% if @grants.any? %>
+      <ul class="mt-3 grid gap-2 text-sm">
+        <% @grants.each do |grant| %>
+          <li>
+            <strong><%= grant.channel.name %></strong>
+            <%= grant.sub_channel ? "· #{grant.sub_channel.name}" : "· Master inteiro" %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="metric-hint mt-2">Nenhuma carteira. Esta pessoa entra e não vê dado nenhum.</p>
+    <% end %>
+  </section>
+
+  <section class="surface-card p-6">
+    <p class="section-label">Pode fazer</p>
+    <% if @user.organization_admin? %>
+      <p class="metric-hint mt-2">Administrador da organização: tudo, em toda carteira dela.</p>
+    <% elsif @user.permissions.any? %>
+      <ul class="mt-3 grid gap-1 text-sm">
+        <% @user.permissions.each do |key| %><li><%= Permission.label(key) %></li><% end %>
+      </ul>
+    <% else %>
+      <p class="metric-hint mt-2">Nenhuma permissão marcada.</p>
+    <% end %>
+  </section>
+</div>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Uso</p>
+  <dl class="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+    <div><dt class="text-xs opacity-70">Último acesso</dt><dd class="font-semibold"><%= @usage[:last_access] ? @usage[:last_access].strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
+    <div><dt class="text-xs opacity-70">Entradas (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:sessions] %></dd></div>
+    <div><dt class="text-xs opacity-70">Exportações (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:exports] %></dd></div>
+    <div><dt class="text-xs opacity-70">Arquivos enviados (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:uploads] %></dd></div>
+    <div><dt class="text-xs opacity-70">Anotações salvas (30 d)</dt><dd class="font-semibold tabular-nums"><%= @usage[:notes] %></dd></div>
+  </dl>
+
+  <% if @events.any? %>
+    <p class="section-label mt-5">Últimos eventos</p>
+    <div class="table-scroll mt-2" role="region" tabindex="0" aria-label="Últimos eventos desta pessoa">
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Quando</th><th scope="col">O quê</th><th scope="col">Master</th><th scope="col">Detalhes</th></tr></thead>
+        <tbody>
+          <% @events.each do |event| %>
+            <tr>
+              <td class="whitespace-nowrap"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td><%= audit_action_label(event.action) %></td>
+              <td><%= channel_name(event.channel) || "—" %></td>
+              <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+    <%# A trilha completa fica na tela própria; aqui é só o que a pessoa fez por último. %>
+  <% else %>
+    <p class="metric-hint mt-3">Nenhum evento registrado ainda.</p>
+  <% end %>
+</section>
+
+<% if @batch_grants.any? %>
+  <section class="surface-card mt-5 p-6">
+    <p class="section-label">Arquivos liberados</p>
+    <p class="metric-hint mt-1">
+      Lotes que esta pessoa vê além dos próprios envios.
+    </p>
+    <ul class="mt-3 grid gap-1 text-sm">
+      <% @batch_grants.each do |grant| %>
+        <li><%= grant.import_batch.source_filename %>
+          <span class="opacity-70">· <%= channel_name(grant.import_batch.channel) %></span></li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>

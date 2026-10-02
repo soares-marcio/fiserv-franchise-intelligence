@@ -1,0 +1,180 @@
+<% content_for :title, organization_display_name(@organization) %>
+
+<section class="page-hero">
+  <p class="eyebrow">Plataforma · Organização</p>
+  <h1 class="page-title">
+    <%= organization_display_name(@organization) %>
+    <% if @organization.suspended? %>
+      <span class="badge badge-error align-middle">Suspensa</span>
+    <% end %>
+  </h1>
+  <p class="page-description">
+    <% if @organization.named? %>
+      Registro criado em <%= l(@organization.created_at.to_date) %><%= " por #{@profile.created_by.name}" if @profile.created_by %>.
+      <%= "Nomeada em #{l(@profile.named_at.to_date)}." if @profile.named_at %>
+    <% else %>
+      Ainda sem nome: o administrador dá o nome no primeiro acesso dele.
+    <% end %>
+    <% if @organization.suspended? %>
+      Suspensa em <%= l(@organization.suspended_at.to_date) %>: ninguém dela entra até a reativação.
+    <% end %>
+  </p>
+  <div class="action-group relative z-10 mt-6">
+    <%= link_to "Adicionar administrador", new_platform_organization_admin_path(@organization), class: "btn btn-primary" %>
+    <% if @organization.suspended? %>
+      <%= button_to "Reativar organização", reactivate_platform_organization_path(@organization), class: "btn btn-outline" %>
+    <% else %>
+      <%= button_to "Suspender organização", suspend_platform_organization_path(@organization), class: "btn btn-danger",
+        form: { data: { turbo_confirm: "Suspender #{organization_display_name(@organization)}? Ninguém dela entra até a reativação; as sessões abertas caem agora. Nada é apagado." } } %>
+    <% end %>
+  </div>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Nome</p>
+  <%= form_with url: rename_platform_organization_path(@organization), method: :patch, class: "mt-3 flex flex-wrap items-end gap-2" do |form| %>
+    <div class="min-w-0 basis-64 grow">
+      <%= form.label :name, "Renomear a pedido da organização", class: "label text-xs" %>
+      <%= form.text_field :name, value: @organization.name, required: true, maxlength: 120, class: "input input-bordered w-full" %>
+    </div>
+    <%= form.submit "Renomear", class: "btn btn-outline" %>
+  <% end %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Contas e uso</p>
+  <p class="metric-hint mt-1">Só contagens e datas. Nome de Master, CNPJ e faturamento ficam com a organização.</p>
+  <dl class="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+    <div><dt class="text-xs opacity-70">Administradores</dt><dd class="font-semibold tabular-nums"><%= @profile.admins_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Colaboradores</dt><dd class="font-semibold tabular-nums"><%= @profile.members_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Contas ativas</dt><dd class="font-semibold tabular-nums"><%= @profile.active_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Primeiro acesso pendente</dt><dd class="font-semibold tabular-nums"><%= @profile.first_access_pending_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Masters</dt><dd class="font-semibold tabular-nums"><%= @profile.channels_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Arquivos importados</dt><dd class="font-semibold tabular-nums"><%= @profile.batches_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Último arquivo</dt><dd class="font-semibold"><%= @profile.last_file_on ? l(@profile.last_file_on) : "—" %></dd></div>
+    <div><dt class="text-xs opacity-70">Anotações</dt><dd class="font-semibold tabular-nums"><%= @profile.notes_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Anexos</dt><dd class="font-semibold tabular-nums"><%= @profile.attachments_count %> · <%= number_to_human_size(@profile.attachments_bytes) %></dd></div>
+  </dl>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Administradores</p>
+  <% if @admins.empty? %>
+    <p class="metric-hint mt-2">Nenhum. Sem administrador, ninguém entra nesta organização.</p>
+  <% else %>
+    <ul class="mt-3 grid gap-3">
+      <% @admins.each do |admin| %>
+        <li class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-base-300 p-3">
+          <div class="min-w-0 grow basis-64">
+            <p class="font-semibold"><%= admin.name %></p>
+            <p class="text-sm opacity-70"><%= admin.email_address %></p>
+            <% first_access_hint = user_first_access_hint(admin) %>
+            <% if first_access_hint %>
+              <div class="mt-2 text-xs"><%= first_access_hint %></div>
+            <% end %>
+            <p class="mt-1 text-xs opacity-70">Último acesso: <%= @last_access[admin.id] ? @last_access[admin.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></p>
+            <div class="mt-1"><span class="user-status-indicator"><%= user_status_badge(admin) %></span></div>
+          </div>
+          <div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            <%= render "support_actions", user: admin %>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Convidados</p>
+  <p class="metric-hint mt-1">Quem os administradores e seus delegados convidaram. Só nome, e-mail e situação.</p>
+  <% if @members.empty? %>
+    <p class="metric-hint mt-3">Ninguém ainda.</p>
+  <% else %>
+    <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Convidados da organização">
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
+        <tbody>
+          <% @members.each do |member| %>
+            <tr>
+              <td><%= member.name %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
+              <td><%= user_status_badge(member) %></td>
+              <td class="text-xs"><%= member.created_by&.name || "—" %></td>
+              <td class="text-xs"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
+              <td><%= render "support_actions", user: member %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
+
+<% deleted_channels = @profile.deleted_channels %>
+<% deleted_sub_channels = @profile.deleted_sub_channels %>
+<% if deleted_channels.any? || deleted_sub_channels.any? %>
+  <section class="surface-card mt-5 p-6">
+    <p class="section-label">Masters e MICs apagados</p>
+    <p class="metric-hint mt-1">
+      Apagados pelo administrador da organização, com os dados guardados. Pelo REPORT_ID: o mesmo
+      REPORT_ID aparece mais de uma vez quando foi apagado, reimportado e apagado de novo.
+    </p>
+    <ul class="mt-3 grid gap-3">
+      <% deleted_channels.each do |channel| %>
+        <% counts = @profile.deleted_counts(channel) %>
+        <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-300 p-3">
+          <div class="min-w-0">
+            <p class="font-semibold">Master · REPORT_ID <%= channel.external_id %></p>
+            <p class="text-xs opacity-70">
+              Apagado em <%= channel.deleted_at.strftime("%d/%m/%Y %H:%M") %>
+              <%= "por #{channel.deleted_by.name}" if channel.deleted_by %> ·
+              <%= pluralize(counts[:batches], "arquivo", "arquivos") %> ·
+              <%= pluralize(counts[:establishments], "EC", "ECs") %>
+            </p>
+          </div>
+          <%= button_to "Restaurar", restore_platform_channel_path(channel), class: "btn btn-outline btn-sm",
+            form: { data: { turbo_confirm: "Restaurar o Master do REPORT_ID #{channel.external_id}?" } } %>
+        </li>
+      <% end %>
+      <% deleted_sub_channels.each do |sub_channel| %>
+        <li class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-300 p-3">
+          <div class="min-w-0">
+            <p class="font-semibold">MIC do Master REPORT_ID <%= sub_channel.channel.external_id %></p>
+            <p class="text-xs opacity-70">
+              Apagado em <%= sub_channel.deleted_at.strftime("%d/%m/%Y %H:%M") %>
+              <%= "por #{sub_channel.deleted_by.name}" if sub_channel.deleted_by %>
+            </p>
+          </div>
+          <%= button_to "Restaurar", restore_platform_sub_channel_path(sub_channel), class: "btn btn-outline btn-sm",
+            form: { data: { turbo_confirm: "Restaurar este MIC?" } } %>
+        </li>
+      <% end %>
+    </ul>
+  </section>
+<% end %>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">O que a plataforma fez aqui</p>
+  <p class="metric-hint mt-1">
+    Criação, nome, administradores e suporte. O que a organização faz por conta própria está no
+    <%= link_to "histórico da organização", history_platform_organization_path(@organization), class: "link" %>.
+  </p>
+  <% if @platform_events.empty? %>
+    <p class="metric-hint mt-3">Nada registrado ainda.</p>
+  <% else %>
+    <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Ações da plataforma nesta organização">
+      <table class="table table-sm">
+        <thead><tr><th scope="col">Quando</th><th scope="col">Quem</th><th scope="col">O quê</th><th scope="col">Detalhes</th></tr></thead>
+        <tbody>
+          <% @platform_events.each do |event| %>
+            <tr>
+              <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td class="text-xs"><%= event.user&.name || event.actor_email %></td>
+              <td><%= audit_action_label(event.action) %></td>
+              <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

@@ -35,10 +35,10 @@ class ContentSecurityPolicyTest < ActionDispatch::IntegrationTest
     PAGES.each do |page|
       get page
 
-      externos = css_select("script[src^='http'], link[rel='stylesheet'][href^='http'], " \
+      external = css_select("script[src^='http'], link[rel='stylesheet'][href^='http'], " \
         "img[src^='http'], link[rel='preconnect'], link[rel='modulepreload'][href^='http']")
 
-      assert_empty externos.map { |tag| tag["src"] || tag["href"] }, "#{page} carrega recurso externo"
+      assert_empty external.map { |tag| tag["src"] || tag["href"] }, "#{page} carrega recurso externo"
     end
   end
 end

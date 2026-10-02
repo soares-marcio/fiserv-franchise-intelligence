@@ -21,7 +21,7 @@ class VocabularyTest < ActionDispatch::IntegrationTest
     [
       reports_path, stalled_reports_path, weekly_reports_path, recurring_reports_path,
       three_months_reports_path, indicators_reports_path, establishments_path,
-      import_batches_path, metabase_path, sub_channel_report_path(@sub_channel),
+      import_batches_path, sub_channel_report_path(@sub_channel),
       search_path(q: "mic")
     ]
   end
@@ -43,10 +43,10 @@ class VocabularyTest < ActionDispatch::IntegrationTest
       reports_path => "span.section-label",
       recurring_reports_path => "span.section-label",
       three_months_reports_path => "label.filter-pill__label"
-    }.each do |path, seletor|
+    }.each do |path, selector|
       get path
 
-      assert_select seletor, { text: /Master/ }, path
+      assert_select selector, { text: /Master/ }, path
       assert_no_match(/Canal da carteira|Todos os canais/, response.body, path)
     end
   end
@@ -54,7 +54,7 @@ class VocabularyTest < ActionDispatch::IntegrationTest
   # O canal fictício nasce com o nome da coluna que faltou — no banco ele continua "SEM CANAL",
   # que é o que o analista procura no arquivo; na tela, o vocabulário é o outro.
   test "o canal fictício aparece com o vocabulário da tela, sem mudar o dado" do
-    channel = Channel.create!(external_id: "8888", name: BinImport::ChannelResolver::FALLBACK_NAME)
+    channel = Channel.create!(organization: default_organization, external_id: "8888", name: BinImport::ChannelResolver::FALLBACK_NAME)
 
     assert_equal "SEM MASTER", ApplicationController.helpers.channel_name(channel)
     assert_equal "SEM CANAL", channel.reload.name

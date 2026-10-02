@@ -18,20 +18,20 @@
   <% if snapshot %>
     <%# Os contadores por tipo ficam na dica: quem precisa do grão vê, quem não precisa lê o
         resumo do título. %>
-    <% grao = [ [ "Smart POS", snapshot.smart_pos_count ], [ "Demais POS", snapshot.other_pos_count ],
+    <% pos_breakdown = [ [ "Smart POS", snapshot.smart_pos_count ], [ "Demais POS", snapshot.other_pos_count ],
                 [ "TEF", snapshot.tef_count ], [ "TAP on phone", snapshot.tap_on_phone_count ],
                 [ "MPS", snapshot.mps_count ], [ "PIN", snapshot.pin_count ],
                 [ "Outros", snapshot.other_terminals_count ] ]
               .select { |_, count| count.to_i.positive? } %>
-    <% if grao.any? %>
+    <% if pos_breakdown.any? %>
       <p class="ec-card__terminals tooltip tooltip-bottom" tabindex="0"
-        data-tip="<%= grao.map { |nome, count| "#{count} #{nome}" }.join(" · ") %>">
+        data-tip="<%= pos_breakdown.map { |name, count| "#{count} #{name}" }.join(" · ") %>">
         <%= pluralize(snapshot.total_terminals_count.to_i, "terminal", "terminais") %>
       </p>
     <% end %>
 
     <dl class="ec-card__facts">
-      <% fatos = [
+      <% facts = [
         [ "NET MDR", net_mdr_label(snapshot.net_mdr, snapshot.net_mdr_status) ],
         [ "Soluções financeiras", snapshot.financial_solutions ],
         [ "Link de pagamento", ("Sim" if snapshot.has_payment_link) ],
@@ -43,23 +43,23 @@
         [ "Suspensão", format_date(snapshot.suspended_on) ],
         [ "Última transação", format_date(snapshot.last_transaction_on) ],
         [ "Agenda semanal", snapshot.weekly_schedule ]
-      ].reject { |_, valor| valor.blank? || valor == "—" } %>
-      <% fatos.each do |rotulo, valor| %>
+      ].reject { |_, value| value.blank? || value == "—" } %>
+      <% facts.each do |label, value| %>
         <div>
-          <dt><%= rotulo %></dt>
-          <dd><%= valor %></dd>
+          <dt><%= label %></dt>
+          <dd><%= value %></dd>
         </div>
       <% end %>
     </dl>
 
     <%# Atividade só aparece quando é verdade: três "Não" seguidos não dizem mais que a
         ausência das marcas. %>
-    <% atividade = { "mês atual" => snapshot.active_current_month,
+    <% activity = { "mês atual" => snapshot.active_current_month,
                      "mês anterior" => snapshot.active_previous_month,
                      "últimos 30 dias" => snapshot.active_last_30_days }.select { |_, v| v } %>
-    <% if atividade.any? %>
+    <% if activity.any? %>
       <p class="ec-card__activity">
-        Com movimento no <%= atividade.keys.to_sentence %>
+        Com movimento no <%= activity.keys.to_sentence %>
       </p>
     <% end %>
 

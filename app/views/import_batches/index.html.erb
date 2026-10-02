@@ -26,7 +26,7 @@
 <%= turbo_stream_from "import_batches" %>
 
 <div class="metric-grid metric-grid--3 mt-5">
-  <article class="metric-card" data-tone="<%= ImportBatch.stale? ? "rose" : "green" %>">
+  <article class="metric-card" data-tone="<%= ImportBatch.stale?(organization: Current.organization) ? "rose" : "green" %>">
     <p class="metric-label"><%= icon("calendar-check", css: "metric-icon") %>Último arquivo recebido</p>
     <p class="metric-value"><%= last_file_headline(@days_since_last_file) %></p>
     <p class="metric-hint"><%= last_file_hint(@days_since_last_file) %></p>
@@ -108,6 +108,7 @@
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Lotes importados, rolável na horizontal">
       <table class="table batches-table">
+        <caption class="sr-only">Histórico de arquivos importados</caption>
         <%# Proporções da largura do card (table-layout: fixed): o nome do arquivo é o que
             identifica o lote e leva a maior parte; a mensagem de falha já fica em duas linhas.
             A coluna de ações é fixa porque o botão não encolhe; as porcentagens somam 88% de
@@ -152,9 +153,14 @@
               </td>
               <td><%= batch.created_at.strftime("%d/%m/%Y %H:%M") %></td>
               <td class="text-right">
+                <%# Lote em revisão não espera em silêncio: o caminho para decidir fica na
+                    própria linha, para quem pode decidir. %>
+                <% if batch.pending_review? && policy(batch).review? %>
+                  <%= link_to "Revisar", review_import_batch_path(batch), class: "btn btn-primary btn-sm" %>
+                <% end %>
                 <% if batch.discardable? %>
                   <%= button_to icon_label("trash", "Descartar"), import_batch_path(batch), method: :delete,
-                    class: "btn btn-ghost btn-sm",
+                    class: "btn btn-danger btn-sm",
                     form: { data: { turbo_confirm: "Descartar o lote #{batch.source_filename}?" } } %>
                 <% end %>
               </td>

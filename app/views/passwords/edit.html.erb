@@ -1,0 +1,44 @@
+<% content_for :title, "Trocar a senha" %>
+
+<h1 class="page-title"><%= Current.user.must_change_password? ? "Defina sua senha" : "Trocar a senha" %></h1>
+<p class="page-description mt-2">
+  <% if Current.user.must_change_password? %>
+    A senha que você recebeu passou pelas mãos de quem criou o acesso. Escolha uma só sua.
+  <% else %>
+    Trocar a senha encerra as outras sessões abertas com a anterior.
+  <% end %>
+</p>
+
+<% if @user&.errors&.any? %>
+  <div class="app-alert alert alert-error mt-4" role="alert" tabindex="-1">
+    <p class="font-semibold">Revise os campos abaixo:</p>
+    <ul class="mt-1 grid gap-1 text-sm">
+      <% @user.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>
+
+<%= form_with url: password_path, method: :patch, class: "mt-6 grid gap-4" do |form| %>
+  <label class="form-control">
+    <span class="section-label">Senha atual</span>
+    <%= form.password_field :current_password, required: true, autocomplete: "current-password",
+      maxlength: 72, class: "input input-bordered w-full" %>
+  </label>
+
+  <label class="form-control">
+    <span class="section-label">Nova senha</span>
+    <%= form.password_field :password, required: true, autocomplete: "new-password",
+      minlength: 8, maxlength: 72, class: "input input-bordered w-full" %>
+    <span class="text-xs opacity-70">Ao menos 8 caracteres.</span>
+  </label>
+
+  <label class="form-control">
+    <span class="section-label">Repita a nova senha</span>
+    <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password",
+      maxlength: 72, class: "input input-bordered w-full" %>
+  </label>
+
+  <%= form.submit "Salvar senha", class: "btn btn-primary w-full" %>
+<% end %>

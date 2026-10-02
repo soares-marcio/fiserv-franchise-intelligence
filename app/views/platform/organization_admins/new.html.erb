@@ -1,0 +1,12 @@
+<% content_for :title, "Adicionar administrador" %>
+<section class="page-hero">
+  <p class="eyebrow">Plataforma</p>
+  <h1 class="page-title"><%= organization_display_name(@organization) %></h1>
+  <p class="page-description">
+    Mais um administrador para esta organização. Ele terá tudo dentro dela, como os demais.
+  </p>
+</section>
+<div class="mt-5">
+  <%= render "platform/organizations/admin_form", admin: @admin,
+    url: platform_organization_admins_path(@organization), submit_label: "Criar administrador" %>
+</div>

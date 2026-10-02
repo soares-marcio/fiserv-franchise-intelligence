@@ -34,9 +34,9 @@ class ApplicationHelperTest < ActionView::TestCase
   # A garantia que importa em toda faixa: o que se lê na tela é o que o brl formata. Um
   # helper de apresentação que altere o número é o pior defeito possível aqui.
   test "o valor lido do card é o mesmo do brl, em qualquer grandeza" do
-    [ 0, 1000, 176_366.12, 2_475_790.64, 24_757_906.48, 247_579_064.8 ].each do |valor|
-      assert_equal brl(valor), Nokogiri::HTML.fragment(brl_metric(valor)).text,
-        "o card mudaria o valor de #{valor}"
+    [ 0, 1000, 176_366.12, 2_475_790.64, 24_757_906.48, 247_579_064.8 ].each do |value|
+      assert_equal brl(value), Nokogiri::HTML.fragment(brl_metric(value)).text,
+        "o card mudaria o valor de #{value}"
     end
   end
 
@@ -51,7 +51,7 @@ class ApplicationHelperTest < ActionView::TestCase
   end
 
   test "chip sem base comparável descreve: Voltou a vender quando a ativação é antiga" do
-    html = variation_chip(0, 40, novo: false)
+    html = variation_chip(0, 40, newcomer: false)
 
     assert_includes html, "variation-chip--flat"
     assert_includes html, ">Voltou a vender<"

@@ -1,4 +1,17 @@
 module ImportBatchesHelper
+  # Por que o lote parou para revisão, em português e por extenso. As chaves são as que o
+  # importador grava em review_reasons.
+  REVIEW_REASONS = {
+    "no_approval_permission" => "Enviado por quem não tem permissão de aprovar importação.",
+    "removes_establishments" => "O arquivo não traz estabelecimentos que a carteira tem hoje — eles sairiam dos relatórios.",
+    "moves_sub_channels" => "Há estabelecimentos mudando de MIC.",
+    "revenue_drop" => "O faturamento total cai muito em relação ao arquivo vigente."
+  }.freeze
+
+  def review_reason_label(reason)
+    REVIEW_REASONS.fetch(reason, reason)
+  end
+
   # Texto que o usuário envia ao administrador. Traz o que identifica a falha sem depender de
   # memória: arquivo, momento, lote, identificação do conteúdo e a mensagem inteira.
   def import_failure_report(batch)
@@ -18,7 +31,10 @@ module ImportBatchesHelper
     "validated" => { label: "Importado", tone: "success" },
     "failed" => { label: "Falhou", tone: "error" },
     "pending" => { label: "Importando", tone: "info" },
-    "superseded" => { label: "Substituído", tone: "ghost" }
+    "superseded" => { label: "Substituído", tone: "ghost" },
+    # Em revisão o arquivo não vale: os snapshots estão gravados, mas nenhuma tela os lê.
+    "pending_review" => { label: "Em revisão", tone: "warning" },
+    "rejected" => { label: "Recusado", tone: "ghost" }
   }.freeze
 
   def import_status_badge(batch)
@@ -61,13 +77,13 @@ module ImportBatchesHelper
   def file_status_hint(freshness)
     return "Importe o primeiro arquivo BIN para começar." unless freshness.any_file?
 
-    atrasados = freshness.stale_entries.size
-    if atrasados.zero?
+    stale_count = freshness.stale_entries.size
+    if stale_count.zero?
       return "Arquivo e dados dentro do esperado. O alerta começa em " \
         "#{ImportBatch::STALE_AFTER_DAYS} dias."
     end
 
-    "#{pluralize(atrasados, 'master', 'masters')} com dados desatualizados. " \
+    "#{pluralize(stale_count, 'master', 'masters')} com dados desatualizados. " \
       "Veja quais na tela de importação."
   end
 

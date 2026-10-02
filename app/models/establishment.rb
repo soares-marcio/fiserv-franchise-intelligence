@@ -16,7 +16,25 @@ class Establishment < ApplicationRecord
   }, class_name: "MapSnapshot"
   has_many :revenue_snapshots, dependent: :restrict_with_exception
 
-  validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: true
+  # Único entre os ativos: os ECs de um Master apagado continuam no banco, e a planilha
+  # seguinte do mesmo REPORT_ID cria os mesmos ECs num Master novo.
+  validates :ec, format: { with: /\A\d{8}\z/ }, uniqueness: { conditions: -> { active } }
+
+  scope :active, -> { where(deleted_at: nil) }
+
+  # A regra do escopo, escrita uma vez. O SQL cru dos relatórios deriva o CTE deste mesmo
+  # lugar (AccessScope#establishments_cte): duas definições da mesma regra divergiriam em
+  # silêncio, e a divergência apareceria como dado de outro Master numa tela.
+  #
+  # Master inteiro usa establishments.channel_id, a chave estável. Só o recorte por MIC
+  # passa pelo snapshot, porque o vínculo EC→MIC vem da planilha e muda a cada importação.
+  scope :in_scope, ->(access) {
+    next none if access.empty?
+
+    by_mic = joins(:current_map_snapshot)
+      .where(map_snapshots: { sub_channel_id: access.sub_channel_ids }).select(:id)
+    where(channel_id: access.full_channel_ids).or(where(id: by_mic))
+  }
 
   # Busca livre pelo que aparece no cadastro: EC, CNPJ, nomes, cidade, CNAE ou subcanal.
   # CNPJ e EC ficam só com dígitos no banco; o termo limpo cobre a colagem formatada.

@@ -17,7 +17,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   test "escreve a anotação pelo modal e ela volta na tela, sem perder o recorte" do
     visit sub_channel_report_path(@sub_channel, q: "ALFA LANCHES")
 
-    abrir_anotacao
+    open_note
 
     # O formulário chega pelo frame, não pronto na página.
     assert_selector "dialog[open] trix-editor"
@@ -39,7 +39,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
   # há navegação nenhuma depois de salvar.
   test "o aviso de sucesso desaparece sozinho" do
     visit sub_channel_report_path(@sub_channel)
-    abrir_anotacao
+    open_note
     find("dialog[open] trix-editor").click.send_keys("Nota rápida.")
     click_button "Salvar anotação"
 
@@ -54,7 +54,7 @@ class CompanyNoteTest < ApplicationSystemTestCase
     visit sub_channel_report_path(@sub_channel)
 
     assert_no_selector ".note-trigger__dot", visible: :all
-    abrir_anotacao
+    open_note
     find("dialog[open] trix-editor").click.send_keys("Vale para os dois ECs.")
     click_button "Salvar anotação"
 
@@ -66,20 +66,20 @@ class CompanyNoteTest < ApplicationSystemTestCase
   # Reabrir precisa trazer o que foi salvo, não o formulário como ele estava: é por isso que o
   # controller troca o src do frame a cada abertura.
   test "reabrir a anotação mostra o que foi salvo" do
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Escrito antes.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Escrito antes.</div>")
 
     visit sub_channel_report_path(@sub_channel)
-    abrir_anotacao
+    open_note
 
     assert_selector "dialog[open] trix-editor", text: "Escrito antes."
   end
 
   # Esvaziar e salvar é o gesto de apagar — não há botão de excluir na tela.
   test "esvaziar o editor apaga a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: "11222333000181", body: "<div>Para apagar.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: "11222333000181", body: "<div>Para apagar.</div>")
 
     visit sub_channel_report_path(@sub_channel)
-    abrir_anotacao
+    open_note
     editor = find("dialog[open] trix-editor")
     editor.click
     editor.send_keys([ :control, "a" ], :backspace)
@@ -92,9 +92,9 @@ class CompanyNoteTest < ApplicationSystemTestCase
   private
 
   # O botão da anotação vive no menu de ações da linha, fechado até o clique no gatilho.
-  def abrir_anotacao(cnpj = CNPJ_ALFA)
-    linha = find("tr.daily-row", text: cnpj)
-    linha.find("summary.actions-menu__trigger").click
-    linha.find("button.note-trigger").click
+  def open_note(cnpj = CNPJ_ALFA)
+    row = find("tr.daily-row", text: cnpj)
+    row.find("summary.actions-menu__trigger").click
+    row.find("button.note-trigger").click
   end
 end

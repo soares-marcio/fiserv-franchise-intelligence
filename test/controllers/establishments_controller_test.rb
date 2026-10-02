@@ -93,8 +93,8 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   test "campo do cadastro que difere entre os ECs é declarado" do
     import_synthetic_workbook
     company = Establishment.find_by!(ec: "30000001").company
-    outro = Establishment.find_by!(ec: "90000001")
-    outro.current_map_snapshot.update!(street_address: "RUA DIFERENTE, 99")
+    another = Establishment.find_by!(ec: "90000001")
+    another.current_map_snapshot.update!(street_address: "RUA DIFERENTE, 99")
 
     get establishment_path(company)
 
@@ -107,8 +107,8 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   # ninguém pediu, e a contagem do arquivo não bateria com a da tela.
   test "exporta o cadastro em CSV e XLSX, com a busca e sem a paginação" do
     seed_establishment
-    outra = Company.create!(cnpj: "99888777000166")
-    Establishment.create!(ec: "99999999", company: outra,
+    other = Company.create!(cnpj: "99888777000166")
+    Establishment.create!(ec: "99999999", company: other,
       channel: Channel.find_by!(external_id: "1478"))
 
     get establishments_path
@@ -119,13 +119,13 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "text/csv", response.media_type
-    tabela = CSV.parse(response.body, headers: true)
-    assert_equal EstablishmentsExporter::HEADERS, tabela.headers
-    assert_equal 2, tabela.size, "as duas empresas, não só a página"
-    linha = tabela.find { |l| l["CNPJ"] == "12.345.678/0001-95" }
-    assert_equal "PADARIA CENTRAL LTDA", linha["Razão social"]
-    assert_equal "12345678", linha["ECs"]
-    assert_equal "MIC GOIANIA 4", linha["MIC"]
+    table = CSV.parse(response.body, headers: true)
+    assert_equal EstablishmentsExporter::HEADERS, table.headers
+    assert_equal 2, table.size, "as duas empresas, não só a página"
+    row = table.find { |l| l["CNPJ"] == "12.345.678/0001-95" }
+    assert_equal "PADARIA CENTRAL LTDA", row["Razão social"]
+    assert_equal "12345678", row["ECs"]
+    assert_equal "MIC GOIANIA 4", row["MIC"]
 
     get establishments_path(format: :csv, q: "PADARIA")
 
@@ -142,15 +142,15 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   # atrás de um botão como nas tabelas.
   test "a ficha do cliente mostra a anotação escrita, com o botão de editar" do
     establishment = seed_establishment
-    Operations::SaveCompanyNote.call(cnpj: establishment.company.cnpj,
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: establishment.company.cnpj,
       body: "<div>Dono viaja, retomar dia 10.</div>")
 
     get establishment_path(establishment.company)
 
     assert_response :success
     assert_select "h2", text: "O que sabemos deste cliente"
-    bloco = ApplicationController.helpers.company_note_body_id(establishment.company.uuid)
-    assert_select "##{bloco}", text: /Dono viaja, retomar dia 10./
+    page_group = ApplicationController.helpers.company_note_body_id(establishment.company.uuid)
+    assert_select "##{page_group}", text: /Dono viaja, retomar dia 10./
     assert_select "button.note-trigger .note-trigger__dot"
     assert_select "dialog.note-modal"
   end
@@ -168,9 +168,9 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   # A listagem também é uma linha por cliente: cabe a mesma célula das outras telas.
   test "a listagem tem a coluna da anotação, com o ponto de quem já tem" do
     establishment = seed_establishment
-    outro = Company.create!(cnpj: "99888777000166")
-    Establishment.create!(ec: "99999999", company: outro, channel: establishment.channel)
-    Operations::SaveCompanyNote.call(cnpj: establishment.company.cnpj, body: "<div>Ligar.</div>")
+    another = Company.create!(cnpj: "99888777000166")
+    Establishment.create!(ec: "99999999", company: another, channel: establishment.channel)
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: establishment.company.cnpj, body: "<div>Ligar.</div>")
 
     get establishments_path
 
@@ -184,7 +184,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
   end
 
   def seed_establishment(**snapshot_attributes)
-    channel = Channel.create!(external_id: "1478", name: "MASTER")
+    channel = Channel.create!(organization: default_organization, external_id: "1478", name: "MASTER")
     sub_channel = channel.sub_channels.create!(name: "MIC GOIANIA 4")
     company = Company.create!(cnpj: "12345678000195")
     establishment = Establishment.create!(ec: "12345678", company:, channel:)

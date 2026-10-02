@@ -4,13 +4,19 @@ module BinImport
       entries = rows.values.flatten
       # Duas consultas para a planilha inteira: era um SELECT de estabelecimento e outro de
       # empresa por linha de cada aba, e as três abas repetem os mesmos ECs.
-      known = Establishment.where(ec: entries.map { |row| Normalizer.ec(row["EC"]) }.uniq)
-        .includes(:company).index_by(&:ec)
+      known = Establishment.active.where(ec: entries.map { |row| Normalizer.ec(row["EC"]) }.uniq)
+        .includes(:company, :channel).index_by(&:ec)
 
       entries.each do |row|
         establishment = known[Normalizer.ec(row["EC"])]
         next unless establishment
 
+        # A organização vem antes do CNPJ e do canal: dizer "outro CNPJ" ou "outro canal" a
+        # quem não deveria saber que o EC existe já contaria demais.
+        if establishment.channel.organization_id != channel.organization_id
+        raise ArgumentError, "O EC #{establishment.ec} já está cadastrado fora da sua organização e " \
+          "não pode entrar por este arquivo. Confira a planilha enviada."
+        end
         cnpj = Normalizer.cnpj(row["CNPJ"])
         if establishment.company.cnpj != cnpj
         raise ArgumentError, "O EC #{establishment.ec} já está cadastrado com outro CNPJ. " \

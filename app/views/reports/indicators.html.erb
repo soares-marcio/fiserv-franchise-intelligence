@@ -56,14 +56,14 @@
 
   <% if @reports.any? %>
     <section class="grid gap-4">
-      <% caminho = ->(ordem) { indicators_reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+      <% sort_path = ->(order) { indicators_reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
       <div class="earnings-card-bar">
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
         <span class="badge badge-ghost">
           <%= @reports.count { |report| report[:risk_count].positive? } %> com indicador em risco
         </span>
-        <%= render "shared/sort_status", sort: @order, path: caminho %>
-        <%= render "shared/sort_links", sort: @order, path: caminho,
+        <%= render "shared/sort_status", sort: @order, path: sort_path %>
+        <%= render "shared/sort_links", sort: @order, path: sort_path,
           label: "Ordenar os MICs" %>
       </div>
 

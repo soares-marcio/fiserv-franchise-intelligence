@@ -22,7 +22,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   # precisa voltar para a página 3, filtrada e ordenada — é este teste que impede a lista de
   # chaves do controller de divergir do sub_channel_listing_params.
   test "voltando para a listagem do MIC, o recorte inteiro sobrevive" do
-    recorte = {
+    scope_params = {
       variation: "baixa", q: "ALFA", status: [ "Active" ], date_kind: [ "credenciamento" ],
       from_date: "2026-08-01", to_date: "2026-08-31", sort: "current_revenue",
       direction: "asc", period: "2026-08-01", from_day: "1", to_day: "20",
@@ -31,16 +31,16 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
 
     patch company_note_path(@company), params: {
       body: "<div>Ligar depois do dia 10.</div>",
-      origin: "sub_channel", sub_channel_id: @sub_channel.uuid, **recorte
+      origin: "sub_channel", sub_channel_id: @sub_channel.uuid, **scope_params
     }
 
-    destino = response.location
-    assert_includes destino, sub_channel_report_path(@sub_channel)
-    recorte.except(:status, :date_kind).each do |chave, valor|
-      assert_includes CGI.unescape(destino), "#{chave}=#{valor}", "#{chave} não voltou"
+    destination = response.location
+    assert_includes destination, sub_channel_report_path(@sub_channel)
+    scope_params.except(:status, :date_kind).each do |key, value|
+      assert_includes CGI.unescape(destination), "#{key}=#{value}", "#{key} não voltou"
     end
-    assert_includes CGI.unescape(destino), "status[]=Active"
-    assert_includes CGI.unescape(destino), "date_kind[]=credenciamento"
+    assert_includes CGI.unescape(destination), "status[]=Active"
+    assert_includes CGI.unescape(destination), "date_kind[]=credenciamento"
   end
 
   # O Clover Capital ganhou filtro de MIC: salvar sem JavaScript precisa voltar para o mesmo
@@ -56,7 +56,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "editor esvaziado remove a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Alguma coisa.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj, body: "<div>Alguma coisa.</div>")
 
     assert_difference -> { CompanyNote.count }, -1 do
       patch company_note_path(@company), params: { body: "<div><br></div>" }
@@ -66,7 +66,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "corpo acima do limite volta com alerta e não altera a anotação" do
-    Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Original.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj, body: "<div>Original.</div>")
 
     patch company_note_path(@company),
       params: { body: "<div>#{'a' * (Operations::SaveCompanyNote::MAX_LENGTH + 1)}</div>" }
@@ -78,8 +78,8 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
   # Nada que venha na requisição pode virar destino de redirect. A origem escolhe entre telas
   # conhecidas; qualquer outra coisa cai no fallback, sem erro e sem sair do portal.
   test "origem forjada ou incompleta cai no fallback, nunca em destino arbitrário" do
-    [ { origin: "https://evil.example/x" }, { origin: "sub_channel" } ].each do |forjada|
-      patch company_note_path(@company), params: { body: "<div>x</div>", **forjada }
+    [ { origin: "https://evil.example/x" }, { origin: "sub_channel" } ].each do |forged|
+      patch company_note_path(@company), params: { body: "<div>x</div>", **forged }
 
       assert_redirected_to stalled_reports_path
     end
@@ -152,7 +152,7 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
 
   # O modal chega por Turbo Frame, sem layout, com o editor já preenchido.
   test "o formulário do modal chega sem layout, com o que já estava escrito" do
-    Operations::SaveCompanyNote.call(cnpj: @company.cnpj, body: "<div>Escrito antes.</div>")
+    Operations::SaveCompanyNote.call(organization: default_organization, cnpj: @company.cnpj, body: "<div>Escrito antes.</div>")
 
     get edit_company_note_path(@company), headers: { "Turbo-Frame" => "company_note" }
 

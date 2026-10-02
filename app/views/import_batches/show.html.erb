@@ -52,8 +52,51 @@
 
     <% if @import_batch.discardable? %>
       <%= button_to icon_label("trash", "Descartar lote"), import_batch_path(@import_batch), method: :delete,
-        class: "btn btn-ghost mt-4",
+        class: "btn btn-danger mt-4",
         form: { data: { turbo_confirm: "Descartar o lote #{@import_batch.source_filename}?" } } %>
     <% end %>
   </div>
 </section>
+
+<% if policy(@import_batch).grant? %>
+  <section class="surface-card mt-5 p-6">
+    <p class="section-label">Quem vê este arquivo</p>
+    <p class="metric-hint mt-1">
+      A planilha é a carteira inteira do Master. Além de quem enviou, só a vê quem receber a
+      liberação aqui — e só pode recebê-la quem tem esse Master inteiro.
+    </p>
+
+    <% if @grants.any? %>
+      <ul class="mt-3 grid gap-2 text-sm">
+        <% @grants.each do |grant| %>
+          <li class="flex flex-wrap items-center justify-between gap-3">
+            <span><%= grant.user.name %> <span class="opacity-70">· <%= grant.user.email_address %></span></span>
+            <%= button_to "Revogar", import_batch_batch_grant_path(@import_batch, grant), method: :delete,
+              class: "btn btn-danger btn-sm",
+              form: { data: { turbo_confirm: "Revogar a liberação de #{grant.user.name}?" } } %>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p class="metric-hint mt-3">Ninguém além de quem enviou.</p>
+    <% end %>
+
+    <% if @eligible.any? %>
+      <%= form_with url: import_batch_batch_grants_path(@import_batch),
+        class: "mt-4 flex flex-wrap items-end gap-3" do |form| %>
+        <label class="form-control">
+          <span class="label-text">Liberar para</span>
+          <%= form.select :user_id,
+            @eligible.map { |person| [ "#{person.name} · #{person.email_address}", person.to_param ] },
+            {}, class: "select select-bordered" %>
+        </label>
+        <%= form.submit "Liberar arquivo", class: "btn btn-outline btn--field" %>
+      <% end %>
+    <% else %>
+      <p class="metric-hint mt-3">
+        Ninguém mais elegível: as pessoas que você administra ou já têm o arquivo, ou não têm
+        este Master inteiro.
+      </p>
+    <% end %>
+  </section>
+<% end %>

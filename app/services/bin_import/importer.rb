@@ -3,8 +3,16 @@ require "roo"
 
 module BinImport
   class Importer
-    def initialize(path, source_filename: nil)
+    # skip_workbook existe para a aprovação, que reusa a consolidação sem ter arquivo em
+    # mãos — o lote já está gravado no banco.
+    # A organização vem do lote quando ele nasceu pela tela (ImportFile já a gravou) e do
+    # parâmetro quando o import é por console ou teste. Sem nenhuma das duas não há como
+    # saber de quem é o Master que o arquivo pode criar.
+    def initialize(path, source_filename: nil, organization: nil, skip_workbook: false)
       @path = path
+      @organization = organization
+      return if skip_workbook
+
       @source_filename = source_filename || File.basename(path)
       @workbook = Roo::Excelx.new(path)
     end
@@ -12,7 +20,7 @@ module BinImport
     def call
       Template.validate!(@workbook)
       checksum = Digest::SHA256.file(@path).hexdigest
-      if ImportBatch.where(status: "validated").exists?(file_checksum: checksum)
+      if ImportBatch.active.where(status: "validated").exists?(file_checksum: checksum)
         raise ArgumentError, "Este arquivo já foi importado antes — o conteúdo é idêntico ao " \
         "de um lote validado. Se a planilha foi atualizada, exporte de novo da origem: um " \
         "arquivo com qualquer alteração tem outro checksum."
@@ -20,10 +28,20 @@ module BinImport
 
       template = Template.register!(@workbook)
       rows = Template::SHEETS.to_h { |sheet| [ sheet, rows_for(sheet) ] }
-      channel = resolve_channel!(rows.fetch("Mapa de Clientes BIN"))
-      batch = ImportBatch.find_or_initialize_by(file_checksum: checksum)
+      batch = ImportBatch.active.find_or_initialize_by(file_checksum: checksum)
+      organization = batch.organization || @organization || batch.uploaded_by&.organization
+      raise ArgumentError, "Importação sem organização: informe a organização dona do arquivo." if organization.nil?
+
+      # O Master do arquivo só se conhece depois do parse, e é o resolvedor que decide se
+      # quem enviou pode tocá-lo — antes de criar canal ou salvar o lote com ele. Sem isso,
+      # quem tem permissão de enviar alimentaria a carteira de qualquer Master, inclusive a
+      # de outra organização.
+      report_id, name = channel_identity!(rows.fetch("Mapa de Clientes BIN"))
+      channel = ChannelResolver.call(report_id:, name:, organization:, actor: batch.uploaded_by)
+      # O lote só aponta para o Master quando ele já existe; o novo nasce na transação abaixo.
       batch.assign_attributes(
-        channel:, import_template: template, source_filename: @source_filename,
+        channel: (channel if channel.persisted?), organization:, import_template: template,
+        source_filename: @source_filename,
         source_file_date: source_file_date, status: "pending", validation_errors: []
       )
       batch.save!
@@ -37,18 +55,35 @@ module BinImport
         covered_periods: validation.covered_periods.map(&:to_s),
         current_month_cutoff_day: Cutoff.day(rows.fetch("Faturamento"))
       )
-      detect_short_cutoff!(batch)
 
+      # Os snapshots são gravados sempre; o que a revisão decide é se eles passam a valer.
+      # Isso é possível porque as telas só enxergam lotes validados: um lote em revisão não
+      # entra em relatório nenhum, e a comparação com a carteira vigente já pode ser feita.
+      #
+      # Tudo o que o arquivo cria nasce aqui dentro — inclusive o Master novo e a anomalia de
+      # corte curto: arquivo que falha deixa só o lote falho, com o motivo, e nada mais.
       ApplicationRecord.transaction do
+        if channel.new_record?
+          channel.save!
+          batch.update!(channel:)
+        end
+        detect_short_cutoff!(batch)
         persist_raw_rows(batch, rows)
         establishments = persist_map_rows(batch, rows.fetch("Mapa de Clientes BIN"))
         persist_revenue_rows(batch, rows.fetch("Faturamento"), establishments)
         persist_activation_rows(batch, rows.fetch("Ativacao"), establishments)
-        consolidate!(batch)
         detect_anomalies!(batch)
+
+        reasons = BatchReview.new(batch).review_reasons(uploader: batch.uploaded_by)
+        if reasons.any?
+          batch.update!(status: "pending_review", review_reasons: reasons.map(&:to_s))
+          next
+        end
+
+        consolidate!(batch)
         batch.update!(status: "validated")
       end
-      refresh_views!(batch)
+      refresh_views!(batch) if batch.validated?
       batch
     rescue StandardError => e
       batch&.update(status: "failed", validation_errors: [ e.message ])
@@ -82,7 +117,8 @@ module BinImport
       end
     end
 
-    def resolve_channel!(map_rows)
+    # Só extrai a identidade do Master da planilha; quem consulta o banco é o resolvedor.
+    def channel_identity!(map_rows)
       report_ids = map_rows.pluck("REPORT_ID").compact.map(&:to_s).uniq
       canals = map_rows.pluck("CANAL").compact.map(&:to_s).reject(&:blank?).uniq
       unless report_ids.one?
@@ -96,7 +132,7 @@ module BinImport
           "Cada arquivo cobre uma carteira só; separe os canais em arquivos diferentes."
       end
 
-      ChannelResolver.call(report_id: report_ids.first, name: canals.first)
+      [ report_ids.first, canals.first ]
     end
 
     def source_file_date
@@ -153,7 +189,7 @@ module BinImport
 
     def find_sub_channel(channel, value)
       name = value.to_s.strip
-      (@sub_channels ||= {})[name] ||= channel.sub_channels.find_or_create_by!(name: name)
+      (@sub_channels ||= {})[name] ||= channel.sub_channels.active.find_or_create_by!(name: name)
     end
 
     # Do segundo lote em diante quase tudo já existe: duas consultas trazem os conhecidos, e
@@ -162,7 +198,7 @@ module BinImport
       cnpjs = rows.map { |row| Normalizer.cnpj(row["CNPJ"]) }.uniq
       ecs = rows.map { |row| Normalizer.ec(row["EC"]) }.uniq
       @companies = Company.where(cnpj: cnpjs).index_by(&:cnpj)
-      @establishments = Establishment.where(ec: ecs).index_by(&:ec)
+      @establishments = Establishment.active.where(ec: ecs).index_by(&:ec)
     end
 
     def find_company(cnpj)
@@ -175,7 +211,7 @@ module BinImport
 
       company = find_company(cnpj)
       ec = Normalizer.ec(row["EC"])
-      (@establishments ||= {})[ec] ||= Establishment.find_or_create_by!(ec:) do |establishment|
+      (@establishments ||= {})[ec] ||= Establishment.active.find_or_create_by!(ec:) do |establishment|
         establishment.company = company
         establishment.channel = channel
       end
@@ -332,6 +368,12 @@ module BinImport
         }
       end
       ActivationProposal.insert_all!(activation_rows)
+    end
+
+    # Chamado também pela aprovação de um lote em revisão: é o mesmo caminho, e precisa
+    # ser — aprovar tem de produzir exatamente o que a importação direta produziria.
+    def self.consolidate_batch!(batch)
+      new(nil, skip_workbook: true).send(:consolidate!, batch)
     end
 
     def consolidate!(batch)

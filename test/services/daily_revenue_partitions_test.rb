@@ -50,12 +50,12 @@ class DailyRevenuePartitionsTest < ActiveSupport::TestCase
   end
 
   test "import cujas partições já existem não trava a partição default" do
-    lojas = BinWorkbook.default_lojas
-    import_synthetic_workbook(lojas:)
-    lojas.first.dias_atual = lojas.first.dias_atual.merge(3 => 77)
+    stores = BinWorkbook.default_stores
+    import_synthetic_workbook(stores:)
+    stores.first.current_days = stores.first.current_days.merge(3 => 77)
 
     locks = locks_while do
-      import_synthetic_workbook(lojas:, filename: "BIN_TESTE_20260818.xlsx")
+      import_synthetic_workbook(stores:, filename: "BIN_TESTE_20260818.xlsx")
     end
 
     assert_empty locks

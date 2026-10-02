@@ -65,7 +65,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
   end
 
   test "recusa REPORT_ID associado a outro nome de canal" do
-    Channel.create!(external_id: "1478", name: "OUTRO MASTER")
+    Channel.create!(organization: default_organization, external_id: "1478", name: "OUTRO MASTER")
 
     error = assert_raises(ArgumentError) { Operations::RegisterManually.call(valid_attrs) }
 
@@ -120,6 +120,7 @@ class Operations::RegisterManuallyTest < ActiveSupport::TestCase
 
   def valid_attrs
     {
+      "organization" => default_organization,
       "report_id" => "1478", "channel_name" => "MASTER", "sub_channel_name" => "MIC TESTE",
       "ec" => "12345678", "cnpj" => "12345678000195", "contract_status" => "Active",
       "legal_name" => "RAZAO", "trade_name" => "FANTASIA",

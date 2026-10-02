@@ -2,53 +2,53 @@ require "test_helper"
 
 class BinImport::ConsolidatorTest < ActiveSupport::TestCase
   setup do
-    @primeiro = import_synthetic_workbook
-    @loja = BinWorkbook.default_lojas.first
-    @establishment = Establishment.find_by!(ec: @loja.ec)
+    @first_item = import_synthetic_workbook
+    @store = BinWorkbook.default_stores.first
+    @establishment = Establishment.find_by!(ec: @store.ec)
   end
 
   test "consolida um dia por estabelecimento e competência" do
-    esperado = BinWorkbook.default_lojas.sum { |loja| loja.dias_m1.size + loja.dias_atual.size }
+    expected = BinWorkbook.default_stores.sum { |store| store.previous_days.size + store.current_days.size }
 
-    assert_equal esperado, DailyRevenueConsolidated.count
-    assert_equal @loja.dias_m1.fetch(1), DailyRevenueConsolidated.find_by!(
-      establishment: @establishment, period: @primeiro.previous_period, day: 1
+    assert_equal expected, DailyRevenueConsolidated.count
+    assert_equal @store.previous_days.fetch(1), DailyRevenueConsolidated.find_by!(
+      establishment: @establishment, period: @first_item.previous_period, day: 1
     ).amount
   end
 
   test "registra revisão quando um dia já conhecido muda de valor" do
-    revisadas = BinWorkbook.default_lojas
-    revisadas.first.dias_m1 = revisadas.first.dias_m1.merge(1 => 150)
-    import_synthetic_workbook(lojas: revisadas, filename: "BIN_TESTE_20260812.xlsx")
+    reviewed = BinWorkbook.default_stores
+    reviewed.first.previous_days = reviewed.first.previous_days.merge(1 => 150)
+    import_synthetic_workbook(stores: reviewed, filename: "BIN_TESTE_20260812.xlsx")
 
-    revisao = DailyRevenueRevision.find_by!(
-      establishment_id: @establishment.id, period: @primeiro.previous_period, day: 1
+    review = DailyRevenueRevision.find_by!(
+      establishment_id: @establishment.id, period: @first_item.previous_period, day: 1
     )
-    assert_equal @loja.dias_m1.fetch(1), revisao.previous_amount
-    assert_equal 150, revisao.new_amount
+    assert_equal @store.previous_days.fetch(1), review.previous_amount
+    assert_equal 150, review.new_amount
     assert_equal 150, DailyRevenueConsolidated.find_by!(
-      establishment: @establishment, period: @primeiro.previous_period, day: 1
+      establishment: @establishment, period: @first_item.previous_period, day: 1
     ).amount
   end
 
   test "aponta revisão de competência já fechada" do
-    revisadas = BinWorkbook.default_lojas
-    revisadas.first.dias_m1 = revisadas.first.dias_m1.merge(1 => 150)
-    import_synthetic_workbook(lojas: revisadas, filename: "BIN_TESTE_20260812.xlsx")
+    reviewed = BinWorkbook.default_stores
+    reviewed.first.previous_days = reviewed.first.previous_days.merge(1 => 150)
+    import_synthetic_workbook(stores: reviewed, filename: "BIN_TESTE_20260812.xlsx")
 
-    anomalia = DataAnomaly.find_by(anomaly_type: "closed_period_revised")
-    assert anomalia, "mudança em mês fechado precisa virar anomalia"
-    assert_equal "atencao", anomalia.severity
-    assert_equal @primeiro.previous_period.to_s, anomalia.details["period"]
+    anomaly = DataAnomaly.find_by(anomaly_type: "closed_period_revised")
+    assert anomaly, "mudança em mês fechado precisa virar anomalia"
+    assert_equal "atencao", anomaly.severity
+    assert_equal @first_item.previous_period.to_s, anomaly.details["period"]
   end
 
   test "não regride a cobertura quando o lote novo cobre menos dias" do
-    curtas = BinWorkbook.default_lojas
-    curtas.each { |loja| loja.dias_atual = loja.dias_atual.reject { |day, _| day > 2 } }
-    import_synthetic_workbook(lojas: curtas, filename: "BIN_TESTE_20260805.xlsx")
+    short_ones = BinWorkbook.default_stores
+    short_ones.each { |store| store.current_days = store.current_days.reject { |day, _| day > 2 } }
+    import_synthetic_workbook(stores: short_ones, filename: "BIN_TESTE_20260805.xlsx")
 
     coverage = PeriodCoverage.find_by!(
-      channel_id: @primeiro.channel_id, period: @primeiro.current_period
+      channel_id: @first_item.channel_id, period: @first_item.current_period
     )
     assert_equal BinWorkbook.cutoff_day, coverage.max_known_day
     assert DataAnomaly.find_by(anomaly_type: "batch_covers_fewer_days"),
@@ -56,18 +56,18 @@ class BinImport::ConsolidatorTest < ActiveSupport::TestCase
   end
 
   test "marca o mês anterior como fechado e o atual como aberto" do
-    coberturas = PeriodCoverage.where(channel_id: @primeiro.channel_id).index_by(&:period)
+    coverages = PeriodCoverage.where(channel_id: @first_item.channel_id).index_by(&:period)
 
-    assert coberturas.fetch(@primeiro.previous_period).closed
-    assert_equal 31, coberturas.fetch(@primeiro.previous_period).max_known_day
-    assert_not coberturas.fetch(@primeiro.current_period).closed
-    assert_equal BinWorkbook.cutoff_day, coberturas.fetch(@primeiro.current_period).max_known_day
+    assert coverages.fetch(@first_item.previous_period).closed
+    assert_equal 31, coverages.fetch(@first_item.previous_period).max_known_day
+    assert_not coverages.fetch(@first_item.current_period).closed
+    assert_equal BinWorkbook.cutoff_day, coverages.fetch(@first_item.current_period).max_known_day
   end
 
   test "consolida os volumes mensais de todas as competências do arquivo" do
-    esperado = BinWorkbook.default_lojas.size *
+    expected = BinWorkbook.default_stores.size *
       BinImport::Template::VOLUME_FAMILIES.size * BinImport::Template::DEFAULT_VOLUME_MONTHS.size
 
-    assert_equal esperado, MonthlyVolumeConsolidated.count
+    assert_equal expected, MonthlyVolumeConsolidated.count
   end
 end

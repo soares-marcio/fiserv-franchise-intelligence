@@ -1,5 +1,11 @@
 class ReportsController < ApplicationController
+  # A raiz do portal é este index; a conta da plataforma não tem carteira e cairia em 403 ao
+  # entrar. Ela vai para a tela dela, antes de qualquer autorização.
+  before_action -> { redirect_to platform_organizations_path if Current.user&.platform_admin? }, only: :index
   before_action :load_scope
+  # Toda ação deste controller mostra relatório: a chave é a mesma, e declarar aqui evita
+  # que uma tela nova entre sem autorização.
+  before_action -> { authorize :report, :index? }
 
   def index
     @order = ListingSort.new(columns: ReportScope::SUB_CHANNEL_SORT_COLUMNS,
@@ -11,7 +17,7 @@ class ReportsController < ApplicationController
   # Clover Capital: as ofertas pré-aprovadas da carteira, uma por CNPJ.
   def stalled
     @selected_sub_channel = selected_stalled_sub_channel
-    offers = PreapprovedOffers.new(channel_id: @selected_channel&.id,
+    offers = PreapprovedOffers.new(scope: Current.access_scope.narrow(channel: @selected_channel),
       sub_channel_id: @selected_sub_channel&.id)
     @reports = offers.call
     @sub_channels = offers.sub_channel_options
@@ -19,8 +25,8 @@ class ReportsController < ApplicationController
     @diverging_name_cnpjs = offers.diverging_name_cnpjs
     respond_to do |format|
       format.html
-      format.csv { send_data stalled_exporter.to_csv, **arquivo(nome_do_clover, "csv") }
-      format.xlsx { send_data stalled_exporter.to_xlsx, **arquivo(nome_do_clover, "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data stalled_exporter.to_csv, **download_headers(clover_filename, "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data stalled_exporter.to_xlsx, **download_headers(clover_filename, "xlsx") }
     end
   end
 
@@ -37,30 +43,30 @@ class ReportsController < ApplicationController
     load_calendar_neighbours
     respond_to do |format|
       format.html
-      format.csv { send_data weekly_exporter.to_csv, **arquivo(nome_do_ritmo, "csv") }
-      format.xlsx { send_data weekly_exporter.to_xlsx, **arquivo(nome_do_ritmo, "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data weekly_exporter.to_csv, **download_headers(weekly_filename, "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data weekly_exporter.to_xlsx, **download_headers(weekly_filename, "xlsx") }
     end
   end
 
   # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
   # é oferecido nem aceito. Sem escolha, abre na mais recente.
   def calendar_period
-    disponiveis = @scope.available_periods.map { |row| row["period"].to_date }
-    pedida = begin
+    available = @scope.available_periods.map { |row| row["period"].to_date }
+    requested = begin
       params[:period].presence&.to_date&.beginning_of_month
     rescue Date::Error, ArgumentError, TypeError
       nil
     end
-    disponiveis.include?(pedida) ? pedida : disponiveis.first
+    available.include?(requested) ? requested : available.first
   end
 
   # As setas andam só entre competências importadas — não existe mês vazio para onde ir. A
   # lista vem em ordem decrescente, então a anterior está adiante no array.
   def load_calendar_neighbours
-    periodos = @scope.available_periods.map { |row| row["period"].to_date }
-    posicao = periodos.index(@period)
-    @newer_period = posicao.positive? ? periodos[posicao - 1] : nil
-    @older_period = periodos[posicao + 1]
+    periods = @scope.available_periods.map { |row| row["period"].to_date }
+    position = periods.index(@period)
+    @newer_period = position.positive? ? periods[position - 1] : nil
+    @older_period = periods[position + 1]
   end
 
   def covered_days_for(period)
@@ -73,8 +79,8 @@ class ReportsController < ApplicationController
   # Sem isso, setembro com dois dias apareceria como queda de 93%.
   def load_previous_month_anchor
     @previous_period = @period.prev_month
-    disponiveis = @scope.available_periods.map { |row| row["period"].to_date }
-    return unless disponiveis.include?(@previous_period)
+    available = @scope.available_periods.map { |row| row["period"].to_date }
+    return unless available.include?(@previous_period)
 
     @aligned = @covered_days < Time.days_in_month(@period.month, @period.year)
     @previous_totals = @scope.month_totals(
@@ -91,8 +97,8 @@ class ReportsController < ApplicationController
     @reports = @order.sort_rows(@scope.recurring_earnings) { |row| recurring_sort_value(row) }
     respond_to do |format|
       format.html
-      format.csv { send_data recurring_exporter.to_csv, **arquivo("ganho-recorrente", "csv") }
-      format.xlsx { send_data recurring_exporter.to_xlsx, **arquivo("ganho-recorrente", "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data recurring_exporter.to_csv, **download_headers("ganho-recorrente", "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data recurring_exporter.to_xlsx, **download_headers("ganho-recorrente", "xlsx") }
     end
   end
 
@@ -106,46 +112,50 @@ class ReportsController < ApplicationController
   # Página 3M: janela de três meses de calendário à escolha do usuário, limitada aos
   # meses que os volumes mensais da planilha realmente cobrem.
   def three_months
-    @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @selected_channel&.id)
+    @available_periods = ThreeMonthEarningsQuery.available_periods(scope: @scope.scope)
     @window = three_month_window
     @reports = @window ? @scope.three_month_earnings(periods: @window) : []
     @order = three_month_order
     @reports = @order.sort_rows(@reports) { |row| three_month_value(row) }
     respond_to do |format|
       format.html
-      format.csv { send_data three_month_exporter.to_csv, **arquivo("ganhos-3m", "csv") }
-      format.xlsx { send_data three_month_exporter.to_xlsx, **arquivo("ganhos-3m", "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data three_month_exporter.to_csv, **download_headers("ganhos-3m", "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data three_month_exporter.to_xlsx, **download_headers("ganhos-3m", "xlsx") }
     end
   end
 
   def three_months_sub_channel
-    @sub_channel = SubChannel.find_param!(params[:id])
+    @sub_channel = policy_scope(SubChannel).find_param!(params[:id])
     if @selected_channel && @sub_channel.channel_id != @selected_channel.id
       raise ActiveRecord::RecordNotFound
     end
 
-    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
-    @available_periods = ThreeMonthEarningsQuery.available_periods(channel_id: @sub_channel.channel_id)
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(sub_channel: @sub_channel))
+    @available_periods = ThreeMonthEarningsQuery.available_periods(scope: @scope.scope)
     @window = three_month_window
     @reports = @window ? @scope.three_month_establishments(periods: @window, sub_channel_id: @sub_channel.id) : []
     respond_to do |format|
       format.html
       format.csv do
-        send_data three_month_establishments_exporter.to_csv, **arquivo(nome_3m_do_mic, "csv")
+        authorize :report, :export?
+        audit_export
+        send_data three_month_establishments_exporter.to_csv, **download_headers(three_months_mic_filename, "csv")
       end
       format.xlsx do
-        send_data three_month_establishments_exporter.to_xlsx, **arquivo(nome_3m_do_mic, "xlsx")
+        authorize :report, :export?
+        audit_export
+        send_data three_month_establishments_exporter.to_xlsx, **download_headers(three_months_mic_filename, "xlsx")
       end
     end
   end
 
   def sub_channel
-    @sub_channel = SubChannel.find_param!(params[:id])
+    @sub_channel = policy_scope(SubChannel).find_param!(params[:id])
     if @selected_channel && @sub_channel.channel_id != @selected_channel.id
       raise ActiveRecord::RecordNotFound
     end
 
-    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(sub_channel: @sub_channel))
     @selected_variation = params[:variation].to_s.presence_in(EstablishmentListingQuery::VARIATION_CLAUSES.keys)
     @selected_statuses = Array(params[:status]).map(&:to_s).compact_blank.uniq
     @selected_date_kinds = Array(params[:date_kind]).map(&:to_s) & EstablishmentListingQuery::DATE_KINDS.keys
@@ -176,8 +186,8 @@ class ReportsController < ApplicationController
     # A página só existe na tela; a exportação leva o recorte inteiro e não precisa dela.
     respond_to do |format|
       format.html { load_listing }
-      format.csv { send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
-      format.xlsx { send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
+      format.csv { authorize(:report, :export?); audit_export; send_data listing_exporter.to_csv, filename: listing_filename("csv"), type: "text/csv" }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data listing_exporter.to_xlsx, filename: listing_filename("xlsx"), type: Mime[:xlsx] }
     end
   end
 
@@ -196,14 +206,14 @@ class ReportsController < ApplicationController
     @date = @period + (@day - 1)
     @rows = @scope.day_companies(period: @period, day: @day)
     # Só a existência da anotação: o modal é apertado e o texto mora na ficha do cliente.
-    @noted_cnpjs = CompanyNote.where(cnpj: @rows.map { |row| row["cnpj"] }).pluck(:cnpj).to_set
+    @noted_cnpjs = policy_scope(CompanyNote).where(cnpj: @rows.map { |row| row["cnpj"] }).pluck(:cnpj).to_set
     @previous_day = @day > 1 ? @day - 1 : nil
     @next_day = @day < @covered_days ? @day + 1 : nil
 
     respond_to do |format|
       format.html { render partial: "reports/day_companies", layout: false }
-      format.csv { send_data day_companies_exporter.to_csv, **arquivo(nome_do_dia, "csv") }
-      format.xlsx { send_data day_companies_exporter.to_xlsx, **arquivo(nome_do_dia, "xlsx") }
+      format.csv { authorize(:report, :export?); audit_export; send_data day_companies_exporter.to_csv, **download_headers(day_filename, "csv") }
+      format.xlsx { authorize(:report, :export?); audit_export; send_data day_companies_exporter.to_xlsx, **download_headers(day_filename, "xlsx") }
     end
   end
 
@@ -212,8 +222,8 @@ class ReportsController < ApplicationController
   # O modal soma os ECs do cliente, os mesmos que a linha da listagem soma. Cliente sem EC
   # neste MIC não tem lançamento para mostrar: é 404, como era para um EC de outro canal.
   def sub_channel_daily
-    @sub_channel = SubChannel.find_param!(params[:id])
-    @scope = ReportScope.new(channel_id: @sub_channel.channel_id)
+    @sub_channel = policy_scope(SubChannel).find_param!(params[:id])
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(sub_channel: @sub_channel))
     @company = Company.find_param!(params[:company_id])
     @client = @scope.client_in_sub_channel(company_id: @company.id, sub_channel_id: @sub_channel.id)
     raise ActiveRecord::RecordNotFound if @client.establishment_ids.empty?
@@ -248,9 +258,9 @@ class ReportsController < ApplicationController
     case @order.column
     when "name" then row[:name]
     when "last_month"
-      fechado = row[:months].reject { |month| month[:partial] }.max_by { |month| month[:period] }
-      fechado ? fechado[:recurring] + fechado[:accreditation] + fechado[:accelerator] -
-        fechado[:reducer] : 0
+      closed_month = row[:months].reject { |month| month[:partial] }.max_by { |month| month[:period] }
+      closed_month ? closed_month[:recurring] + closed_month[:accreditation] + closed_month[:accelerator] -
+        closed_month[:reducer] : 0
     else row[:recurring_total] + row[:accreditation_total] + row[:adjustment_total]
     end
   end
@@ -310,10 +320,22 @@ class ReportsController < ApplicationController
     @total_pages = @listing.total_pages
   end
 
+  # Exportar é a operação de maior alcance da tela: larga a paginação e leva o recorte
+  # inteiro. A trilha guarda o que foi pedido, não o que saiu — repetir o conteúdo aqui
+  # faria da própria auditoria um vazamento.
+  def audit_export
+    Audit.record("report.export", request:,
+      channel: @selected_channel,
+      metadata: { tela: action_name, formato: request.format.symbol.to_s,
+        escopo: Current.access_scope.cache_key })
+  end
+
   def load_scope
-    @channels = Channel.order(:name)
-    @selected_channel = Channel.find_param!(params[:channel_id]) if params[:channel_id].present?
-    @scope = ReportScope.new(channel_id: @selected_channel&.id)
+    # O seletor de canal mostra só os Masters do escopo: oferecer um que responderia vazio
+    # seria oferecer um caminho sem volta, e revelaria que ele existe.
+    @channels = policy_scope(Channel).order(:name)
+    @selected_channel = @channels.find_param!(params[:channel_id]) if params[:channel_id].present?
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(channel: @selected_channel))
     @cutoff_day = @scope.cutoff_day
   end
 
@@ -323,7 +345,7 @@ class ReportsController < ApplicationController
   def selected_stalled_sub_channel
     return if params[:sub_channel_id].blank?
 
-    sub_channel = SubChannel.find_param!(params[:sub_channel_id])
+    sub_channel = policy_scope(SubChannel).find_param!(params[:sub_channel_id])
     raise ActiveRecord::RecordNotFound if @selected_channel &&
       sub_channel.channel_id != @selected_channel.id
 
@@ -332,9 +354,9 @@ class ReportsController < ApplicationController
 
   # Cabeçalho do download, num lugar só: o tipo sai do formato e o nome carrega o recorte.
   # Sem o recorte no nome, dois downloads seguidos chegam com o mesmo nome na pasta.
-  def arquivo(nome, extensao)
-    tipo = extensao == "csv" ? "text/csv" : Mime[:xlsx]
-    { filename: "#{nome}.#{extensao}", type: tipo }
+  def download_headers(basename, extension)
+    content_type = extension == "csv" ? "text/csv" : Mime[:xlsx]
+    { filename: "#{basename}.#{extension}", type: content_type }
   end
 
   def recurring_exporter
@@ -362,15 +384,15 @@ class ReportsController < ApplicationController
     helpers.channel_name(@selected_channel)
   end
 
-  def nome_3m_do_mic
+  def three_months_mic_filename
     "ganhos-3m-#{@sub_channel.name.parameterize}"
   end
 
-  def nome_do_ritmo
+  def weekly_filename
     "ritmo-#{@period.strftime('%Y-%m')}"
   end
 
-  def nome_do_dia
+  def day_filename
     "clientes-do-dia-#{@date.strftime('%Y-%m-%d')}"
   end
 
@@ -378,7 +400,7 @@ class ReportsController < ApplicationController
     PreapprovedOffersExporter.new(@reports, sub_channel_name: @selected_sub_channel&.name)
   end
 
-  def nome_do_clover
+  def clover_filename
     return "clover-capital-ofertas" if @selected_sub_channel.nil?
 
     "clover-capital-#{@selected_sub_channel.name.parameterize}"

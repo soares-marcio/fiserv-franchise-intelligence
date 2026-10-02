@@ -17,14 +17,14 @@
       <% if @window %>
         <%# O arquivo sai com o recorte da tela: os mesmos parâmetros que o link carrega,
             senão o download traz um recorte diferente do que está à vista. %>
-        <% recorte = { channel_id: @selected_channel&.uuid, from_date: @window&.first,
+        <% export_params = { channel_id: @selected_channel&.uuid, from_date: @window&.first,
           to_date: @window&.last, sort: @order.column, direction: @order.direction }.compact %>
         <div class="export-actions relative z-10 flex flex-wrap gap-2">
           <%= link_to icon_label("download-simple", "Exportar CSV"),
-            three_months_reports_path(format: :csv, **recorte),
+            three_months_reports_path(format: :csv, **export_params),
             class: "btn btn-outline export-action" %>
           <%= link_to icon_label("download-simple", "Exportar XLSX"),
-            three_months_reports_path(format: :xlsx, **recorte),
+            three_months_reports_path(format: :xlsx, **export_params),
             class: "btn btn-neutral export-action" %>
         </div>
       <% end %>
@@ -66,7 +66,7 @@
     </p>
     <% digitalization = @reports.sum { |r| r[:prize][:digitalization] } %>
     <% addon = @reports.sum { |r| r[:prize][:addon_amount] } %>
-    <% sem_modalidade = @reports.sum { |r| r[:prize][:undefined_modality] } %>
+    <% undefined_modality_count = @reports.sum { |r| r[:prize][:undefined_modality] } %>
     <% addon_without = @reports.sum { |r| r[:prize][:addon_without_auto] } %>
     <% addon_with = @reports.sum { |r| r[:prize][:addon_with_auto] } %>
     <section class="metric-grid">
@@ -85,16 +85,16 @@
           modalidade — aí o resumo diz quantos são, em vez de eleger uma coluna por eles. %>
       <article class="metric-card" data-tone="green">
         <p class="metric-label">Adicional por faturamento</p>
-        <p class="metric-value <%= "metric-value--range" if sem_modalidade.positive? %>">
-          <% if sem_modalidade.positive? %>
+        <p class="metric-value <%= "metric-value--range" if undefined_modality_count.positive? %>">
+          <% if undefined_modality_count.positive? %>
             <%= brl(addon_without) %> – <%= brl(addon_with) %>
           <% else %>
             <%= brl_metric(addon) %>
           <% end %>
         </p>
         <p class="metric-hint">
-          <% if sem_modalidade.positive? %>
-            <%= pluralize(sem_modalidade, "EC sem modalidade declarada", "ECs sem modalidade declarada") %>
+          <% if undefined_modality_count.positive? %>
+            <%= pluralize(undefined_modality_count, "EC sem modalidade declarada", "ECs sem modalidade declarada") %>
           <% else %>
             Pela modalidade contratada de cada EC (Anexo C, colunas B e C)
           <% end %>
@@ -103,12 +103,12 @@
     </section>
 
     <section class="grid gap-4">
-      <% caminho = ->(ordem) { three_months_reports_path(three_month_order_params(**ordem.except(:page))) } %>
+      <% sort_path = ->(order) { three_months_reports_path(three_month_order_params(**order.except(:page))) } %>
       <div class="earnings-card-bar">
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
         <span class="badge badge-ghost"><%= @window.map { |p| l(p, format: "%b/%Y") }.join(" · ") %></span>
-        <%= render "shared/sort_status", sort: @order, path: caminho %>
-        <%= render "shared/sort_links", sort: @order, path: caminho,
+        <%= render "shared/sort_status", sort: @order, path: sort_path %>
+        <%= render "shared/sort_links", sort: @order, path: sort_path,
           label: "Ordenar os MICs" %>
       </div>
 

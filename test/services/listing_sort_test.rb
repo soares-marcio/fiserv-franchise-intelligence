@@ -26,11 +26,11 @@ class ListingSortTest < ActiveSupport::TestCase
   end
 
   test "a coluna escolhida sai nos parâmetros e a ordem padrão não" do
-    escolhida = build(column: "current_revenue", direction: "asc")
+    chosen = build(column: "current_revenue", direction: "asc")
 
-    assert_not escolhida.default?
-    assert_equal({ sort: "current_revenue", direction: "asc" }, escolhida.params)
-    assert_equal "Ordenado por Mês atual, do menor para o maior", escolhida.sentence
+    assert_not chosen.default?
+    assert_equal({ sort: "current_revenue", direction: "asc" }, chosen.params)
+    assert_equal "Ordenado por Mês atual, do menor para o maior", chosen.sentence
   end
 
   test "o próximo clique inverte só na coluna ativa" do
@@ -62,10 +62,10 @@ class ListingSortTest < ActiveSupport::TestCase
   # isso viraria zero e a linha apareceria entre quem caiu e quem cresceu.
   test "linha sem valor fica no fim nos dois sentidos" do
     rows = [ { "v" => 10 }, { "v" => nil }, { "v" => 300 } ]
-    colunas = { "v" => "Variação" }
+    columns = { "v" => "Variação" }
 
-    desc = ListingSort.new(columns: colunas, default: "v", column: "v")
-    asc = ListingSort.new(columns: colunas, default: "v", column: "v", direction: "asc")
+    desc = ListingSort.new(columns: columns, default: "v", column: "v")
+    asc = ListingSort.new(columns: columns, default: "v", column: "v", direction: "asc")
 
     assert_equal [ 300, 10, nil ], desc.sort_rows(rows).map { |row| row["v"] }
     assert_equal [ 10, 300, nil ], asc.sort_rows(rows).map { |row| row["v"] }
@@ -75,9 +75,9 @@ class ListingSortTest < ActiveSupport::TestCase
   test "linha com valor aninhado ordena pelo extrator que a tela informa" do
     rows = [ { prize: { total: 5 } }, { prize: { total: 90 } } ]
 
-    ordenadas = build(column: "current_revenue").sort_rows(rows) { |row| row[:prize][:total] }
+    sorted_rows = build(column: "current_revenue").sort_rows(rows) { |row| row[:prize][:total] }
 
-    assert_equal [ 90, 5 ], ordenadas.map { |row| row[:prize][:total] }
+    assert_equal [ 90, 5 ], sorted_rows.map { |row| row[:prize][:total] }
   end
 
   # Nem toda coluna é dinheiro: a tela do recorrente ordena por nome do subcanal. Sem

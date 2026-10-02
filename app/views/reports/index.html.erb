@@ -9,7 +9,10 @@
         O mês anterior aparece completo. A variação compara períodos equivalentes até o
         <strong>dia <%= @cutoff_day %></strong>, último dia com movimento no mês atual.
         <% if @scope.mixed_cutoffs? %>
-          Para múltiplos Masters, usamos o menor corte disponível.
+          Os Masters estão em dias diferentes
+          (<%= @scope.cutoffs_by_channel.map { |name, day| "#{name}: dia #{day}" }.join(" · ") %>):
+          com todos selecionados vale o menor, para comparar períodos da mesma duração.
+          Escolha um Master no filtro para ver o corte dele.
         <% end %>
       </p>
     <% else %>
@@ -69,20 +72,21 @@
       <% if @reports.any? %>
         <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
         <%= render "shared/sort_status", sort: @order,
-          path: ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+          path: ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
       <% end %>
     </div>
 
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Faturamento por MIC, rolável na horizontal">
       <table class="table">
+        <caption class="sr-only">Faturamento por MIC</caption>
         <thead>
           <tr>
             <th scope="col">MIC</th>
             <%# As três colunas de valor ordenam a listagem, como na tela do subcanal. %>
-            <% caminho = ->(ordem) { reports_path(channel_id: @selected_channel&.uuid, **ordem.except(:page)) } %>
+            <% sort_path = ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
             <% ReportScope::SUB_CHANNEL_SORT_COLUMNS.each do |column, label| %>
-              <%= render "shared/sortable_header", sort: @order, column:, label:, path: caminho,
+              <%= render "shared/sortable_header", sort: @order, column:, label:, path: sort_path,
                 hint: (column == "previous_full_revenue" ? "competência fechada" : ("até dia #{@cutoff_day}" if @cutoff_day)),
                 extra_class: ("variation-col" if column == "variation") %>
             <% end %>

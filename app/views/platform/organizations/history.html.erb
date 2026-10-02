@@ -1,0 +1,60 @@
+<% content_for :title, "Histórico · #{organization_display_name(@organization)}" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Plataforma · Organização</p>
+  <h1 class="page-title">Histórico de <%= organization_display_name(@organization) %></h1>
+  <p class="page-description">
+    Quem fez o quê dentro desta organização. Sem o Master e sem conteúdo: a plataforma vê a
+    atividade, não a carteira.
+  </p>
+</section>
+
+<section class="table-frame mt-5" data-controller="sticky-table">
+  <div class="table-toolbar">
+    <div>
+      <p class="section-label">Últimos eventos</p>
+      <h2 class="table-title">Página <%= @page %></h2>
+    </div>
+  </div>
+  <div class="table-scroll" role="region" tabindex="0" aria-label="Histórico da organização">
+    <table class="table batches-table">
+      <caption class="sr-only">Histórico de atividades desta organização</caption>
+      <colgroup>
+        <col style="width: 16%"><col style="width: 24%"><col style="width: 28%"><col style="width: 32%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Quando</th>
+          <th scope="col">Quem</th>
+          <th scope="col">O quê</th>
+          <th scope="col">Detalhes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @events.each do |event| %>
+          <tr>
+            <td><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+            <td>
+              <%= event.user&.name || "—" %>
+              <span class="block text-xs opacity-70"><%= event.actor_email %></span>
+            </td>
+            <td><%= audit_action_label(event.action) %></td>
+            <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+    <% if @events.empty? %>
+      <p class="table-empty">Nenhum evento registrado ainda.</p>
+    <% end %>
+  </div>
+</section>
+
+<nav class="mt-4 flex gap-3" aria-label="Paginação do histórico">
+  <% if @page > 1 %>
+    <%= link_to "← Anteriores", history_platform_organization_path(@organization, page: @page - 1), class: "btn btn-outline btn-sm" %>
+  <% end %>
+  <% if @has_more %>
+    <%= link_to "Próximos →", history_platform_organization_path(@organization, page: @page + 1), class: "btn btn-outline btn-sm" %>
+  <% end %>
+</nav>

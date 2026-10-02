@@ -4,30 +4,30 @@ require "test_helper"
 # se a carteira está desatualizada, se um lote pode ser descartado ou travou.
 class ImportBatchTest < ActiveSupport::TestCase
   test "sem lote validado a carteira está desatualizada e não há idade a mostrar" do
-    assert_nil ImportBatch.days_since_last_file
-    assert_predicate ImportBatch, :stale?
+    assert_nil ImportBatch.days_since_last_file(organization: default_organization)
+    assert ImportBatch.stale?(organization: default_organization)
   end
 
   test "a idade da carteira conta do último lote validado" do
     batch = import_synthetic_workbook
     batch.update_column(:created_at, 3.days.ago)
 
-    assert_equal 3, ImportBatch.days_since_last_file
-    assert_not ImportBatch.stale?
+    assert_equal 3, ImportBatch.days_since_last_file(organization: default_organization)
+    assert_not ImportBatch.stale?(organization: default_organization)
   end
 
   test "a partir do prazo de tolerância a carteira fica desatualizada" do
     batch = import_synthetic_workbook
     batch.update_column(:created_at, ImportBatch::STALE_AFTER_DAYS.days.ago)
 
-    assert_equal ImportBatch::STALE_AFTER_DAYS, ImportBatch.days_since_last_file
-    assert_predicate ImportBatch, :stale?
+    assert_equal ImportBatch::STALE_AFTER_DAYS, ImportBatch.days_since_last_file(organization: default_organization)
+    assert ImportBatch.stale?(organization: default_organization)
   end
 
   # Lote pendente é importação em curso até o prazo; depois dele é worker parado, e a
   # diferença é o que a tela usa para avisar em vez de deixar o usuário esperando.
   test "lote pendente vira travado depois do prazo" do
-    batch = ImportBatch.create!(file_checksum: "pendente", source_filename: "a.xlsx", status: "pending")
+    batch = ImportBatch.create!(organization: default_organization, file_checksum: "pendente", source_filename: "a.xlsx", status: "pending")
 
     assert_predicate batch, :running?
     assert_not batch.stuck?
@@ -46,7 +46,7 @@ class ImportBatchTest < ActiveSupport::TestCase
   end
 
   test "só lote falho e sem linhas gravadas pode ser descartado" do
-    failed = ImportBatch.create!(file_checksum: "falho", source_filename: "a.xlsx", status: "failed")
+    failed = ImportBatch.create!(organization: default_organization, file_checksum: "falho", source_filename: "a.xlsx", status: "failed")
 
     assert_predicate failed, :discardable?
     assert_not import_synthetic_workbook.discardable?

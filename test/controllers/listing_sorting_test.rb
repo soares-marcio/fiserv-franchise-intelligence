@@ -27,9 +27,9 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_select "a.sort-link[href*=?]", "channel_id=#{channel.uuid}"
     assert_select "a.sort-reset[href*=?]", "channel_id=#{channel.uuid}"
 
-    ordem = css_select("tbody td.text-right.tabular-nums").each_slice(3).map { |cells| cells.last.text.strip }
-    valores = ordem.map { |texto| texto.gsub(/[^\d,]/, "").tr(",", ".").to_d }
-    assert_equal valores.sort, valores, "a coluna Mês atual precisa sair em ordem crescente"
+    order = css_select("tbody td.text-right.tabular-nums").each_slice(3).map { |cells| cells.last.text.strip }
+    values = order.map { |text| text.gsub(/[^\d,]/, "").tr(",", ".").to_d }
+    assert_equal values.sort, values, "a coluna Mês atual precisa sair em ordem crescente"
   end
 
   # "Quem caiu mais?" é a pergunta desta tela, e a variação não é coluna da consulta: é a
@@ -41,17 +41,17 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_select "th[aria-sort=ascending].variation-col a.sort-link", text: /Variação/
     assert_select ".sort-sentence", text: /Ordenado por Variação, do menor para o maior/
 
-    variacoes = css_select("tbody .variation-chip__value").map do |chip|
+    variations = css_select("tbody .variation-chip__value").map do |chip|
       chip.text.strip.gsub(/[^\d,-]/, "").tr(",", ".").to_d
     end
-    assert_operator variacoes.size, :>=, 2, "com menos de duas linhas a ordem passa por vacuidade"
-    assert_equal variacoes.sort, variacoes, "a variação precisa sair em ordem crescente"
+    assert_operator variations.size, :>=, 2, "com menos de duas linhas a ordem passa por vacuidade"
+    assert_equal variations.sort, variations, "a variação precisa sair em ordem crescente"
   end
 
   # A tela 3M ordena por mês da janela, por ECs credenciados e pelo prêmio; os links levam a
   # janela junto, senão ordenar recomeçaria a apuração noutro recorte.
   test "a tela 3M ordena por mês da janela e mantém o recorte" do
-    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    import_synthetic_workbook(stores: BinWorkbook.earnings_stores)
     refresh_audit_views
 
     get three_months_reports_path(from_date: "2026-06-01", to_date: "2026-08-01",
@@ -67,7 +67,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
   # dele. Isso resolve a ambiguidade que a tabela tinha — "ordenar por débito de qual mês?"
   # deixou de existir, porque o que se ordena é o ganho da janela inteira.
   test "o recorrente lista cards de MIC ordenados pelo ganho da janela" do
-    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    import_synthetic_workbook(stores: BinWorkbook.earnings_stores)
     refresh_audit_views
 
     get recurring_reports_path
@@ -84,7 +84,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
   end
 
   test "o recorrente aceita ordenar por nome do MIC" do
-    import_synthetic_workbook(lojas: BinWorkbook.earnings_lojas)
+    import_synthetic_workbook(stores: BinWorkbook.earnings_stores)
     refresh_audit_views
 
     get recurring_reports_path(sort: "name", direction: "asc")
@@ -93,7 +93,7 @@ class ListingSortingTest < ActionDispatch::IntegrationTest
     assert_select ".sort-sentence", text: /Ordenado por MIC, do menor para o maior/
     assert_select "a.sort-reset"
     # A ordem dos cards precisa ser a alfabética de verdade, não só o rótulo.
-    nomes = css_select("article.earnings-card .earnings-card__name").map { |node| node.text.strip }
-    assert_equal nomes.sort_by(&:downcase), nomes
+    names = css_select("article.earnings-card .earnings-card__name").map { |node| node.text.strip }
+    assert_equal names.sort_by(&:downcase), names
   end
 end

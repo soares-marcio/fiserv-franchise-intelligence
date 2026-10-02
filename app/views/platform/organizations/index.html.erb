@@ -1,0 +1,54 @@
+<% content_for :title, "Organizações" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Plataforma</p>
+  <h1 class="page-title">Organizações</h1>
+  <p class="page-description">
+    Cada organização, seus administradores e quantos acessos cada um tem. A plataforma
+    cria contas e presta suporte — não lê a carteira de ninguém.
+  </p>
+  <%= link_to "Criar organização", new_platform_organization_path, class: "btn btn-primary relative z-10 mt-6" %>
+</section>
+
+<% if @organizations.empty? %>
+  <p class="metric-hint mt-6">Nenhuma organização ainda. Crie a primeira: ela nasce com o seu administrador.</p>
+<% else %>
+  <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <% @organizations.each do |organization| %>
+      <% admins = organization.users.select(&:organization_admin?) %>
+      <% members = organization.users.reject(&:organization_admin?) %>
+      <% latest = organization.users.filter_map { |u| @last_access[u.id] }.max %>
+      <article class="organization-card surface-card flex flex-col gap-4 p-5">
+        <header>
+          <h2 class="text-base font-bold">
+            <%= link_to organization_display_name(organization), platform_organization_path(organization), class: "link" %>
+            <% if organization.suspended? %>
+              <span class="badge badge-error badge-sm align-middle">Suspensa</span>
+            <% end %>
+          </h2>
+          <% unless organization.named? %>
+            <p class="text-xs opacity-70">Sem nome: o administrador dá o nome no primeiro acesso.</p>
+          <% end %>
+        </header>
+
+        <dl class="grid grid-cols-3 gap-2 rounded-lg bg-base-200 p-3 text-xs">
+          <div><dt class="opacity-70">Administradores</dt><dd class="font-semibold tabular-nums"><%= admins.size %></dd></div>
+          <div><dt class="opacity-70">Convidados</dt><dd class="font-semibold tabular-nums"><%= members.size %></dd></div>
+          <div><dt class="opacity-70">Último acesso</dt><dd class="font-semibold"><%= latest ? latest.strftime("%d/%m/%Y %H:%M") : "nunca" %></dd></div>
+        </dl>
+
+        <ul class="grid gap-1 text-sm">
+          <% admins.each do |admin| %>
+            <li class="flex flex-wrap items-center justify-between gap-2">
+              <span><%= admin.name %> <span class="text-xs opacity-70">· <%= admin.email_address %></span></span>
+              <%= user_status_badge(admin) %>
+            </li>
+          <% end %>
+          <% if admins.empty? %>
+            <li class="text-xs opacity-70">Sem administrador — adicione um na ficha da organização.</li>
+          <% end %>
+        </ul>
+      </article>
+    <% end %>
+  </div>
+<% end %>

@@ -1,0 +1,154 @@
+<% content_for :title, "Revisar importação" %>
+
+<div class="grid gap-5">
+  <section class="page-hero">
+    <p class="eyebrow">Importação em revisão</p>
+    <h1 class="page-title"><%= @import_batch.source_filename %></h1>
+    <p class="page-description">
+      Este arquivo <strong>ainda não vale</strong>: nenhuma tela do portal o enxerga. Aprovar
+      faz dele a foto oficial do Master — o portal mostra um lote por Master, e o que não
+      estiver neste arquivo sai dos relatórios.
+    </p>
+
+    <dl class="mt-6 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+      <div><dt class="section-label">Master</dt><dd><%= channel_name(@import_batch.channel) || "—" %></dd></div>
+      <div><dt class="section-label">Enviado por</dt>
+        <dd><%= @import_batch.uploaded_by&.name || "—" %>
+          <span class="opacity-70"><%= @import_batch.created_at&.strftime("%d/%m/%Y %H:%M") %></span>
+        </dd></div>
+      <div><dt class="section-label">Competência</dt><dd><%= @import_batch.current_period&.strftime("%m/%Y") || "—" %></dd></div>
+      <div><dt class="section-label">Dia de corte</dt><dd><%= @import_batch.current_month_cutoff_day || "—" %></dd></div>
+    </dl>
+
+    <%# Por que parou: o motivo é o que a pessoa precisa entender antes de olhar as listas. %>
+    <ul class="mt-6 grid gap-2">
+      <% @import_batch.review_reasons.each do |reason| %>
+        <li class="metric-hint"><strong><%= review_reason_label(reason) %></strong></li>
+      <% end %>
+    </ul>
+  </section>
+
+  <div class="grid gap-5 lg:grid-cols-2">
+    <%# A lista que justifica a quarentena. Vem primeiro por isso. %>
+    <section class="surface-card p-6">
+      <p class="section-label">Sairia da carteira</p>
+      <h2 class="mt-1 text-xl font-bold tracking-tight">
+        <%= pluralize(@review.leaving.size, "estabelecimento", "estabelecimentos") %>
+      </h2>
+      <% if @review.leaving.any? %>
+        <p class="metric-hint mt-2">
+          Estes ECs estão na carteira hoje e não vêm neste arquivo. Aprovar faz cada um sumir
+          dos relatórios.
+        </p>
+        <div class="table-scroll mt-4 max-h-80" role="region" tabindex="0" aria-label="Estabelecimentos que sairiam">
+          <table class="table batches-table">
+            <thead><tr><th scope="col">EC</th><th scope="col">CNPJ</th><th scope="col">MIC</th></tr></thead>
+            <tbody>
+              <% @review.leaving.each do |ec, row| %>
+                <tr><td><%= ec %></td><td><%= formatted_cnpj(row[:cnpj]) %></td><td><%= row[:sub_channel] %></td></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="metric-hint mt-2">Nenhum. O arquivo cobre todos os ECs que a carteira já tinha.</p>
+      <% end %>
+    </section>
+
+    <section class="surface-card p-6">
+      <p class="section-label">Entra na carteira</p>
+      <h2 class="mt-1 text-xl font-bold tracking-tight">
+        <%= pluralize(@review.entering.size, "estabelecimento", "estabelecimentos") %>
+      </h2>
+      <% if @review.entering.any? %>
+        <div class="table-scroll mt-4 max-h-80" role="region" tabindex="0" aria-label="Estabelecimentos que entram">
+          <table class="table batches-table">
+            <thead><tr><th scope="col">EC</th><th scope="col">CNPJ</th><th scope="col">MIC</th></tr></thead>
+            <tbody>
+              <% @review.entering.each do |ec, row| %>
+                <tr><td><%= ec %></td><td><%= formatted_cnpj(row[:cnpj]) %></td><td><%= row[:sub_channel] %></td></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="metric-hint mt-2">Nenhum EC novo.</p>
+      <% end %>
+    </section>
+  </div>
+
+  <div class="grid gap-5 lg:grid-cols-2">
+    <section class="surface-card p-6">
+      <p class="section-label">Muda de MIC</p>
+      <h2 class="mt-1 text-xl font-bold tracking-tight"><%= @review.moving.size %></h2>
+      <% if @review.moving.any? %>
+        <p class="metric-hint mt-2">
+          O EC continua na carteira, mas passa a pertencer a outro MIC — muda quem o vê e
+          quem recebe por ele.
+        </p>
+        <div class="table-scroll mt-4 max-h-64" role="region" tabindex="0" aria-label="Estabelecimentos que mudam de MIC">
+          <table class="table batches-table">
+            <thead><tr><th scope="col">EC</th><th scope="col">De</th><th scope="col">Para</th></tr></thead>
+            <tbody>
+              <% @review.moving.each do |ec, row| %>
+                <tr><td><%= ec %></td><td><%= row[:from] %></td><td><%= row[:to] %></td></tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <p class="metric-hint mt-2">Nenhum.</p>
+      <% end %>
+    </section>
+
+    <section class="surface-card p-6">
+      <p class="section-label">Números</p>
+      <table class="table mt-3 w-auto">
+        <tbody>
+          <tr><th scope="row">ECs no arquivo</th><td class="font-mono"><%= @review.incoming_count %></td></tr>
+          <tr><th scope="row">ECs na carteira hoje</th><td class="font-mono"><%= @review.first_of_channel? ? "—" : @review.current_count %></td></tr>
+          <tr><th scope="row">Faturamento do arquivo</th><td class="font-mono"><%= brl(@review.incoming_revenue) %></td></tr>
+          <tr><th scope="row">Faturamento vigente</th>
+            <td class="font-mono"><%= @review.current_revenue ? brl(@review.current_revenue) : "—" %></td></tr>
+          <% if @review.revenue_change %>
+            <tr><th scope="row">Variação</th>
+              <td class="font-mono" data-tone="<%= @review.revenue_change.negative? ? 'rose' : 'green' %>">
+                <%= number_to_percentage(@review.revenue_change, precision: 1) %>
+              </td></tr>
+          <% end %>
+        </tbody>
+      </table>
+
+      <% if @review.split_cnpjs.any? %>
+        <p class="metric-hint mt-4">
+          <strong><%= @review.split_cnpjs.size %></strong> CNPJ com ECs em mais de um MIC
+          dentro deste arquivo: <%= @review.split_cnpjs.keys.first(5).map { |c| formatted_cnpj(c) }.to_sentence %><%= "…" if @review.split_cnpjs.size > 5 %>
+        </p>
+      <% end %>
+    </section>
+  </div>
+
+  <section class="surface-card p-6">
+    <p class="section-label">Decisão</p>
+    <p class="metric-hint mt-2">
+      Aprovar consolida o arquivo e ele passa a valer. Recusar guarda o motivo e o arquivo
+      fica no histórico, sem valer — nenhuma das duas apaga o que já está no portal hoje.
+    </p>
+
+    <%= form_with url: approve_import_batch_path(@import_batch), class: "mt-4 grid gap-3" do |form| %>
+      <label class="form-control">
+        <span class="section-label">Observação (opcional na aprovação, obrigatória na recusa)</span>
+        <%= form.text_area :review_note, rows: 2, class: "textarea textarea-bordered w-full" %>
+      </label>
+      <%# Dois destinos, um formulário: o formaction leva a observação digitada junto na
+          recusa, o que um botão separado não faria. %>
+      <div class="action-group">
+        <%= form.submit "Aprovar e consolidar", class: "btn btn-primary",
+          data: { turbo_confirm: "Aprovar este arquivo? Ele passa a ser a foto oficial do Master." } %>
+        <%= form.submit "Recusar", class: "btn btn-danger",
+          formaction: reject_import_batch_path(@import_batch),
+          data: { turbo_confirm: "Recusar este arquivo? Diga o motivo no campo acima." } %>
+      </div>
+    <% end %>
+  </section>
+</div>

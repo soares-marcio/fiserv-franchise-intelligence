@@ -12,8 +12,10 @@
 class PreapprovedOffers
   FIELDS = %w[preapproved_volume preapproved_term preapproved_rate preapproved_installment].freeze
 
-  def initialize(channel_id: nil, sub_channel_id: nil)
-    @channel_id = channel_id
+  include ScopedQuery
+
+  def initialize(scope:, sub_channel_id: nil)
+    @scope = scope
     @sub_channel_id = sub_channel_id
   end
 
@@ -26,7 +28,7 @@ class PreapprovedOffers
   # escolhido em conta — senão, escolher um faria os outros sumirem da própria lista.
   def sub_channel_options
     @sub_channel_options ||= ApplicationRecord.connection.exec_query(
-      sub_channels_sql, "PreapprovedOffers::SubChannels", [ channel_bind ]
+      sub_channels_sql, "PreapprovedOffers::SubChannels", []
     ).to_a
   end
 
@@ -46,17 +48,13 @@ class PreapprovedOffers
 
   private
 
+  # Um bind só: o recorte de canal saiu daqui e virou predicado, porque lista de ids não
+  # cabe em bind posicional. O MIC do filtro da tela continua sendo parâmetro.
   def binds
     [
-      channel_bind,
       ActiveRecord::Relation::QueryAttribute.new("sub_channel_id", @sub_channel_id,
         ActiveRecord::Type::Integer.new)
     ]
-  end
-
-  def channel_bind
-    ActiveRecord::Relation::QueryAttribute.new("channel_id", @channel_id,
-      ActiveRecord::Type::Integer.new)
   end
 
   # O lote é o mais recente validado que trouxe Mapa — não o mais recente qualquer: um lote
@@ -81,7 +79,7 @@ class PreapprovedOffers
       JOIN latest_map_batches latest ON latest.import_batch_id = snapshot.import_batch_id
       JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       WHERE snapshot.preapproved_volume IS NOT NULL
-        AND ($1::bigint IS NULL OR snapshot.channel_id = $1)
+        AND #{literal_predicate(sub_channel_predicate("snapshot"))}
       ORDER BY sub_channel.name
     SQL
   end
@@ -110,9 +108,9 @@ class PreapprovedOffers
       -- célula do estabelecimento. O JOIN também deixa de fora o EC sem subcanal no snapshot.
       JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       -- Ver o comentário igual em EstablishmentListingQuery: a anotação se liga pelo CNPJ.
-      LEFT JOIN company_notes note ON note.cnpj = company.cnpj
+      LEFT JOIN company_notes note ON note.cnpj = company.cnpj AND #{organization_predicate('note')}
       WHERE snapshot.preapproved_volume IS NOT NULL
-        AND ($1::bigint IS NULL OR snapshot.channel_id = $1)
+        AND #{literal_predicate(sub_channel_predicate("snapshot"))}
       -- Agrupar também pelas colunas da companhia e da anotação não quebra a linha por CNPJ:
       -- cnpj tem índice único nas duas tabelas, então cada grupo já vinha de uma linha só.
       -- O que muda é poder selecionar as colunas delas.
@@ -120,7 +118,7 @@ class PreapprovedOffers
       -- O MIC escolhido filtra no HAVING, nunca no WHERE: no WHERE, o cliente com ECs em
       -- mais de um MIC apareceria com a contagem de ECs e a checagem de divergência
       -- recortadas pelo filtro. A linha é o cliente inteiro, ou não é o cliente.
-      HAVING $2::bigint IS NULL OR bool_or(sub_channel.id = $2)
+      HAVING $1::bigint IS NULL OR bool_or(sub_channel.id = $1)
       ORDER BY MAX(snapshot.preapproved_volume) DESC, company.cnpj
     SQL
   end

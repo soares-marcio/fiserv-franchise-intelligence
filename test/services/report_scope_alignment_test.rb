@@ -9,7 +9,7 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     seed_channel("B", template, cutoff: 27, amounts: { 24 => 100, 27 => 50 }, previous: { 24 => 80, 31 => 40 })
     AuditViews.refresh!
 
-    scope = ReportScope.new
+    scope = ReportScope.new(scope: organization_scope)
     totals = scope.totals
     rows = scope.revenue_by_sub_channel
     channel_b = Channel.find_by!(external_id: "B")
@@ -25,7 +25,7 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
     assert_equal 50, DailyRevenueConsolidated.where(channel: channel_b, day: 27).sum(:amount)
 
     channel_a = Channel.find_by!(external_id: "A")
-    filtered_scope = ReportScope.new(channel_id: channel_a.id)
+    filtered_scope = ReportScope.new(scope: channel_scope(channel_a.id))
     assert_equal [ "MIC A" ], filtered_scope.revenue_by_sub_channel.pluck("sub_channel_name")
     assert_equal 100, filtered_scope.totals[:current_revenue]
     assert_equal 80, filtered_scope.totals[:previous_revenue]
@@ -36,17 +36,17 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
   # topo e pela listagem. Se as três não fecharem no mesmo número, a tela mostra um total que
   # nenhuma linha explica.
   test "total do topo, view por subcanal e soma das linhas da listagem fecham no mesmo número" do
-    lojas = BinWorkbook.default_lojas
-    import_synthetic_workbook(lojas:)
+    stores = BinWorkbook.default_stores
+    import_synthetic_workbook(stores:)
     AuditViews.refresh!
-    scope = ReportScope.new
+    scope = ReportScope.new(scope: organization_scope)
     totals = scope.totals
 
     rows = SubChannel.pluck(:id).flat_map do |sub_channel_id|
       scope.revenue_by_establishment(sub_channel_id:).rows
     end
 
-    assert_equal soma(lojas, :dias_m1), totals[:previous_full_revenue]
+    assert_equal sum_total(stores, :previous_days), totals[:previous_full_revenue]
     assert_equal totals[:previous_full_revenue], rows.sum { |row| row["previous_full_revenue"].to_d }
     assert_equal totals[:previous_revenue], rows.sum { |row| row["previous_revenue"].to_d }
     assert_equal totals[:current_revenue], rows.sum { |row| row["current_revenue"].to_d }
@@ -59,43 +59,43 @@ class ReportScopeAlignmentTest < ActiveSupport::TestCase
   # na chave. Um lote novo, um reprocessamento e um ajuste de corte devem, cada um,
   # derrubar o cache; entre eles, nenhuma requisição volta às tabelas consolidadas.
   test "dashboard fica em cache até a próxima consolidação ou ajuste de corte" do
-    lojas = BinWorkbook.default_lojas
-    batch = import_synthetic_workbook(lojas:)
+    stores = BinWorkbook.default_stores
+    batch = import_synthetic_workbook(stores:)
     AuditViews.refresh!
     original_store = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
 
-    rows = ReportScope.new.revenue_by_sub_channel
-    totals = ReportScope.new.totals
+    rows = ReportScope.new(scope: organization_scope).revenue_by_sub_channel
+    totals = ReportScope.new(scope: organization_scope).totals
     assert_no_queries_match(/daily_revenues_consolidated/) do
-      assert_equal rows, ReportScope.new.revenue_by_sub_channel
-      assert_equal totals, ReportScope.new.totals
+      assert_equal rows, ReportScope.new(scope: organization_scope).revenue_by_sub_channel
+      assert_equal totals, ReportScope.new(scope: organization_scope).totals
     end
 
     Operations::ReprocessBatch.call(batch)
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new.revenue_by_sub_channel }
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new.totals }
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: organization_scope).revenue_by_sub_channel }
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: organization_scope).totals }
 
     Operations::AdjustCutoff.call(batch:, max_known_day: 3)
-    assert_equal 3, ReportScope.new.revenue_by_sub_channel.first["max_known_day"].to_i
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new.totals }
+    assert_equal 3, ReportScope.new(scope: organization_scope).revenue_by_sub_channel.first["max_known_day"].to_i
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: organization_scope).totals }
 
-    lojas.first.dias_atual = lojas.first.dias_atual.merge(1 => 999)
-    import_synthetic_workbook(lojas:, filename: "BIN_TESTE_20260818.xlsx")
-    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new.revenue_by_sub_channel }
-    assert_equal soma(lojas, :dias_atual), ReportScope.new.totals[:current_revenue]
+    stores.first.current_days = stores.first.current_days.merge(1 => 999)
+    import_synthetic_workbook(stores:, filename: "BIN_TESTE_20260818.xlsx")
+    assert_queries_match(/daily_revenues_consolidated/) { ReportScope.new(scope: organization_scope).revenue_by_sub_channel }
+    assert_equal sum_total(stores, :current_days), ReportScope.new(scope: organization_scope).totals[:current_revenue]
   ensure
     Rails.cache = original_store
   end
 
   private
 
-  def soma(lojas, campo)
-    lojas.sum { |loja| loja.public_send(campo).values.sum }.to_d
+  def sum_total(stores, field)
+    stores.sum { |store| store.public_send(field).values.sum }.to_d
   end
 
   def seed_channel(external_id, template, cutoff:, amounts:, previous: {})
-    channel = Channel.create!(external_id:, name: "CANAL #{external_id}")
+    channel = Channel.create!(organization: default_organization, external_id:, name: "CANAL #{external_id}")
     company = Company.create!(cnpj: external_id == "A" ? "12345678000191" : "12345678000192")
     establishment = Establishment.create!(
       ec: external_id == "A" ? "11111111" : "22222222",

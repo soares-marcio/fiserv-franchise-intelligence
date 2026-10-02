@@ -5,12 +5,14 @@ class EstablishmentsController < ApplicationController
   # A busca ao vivo e a paginação pedem só o frame da listagem; acessada direto, a página
   # ganha a casca.
   layout -> { turbo_frame_request? ? false : "application" }
+  before_action -> { authorize :establishment, :index? }
 
   # Uma linha por CNPJ: o cliente é a empresa; os ECs são o grão técnico e aparecem
   # agrupados. A busca continua por qualquer campo de qualquer EC da empresa.
   def index
     @query = params[:q].to_s.strip
-    matching = @query.present? ? Establishment.search(@query) : Establishment.all
+    in_scope_establishments = Establishment.in_scope(Current.access_scope)
+    matching = @query.present? ? in_scope_establishments.merge(Establishment.search(@query)) : in_scope_establishments
     companies = Company.joins(:establishments).where(establishments: { id: matching.select(:id) })
     @total_count = companies.distinct.count(:id)
     @total_establishments = matching.except(:includes).distinct.count(:id)
@@ -18,16 +20,19 @@ class EstablishmentsController < ApplicationController
     page_companies = companies.group("companies.id")
       .select("companies.*, MIN(establishments.ec) AS first_ec").order("first_ec")
       .offset((@page - 1) * @per_page).limit(@per_page)
+    # Só os ECs do escopo, também aqui: um CNPJ pode ter ECs em outro Master — ou em outra
+    # organização —, e a listagem não pode mostrar de quem são.
     @establishments_by_company = Establishment.where(company_id: page_companies.map(&:id))
+      .merge(Establishment.in_scope(Current.access_scope))
       .includes(:company, :channel, :primary_establishment, current_map_snapshot: :sub_channel)
       .order(:ec).group_by(&:company)
     @companies = page_companies.map { |company| @establishments_by_company.keys.find { |c| c.id == company.id } }
     # Uma consulta para a página inteira, pelo CNPJ: a anotação não tem FK para companies.
-    @notes_by_cnpj = CompanyNote.where(cnpj: @companies.map(&:cnpj)).index_by(&:cnpj)
+    @notes_by_cnpj = policy_scope(CompanyNote).where(cnpj: @companies.map(&:cnpj)).index_by(&:cnpj)
     respond_to do |format|
       format.html
-      format.csv { send_data exporter(companies).to_csv, **arquivo("csv") }
-      format.xlsx { send_data exporter(companies).to_xlsx, **arquivo("xlsx") }
+      format.csv { send_data exporter(companies).to_csv, **download_headers("csv") }
+      format.xlsx { send_data exporter(companies).to_xlsx, **download_headers("xlsx") }
     end
   end
 
@@ -35,25 +40,34 @@ class EstablishmentsController < ApplicationController
   # Smart POS, link de pagamento. Medido na carteira: 173 dos 187 CNPJs com mais de um EC têm
   # equipamento diferente entre eles, então o equipamento é do EC e o cadastro é do cliente.
   def show
-    @company = Company.find_by(uuid: params[:id])
+    @company = companies_in_scope.find_by(uuid: params[:id])
     return redirect_to_company_of_establishment if @company.nil?
 
-    @establishments = @company.establishments
+    # Só os ECs do escopo: um CNPJ pode ter ECs em mais de um Master, e a ficha não pode
+    # misturar o que é de um com o que é de outro.
+    @establishments = @company.establishments.in_scope(Current.access_scope)
       .includes(current_map_snapshot: :sub_channel).order(:ec)
     # A fonte dos campos do cliente é o EC de menor número, a mesma regra efetiva da listagem:
     # ficha e listagem precisam mostrar o mesmo nome e o mesmo endereço para o mesmo cliente.
     @snapshot = @establishments.first&.current_map_snapshot
     @diverging = diverging_client_fields(@establishments)
     # A anotação se liga pelo CNPJ, não por FK — ver o porquê no CLAUDE.md.
-    @note = CompanyNote.with_rich_text_body.find_by(cnpj: @company.cnpj)
+    @note = policy_scope(CompanyNote).with_rich_text_body.find_by(cnpj: @company.cnpj)
   end
 
   private
 
+  # Empresas alcançáveis: as que têm ao menos um EC no escopo do ator.
+  def companies_in_scope
+    Company.where(id: Establishment.in_scope(Current.access_scope).select(:company_id))
+  end
+
   # Link salvo aponta para o uuid do EC: em vez de 404, leva à ficha do cliente, ancorada no
   # bloco daquele EC.
+  # EC fora do escopo responde 404 em vez de redirecionar: o redirecionamento confirmaria
+  # que aquele EC existe, e para qual cliente ele aponta.
   def redirect_to_company_of_establishment
-    establishment = Establishment.find_param!(params[:id])
+    establishment = Establishment.in_scope(Current.access_scope).find_param!(params[:id])
     redirect_to establishment_path(establishment.company, anchor: "ec-#{establishment.ec}")
   end
 
@@ -73,21 +87,21 @@ class EstablishmentsController < ApplicationController
   # O arquivo é do filtro, não da página: a exportação refaz a consulta sem o recorte de
   # paginação. Exportar só a página entregaria um recorte que ninguém pediu.
   def exporter(companies)
-    todas = companies.group("companies.id").select("companies.*, MIN(establishments.ec) AS first_ec")
+    all_companies = companies.group("companies.id").select("companies.*, MIN(establishments.ec) AS first_ec")
       .order("first_ec").to_a
-    por_empresa = Establishment.where(company_id: todas.map(&:id))
+    by_company = Establishment.where(company_id: all_companies.map(&:id))
       .includes(:company, :channel, :primary_establishment, current_map_snapshot: :sub_channel)
       .order(:ec).group_by(&:company)
     # group_by devolve as instâncias carregadas aqui; a lista ordenada vem da outra consulta,
     # então as chaves precisam ser as mesmas instâncias para o fetch do exportador achá-las.
-    ordenadas = todas.map { |company| por_empresa.keys.find { |c| c.id == company.id } }.compact
-    EstablishmentsExporter.new(ordenadas, establishments_by_company: por_empresa, query: @query)
+    ordered = all_companies.map { |company| by_company.keys.find { |c| c.id == company.id } }.compact
+    EstablishmentsExporter.new(ordered, establishments_by_company: by_company, query: @query)
   end
 
-  def arquivo(extensao)
-    tipo = extensao == "csv" ? "text/csv" : Mime[:xlsx]
-    nome = @query.present? ? "estabelecimentos-#{@query.parameterize}" : "estabelecimentos"
-    { filename: "#{nome}.#{extensao}", type: tipo }
+  def download_headers(extension)
+    content_type = extension == "csv" ? "text/csv" : Mime[:xlsx]
+    basename = @query.present? ? "estabelecimentos-#{@query.parameterize}" : "estabelecimentos"
+    { filename: "#{basename}.#{extension}", type: content_type }
   end
 
   def paginate(total_count)

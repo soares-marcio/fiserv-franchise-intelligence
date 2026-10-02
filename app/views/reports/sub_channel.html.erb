@@ -1,6 +1,11 @@
 <% content_for :title, @sub_channel.name %>
+<%# A cópia em cache dessa tela, mostrada antes da resposta, aparecia no topo e depois
+    descia. Sem preview, a aba só troca quando a listagem nova chega. %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-preview">
+<% end %>
 
-<% caminho_da_ordem = ->(ordem) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(**ordem)) } %>
+<% order_path = ->(order) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(**order)) } %>
 
 <div class="grid grid-cols-1 gap-5">
   <section class="page-hero">
@@ -31,6 +36,9 @@
           class: "btn btn-neutral export-action" %>
         <%= link_to "Voltar à listagem", reports_path(channel_id: @selected_channel&.uuid),
           class: "btn btn-outline" %>
+        <% if policy(@sub_channel).destroy? %>
+          <%= link_to "Apagar MIC", new_sub_channel_deletion_path(@sub_channel), class: "btn btn-danger" %>
+        <% end %>
       </div>
     </div>
 
@@ -80,9 +88,9 @@
           <p class="metric-label">Ticket médio</p>
           <p class="metric-value"><%= @listing.average_ticket ? brl_metric(@listing.average_ticket) : "—" %></p>
           <p class="metric-hint">
-            <% ativos = @listing.status_counts["Active"].to_i %>
-            <% if ativos.positive? %>
-              Mês anterior cheio ÷ <%= pluralize(ativos, "CNPJ ativo", "CNPJs ativos") %>
+            <% active_count = @listing.status_counts["Active"].to_i %>
+            <% if active_count.positive? %>
+              Mês anterior cheio ÷ <%= pluralize(active_count, "CNPJ ativo", "CNPJs ativos") %>
             <% else %>
               Nenhum CNPJ ativo no recorte
             <% end %>
@@ -228,11 +236,11 @@
                 espaçadas elas mentiriam, porque R$ 30.000 fica a 73% do trilho e não a 25%. %>
             <div class="revenue-range__marks" aria-hidden="true">
               <% [ 0, EstablishmentListingQuery::LOW_REVENUE_REFERENCE,
-                   EstablishmentListingQuery::LOW_REVENUE_THRESHOLD ].each do |parada| %>
-                <% posicao = EstablishmentListingQuery.revenue_stop_index(parada) * 100.0 /
+                   EstablishmentListingQuery::LOW_REVENUE_THRESHOLD ].each do |stop| %>
+                <% position = EstablishmentListingQuery.revenue_stop_index(stop) * 100.0 /
                   (EstablishmentListingQuery::REVENUE_STOPS.size - 1) %>
-                <span style="left: <%= number_with_precision(posicao, precision: 2) %>%">
-                  <%= brl_round(parada) %>
+                <span style="left: <%= number_with_precision(position, precision: 2) %>%">
+                  <%= brl_round(stop) %>
                 </span>
               <% end %>
             </div>
@@ -284,7 +292,8 @@
   <div class="variation-tabs-wrap">
   <%# Links de navegação, não um tablist: cada aba troca a página inteira, e a atual se
       anuncia com aria-current. %>
-  <nav class="variation-tabs" aria-label="Filtro por variação">
+  <nav class="variation-tabs" aria-label="Filtro por variação"
+    data-controller="preserve-scroll" data-action="click->preserve-scroll#navigate">
     <%= link_to sub_channel_report_path(@sub_channel, sub_channel_listing_params(variation: nil, page: nil)),
       class: ("is-active" if @selected_variation.nil?),
       aria: { current: ("page" if @selected_variation.nil?) } do %>
@@ -323,25 +332,25 @@
           A faixa é a mesma que o filtro aplica, piso inclusive (decisão do usuário,
           15/09/2026): antes o bloco só sabia contar até o teto, e com um piso escolhido ele
           anunciaria um número maior que o da tabela ao lado. %>
-      <% baixos = @listing.low_revenue_counts %>
-      <% if @total_count.to_i.positive? && baixos.present? %>
+      <% low_counts = @listing.low_revenue_counts %>
+      <% if @total_count.to_i.positive? && low_counts.present? %>
         <%# O teto vem da consulta, e não recalculado aqui: as duas pontas já divergiram uma
             vez — o bloco anunciava uma faixa diferente da que as contagens usavam. %>
-        <% corte = brl_round(baixos[:ceiling]) %>
+        <% ceiling_value = brl_round(low_counts[:ceiling]) %>
         <%# O piso formatado como o teto: "R$ 0" cru ao lado de "R$ 30.000,00" formatado usa
             espaços diferentes e desalinha a leitura. %>
-        <% piso = brl_round(baixos[:floor]) %>
+        <% piso = brl_round(low_counts[:floor]) %>
         <div class="low-revenue" data-tone="gold">
-          <p class="section-label">Entre <%= piso %> e <%= corte %></p>
+          <p class="section-label">Entre <%= piso %> e <%= ceiling_value %></p>
           <div class="low-revenue__numbers">
             <span class="tooltip tooltip-bottom" tabindex="0"
-              data-tip="Clientes cujo faturamento do mês anterior cheio ficou entre <%= piso %> e <%= corte %>, incluindo o próprio valor nas duas pontas.">
-              <strong><%= baixos[:previous_full].to_i %></strong>
+              data-tip="Clientes cujo faturamento do mês anterior cheio ficou entre <%= piso %> e <%= ceiling_value %>, incluindo o próprio valor nas duas pontas.">
+              <strong><%= low_counts[:previous_full].to_i %></strong>
               <span class="low-revenue__label">mês anterior cheio</span>
             </span>
             <span class="tooltip tooltip-bottom" tabindex="0"
               data-tip="Mesma conta no mês atual, que é parcial: vale o que já entrou até o dia <%= @to_day %> de cobertura, então este número muda conforme o mês avança.">
-              <strong><%= baixos[:current].to_i %></strong>
+              <strong><%= low_counts[:current].to_i %></strong>
               <span class="low-revenue__label">mês atual</span>
             </span>
           </div>
@@ -369,7 +378,7 @@
               <span class="table-toolbar__breakdown-unit">por CNPJ</span>
             </span>
           <% end %>
-          <%= render "shared/sort_status", sort: @order, path: caminho_da_ordem %>
+          <%= render "shared/sort_status", sort: @order, path: order_path %>
           <div class="per-page">
             <span class="section-label">Por página</span>
             <div class="join">
@@ -401,7 +410,7 @@
 
             <% EstablishmentListingQuery::SORT_COLUMNS.each do |column, label| %>
               <%= render "shared/sortable_header", sort: @order, column:, label:,
-                path: caminho_da_ordem,
+                path: order_path,
                 hint: (column == "previous_full_revenue" ? "competência fechada" : (day_range_label(@from_day, @to_day) if @window)) %>
             <% end %>
             <th scope="col" class="text-right variation-col">Variação</th>
@@ -480,41 +489,41 @@
                 <%# Novo de verdade = ativado (ou credenciado, na falta) neste mês ou no
                     anterior; antigo que saiu do zero vira "Voltou a vender". %>
                 <% reference_date = report["activated_on"] || report["accredited_on"] %>
-                <% novo = if previous.zero? && current.positive?
+                <% newcomer = if previous.zero? && current.positive?
                      reference_date.present? && reference_date.to_date >= report["previous_period"].to_date
                    end %>
-                <%= variation_chip(previous, current, novo:) %>
+                <%= variation_chip(previous, current, newcomer:) %>
               </td>
               <%# As duas ações ocupam um único menu: preserva as funções e libera uma coluna
                   inteira. A conversa indisponível continua explícita, sem parecer uma ação
                   que falhou ao abrir. %>
               <td class="actions-col">
-                <% conversas = client_conversations(report["best_conversations"]) %>
-                <% nome = report["trade_name"].presence || report["legal_name"] %>
+                <% conversations = client_conversations(report["best_conversations"]) %>
+                <% client_name = report["trade_name"].presence || report["legal_name"] %>
                 <%# O painel do menu é posicionado por JavaScript quando abre: a tabela
                     rola na horizontal e, por isso, recorta na vertical. Ver o controller. %>
                 <details class="actions-menu" data-controller="actions-menu"
                   data-action="toggle->actions-menu#toggle">
                   <summary class="btn btn-sm btn-square actions-menu__trigger"
-                    aria-label="Ações para <%= nome %>">
+                    aria-label="Ações para <%= client_name %>">
                     <%= icon("caret-down", css: "btn-icon") %>
                   </summary>
                   <div class="actions-menu__list" data-actions-menu-target="list">
                     <%# Vão todas as conversas dos ECs do cliente, rotuladas pelo EC dentro
                         do modal: 116 dos 302 clientes têm mais de um texto diferente, e
                         escolher um esconderia a pendência do outro ponto de venda. %>
-                    <%= button_tag type: "button", disabled: conversas.empty?,
+                    <%= button_tag type: "button", disabled: conversations.empty?,
                           class: "btn btn-sm actions-menu__item conversation-trigger",
-                          title: conversas.any? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
-                          aria: { label: conversas.any? ? "Melhor conversa de #{nome}" : "#{nome} não tem melhor conversa" },
-                          data: (conversas.any? ? { action: "conversation-modal#open",
-                            conversation_modal_items_param: conversas.to_json,
-                            conversation_modal_name_param: nome } : {}) do %>
+                          title: conversations.any? ? "Ver a melhor conversa" : "Sem melhor conversa no Mapa",
+                          aria: { label: conversations.any? ? "Melhor conversa de #{client_name}" : "#{client_name} não tem melhor conversa" },
+                          data: (conversations.any? ? { action: "conversation-modal#open",
+                            conversation_modal_items_param: conversations.to_json,
+                            conversation_modal_name_param: client_name } : {}) do %>
                       <%= icon_label("list-bullets", "Melhor conversa", css: "btn-icon") %>
                     <% end %>
                     <%# A anotação é do CNPJ: cliente com vários ECs abre a mesma nota. %>
                     <%= render "shared/company_note_cell",
-                      company_uuid: report["company_uuid"], name: nome,
+                      company_uuid: report["company_uuid"], name: client_name,
                       note_id: report["note_id"], note_updated_at: report["note_updated_at"],
                       note_params: sub_channel_listing_params(
                         origin: "sub_channel", sub_channel_id: @sub_channel.uuid
@@ -538,7 +547,7 @@
       </div>
     <% elsif @total_pages > 1 %>
       <%= render "shared/pagination", page: @page, total_pages: @total_pages,
-        path: ->(numero) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: numero)) } %>
+        path: ->(page_number) { sub_channel_report_path(@sub_channel, sub_channel_listing_params(page: page_number)) } %>
     <% end %>
 
     <%# Lançamentos diários do cliente clicado, somando os ECs dele. O frame nasce vazio e

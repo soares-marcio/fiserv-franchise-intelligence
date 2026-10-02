@@ -138,12 +138,12 @@ class SubChannelCompensationRules
     # TRUE ou FALSE, e qualquer outra coisa (inclusive vazio) fica NULL — indefinido, que a
     # tela mostra como intervalo em vez de eleger uma coluna em silêncio.
     def auto_flex_case_sql(expr)
-      com = AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
-      sem = WITHOUT_AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
+      with_auto_list = AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
+      without_auto_list = WITHOUT_AUTO_FLEX_VALUES.map { |value| "'#{value}'" }.join(", ")
       <<~SQL.strip
         CASE
-          WHEN BTRIM(#{expr}) IN (#{com}) THEN TRUE
-          WHEN BTRIM(#{expr}) IN (#{sem}) THEN FALSE
+          WHEN BTRIM(#{expr}) IN (#{with_auto_list}) THEN TRUE
+          WHEN BTRIM(#{expr}) IN (#{without_auto_list}) THEN FALSE
         END
       SQL
     end

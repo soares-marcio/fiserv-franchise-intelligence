@@ -86,7 +86,7 @@ class AuditViews
     SQL
   end
 
-  def self.revenue_by_sub_channel_sql(cutoff:, channel_predicate: "TRUE")
+  def self.revenue_by_sub_channel_sql(cutoff:, channel_predicate: "TRUE", snapshot_predicate: "TRUE")
     <<~SQL
       WITH open_cover AS (
         SELECT channel_id, period AS current_period, max_known_day,
@@ -110,6 +110,7 @@ class AuditViews
         ON revenue.channel_id = snapshot.channel_id
         AND revenue.establishment_id = snapshot.establishment_id
         AND revenue.period IN (cover.previous_period, cover.current_period)
+      WHERE #{snapshot_predicate}
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name,
         cover.previous_period, cover.current_period, cover.max_known_day
     SQL

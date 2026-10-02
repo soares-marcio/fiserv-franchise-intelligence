@@ -1,0 +1,10 @@
+<% content_for :title, "Editar acesso" %>
+<section class="page-hero">
+  <p class="eyebrow">Administração</p>
+  <h1 class="page-title"><%= @user.name %></h1>
+  <p class="page-description">
+    Mudar permissão ou escopo encerra as sessões abertas desta pessoa — quem perdeu acesso
+    não continua dentro até a sessão expirar.
+  </p>
+</section>
+<div class="mt-5"><%= render "form" %></div>

@@ -10,21 +10,36 @@
 
     <nav class="primary-nav" id="primary_nav" aria-label="Navegação principal"
       data-app-layout-target="primaryNav">
+      <%# O menu mostra só o que o ator pode abrir: link para tela que responde 403 é
+          convite para um erro, e revela o que existe a quem não deveria saber. %>
+      <% if policy(:report).index? %>
       <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[index sub_channel] }) %>
       <%= link_to icon_label("storefront", "Clover Capital", css: "nav-icon"), stalled_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[stalled] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[stalled] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[stalled] }) %>
       <%= link_to icon_label("calendar-blank", "Semanal", css: "nav-icon"), weekly_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[weekly] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[weekly] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[weekly] }) %>
       <%= link_to icon_label("calendar-check", "Ganhos 3M", css: "nav-icon"), three_months_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
       <%= link_to icon_label("chart-bar", "Recorrente", css: "nav-icon"), recurring_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[recurring] }) %>
+        class: nav_link_class({ controller: :reports, actions: %w[recurring] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[recurring] }) %>
       <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
-        class: nav_link_class({ controller: :reports, actions: %w[indicators] }) %>
-      <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
-        class: nav_link_class({ controller: :establishments }) %>
-      <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }) do %>
+        class: nav_link_class({ controller: :reports, actions: %w[indicators] }),
+        aria: nav_link_aria({ controller: :reports, actions: %w[indicators] }) %>
+      <% end %>
+      <% if policy(:establishment).index? %>
+        <%= link_to icon_label("storefront", "Estabelecimentos", css: "nav-icon"), establishments_path,
+          class: nav_link_class({ controller: :establishments }),
+          aria: nav_link_aria({ controller: :establishments }) %>
+      <% end %>
+      <% if policy(:import_batch).index? %>
+      <%= link_to import_batches_path, class: nav_link_class({ controller: :import_batches }),
+        aria: nav_link_aria({ controller: :import_batches }) do %>
         <%= icon("upload-simple", css: "nav-icon") %>
         Importar arquivo
         <%# Badge com dado real: a idade do último arquivo, do mesmo FileFreshness que o selo
@@ -35,8 +50,27 @@
           <%= last_file_headline(file_days) %>
         </span>
       <% end %>
-      <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
-        class: nav_link_class({ controller: :metabase }) %>
+      <% end %>
+      <% if policy(:organization).index? %>
+        <%= link_to icon_label("storefront", "Organizações", css: "nav-icon"), platform_organizations_path,
+          class: nav_link_class({ controller: :organizations }),
+          aria: nav_link_aria({ controller: :organizations }) %>
+      <% end %>
+      <% if policy(:user).index? %>
+        <%= link_to icon_label("storefront", "Acessos", css: "nav-icon"), users_path,
+          class: nav_link_class({ controller: :users }),
+          aria: nav_link_aria({ controller: :users }) %>
+      <% end %>
+      <% if policy(:audit_event).index? %>
+        <%= link_to icon_label("list-bullets", "Histórico", css: "nav-icon"), audit_events_path,
+          class: nav_link_class({ controller: :audit_events }),
+          aria: nav_link_aria({ controller: :audit_events }) %>
+      <% end %>
+      <% if policy(:metabase).show? %>
+        <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
+          class: nav_link_class({ controller: :metabase }),
+          aria: nav_link_aria({ controller: :metabase }) %>
+      <% end %>
     </nav>
 
     <div class="topbar-tools">
@@ -45,13 +79,33 @@
         <%= icon("list-bullets", css: "icon") %>
         <span class="sr-only">Abrir ou fechar o menu</span>
       </button>
-      <button class="search-content" type="button" data-action="click->app-layout#openSearch"
-        data-app-layout-target="searchTrigger" aria-haspopup="dialog">
-        <%= icon("magnifying-glass", css: "icon") %>
-        <span class="sr-only">Buscar EC, CNPJ, nome ou MIC</span>
-        <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
-      </button>
-      <%= render "layouts/file_status" %>
+      <%# A busca e o selo são sinais da carteira: a conta da plataforma não tem carteira, e
+          quem não pode buscar não ganha o atalho. %>
+      <% if policy(:search).index? %>
+        <button class="search-content" type="button" data-action="click->app-layout#openSearch"
+          data-app-layout-target="searchTrigger" aria-haspopup="dialog">
+          <%= icon("magnifying-glass", css: "icon") %>
+          <span class="sr-only">Buscar EC, CNPJ, nome ou MIC</span>
+          <span class="search-shortcut" data-app-layout-target="shortcut">Ctrl + /</span>
+        </button>
+      <% end %>
+      <% if Current.organization %>
+        <%= render "layouts/file_status" %>
+      <% end %>
+      <%# Quem está logado e a saída. Sem isto, a única forma de trocar de usuário seria
+          apagar cookie na mão — e ninguém sabe em nome de quem está agindo. %>
+      <% if Current.user %>
+        <div class="user-chip">
+          <span class="user-chip__name" title="<%= Current.user.email_address %>">
+            <%= Current.user.name %>
+            <% if Current.organization %>
+              <span class="block text-xs font-normal opacity-70"><%= organization_display_name(Current.organization) %></span>
+            <% end %>
+          </span>
+          <%= button_to "Sair", session_path, method: :delete,
+            class: "btn btn-ghost btn-sm", form: { class: "contents" } %>
+        </div>
+      <% end %>
     </div>
   </div>
 </header>

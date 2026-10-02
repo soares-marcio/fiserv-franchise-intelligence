@@ -177,6 +177,167 @@ O que isso implica, e vale ter em conta: existem **duas cópias dos dados reais*
 do Mac não tem porteiro nenhum — vale a mesma regra de sempre, rede confiável. O Mac
 desligado ou dormindo derruba o `fiserv.bin`, e só ele; a produção não depende do Mac.
 
+## Quem entra e o que cada um vê
+
+O portal exige login desde 09/2026. Antes disso ele não tinha autenticação nenhuma, e o
+porteiro era o Cloudflare Access, fora do repositório.
+
+### Organizações e papéis
+
+O portal hospeda **organizações**: cada Master, cada lote, cada anotação e cada conta comum
+pertencem a uma, e nenhuma enxerga a outra — nem a plataforma. São três papéis:
+
+| Papel | O que é | O que vê |
+| --- | --- | --- |
+| **Administrador da plataforma** | A conta que cria organizações e o administrador de cada uma, e presta suporte: reiniciar segundo fator, desativar e reativar contas, renomear a organização a pedido e **suspender** a organização inteira (ninguém dela entra até a reativação; nada é apagado). Desativar o **último administrador ativo** suspende a organização junto, porque o motivo (desinteresse, inadimplência) vale para todos abaixo dele; reativá-lo reabre. Ela também lê o histórico de cada organização, sem a coluna do Master: atividade, não carteira. Nasce do seed; não tem organização | **Nenhum dado**: só a tela macro (organizações → administradores → convidados, com situação e último acesso), a ficha de cada organização em contagens e datas (contas, Masters, arquivos, anotações, anexos) e a trilha de plataforma |
+| **Administrador da organização** | Criado pela plataforma. Dá o nome à organização no primeiro acesso, importa a carteira (o primeiro arquivo cria os Masters dela), convida e delega | Tudo dentro da organização, automaticamente — sem chave nem concessão marcada. Não cria outro administrador: isso é só da plataforma |
+| **Colaborador** | Convidado por um administrador ou por um delegado com `users_invite` | O que lhe foi concedido: Masters inteiros e/ou MICs, com as chaves marcadas |
+
+Duas consequências práticas: **e-mail é único no portal inteiro**, então a conta da
+plataforma e a conta que administra uma organização precisam de e-mails distintos; e um
+arquivo cujo `REPORT_ID` já pertence a outra organização — ou que traga um EC de outra — é
+recusado com mensagem neutra, sem revelar nome de Master nem de EC alheio. Master novo só o
+administrador da organização inaugura; colaborador precisa do Master inteiro para enviar,
+revisar ou receber a liberação de um arquivo.
+
+### Entrar
+
+Senha **e** segundo fator (TOTP: Google Authenticator, Authy, 1Password ou o gerenciador do
+celular). A senha certa ainda não é uma sessão — até o código ser respondido não existe
+linha em `sessions`, só um cookie cifrado de cinco minutos. Dez tentativas erradas bloqueiam
+a conta por quinze minutos, e o contador fica no banco, não em cache.
+
+No primeiro acesso a pessoa troca a senha e cadastra o autenticador, recebendo **dez códigos
+de recuperação** mostrados uma única vez. Perdeu o celular e os códigos? Quem administra
+reinicia o segundo fator, e ela cadastra de novo.
+
+### As duas dimensões do acesso
+
+Elas são independentes, e é assim que o convite funciona:
+
+| | |
+| --- | --- |
+| **O que enxerga** | Um ou mais **Masters inteiros** e/ou **MICs específicos** da própria organização. Sem nenhuma concessão, a pessoa entra e não vê carteira alguma |
+| **O que pode fazer** | As chaves de `Permission` marcadas no convite, listadas abaixo |
+
+O recorte vale em toda parte: relatórios, exportações, listagem de clientes, busca, ficha,
+anotação, lotes e download de arquivo. Dado de outro Master responde **404**, não 403 — dizer
+"existe, mas você não pode" já conta o que não precisa ser contado.
+
+Ressalva registrada: o vínculo EC↔MIC vem da planilha e muda a cada importação, então um
+recorte por MIC acompanha essa mudança. Quem precisa de recorte estável recebe o Master
+inteiro, que usa a chave fixa do estabelecimento.
+
+### Permissões
+
+| Chave | O que libera |
+| --- | --- |
+| `reports_read` | Todas as telas de relatório |
+| `reports_export` | Os botões CSV/XLSX — separado de ver, porque o arquivo larga a paginação e leva o recorte inteiro |
+| `establishments_read` | Lista de clientes, ficha e busca |
+| `notes_read` / `notes_write` | Ler / escrever a anotação do cliente e seus anexos |
+| `batches_read` | Ver lotes e **baixar a planilha enviada**, que é a carteira de um Master num arquivo |
+| `batches_upload` | Enviar planilha |
+| `batches_adjust` | Reprocessar lote e ajustar o dia de corte — só nos próprios envios |
+| `batches_discard` | Descartar lote — idem |
+| `batches_approve` | Decidir importação em revisão |
+| `metabase_read` | **Fechada**: a tela mostra a conexão de um papel que lê as views de todas as organizações; não aparece no convite até haver recorte por organização no Metabase |
+| `users_invite` | Convidar e administrar acessos, e ler o histórico |
+
+Cinco chaves só valem ao lado da base (`Permission::REQUIRES`), e o convite recusa a
+combinação incompleta em vez de deixar a pessoa descobrir entrando: `reports_export` pede
+`reports_read`; `notes_read` pede `reports_read` ou `establishments_read` (a anotação é
+lida numa tela de carteira); `notes_write` pede `notes_read`; `batches_adjust` e
+`batches_discard` pedem `batches_upload` (agem sobre o próprio envio). As demais abrem
+sozinhas a tela que prometem — `batches_upload` e `batches_approve` abrem a tela de
+importação, com a lista limitada ao que é de cada um — e o teste
+`test/controllers/permission_routes_test.rb` percorre chave a chave para garantir isso.
+
+### Convidar
+
+**Acessos → Convidar usuário.** O sistema gera a senha provisória e a deixa na listagem, ao
+lado da pessoa, para você entregar — não há e-mail configurado no portal. Ela fica visível só
+a quem pode editar aquele acesso e some no instante em que a pessoa a troca; no lugar entra
+"Entrou e trocou a senha". Convidar exige ter ao menos um Master ou MIC — quem não tem nada
+não tem o que conceder. Quem convida **só concede o que tem**:
+nem permissão que não possui, nem Master ou MIC fora do próprio escopo, e não edita quem tem
+mais que ele. Mudar permissão ou escopo, e desativar, derrubam as sessões abertas da pessoa
+na hora.
+
+### Importação com revisão
+
+O portal enxerga **um lote por Master** — o de maior id entre os validados. Um arquivo
+parcial, então, não acrescenta: ele vira a foto oficial, e o que não estiver nele some dos
+relatórios. Por isso o envio pode parar em **revisão**:
+
+- quem enviou não tem `batches_approve`;
+- o arquivo **removeria ECs** da carteira;
+- há ECs mudando de MIC;
+- o faturamento cai muito (comparado só entre arquivos da mesma competência e com cobertura
+  igual ou maior — do contrário a queda é aritmética, não suspeita).
+
+Em revisão o lote **não altera relatório nenhum**: os snapshots estão gravados, mas nenhuma
+tela lê lote que não esteja validado. A tela de revisão mostra o que entra, **o que sairia**,
+quem muda de MIC, CNPJ em mais de um MIC e os números comparados. Aprovar consolida; recusar
+guarda o motivo e o arquivo fica no histórico.
+
+**O arquivo é o Master inteiro, e o recorte por MIC não entra nele.** Por isso três coisas
+exigem o Master **inteiro** no escopo, e não um MIC dele: enviar planilha (ela substitui a
+carteira toda), revisar e aprovar (a tela mostra o diff do Master todo) e receber a
+liberação de um arquivo. A liberação é feita na **ficha do lote** ("Quem vê este arquivo")
+por quem administra acessos e alcança o lote; a lista só oferece quem tem aquele Master
+inteiro, e revogar tira o arquivo da listagem da pessoa na hora. Quem tem só um MIC e a
+chave de ver lotes vê exatamente os próprios envios.
+
+### Histórico
+
+**Histórico** (a trilha de auditoria, `audit_events`) registra entrada, saída, tentativa recusada, falha e uso de código de recuperação,
+troca de senha, cada exportação, envio, aprovação, recusa e descarte de lote, edição de
+anotação e toda mudança de acesso — convite, alteração de permissão ou escopo, reinício do
+segundo fator, desativação. Guarda a ação e o contexto, **nunca o conteúdo** — sem CNPJ, sem faturamento, sem o
+texto das anotações: uma trilha que repete o dado protegido vira um segundo vazamento.
+
+### Apagar Master ou MIC
+
+O administrador da organização apaga um Master pela tela de importação (link **Apagar** no
+painel de cobertura) e um MIC pela tela do MIC (**Apagar MIC**). A confirmação exige digitar o
+nome. Apagar é **marcar**, não remover: os dados ficam, a carteira some de toda tela para todos
+da organização, e só a **plataforma restaura**, pela ficha da organização, onde os apagados
+aparecem pelo REPORT_ID.
+
+- **Master apagado** marca junto os ECs e os lotes dele. Quem tinha acesso sai do portal e
+  entra de novo sem ele; a concessão fica guardada e volta com a restauração. Lote em
+  processamento ou em revisão impede a exclusão.
+- **Planilha do REPORT_ID apagado** cria um **Master novo**, do zero, e o apagado continua
+  apagado. Apagar o novo depois faz a plataforma listar os dois. Por isso EC, REPORT_ID, arquivo
+  (checksum) e nome de MIC são únicos **só entre os ativos** (índices parciais
+  `WHERE deleted_at IS NULL`).
+- **MIC apagado** sai das telas e dos totais do Master. Os ECs dele continuam no Master e
+  voltam a aparecer quando uma planilha nova os ligar a um MIC ativo; se a planilha trouxer um
+  MIC com o mesmo nome, ele nasce como MIC novo.
+- **Restaurar** é tudo ou nada e recusa quando uma planilha nova já ocupou o REPORT_ID, um EC,
+  o arquivo ou o nome do MIC.
+- As anotações não são marcadas: elas são do CNPJ e voltam a aparecer se o CNPJ estiver em
+  outro Master ou numa planilha nova.
+
+### Primeiro acesso de um banco novo
+
+`ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` fazem o seed criar o **administrador da
+plataforma** no primeiro `db:prepare`. Sem as duas, o seed não cria ninguém — e o portal sobe
+sem ninguém para entrar. Rodar de novo não duplica nem devolve a senha do arquivo para quem já
+escolheu a sua.
+
+A partir daí é pela tela: a plataforma entra, troca a senha, cadastra o autenticador e cria a
+primeira organização com o seu administrador (**Organizações → Criar organização**). Ele
+recebe a senha provisória, entra, troca, cadastra o segundo fator, **dá o nome à
+organização** e importa a carteira. Num banco que já tinha dados antes das organizações (o
+caso do berry), a migration criou uma organização sem nome com tudo o que existia; a
+plataforma lhe dá um administrador em **Organizações → (a organização) → Adicionar
+administrador**, e ele a nomeia no primeiro acesso.
+
+**As três chaves `AR_ENCRYPTION_*` cifram o segredo do segundo fator.** Perdê-las significa
+que todo mundo reinscreve o autenticador; guarde-as junto do `SECRET_KEY_BASE`.
+
 ### Acesso pela internet (Cloudflare Tunnel + Access)
 
 Desde **22/09/2026** o portal também atende em **https://manager.melopay.com.br**, para uso
@@ -440,6 +601,13 @@ Um detalhe que ajuda no caminho contrário: a anotação em si se liga ao **CNPJ
 `company_notes`, `action_text_rich_texts` e as tabelas do Active Storage que tudo religa
 sozinho — desde que o `SECRET_KEY_BASE` seja o mesmo, pelo motivo acima.
 
+**Com o login, a lista de tabelas que não se reconstroem cresceu**: `organizations`, `users`,
+`sessions`, `recovery_codes`, `access_grants`, `batch_grants` e `audit_events`. Restaurar sem
+elas significa reconvidar todo mundo, reinscrever o segundo fator de cada um e perder a
+trilha. As colunas de autoria são nuláveis de propósito: sem os usuários, a anotação volta
+sem autor em vez de falhar — mas **a anotação tem `organization_id` obrigatório**: restaurar
+`company_notes` num banco novo exige restaurar `organizations` antes, com os mesmos ids.
+
 **Roteiro da migração Mac → berry** (executado em **18/09/2026**, ~15 min de portal fora):
 
 1. No berry, sem tocar no que está no ar: `git clone` em `~/repos/franchise-intelligence`,
@@ -667,6 +835,11 @@ por todos os bancos, e por isso `METABASE_RO_PASSWORD` é obrigatória fora do a
 teste: sem ela, o seed falha em vez de trocar a senha que o Metabase está usando pela padrão.
 O `bin/rails` no host não lê o `.env` — exporte a variável antes de `bin/setup`, `db:seed`
 ou `db:rebuild` em development.
+
+**Com organizações, a tela `/metabase` está fechada para todos** (`MetabasePolicy#show? =
+false`): o papel `metabase_ro` lê as views de auditoria de todas as organizações, e uma
+credencial única não respeita o isolamento. Ligar o serviço antes de haver recorte por
+organização expõe a carteira de uma organização à outra — é pré-condição do build abaixo.
 
 ### Build futuro: Metabase no berry
 
