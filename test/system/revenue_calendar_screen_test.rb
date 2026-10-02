@@ -59,23 +59,32 @@ class RevenueCalendarScreenTest < ApplicationSystemTestCase
       page.driver.browser.manage.window.resize_to(width, 900)
       measure = page.evaluate_script(<<~JS)
         (() => {
-          const filtro = document.querySelector(".filter-panel").getBoundingClientRect()
-          const calendario = document.querySelector(".table-scroll").getBoundingClientRect()
-          const botoes = [...document.querySelectorAll(".export-actions .btn")]
-          const dentro = (rect) => rect.left >= 0 && rect.right <= window.innerWidth
+          const filterBounds = document.querySelector(".filter-panel").getBoundingClientRect()
+          const calendarBounds = document.querySelector(".table-scroll").getBoundingClientRect()
+          const buttons = [...document.querySelectorAll(".export-actions .btn")]
+          const isInside = (rect) => rect.left >= 0 && rect.right <= window.innerWidth
+          const overflowingElements = [...document.querySelectorAll("body *")]
+            .filter((element) => {
+              const rect = element.getBoundingClientRect()
+              return rect.left < 0 || rect.right > window.innerWidth
+            })
+            .slice(0, 5)
+            .map((element) => `${element.tagName.toLowerCase()}.${element.className}`)
           return {
-            pagina: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-            filtro_dentro: dentro(filtro),
-            calendario_dentro: dentro(calendario),
-            botoes_legiveis: botoes.every((botao) => botao.scrollWidth <= botao.clientWidth)
+            pageOverflow: document.documentElement.scrollWidth - window.innerWidth,
+            filterInside: isInside(filterBounds),
+            calendarInside: isInside(calendarBounds),
+            readableButtons: buttons.every((button) => button.scrollWidth <= button.clientWidth),
+            overflowingElements
           }
         })()
       JS
 
-      assert_operator measure["pagina"], :<=, 0, "a página não pode transbordar em #{width}px"
-      assert measure["filtro_dentro"], "o filtro precisa caber em #{width}px"
-      assert measure["calendario_dentro"], "o calendário precisa ficar contido em #{width}px"
-      assert measure["botoes_legiveis"], "os botões de exportação precisam manter os rótulos"
+      assert_operator measure["pageOverflow"], :<=, 0,
+        "a página não pode transbordar em #{width}px: #{measure["overflowingElements"].join(", ")}"
+      assert measure["filterInside"], "o filtro precisa caber em #{width}px"
+      assert measure["calendarInside"], "o calendário precisa ficar contido em #{width}px"
+      assert measure["readableButtons"], "os botões de exportação precisam manter os rótulos"
     end
   ensure
     page.driver.browser.manage.window.resize_to(1400, 1000)

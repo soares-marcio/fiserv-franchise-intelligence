@@ -1012,8 +1012,39 @@
 
   .period-stepper {
     display: flex;
+    width: 100%;
+    min-width: 0;
     gap: 0.35rem;
     align-items: center;
+  }
+
+  /* Entre duas setas de 44px, o seletor precisa ceder espaço no telefone. Sem min-width: 0,
+     o tamanho intrínseco do rótulo e da competência alargava a página em vez de o valor caber
+     na área útil do filtro. */
+  .period-stepper > .filter-pill--select {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .period-stepper .filter-pill__native {
+    width: 100%;
+    min-width: 0;
+  }
+
+  @media (max-width: 479px) {
+    /* A própria competência identifica o controle na largura mínima; o rótulo continua
+       disponível para tecnologia assistiva sem disputar espaço com o valor selecionado. */
+    .period-stepper .filter-pill__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   }
 
   .btn.is-disabled {
