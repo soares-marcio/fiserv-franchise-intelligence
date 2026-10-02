@@ -110,13 +110,6 @@ class ApplicationHelperTest < ActionView::TestCase
     assert_nil equipment_summary({})
   end
 
-  test "seletor de período nomeia a faixa do mês selecionado" do
-    assert_equal "10 a 20 de agosto de 2026",
-      period_picker_label(Date.new(2026, 8, 1), 10, 20)
-    assert_equal "24 de agosto de 2026",
-      period_picker_label(Date.new(2026, 8, 1), 24, 24)
-  end
-
   test "rótulo de faixa ISO nomeia um intervalo de calendário" do
     assert_equal "12/05/2026 a 13/05/2026",
       iso_range_label(Date.new(2026, 5, 12), Date.new(2026, 5, 13))

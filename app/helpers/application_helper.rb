@@ -380,15 +380,6 @@ module ApplicationHelper
     "dias #{from_day} a #{to_day}"
   end
 
-  def period_picker_label(period, from_day, to_day)
-    month = period_option_label(period)
-    from_day = from_day.to_i
-    to_day = to_day.to_i
-    return "#{from_day} de #{month}" if from_day == to_day
-
-    "#{from_day} a #{to_day} de #{month}"
-  end
-
   def iso_range_label(from_date, to_date)
     return "Escolher intervalo" if from_date.blank?
 

@@ -90,12 +90,6 @@ module EstablishmentsHelper
     value
   end
 
-  def boolean_label(value)
-    return "—" if value.nil?
-
-    value ? "Sim" : "Não"
-  end
-
   def format_date(value)
     return "—" if value.blank?
 

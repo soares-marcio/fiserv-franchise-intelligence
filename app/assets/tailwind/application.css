@@ -575,26 +575,6 @@
     gap: 0.4rem;
   }
 
-  .filter-search {
-    min-height: var(--field-height);
-    width: 100%;
-    padding: 0.5rem 0.85rem;
-    border: 1px solid color-mix(in oklab, var(--color-base-content) 16%, transparent);
-    border-radius: 0.85rem 0.85rem 0.85rem 0.28rem;
-    background: color-mix(in oklab, var(--color-base-200) 55%, white);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 72%);
-    color: inherit;
-  }
-
-  .filter-search:focus {
-    border-color: var(--color-primary);
-    outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
-  }
-
-  .filter-search::placeholder {
-    color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
-  }
-
   .tag-select,
   .date-range {
     display: flex;
@@ -615,20 +595,6 @@
   .tag-select:focus-visible {
     border-color: var(--color-primary);
     outline: 3px solid color-mix(in oklab, var(--color-primary) 14%, transparent);
-  }
-
-  .tag-select__chips {
-    display: flex;
-    min-width: 0;
-    flex: 1;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-  }
-
-  .tag-select__placeholder {
-    color: color-mix(in oklab, var(--color-base-content) 48%, transparent);
-    font-size: 0.9rem;
   }
 
   .tag-select__chevron {
@@ -864,10 +830,6 @@
 
   .datepicker__cell.is-start.is-end {
     border-radius: 999px;
-  }
-
-  .datepicker__cell.is-beyond {
-    color: color-mix(in oklab, var(--color-base-content) 38%, transparent);
   }
 
   .datepicker__hint {
@@ -3332,7 +3294,6 @@
     touch-action: manipulation;
   }
 
-  .filter-search,
   .search-modal__input,
   .input,
   .select,
