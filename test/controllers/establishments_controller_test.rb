@@ -9,6 +9,7 @@ class EstablishmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", text: "Estabelecimentos"
+    assert_select "button.btn.btn-primary", text: /Buscar/
     assert_select "td", text: /EC 12345678/
     assert_select "p", text: "PADARIA CENTRAL"
     assert_select "td", text: /MIC GOIANIA 4/
