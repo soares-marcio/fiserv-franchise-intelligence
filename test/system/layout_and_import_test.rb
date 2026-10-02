@@ -46,6 +46,80 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     page.driver.browser.manage.window.resize_to(1400, 1000)
   end
 
+  test "a auditoria principal usa a mesma estrutura visual do detalhamento do MIC" do
+    import_synthetic_workbook
+    refresh_audit_views
+    visit reports_path
+
+    assert_selector ".metric-grid .metric-card", count: 4
+    assert_selector "form.filter-bar .filter-pill--select"
+    assert_button "Filtrar"
+    assert_selector ".table-toolbar__meta"
+
+    [ 320, 768, 1400 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 900)
+      measure = page.evaluate_script(<<~JS)
+        (() => {
+          const filtro = document.querySelector(".filter-panel").getBoundingClientRect()
+          const tabela = document.querySelector(".table-scroll").getBoundingClientRect()
+          return {
+            pagina: document.documentElement.scrollWidth - window.innerWidth,
+            filtro_esquerda: filtro.left,
+            filtro_direita: filtro.right - window.innerWidth,
+            tabela_esquerda: tabela.left,
+            tabela_direita: tabela.right - window.innerWidth
+          }
+        })()
+      JS
+
+      assert_operator measure["pagina"], :<=, 0, "a página não pode transbordar em #{width}px"
+      assert_operator measure["filtro_esquerda"], :>=, 0, "o filtro precisa começar dentro da tela"
+      assert_operator measure["filtro_direita"], :<=, 0, "o filtro precisa terminar dentro da tela"
+      assert_operator measure["tabela_esquerda"], :>=, 0, "a tabela precisa começar dentro da tela"
+      assert_operator measure["tabela_direita"], :<=, 0, "a tabela precisa terminar dentro da tela"
+    end
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
+
+  test "Clover Capital preserva filtros, exportação e tabela dentro da tela" do
+    stores = BinWorkbook.default_stores.map(&:dup)
+    stores.first.preapproved_volume = 350_000
+    stores.first.preapproved_term = 24
+    stores.first.preapproved_rate = 3.28
+    import_synthetic_workbook(stores:)
+    visit stalled_reports_path
+
+    assert_selector "form.filter-bar .filter-pill--select"
+    assert_selector ".export-actions .export-action", count: 2
+    assert_selector ".table-toolbar__meta"
+    assert_selector "tbody tr", count: 1
+
+    [ 320, 768, 1400 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 900)
+      measure = page.evaluate_script(<<~JS)
+        (() => {
+          const filtro = document.querySelector(".filter-panel").getBoundingClientRect()
+          const tabela = document.querySelector(".table-scroll").getBoundingClientRect()
+          const botoes = [...document.querySelectorAll(".export-actions .btn")]
+          return {
+            pagina: document.documentElement.scrollWidth - window.innerWidth,
+            filtro_dentro: filtro.left >= 0 && filtro.right <= window.innerWidth,
+            tabela_dentro: tabela.left >= 0 && tabela.right <= window.innerWidth,
+            botoes_legiveis: botoes.every((botao) => botao.scrollWidth <= botao.clientWidth)
+          }
+        })()
+      JS
+
+      assert_operator measure["pagina"], :<=, 0, "a página não pode transbordar em #{width}px"
+      assert measure["filtro_dentro"], "o filtro precisa caber em #{width}px"
+      assert measure["tabela_dentro"], "a tabela precisa ficar contida em #{width}px"
+      assert measure["botoes_legiveis"], "os botões de exportação precisam manter os rótulos"
+    end
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
+
   test "ações administrativas preservam rótulos legíveis sem apertar os botões" do
     platform = platform_admin_user
     organization = Organization.create!(name: "Organização com nome representativo")

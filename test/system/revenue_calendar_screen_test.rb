@@ -46,4 +46,47 @@ class RevenueCalendarScreenTest < ApplicationSystemTestCase
     assert_current_path(/period=2026-07-01/)
     assert_selector "h2.table-title", text: "Julho de 2026"
   end
+
+  test "filtro, exportações e calendário permanecem contidos em três larguras" do
+    visit weekly_reports_path
+
+    assert_selector ".page-hero .metric-grid .metric-card", count: 3
+    assert_selector "form.filter-bar .filter-pill--select"
+    assert_selector ".export-actions .export-action", count: 2
+    assert_selector ".table-toolbar__meta"
+
+    [ 320, 768, 1400 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 900)
+      measure = page.evaluate_script(<<~JS)
+        (() => {
+          const filterBounds = document.querySelector(".filter-panel").getBoundingClientRect()
+          const calendarBounds = document.querySelector(".table-scroll").getBoundingClientRect()
+          const buttons = [...document.querySelectorAll(".export-actions .btn")]
+          const isInside = (rect) => rect.left >= 0 && rect.right <= window.innerWidth
+          const overflowingElements = [...document.querySelectorAll("body *")]
+            .filter((element) => {
+              const rect = element.getBoundingClientRect()
+              return rect.left < 0 || rect.right > window.innerWidth
+            })
+            .slice(0, 5)
+            .map((element) => `${element.tagName.toLowerCase()}.${element.className}`)
+          return {
+            pageOverflow: document.documentElement.scrollWidth - window.innerWidth,
+            filterInside: isInside(filterBounds),
+            calendarInside: isInside(calendarBounds),
+            readableButtons: buttons.every((button) => button.scrollWidth <= button.clientWidth),
+            overflowingElements
+          }
+        })()
+      JS
+
+      assert_operator measure["pageOverflow"], :<=, 0,
+        "a página não pode transbordar em #{width}px: #{measure["overflowingElements"].join(", ")}"
+      assert measure["filterInside"], "o filtro precisa caber em #{width}px"
+      assert measure["calendarInside"], "o calendário precisa ficar contido em #{width}px"
+      assert measure["readableButtons"], "os botões de exportação precisam manter os rótulos"
+    end
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
 end

@@ -37,7 +37,7 @@
       </label>
       <%# Digitar reinicia a página, mas mantém o tamanho escolhido. %>
       <%= hidden_field_tag :per_page, @per_page %>
-      <%= button_tag icon_label("magnifying-glass", "Buscar"), type: "submit", class: "btn btn-outline btn--field" %>
+      <%= button_tag icon_label("magnifying-glass", "Buscar"), type: "submit", class: "btn btn-primary btn--field" %>
       <% if @query.present? %>
         <%= link_to icon_label("eraser", "Limpar"), establishments_path, class: "btn btn-ghost btn--field" %>
       <% end %>
