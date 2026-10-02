@@ -46,4 +46,38 @@ class RevenueCalendarScreenTest < ApplicationSystemTestCase
     assert_current_path(/period=2026-07-01/)
     assert_selector "h2.table-title", text: "Julho de 2026"
   end
+
+  test "filtro, exportações e calendário permanecem contidos em três larguras" do
+    visit weekly_reports_path
+
+    assert_selector ".page-hero .metric-grid .metric-card", count: 3
+    assert_selector "form.filter-bar .filter-pill--select"
+    assert_selector ".export-actions .export-action", count: 2
+    assert_selector ".table-toolbar__meta"
+
+    [ 320, 768, 1400 ].each do |width|
+      page.driver.browser.manage.window.resize_to(width, 900)
+      measure = page.evaluate_script(<<~JS)
+        (() => {
+          const filtro = document.querySelector(".filter-panel").getBoundingClientRect()
+          const calendario = document.querySelector(".table-scroll").getBoundingClientRect()
+          const botoes = [...document.querySelectorAll(".export-actions .btn")]
+          const dentro = (rect) => rect.left >= 0 && rect.right <= window.innerWidth
+          return {
+            pagina: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            filtro_dentro: dentro(filtro),
+            calendario_dentro: dentro(calendario),
+            botoes_legiveis: botoes.every((botao) => botao.scrollWidth <= botao.clientWidth)
+          }
+        })()
+      JS
+
+      assert_operator measure["pagina"], :<=, 0, "a página não pode transbordar em #{width}px"
+      assert measure["filtro_dentro"], "o filtro precisa caber em #{width}px"
+      assert measure["calendario_dentro"], "o calendário precisa ficar contido em #{width}px"
+      assert measure["botoes_legiveis"], "os botões de exportação precisam manter os rótulos"
+    end
+  ensure
+    page.driver.browser.manage.window.resize_to(1400, 1000)
+  end
 end

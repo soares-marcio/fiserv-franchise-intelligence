@@ -440,6 +440,11 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_select "h1", text: "Faturamento diário"
+    assert_select ".page-hero .metric-grid", count: 1
+    assert_select ".page-hero .export-actions .export-action", count: 2
+    assert_select "form.filter-bar .filter-pill--select label[for=period]", text: "Competência"
+    assert_select ".table-toolbar .table-toolbar__meta", count: 1
+    assert_select "p.table-scroll-hint", text: /Deslize o calendário/
     assert_select "table.revenue-calendar tbody tr", count: 6
     assert_select "tbody th[scope=row]", text: "dia 1"
     assert_select "tbody th[scope=row]", text: "2–8"
