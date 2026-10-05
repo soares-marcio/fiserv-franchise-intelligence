@@ -15,6 +15,19 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
   end
 
+  test "o cookie de sessão do Rails só viaja em HTTPS quando a requisição chegou por HTTPS" do
+    https!
+    get reports_path
+    assert_match(/_session=[^\n]*; secure/i, response.headers["Set-Cookie"].to_s,
+      "pelo túnel o cookie de sessão sairia sem Secure")
+
+    reset!
+    get reports_path
+    assert_match(/_session=/, response.headers["Set-Cookie"].to_s)
+    assert_no_match(/_session=[^\n]*; secure/i, response.headers["Set-Cookie"].to_s,
+      "com Secure o cookie nunca voltaria em fiserv.bin, que é HTTP puro")
+  end
+
   test "a tela de entrada identifica o ambiente de homologação" do
     original = ENV["APP_ENVIRONMENT"]
     ENV["APP_ENVIRONMENT"] = "staging"

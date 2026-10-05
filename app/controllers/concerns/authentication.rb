@@ -2,6 +2,8 @@ module Authentication
   extend ActiveSupport::Concern
 
   included do
+    # Antes da autenticação: o redirecionamento ao login já grava o destino na sessão.
+    before_action :match_session_cookie_to_scheme
     before_action :require_authentication
     helper_method :authenticated?, :current_user
   end
@@ -19,6 +21,12 @@ module Authentication
 
     def current_user
       Current.session&.user
+    end
+
+    # O mesmo critério do cookie de login: o túnel chega por HTTPS e marca o cookie de
+    # sessão do Rails como Secure; a LAN, em HTTP puro, continua recebendo o cookie de volta.
+    def match_session_cookie_to_scheme
+      request.session_options[:secure] = request.ssl?
     end
 
     def require_authentication
