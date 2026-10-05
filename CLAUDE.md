@@ -299,8 +299,9 @@ precisam estar na conta de quem mexer nisso:
   infraestrutura deles. É inerente ao túnel; a alternativa seria VPN.
 
 `force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em HTTP puro), e o nome
-público entra por `RAILS_HOSTS`, não por código. O cookie de sessão é `secure` só quando a
-requisição é HTTPS (`request.ssl?`), justamente porque os dois caminhos convivem.
+público entra por `RAILS_HOSTS`, não por código. Os cookies de login e o de sessão do Rails
+são `secure` só quando a requisição é HTTPS (`request.ssl?`), justamente porque os dois
+caminhos convivem — o do Rails até 10/2026 saía sem a marca também pelo túnel.
 
 **Quatro superfícies não passam pelo `ApplicationController`** e precisam ser lembradas em
 qualquer mudança de autenticação: os controllers do Active Storage (downloads, inclusive o da
