@@ -283,18 +283,20 @@ registro tem uma (é o que separa o que cada papel lê). O papel `metabase_ro` l
 todas as organizações: a tela `/metabase` está fechada até haver recorte lá.
 
 **Desde 22/09/2026 há um endereço público**, `https://manager.melopay.com.br`, servido por
-Cloudflare Tunnel (README, "Acesso pela internet"). O requisito de autenticação para
-publicação externa é cumprido **fora do app**, pelo Cloudflare Access: a política
-`Autorizados` (Allow → lista de e-mails, código de uso único) barra no edge, e sem sessão
-válida toda rota responde `302` para o login — `/up` inclusive. Três consequências que
-precisam estar na conta de quem mexer nisso:
+Cloudflare Tunnel (README, "Acesso pela internet"). **Desde 05/10/2026 o login do app é a
+única porta** também ali: o Cloudflare Access ficou com a política `Autorizados` em
+`Bypass → Everyone`, e na frente sobram só o limite de taxa dos `POST` de login e o HSTS.
+Qualquer pessoa na internet alcança a tela de entrada; sem sessão, toda rota responde `302`
+para `/session/new`, menos o `/up`. Três consequências que precisam estar na conta de quem
+mexer nisso:
 
 - **Quem passa pelo gate não tem mais tudo**: o que cada um vê é o escopo concedido (Masters
   e/ou MICs) e o que pode fazer são as chaves marcadas no convite. A anotação e o lote agora
   têm autor, e a trilha registra quem fez o quê.
-- **A camada deixou de ser única**: com o login do app, apagar a política do Access não abre
-  mais o portal — ele responde a tela de entrada. É o que permite aposentar o Access sem
-  deixar a carteira exposta.
+- **A camada voltou a ser única, agora dentro do app**: falha de autorização, rota esquecida
+  fora do `ApplicationController` ou brecha numa gem ficam expostas à internet inteira, sem
+  o Access para esconder. As quatro superfícies abaixo e as atualizações do Rails, das gems
+  e do Brakeman passam a ser a defesa, não um reforço.
 - **O TLS termina na Cloudflare**: CNPJ e faturamento trafegam em claro dentro da
   infraestrutura deles. É inerente ao túnel; a alternativa seria VPN.
 

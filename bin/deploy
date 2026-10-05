@@ -23,12 +23,15 @@ docker compose ps
 docker compose exec -T web curl -fsS -o /dev/null -w "app (dentro do container) → %{http_code}\n" \
   http://localhost:3000/up
 
-# E a ponta pública: sem sessão o Access responde 302, e isso só acontece se o túnel estiver
-# entregando ao edge. 200 aqui seria mau sinal — significaria o portal sem porteiro.
-codigo="$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://manager.melopay.com.br/)"
-echo "manager.melopay.com.br → ${codigo}"
-case "$codigo" in
-  302) ;;
-  200) echo "ALERTA: respondeu 200 sem login — a política do Access não está ativa." >&2; exit 1 ;;
-  *)   echo "ALERTA: esperado 302 (login do Access); confira o túnel." >&2; exit 1 ;;
+# E a ponta pública, desde 05/10/2026 sem o Cloudflare Access na frente. O /up com 200 prova
+# que o túnel entrega ao app (sem o conector a Cloudflare responde 502/530); a raiz sem sessão
+# tem de mandar para o login do portal — 200 ali seria tela de dado aberta à internet.
+codigo="$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://manager.melopay.com.br/up)"
+echo "manager.melopay.com.br/up → ${codigo}"
+[ "$codigo" = "200" ] || { echo "ALERTA: esperado 200; confira o túnel." >&2; exit 1; }
+destino="$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" --max-time 20 https://manager.melopay.com.br/)"
+echo "manager.melopay.com.br → ${destino}"
+case "$destino" in
+  "302 https://manager.melopay.com.br/session/new") ;;
+  *) echo "ALERTA: esperado 302 para /session/new; a raiz não está exigindo login." >&2; exit 1 ;;
 esac

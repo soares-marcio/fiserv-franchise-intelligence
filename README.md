@@ -130,8 +130,9 @@ ssh berry ~/repos/franchise-intelligence/bin/deploy
 ```
 
 O `bin/deploy` faz `git pull --ff-only`, `bin/db-backup`, `docker compose up -d --build web
-worker` e confere a produção por dois caminhos: o `/up` de dentro do container e o `302` do
-Access no endereço público (200 ali seria portal sem porteiro, e o script falha). **Não use
+worker` e confere a produção por dois caminhos: o `/up` de dentro do container e o endereço
+público — `/up` com `200` (o túnel entrega ao app) e a raiz com `302` para `/session/new`
+(qualquer outra resposta ali seria tela aberta sem login, e o script falha). **Não use
 `fiserv.bin` para verificar deploy** — esse nome é a homologação, no Mac, e um deploy
 conferido por ele passa verde com a produção quebrada. A migração corre no
 `db:prepare` do entrypoint quando o `web` sobe — por isso o backup vem antes. Não há
@@ -180,7 +181,8 @@ desligado ou dormindo derruba o `fiserv.bin`, e só ele; a produção não depen
 ## Quem entra e o que cada um vê
 
 O portal exige login desde 09/2026. Antes disso ele não tinha autenticação nenhuma, e o
-porteiro era o Cloudflare Access, fora do repositório.
+porteiro era o Cloudflare Access, fora do repositório. Desde 05/10/2026 o login do app é a
+única porta também no endereço público (ver "Acesso pela internet").
 
 ### Organizações e papéis
 
@@ -338,30 +340,42 @@ administrador**, e ele a nomeia no primeiro acesso.
 **As três chaves `AR_ENCRYPTION_*` cifram o segredo do segundo fator.** Perdê-las significa
 que todo mundo reinscreve o autenticador; guarde-as junto do `SECRET_KEY_BASE`.
 
-### Acesso pela internet (Cloudflare Tunnel + Access)
+### Acesso pela internet (Cloudflare Tunnel)
 
 Desde **22/09/2026** o portal também atende em **https://manager.melopay.com.br**, para uso
 fora da LAN. Quem faz isso é um túnel da Cloudflare — conexão de **saída** do berry, sem
 porta aberta para a internet, sem IP fixo e sem mexer no roteador:
 
 ```
-navegador → TLS na Cloudflare → Access (login) → túnel → fiserv-cloudflared
+navegador → TLS na Cloudflare → limite de taxa → túnel → fiserv-cloudflared
                                                               ↓ rede fiserv-proxy_default
                                                         fiserv-web:3000 (Puma)
 LAN:      navegador → fiserv-caddy:80 → fiserv-web:3000        (inalterado, HTTP puro)
 ```
 
-**O porteiro é o Cloudflare Access, não o app.** O portal continua sem autenticação própria:
-o que impede um estranho de ler a carteira é a política Zero Trust `Autorizados`, que exige
-login (código de uso único por e-mail) antes de a requisição sair do edge da Cloudflare. Sem
-o cookie de sessão do Access, **qualquer** caminho responde `302` para o login — `/up`
-inclusive. Ver a ressalva em `CLAUDE.md`, "Controle de acesso".
+**O porteiro é o login do app (senha + TOTP), desde 05/10/2026.** De 22/09 a 05/10 quem
+barrava era o Cloudflare Access (política Zero Trust `Autorizados`, código de uso único por
+e-mail); com o login próprio ele virou segunda porta e foi aposentado. Qualquer pessoa na
+internet vê a tela de entrada; sem sessão, toda tela, exportação, download e o `/cable`
+recusam, e só o `/up` responde `200`. O que fica na Cloudflare:
+
+- **Limite de taxa** `login portal`: mais de 5 `POST` em 10 s do mesmo IP para `/session`,
+  `/mfa`, `/mfa_enrollment` ou `/password` são bloqueados por 10 s (`429`, erro 1015). É a
+  única regra do plano gratuito; as tentativas lentas esbarram nos limites do Rails (10 por IP
+  em 3 min, 5 por conta em 15 min e bloqueio da conta).
+- **HSTS** com `max-age` de 1 mês, sem `includeSubDomains` e sem preload, e **Always Use
+  HTTPS**. Desligar o HTTPS da zona (registro cinza, Cloudflare pausada) exige desligar o
+  HSTS antes e esperar o `max-age` vencer.
+- **A aplicação Access continua cadastrada**, com a política `Autorizados` trocada para
+  `Bypass → Everyone`. Voltar ao porteiro de antes é trocá-la de novo para `Allow → Emails`.
+
+Ver a ressalva em `CLAUDE.md`, "Controle de acesso".
 
 Peças, todas fora deste repositório:
 
 | Onde | O quê |
 | --- | --- |
-| Cloudflare (conta `melopay`, plano Zero Trust Free) | Túnel `fiserv-manager`; aplicação Access `Fiserv Manager` com a política `Autorizados` (Allow → Emails) e sessão de 24 h; CNAME `manager` → `<id>.cfargotunnel.com`, proxied |
+| Cloudflare (conta `melopay`, plano Zero Trust Free) | Túnel `fiserv-manager`; aplicação Access `Fiserv Manager` com a política `Autorizados` em `Bypass → Everyone` desde 05/10/2026; regra de limite `login portal`; HSTS e Always Use HTTPS; CNAME `manager` → `<id>.cfargotunnel.com`, proxied |
 | `~/.cloudflared/` no berry | `cert.pem` da conta e o JSON de credencial do túnel (modo 400, **segredo**; o do túnel antigo ficou como `cert.pem.trazfaz-2026-09-22`) |
 | `~/Composes/fiserv-proxy/` | Serviço `cloudflared` no Compose do proxy e `cloudflared/config.yml` |
 
@@ -395,6 +409,11 @@ Verificado no dia: `302` para `melopay.cloudflareaccess.com` antes do login (com
 parado, inclusive); `200` depois de autenticar; `http://fiserv.bin/up` intacto; e o IP real
 do cliente chegando ao Rails — o que mantém os limites de 5 importações/min e 20 anexos/min
 por pessoa, e não somados para todo o túnel.
+
+Verificado na retirada do Access (05/10/2026), de fora: raiz e telas de dado com `302` para
+`/session/new`; `/up` com `200`; `http://` com `301` para `https://`; cabeçalho
+`strict-transport-security: max-age=2592000`; cookie de sessão com `secure`; e o sexto `POST`
+seguido em `/session` respondido `429` pela Cloudflare.
 
 ## A planilha BIN
 
