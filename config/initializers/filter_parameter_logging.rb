@@ -7,6 +7,10 @@ Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]
 
+# O código do segundo fator (autenticador ou recuperação) chega como `code`, que nenhum dos
+# padrões acima pega. Âncora pelo mesmo motivo de :ec e :q — `cnae_code` é dado público.
+Rails.application.config.filter_parameters += [ /\Acode\z/ ]
+
 # Dados pessoais e cadastrais das planilhas BIN não podem vazar para o log.
 # :ec e :q usam regex ancorada porque o match parcial pegaria "record", "query", etc.
 # :q é o termo de busca, que aceita CNPJ.

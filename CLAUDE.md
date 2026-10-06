@@ -299,6 +299,11 @@ mexer nisso:
   e do Brakeman passam a ser a defesa, não um reforço.
 - **O TLS termina na Cloudflare**: CNPJ e faturamento trafegam em claro dentro da
   infraestrutura deles. É inerente ao túnel; a alternativa seria VPN.
+- **O log fica 30 dias em arquivo no berry** (README, "Log em arquivo no berry"). Parâmetro
+  novo com dado pessoal, segredo ou código entra em `filter_parameter_logging.rb` no mesmo
+  commit — o que antes sumia no próximo deploy agora fica guardado. E o logger de produção
+  passa por `AppLogger`: um `TaggedLogging` por destino dentro do `BroadcastLogger` executa
+  cada requisição uma vez por destino.
 
 `force_ssl` e `assume_ssl` continuam desligados (ligar quebra a LAN em HTTP puro), e o nome
 público entra por `RAILS_HOSTS`, não por código. Os cookies de login e o de sessão do Rails

@@ -14,7 +14,8 @@ module FiservFranchiseIntelligence
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks])
+    # app_logger.rb fica fora: o production.rb o requer antes de o Zeitwerk existir.
+    config.autoload_lib(ignore: %w[assets tasks app_logger.rb])
     config.active_job.queue_adapter = :solid_queue
     config.active_record.schema_format = :sql
     config.time_zone = "America/Sao_Paulo"

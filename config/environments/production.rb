@@ -1,5 +1,7 @@
 require "active_support/core_ext/integer/time"
 
+require_relative "../../lib/app_logger"
+
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
@@ -36,8 +38,11 @@ Rails.application.configure do
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
   # Log to STDOUT with the current request id as a default log tag.
+  # No berry, RAILS_LOG_FILE liga também um arquivo diário em log/, que sobrevive à recriação
+  # do container a cada deploy (o log do Docker morre com ele). Ver lib/app_logger.rb.
   config.log_tags = [ :request_id ]
-  config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
+  log_file = ENV["RAILS_LOG_FILE"].presence
+  config.logger = AppLogger.build(STDOUT, file: log_file && Rails.root.join("log", File.basename(log_file)))
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")

@@ -21,11 +21,23 @@ services:
     # fica vazia até o .env defini-la (build futuro: METABASE_URL=http://fiserv-metabase.bin).
     environment:
       METABASE_URL: ${METABASE_URL:-}
+      RAILS_LOG_FILE: web.log
+    # O log também vai para ./log do clone, que sobrevive ao deploy (o do Docker morre com o
+    # container). Um arquivo por serviço: os dois girando o mesmo seria corrida à toa. A pasta
+    # precisa pertencer ao uid 1000 do container — ver README, "Log em arquivo no berry".
+    volumes:
+      - ./log:/rails/log
     networks:
       default: {}
       proxy:
         aliases:
           - fiserv-web
+  worker:
+    environment:
+      RAILS_LOG_FILE: worker.log
+    # Também é o worker que apaga o girado com mais de 30 dias (config/recurring.yml).
+    volumes:
+      - ./log:/rails/log
   metabase:
     profiles: [metabase]
     ports: !reset []

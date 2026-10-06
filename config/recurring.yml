@@ -19,3 +19,7 @@ production:
   purge_unattached_note_blobs:
     command: "ActiveStorage::Blob.unattached.where(created_at: ..1.hour.ago).find_each(&:purge_later)"
     schedule: every day at 4am
+  # Só há o que apagar no berry, onde o log também vai para arquivo (ver lib/log_retention.rb).
+  purge_old_log_files:
+    command: "LogRetention.purge(Rails.root.join('log'))"
+    schedule: every day at 4:30am
