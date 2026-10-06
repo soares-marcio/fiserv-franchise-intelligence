@@ -1,0 +1,24 @@
+<%# Cabeçalho das telas de cards (Ganhos 3M, Recorrente, Indicadores), no padrão do quadro do
+    Faturamento: rótulo, título com o recorte, contagens e a ordem em que a lista está. Antes
+    a mesma informação ficava numa faixa solta entre os cards de resumo e os do MIC.
+
+    Espera `label` (o rótulo da seção), `badges` (textos das contagens), `sort` e `path`, os
+    mesmos de shared/sort_status e shared/sort_links. %>
+<div class="table-frame cards-toolbar">
+  <div class="table-toolbar">
+    <div>
+      <p class="section-label"><%= label %></p>
+      <h2 class="table-title"><%= channel_name(@selected_channel) || "Todos os MICs" %></h2>
+    </div>
+    <div class="table-toolbar__meta">
+      <% badges.each do |badge| %>
+        <span class="badge badge-ghost"><%= badge %></span>
+      <% end %>
+      <%= render "shared/sort_status", sort:, path: %>
+    </div>
+  </div>
+  <div class="cards-toolbar__sort">
+    <span class="section-label">Ordenar por</span>
+    <%= render "shared/sort_links", sort:, path:, label: "Ordenar os MICs" %>
+  </div>
+</div>
