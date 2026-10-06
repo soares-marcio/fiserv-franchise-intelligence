@@ -291,7 +291,9 @@ para `/session/new`, menos o `/up`. Três consequências que precisam estar na c
 mexer nisso:
 
 - **Quem passa pelo gate não tem mais tudo**: o que cada um vê é o escopo concedido (Masters
-  e/ou MICs) e o que pode fazer são as chaves marcadas no convite. A anotação e o lote agora
+  e/ou MICs) e o que pode fazer são as chaves marcadas no convite — uma por item do menu de
+  relatórios desde 06/10/2026, e a conta pode ter validade (README, "Permissões" e
+  "Validade do acesso"). Tela nova de relatório entra em `ReportsController::SCREEN_PERMISSIONS`. A anotação e o lote agora
   têm autor, e a trilha registra quem fez o quê.
 - **A camada voltou a ser única, agora dentro do app**: falha de autorização, rota esquecida
   fora do `ApplicationController` ou brecha numa gem ficam expostas à internet inteira, sem
