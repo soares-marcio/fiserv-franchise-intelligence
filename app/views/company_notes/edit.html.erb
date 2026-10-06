@@ -25,6 +25,17 @@
     </p>
   </div>
 
+  <% unless policy(:company_note).edit? %>
+    <%# Quem só lê vê o texto: o editor com "Salvar" prometia uma gravação que o servidor
+        recusa (homologação de 06/10/2026). %>
+    <div class="note-form">
+      <% if @note.body.present? %>
+        <div class="trix-content"><%= @note.body %></div>
+      <% else %>
+        <p class="empty-state">Nenhuma anotação sobre este cliente.</p>
+      <% end %>
+    </div>
+  <% else %>
   <%# Sem `turbo_frame: "_top"`: a resposta é turbo_stream, processada globalmente, e trocar a
       página inteira desfaria justamente o ganho de salvar sem recarregar. %>
   <%= form_with url: company_note_path(@company), method: :patch,
@@ -51,5 +62,6 @@
       </p>
       <%= submit_tag "Salvar anotação", class: "btn btn-sm" %>
     </div>
+  <% end %>
   <% end %>
 <% end %>

@@ -43,4 +43,40 @@ class NoteVisibilityTest < ActionDispatch::IntegrationTest
       assert_select ".note-trigger__dot", minimum: 1
     end
   end
+
+  # Ver sem editar mostrava o editor e o "Salvar" — que o servidor recusa. Quem só lê vê o
+  # texto, e o botão diz o que faz (homologação de 06/10/2026).
+  test "só com ver, o modal mostra o texto sem editor e o botão é Ver anotação" do
+    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_READ ], channel: @channel))
+
+    get sub_channel_report_path(@mic)
+    assert_select ".note-trigger", text: /Ver anotação/
+    assert_select ".note-trigger", text: /Anotar/, count: 0
+
+    get edit_company_note_path(@company)
+    assert_response :success
+    assert_match "Cliente pede visita", response.body
+    assert_select "trix-editor, form.note-form", count: 0
+    assert_no_match "Salvar anotação", response.body
+  end
+
+  test "só com ver, cliente sem anotação não tem o que abrir" do
+    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_READ ], channel: @channel))
+    CompanyNote.delete_all
+
+    get sub_channel_report_path(@mic)
+    assert_select ".note-trigger[disabled]", minimum: 1
+    assert_select ".note-trigger:not([disabled])", count: 0
+  end
+
+  test "com editar, o botão é Anotar e o modal traz o editor" do
+    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_READ,
+      Permission::NOTES_WRITE ], channel: @channel))
+
+    get sub_channel_report_path(@mic)
+    assert_select ".note-trigger", text: /Anotar/
+    get edit_company_note_path(@company)
+    assert_select "form.note-form"
+    assert_match "Salvar anotação", response.body
+  end
 end

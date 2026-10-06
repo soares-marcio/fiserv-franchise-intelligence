@@ -13,7 +13,10 @@
     ponto contaria que há anotação a quem não pode lê-la. %>
 <% if policy(:company_note).show? %>
 <% has_note = note_id.present? %>
+<%# Quem só lê não escreve: o botão diz "Ver anotação" e, sem anotação, não há o que abrir. %>
+<% can_write = policy(:company_note).edit? %>
 <div class="note-cell" id="<%= company_note_cell_id(company_uuid) %>">
+  <% if can_write %>
   <%= button_tag type: "button",
         class: "btn btn-sm note-trigger #{'btn-outline' unless has_note}",
         title: has_note ? "Ver ou editar a anotação" : "Anotar sobre este cliente",
@@ -26,6 +29,19 @@
     <% if has_note %>
       <span class="note-trigger__dot" aria-hidden="true"></span>
     <% end %>
+  <% end %>
+  <% else %>
+  <%= button_tag type: "button", disabled: !has_note,
+        class: "btn btn-sm note-trigger #{'btn-outline' unless has_note}",
+        title: has_note ? "Ver a anotação" : "Sem anotação sobre este cliente",
+        aria: { label: has_note ? "Ver a anotação de #{name}" : "#{name} não tem anotação" },
+        data: (has_note ? { action: "note-modal#open",
+          note_modal_url_param: edit_company_note_path(company_uuid, note_params) } : {}) do %>
+    <%= icon_label("eye", "Ver anotação") %>
+    <% if has_note %>
+      <span class="note-trigger__dot" aria-hidden="true"></span>
+    <% end %>
+  <% end %>
   <% end %>
   <% if has_note && note_updated_at.present? %>
     <p class="note-cell__date"><%= l(note_updated_at.to_date) %></p>
