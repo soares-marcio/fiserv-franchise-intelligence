@@ -69,7 +69,7 @@ module ImportBatchesHelper
   def coverage_label(date)
     return "sem dados" if date.nil?
 
-    "dados de #{date.strftime('%d/%m')}"
+    "dados até #{date.strftime('%d/%m')}"
   end
 
   # A dica do selo do cabeçalho. Ela não nomeia master nenhum: o selo é geral, e quem está

@@ -87,12 +87,25 @@ class ReportMenuPermissionsTest < ActionDispatch::IntegrationTest
     assert_no_match(/tela de importação/, css_select(".header-status").first["title"].to_s)
   end
 
+  # A idade do último arquivo só diz algo a quem importa; quem só consulta lê até que dia vão
+  # os dados (homologação de 06/10/2026).
+  test "sem a importação, o selo mostra só até que dia vão os dados" do
+    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE ], channel: @channel))
+
+    get reports_path
+
+    assert_select ".header-status .header-status__signal", count: 1
+    assert_select ".header-status__signal", text: /dados até/
+    assert_select ".header-status__signal", text: /arquivo/, count: 0
+  end
+
   test "com a importação, o selo continua levando a ela" do
     sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::BATCHES_READ ], channel: @channel))
 
     get reports_path
 
     assert_select "a.header-status[href=?]", import_batches_path
+    assert_select ".header-status__signal", text: /arquivo/
   end
 
   # Quem estava navegando no portal e esbarra numa tela que não tem mais — a aba aberta

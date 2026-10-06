@@ -372,8 +372,8 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
       get reports_path
 
       assert_select "a.header-status[data-tone=green] .header-status__signal", count: 2
-      assert_select ".header-status__signal[data-tone=green]", text: /hoje/
-      assert_select ".header-status__signal[data-tone=green]", text: %r{dados de 10/08}
+      assert_select ".header-status__signal[data-tone=green]", text: /arquivo hoje/
+      assert_select ".header-status__signal[data-tone=green]", text: %r{dados até 10/08}
       assert_select ".header-status", text: /CANAL TESTE/, count: 0
     end
 
@@ -384,7 +384,7 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
 
       assert_select "a.header-status[data-tone=rose]"
       assert_select ".header-status__signal[data-tone=green]", text: /há 11 dias/
-      assert_select ".header-status__signal[data-tone=rose]", text: %r{dados de 10/08}
+      assert_select ".header-status__signal[data-tone=rose]", text: %r{dados até 10/08}
     end
   end
 
