@@ -28,6 +28,10 @@ class MfaController < ApplicationController
       Audit.record("session.start", user: @user, request:)
       # Depois do reset_session da sessão nova: antes dele, o destino seria apagado.
       session[:return_to_after_authenticating] = destination if destination
+      # A tela pedida antes do login pode ter deixado de ser permitida — é justamente o que
+      # derruba a sessão quando o administrador muda as permissões. Marca a primeira
+      # requisição depois de entrar para o 403 dela virar a primeira tela que a pessoa tem.
+      flash[:signed_in] = true if destination
       redirect_to after_authentication_url
     else
       register_failure

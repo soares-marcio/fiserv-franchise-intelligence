@@ -54,6 +54,12 @@ class ApplicationController < ActionController::Base
   # 403 renderizado, nunca redirect_back: voltar para a página anterior com um destino vindo
   # do cabeçalho é redirecionamento aberto, que o Brakeman acusa e com razão.
   def forbidden
+    # Logo depois de entrar, o destino é a tela pedida antes do login, que pode ter perdido
+    # a permissão no meio do caminho: entrar e ver "sem permissão" não diz nada à pessoa.
+    if flash[:signed_in] && request.get? && (destination = landing_path) && destination != request.path
+      return redirect_to(destination)
+    end
+
     respond_to do |format|
       format.html { render "errors/forbidden", status: :forbidden, layout: "error" }
       format.any { head :forbidden }

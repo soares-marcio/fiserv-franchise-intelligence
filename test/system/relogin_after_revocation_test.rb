@@ -63,12 +63,34 @@ class ReloginAfterRevocationTest < ApplicationSystemTestCase
       assert_field "E-mail"
     end
 
+    travel 31.seconds # o código do autenticador não vale duas vezes na mesma janela
     sign_in_through_ui(@user)
     within_window(second) do
       submit_credentials
       assert_no_field "E-mail"
       assert_link "Clover Capital"
     end
+  end
+
+  # A permissão da tela aberta é tirada: a pessoa é deslogada, e a entrada a levava de volta a
+  # essa tela — agora um 403 — e o Turbo, ao recarregar, mostrava "a verificação expirou"
+  # com a pessoa já dentro (homologação de 06/10/2026). Entra e cai na primeira tela que tem.
+  test "a tela que perdeu a permissão não vira 403 logo depois de entrar" do
+    sign_in_through_ui(@user)
+    click_link "Clover Capital"
+    assert_current_path stalled_reports_path
+
+    @user.update!(permissions: [ Permission::REPORTS_REVENUE ])
+    @user.revoke_sessions!
+    visit stalled_reports_path
+    assert_field "E-mail"
+
+    travel 31.seconds # o código do autenticador não vale duas vezes na mesma janela
+    sign_in_through_ui(@user)
+
+    assert_no_text "expirou"
+    assert_no_text "não tem permissão"
+    assert_current_path reports_path
   end
 
   private
