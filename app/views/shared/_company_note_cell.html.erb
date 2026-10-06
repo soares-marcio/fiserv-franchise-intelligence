@@ -7,7 +7,11 @@
 
     O rótulo é sempre "Anotar"; quem avisa que já há conteúdo é o ponto. Nunca vem `disabled`,
     ao contrário do botão da melhor conversa: lá "não tem" é fato da planilha; aqui é o
-    convite para escrever. %>
+    convite para escrever.
+
+    Sem "Ver anotação" não sai nada: o botão abriria um modal que o servidor recusa, e o
+    ponto contaria que há anotação a quem não pode lê-la. %>
+<% if policy(:company_note).show? %>
 <% has_note = note_id.present? %>
 <div class="note-cell" id="<%= company_note_cell_id(company_uuid) %>">
   <%= button_tag type: "button",
@@ -27,3 +31,4 @@
     <p class="note-cell__date"><%= l(note_updated_at.to_date) %></p>
   <% end %>
 </div>
+<% end %>

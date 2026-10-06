@@ -70,6 +70,7 @@
     </div>
   </section>
 
+  <% if policy(:company_note).show? %>
   <%# A anotação é do CNPJ, e esta ficha é de um CNPJ só: aqui ela aparece por inteiro, e não
       atrás de um botão como nas tabelas, onde não há largura para o texto. O diálogo fica
       dentro do mesmo controller do botão, e um só por página. %>
@@ -89,6 +90,7 @@
     </div>
     <%= render "shared/company_note_modal" %>
   </section>
+  <% end %>
 
   <%# Um card por EC: o EC é o produto contratado — POS, Smart POS, link de pagamento —, e é
       aqui que moram as particularidades dele. Medido na carteira: 173 dos 187 CNPJs com mais

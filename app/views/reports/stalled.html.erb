@@ -91,7 +91,7 @@
             <th scope="col" class="text-right">Volume pré-aprovado</th>
             <th scope="col" class="text-right">Prazo pré-aprovado</th>
             <th scope="col" class="text-right">Taxa pré-aprovada</th>
-            <th scope="col" class="note-col">Anotação</th>
+            <% if policy(:company_note).show? %><th scope="col" class="note-col">Anotação</th><% end %>
           </tr>
         </thead>
         <tbody>
@@ -117,6 +117,7 @@
               <td class="text-right tabular-nums">
                 <%= report["preapproved_rate"].present? ? number_to_percentage(report["preapproved_rate"], precision: 2) : "—" %>
               </td>
+              <% if policy(:company_note).show? %>
               <td class="note-col">
                 <%= render "shared/company_note_cell",
                   company_uuid: report["company_uuid"],
@@ -125,6 +126,7 @@
                   note_params: { channel_id: @selected_channel&.uuid,
                     sub_channel_id: @selected_sub_channel&.uuid }.compact_blank %>
               </td>
+              <% end %>
             </tr>
           <% end %>
         </tbody>
