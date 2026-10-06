@@ -52,7 +52,7 @@ class ApplicationController < ActionController::Base
   # do cabeçalho é redirecionamento aberto, que o Brakeman acusa e com razão.
   def forbidden
     respond_to do |format|
-      format.html { render "errors/forbidden", status: :forbidden }
+      format.html { render "errors/forbidden", status: :forbidden, layout: "error" }
       format.any { head :forbidden }
     end
   end

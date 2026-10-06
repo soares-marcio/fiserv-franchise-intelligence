@@ -27,6 +27,7 @@ class ReportMenuPermissionsTest < ActionDispatch::IntegrationTest
       get establishments_path
       assert_response :forbidden, "#{key} não abre Estabelecimentos"
 
+      get paths.first
       report_links = css_select("nav.primary-nav a").map { |link| link["href"] } & menu_paths
       assert_equal [ paths.first ], report_links, "o menu de #{key} mostra outro item"
 

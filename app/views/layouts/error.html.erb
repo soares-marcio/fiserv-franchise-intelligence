@@ -1,0 +1,23 @@
+<!doctype html>
+<%# O mesmo esqueleto das páginas estáticas de public/ (404, 500…): o 403 é renderizado
+    pelo app, mas tem de parecer da mesma família — sem menu nem trilha, no cartão do
+    error.css. %>
+<html lang="pt-BR">
+  <head>
+    <title><%= content_for(:title) %> — Auditoria BIN</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/error.css">
+  </head>
+  <body>
+    <main class="error-card">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+        <span>Melo Pay</span>
+      </div>
+      <%= yield %>
+    </main>
+  </body>
+</html>

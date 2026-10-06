@@ -26,13 +26,19 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     assert_match "/fonts/montserrat-latin.woff2", Rails.public_path.join("error.css").read
   end
 
-  test "o 403 segue o mesmo padrão" do
+  # Dentro do layout do app, com menu e trilha, o 403 não parecia uma página de erro ao lado
+  # das outras (homologação de 06/10/2026): usa o mesmo cartão e o mesmo error.css.
+  test "o 403 usa o mesmo cartão das páginas estáticas" do
     sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE ], channel: nil))
 
     get recurring_reports_path
 
     assert_response :forbidden
+    assert_select "link[rel=stylesheet][href='/error.css']"
+    assert_select "main.error-card h1", text: /não tem permissão/
     assert_select ".error-next"
     assert_select ".error-code", text: /Código 403.*ajuda/m
+    assert_select "nav.primary-nav", count: 0
+    assert_select "a.button[href=?]", root_path
   end
 end
