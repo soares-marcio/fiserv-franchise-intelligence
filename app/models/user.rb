@@ -34,6 +34,12 @@ class User < ApplicationRecord
   # Rebaixar ou desativar o último administrador da plataforma ativo deixaria o portal sem
   # quem crie organizações — inclusive sem quem possa nomear outro.
   validate :keep_one_active_platform_admin, on: :update
+  validate :access_expiry_must_make_sense
+  validate :access_expiry_within_grantor_limit
+
+  # Prazo de quem concede, quando há: o delegado com acesso até uma data não dá a outra
+  # pessoa acesso além dela, nem indeterminado. Preenchido só pelo Operations::SaveUser.
+  attr_accessor :access_validity_limit
 
   # Dez tentativas erradas (senha ou código) bloqueiam a conta por quinze minutos. O
   # contador fica no banco, e não no cache, porque o cache do ambiente de teste é
@@ -46,7 +52,13 @@ class User < ApplicationRecord
   def active? = deactivated_at.nil?
   # O que decide se a pessoa entra: conta ativa e organização não suspensa. `active?` continua
   # sendo só da conta — é o que as telas de suporte mostram e revertem.
-  def sign_in_allowed? = active? && !organization&.suspended?
+  def sign_in_allowed? = active? && !organization&.suspended? && !access_expired?
+  # Vale até o fim do dia escolhido, no horário de Brasília (config.time_zone).
+  def access_expired? = access_expires_on.present? && Date.current > access_expires_on
+
+  def access_days_left
+    (access_expires_on - Date.current).to_i if access_expires_on
+  end
   def locked? = locked_until.present? && locked_until.future?
   def mfa_enabled? = mfa_enabled_at.present?
 
@@ -110,6 +122,26 @@ class User < ApplicationRecord
     return if User.active.where(platform_admin: true).where.not(id: id).exists?
 
     errors.add(:base, "precisa sobrar ao menos um administrador da plataforma ativo")
+  end
+
+  # Data passada ou de hoje não é prazo, é desativação. Administrador não tem prazo: a
+  # organização ficaria sem quem administra, e quem o cria é a plataforma.
+  def access_expiry_must_make_sense
+    return if access_expires_on.nil?
+
+    if platform_admin? || organization_admin?
+      errors.add(:access_expires_on, "não se aplica a administrador")
+    elsif will_save_change_to_access_expires_on? && access_expires_on <= Date.current
+      errors.add(:access_expires_on, "precisa ser depois de hoje")
+    end
+  end
+
+  def access_expiry_within_grantor_limit
+    return if access_validity_limit.nil?
+    return if access_expires_on.present? && access_expires_on <= access_validity_limit
+
+    errors.add(:access_expires_on, "não pode passar de " \
+      "#{I18n.l(access_validity_limit, format: '%d/%m/%Y')}, a validade do seu próprio acesso")
   end
 
   private

@@ -121,7 +121,10 @@ class UsersController < ApplicationController
   def user_attributes
     # Os papéis de administração não passam por aqui: a plataforma nasce do seed e o
     # administrador da organização, da própria plataforma. Parâmetro forjado é ignorado.
-    attributes_hash = params.require(:user).permit(:name, :email_address)
+    attributes_hash = params.require(:user).permit(:name, :email_address, :access_expires_on)
+    # A data só vale com "Até" marcado: com "Tempo indeterminado", o campo de data que ficou
+    # preenchido na tela é ignorado.
+    attributes_hash[:access_expires_on] = nil unless params[:access_validity] == "until"
     return attributes_hash if action_name == "update"
 
     # Senha provisória gerada pelo sistema: quem convida não escolhe a senha de outra

@@ -2837,6 +2837,7 @@ CREATE TABLE public.users (
     provisional_password text,
     organization_id bigint,
     organization_admin boolean DEFAULT false NOT NULL,
+    access_expires_on date,
     CONSTRAINT users_email_downcased CHECK (((email_address)::text = lower((email_address)::text))),
     CONSTRAINT users_permissions_known CHECK ((permissions <@ ARRAY['reports_revenue'::character varying, 'reports_clover'::character varying, 'reports_weekly'::character varying, 'reports_three_months'::character varying, 'reports_recurring'::character varying, 'reports_indicators'::character varying, 'reports_export'::character varying, 'establishments_read'::character varying, 'notes_read'::character varying, 'notes_write'::character varying, 'batches_read'::character varying, 'batches_upload'::character varying, 'batches_adjust'::character varying, 'batches_discard'::character varying, 'batches_approve'::character varying, 'metabase_read'::character varying, 'users_invite'::character varying])),
     CONSTRAINT users_platform_or_organization CHECK (((platform_admin AND (organization_id IS NULL) AND (NOT organization_admin)) OR ((NOT platform_admin) AND (organization_id IS NOT NULL))))
@@ -2869,6 +2870,13 @@ COMMENT ON COLUMN public.users.provisional_password IS 'Senha provisória do con
 --
 
 COMMENT ON COLUMN public.users.organization_admin IS 'Administra a própria organização inteira; só a plataforma atribui';
+
+
+--
+-- Name: COLUMN users.access_expires_on; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.users.access_expires_on IS 'Último dia em que a pessoa entra; nulo é tempo indeterminado';
 
 
 --
@@ -5679,6 +5687,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261006180000'),
 ('20261006120000'),
 ('20261001120000'),
 ('20260930150000'),

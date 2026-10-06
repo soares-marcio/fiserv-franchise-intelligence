@@ -26,6 +26,13 @@
     <main id="main-content" class="app-main">
       <%= render_breadcrumbs %>
 
+      <%# Nos últimos dias a própria pessoa é avisada: o portal não manda e-mail, e o vencimento
+          a pegaria de surpresa no meio do trabalho. %>
+      <% if access_expiring_soon?(Current.user) %>
+        <p class="alert alert-warning app-alert mb-4 access-expiry-banner" role="status">
+          Seu acesso <%= access_validity_text(Current.user) %>. Para renovar, fale com quem administra os acessos.
+        </p>
+      <% end %>
       <div id="flash" aria-live="polite">
         <%= render "layouts/flash", notice:, alert: %>
       </div>

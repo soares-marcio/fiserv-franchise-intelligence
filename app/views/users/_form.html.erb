@@ -28,6 +28,33 @@
     <% end %>
   </section>
 
+  <section class="surface-card p-6">
+    <p class="section-label">Validade do acesso</p>
+    <p class="metric-hint mt-1">
+      O acesso vale até o fim do dia escolhido. Vencido, a pessoa não entra, e nada é apagado:
+      mudar a data ou voltar a "Tempo indeterminado" devolve o acesso.
+      <% if Current.user.access_expires_on %>
+        Seu próprio acesso vai até <%= l(Current.user.access_expires_on, format: "%d/%m/%Y") %>, e o
+        que você concede não passa disso.
+      <% end %>
+    </p>
+    <% until_selected = @user.access_expires_on.present? || Current.user.access_expires_on.present? %>
+    <div class="mt-3 grid gap-3">
+      <label class="flex items-center gap-2 text-sm">
+        <%= radio_button_tag :access_validity, "indefinite", !until_selected,
+          disabled: Current.user.access_expires_on.present?, class: "radio radio-sm" %>
+        Tempo indeterminado
+      </label>
+      <label class="flex flex-wrap items-center gap-2 text-sm">
+        <%= radio_button_tag :access_validity, "until", until_selected, class: "radio radio-sm" %>
+        Até
+        <%= form.date_field :access_expires_on, min: Date.current.tomorrow,
+          max: Current.user.access_expires_on, class: "input input-bordered input-sm",
+          aria: { label: "Último dia do acesso" } %>
+      </label>
+    </div>
+  </section>
+
   <section class="surface-card p-6" data-controller="permission-dependencies">
     <p class="section-label">O que vai aparecer no menu</p>
     <p class="metric-hint mt-1">

@@ -31,6 +31,8 @@ module AuditEventsHelper
     "user.created" => "Convidou alguém",
     "user.updated" => "Editou o acesso de alguém",
     "user.access_changed" => "Mudou permissões ou escopo de alguém",
+    "user.access_validity_changed" => "Mudou a validade do acesso de alguém",
+    "session.expired_access" => "Tentou entrar com o acesso vencido",
     "user.mfa_reset" => "Reiniciou o segundo fator de alguém",
     "user.deactivated" => "Desativou acesso de alguém",
     "user.reactivated" => "Reativou acesso de alguém"
