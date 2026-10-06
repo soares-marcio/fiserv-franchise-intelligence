@@ -74,8 +74,11 @@ module ImportBatchesHelper
 
   # A dica do selo do cabeçalho. Ela não nomeia master nenhum: o selo é geral, e quem está
   # defasado se descobre na tela de importação (decisão do usuário, 16/09/2026).
-  def file_status_hint(freshness)
-    return "Importe o primeiro arquivo BIN para começar." unless freshness.any_file?
+  # Só manda para a importação quem pode abri-la: para os demais, o texto informa e para aí.
+  def file_status_hint(freshness, can_open_imports: true)
+    unless freshness.any_file?
+      return can_open_imports ? "Importe o primeiro arquivo BIN para começar." : "Nenhum arquivo BIN importado ainda."
+    end
 
     stale_count = freshness.stale_entries.size
     if stale_count.zero?
@@ -83,8 +86,8 @@ module ImportBatchesHelper
         "#{ImportBatch::STALE_AFTER_DAYS} dias."
     end
 
-    "#{pluralize(stale_count, 'master', 'masters')} com dados desatualizados. " \
-      "Veja quais na tela de importação."
+    stale = "#{pluralize(stale_count, 'master', 'masters')} com dados desatualizados."
+    can_open_imports ? "#{stale} Veja quais na tela de importação." : stale
   end
 
   def last_file_headline(days)

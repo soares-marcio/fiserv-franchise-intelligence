@@ -73,6 +73,27 @@ class ReportMenuPermissionsTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
   end
 
+  # O selo do topo apontava para a importação, e quem não tem a tela caía no 403 ao clicar
+  # nele (homologação de 06/10/2026). Sem a importação, o selo informa e não leva a lugar
+  # nenhum; o texto também não manda para lá.
+  test "sem a importação, o selo do topo não é link nem manda para a tela de importação" do
+    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE ], channel: @channel))
+
+    get reports_path
+
+    assert_select ".header-status"
+    assert_select "a.header-status", count: 0
+    assert_no_match(/tela de importação/, css_select(".header-status").first["title"].to_s)
+  end
+
+  test "com a importação, o selo continua levando a ela" do
+    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::BATCHES_READ ], channel: @channel))
+
+    get reports_path
+
+    assert_select "a.header-status[href=?]", import_batches_path
+  end
+
   private
 
   def screens

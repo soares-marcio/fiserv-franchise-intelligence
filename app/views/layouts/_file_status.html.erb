@@ -7,10 +7,10 @@
     defasa a leitura da base inteira, porque as telas comparam os canais entre si. Cada número
     é o pior do seu sinal, nunca o mais recente — a mesma regra do corte de período em
     ReportScope#cutoff_day. Quem está defasado se descobre na tela de importação, para onde o
-    selo aponta. %>
-<%= link_to import_batches_path, class: "header-status",
-  title: file_status_hint(file_freshness),
-  data: { tone: file_freshness.received_stale? || file_freshness.covered_stale? ? "rose" : "green" } do %>
+    selo aponta — para quem pode abri-la. Para os demais ele só informa: o link levava ao 403
+    (homologação de 06/10/2026). %>
+<% can_open_imports = policy(:import_batch).index? %>
+<% signals = capture do %>
   <span class="header-status__signal"
     data-tone="<%= file_freshness.received_stale? ? "rose" : "green" %>">
     <span class="status-dot" aria-hidden="true"></span>
@@ -21,4 +21,11 @@
     <span class="status-dot" aria-hidden="true"></span>
     <%= coverage_label(file_freshness.covered_on) %>
   </span>
+<% end %>
+<% options = { class: "header-status", title: file_status_hint(file_freshness, can_open_imports:),
+  data: { tone: file_freshness.received_stale? || file_freshness.covered_stale? ? "rose" : "green" } } %>
+<% if can_open_imports %>
+  <%= link_to signals, import_batches_path, **options %>
+<% else %>
+  <%= content_tag :span, signals, **options %>
 <% end %>
