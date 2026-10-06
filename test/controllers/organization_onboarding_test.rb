@@ -51,7 +51,7 @@ class OrganizationOnboardingTest < ActionDispatch::IntegrationTest
   end
 
   test "colaborador e plataforma não são redirecionados, nem nomeiam" do
-    collaborator = scoped_user(permissions: [ Permission::REPORTS_READ ], email: "colab@exemplo.com",
+    collaborator = scoped_user(permissions: [ *Permission::REPORT_KEYS ], email: "colab@exemplo.com",
       organization: @unnamed)
     sign_in_as(collaborator)
     get reports_path

@@ -1,6 +1,4 @@
 class SubChannelPolicy < ApplicationPolicy
-  def show? = permitted?(Permission::REPORTS_READ)
-
   # Mesma regra do Master: apaga o administrador da organização, restaura a plataforma.
   def destroy?
     return false unless user&.organization_admin?

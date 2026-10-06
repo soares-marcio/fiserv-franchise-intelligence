@@ -2,10 +2,22 @@ class ReportsController < ApplicationController
   # A raiz do portal é este index; a conta da plataforma não tem carteira e cairia em 403 ao
   # entrar. Ela vai para a tela dela, antes de qualquer autorização.
   before_action -> { redirect_to platform_organizations_path if Current.user&.platform_admin? }, only: :index
+  # Quem entra pela raiz sem o Faturamento vai para o primeiro item do menu que tem, em
+  # vez de bater num 403 logo depois do login.
+  before_action :redirect_root_to_landing, only: :index
   before_action :load_scope
-  # Toda ação deste controller mostra relatório: a chave é a mesma, e declarar aqui evita
-  # que uma tela nova entre sem autorização.
-  before_action -> { authorize :report, :index? }
+  before_action -> { authorize :report, SCREEN_PERMISSIONS.fetch(action_name.to_sym) }
+
+  # Cada ação pertence ao item do menu de onde se chega a ela. O fetch faz uma tela nova
+  # sem entrada aqui falhar no primeiro teste, em vez de abrir sem autorização.
+  SCREEN_PERMISSIONS = {
+    index: :revenue?, sub_channel: :revenue?, sub_channel_daily: :revenue?,
+    stalled: :clover?,
+    weekly: :weekly?, weekly_day: :weekly?,
+    three_months: :three_months?, three_months_sub_channel: :three_months?,
+    recurring: :recurring?,
+    indicators: :indicators?
+  }.freeze
 
   def index
     @order = ListingSort.new(columns: ReportScope::SUB_CHANNEL_SORT_COLUMNS,
@@ -328,6 +340,13 @@ class ReportsController < ApplicationController
       channel: @selected_channel,
       metadata: { tela: action_name, formato: request.format.symbol.to_s,
         escopo: Current.access_scope.cache_key })
+  end
+
+  def redirect_root_to_landing
+    return unless request.path == root_path && !policy(:report).revenue?
+
+    destination = landing_path
+    redirect_to destination if destination && destination != root_path
   end
 
   def load_scope

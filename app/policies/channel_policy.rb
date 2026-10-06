@@ -1,6 +1,4 @@
 class ChannelPolicy < ApplicationPolicy
-  def show? = permitted?(Permission::REPORTS_READ)
-
   # Apagar é do administrador da organização dona do Master; restaurar, só da plataforma.
   # Colaborador e delegado com o Master inteiro não apagam: a decisão é da organização.
   def destroy? = organization_admin_of?(record)

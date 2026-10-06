@@ -8,7 +8,7 @@ class AuditTest < ActionDispatch::IntegrationTest
 
   setup do
     @channel = Channel.create!(organization: default_organization, external_id: "9911", name: "MASTER DA TRILHA")
-    @actor = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::REPORTS_EXPORT,
+    @actor = scoped_user(permissions: [ *Permission::REPORT_KEYS, Permission::REPORTS_EXPORT,
       Permission::NOTES_READ, Permission::NOTES_WRITE ], channel: @channel, email: "ator@exemplo.com")
   end
 
@@ -38,7 +38,7 @@ class AuditTest < ActionDispatch::IntegrationTest
 
   test "exportação registra a tela, o formato e o recorte — e não o conteúdo" do
     import_synthetic_workbook
-    actor = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::REPORTS_EXPORT ],
+    actor = scoped_user(permissions: [ *Permission::REPORT_KEYS, Permission::REPORTS_EXPORT ],
       channel: Channel.find_by!(name: BinWorkbook::CHANNEL), email: "exporta@exemplo.com")
     sign_in_as(actor)
 
@@ -119,7 +119,7 @@ class AuditEventsScreenTest < ActionDispatch::IntegrationTest
   self.skip_default_login = true
 
   test "sem a chave de administração, a trilha responde 403" do
-    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_READ ], email: "comum@exemplo.com"))
+    sign_in_as(scoped_user(permissions: [ *Permission::REPORT_KEYS ], email: "comum@exemplo.com"))
 
     get audit_events_path
 

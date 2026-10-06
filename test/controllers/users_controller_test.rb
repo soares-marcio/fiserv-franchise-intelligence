@@ -18,7 +18,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_difference -> { User.count } do
       post users_path, params: {
         user: { name: "Convidada", email_address: "convidada@exemplo.com" },
-        permissions: [ Permission::REPORTS_READ ],
+        permissions: [ *Permission::REPORT_KEYS ],
         grants: { "0" => { channel_id: @channel_a.id } }
       }
     end
@@ -26,7 +26,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     fresh = User.find_by(email_address: "convidada@exemplo.com")
     assert fresh.must_change_password?, "a senha provisória precisa ser trocada no primeiro acesso"
     assert_not fresh.mfa_enabled?, "o segundo fator é cadastrado pela própria pessoa"
-    assert_equal [ Permission::REPORTS_READ ], fresh.permissions
+    assert_equal [ *Permission::REPORT_KEYS ], fresh.permissions
     assert_equal [ @channel_a.id ], fresh.access_grants.pluck(:channel_id)
     assert_match(/Senha provisória/, flash[:notice])
   end
@@ -46,18 +46,18 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
   # O delegado é o caso que mais importa: ele administra, mas dentro do que tem.
   test "delegado não concede permissão que não possui" do
-    delegate = scoped_user(permissions: [ Permission::USERS_INVITE, Permission::REPORTS_READ ],
+    delegate = scoped_user(permissions: [ Permission::USERS_INVITE, *Permission::REPORT_KEYS ],
       channel: @channel_a, email: "delegado@exemplo.com")
     sign_in_as(delegate)
 
     post users_path, params: {
       user: { name: "Novo", email_address: "novo@exemplo.com" },
-      permissions: [ Permission::REPORTS_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
+      permissions: [ *Permission::REPORT_KEYS, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
       grants: { "0" => { channel_id: @channel_a.id } }
     }
 
     fresh = User.find_by(email_address: "novo@exemplo.com")
-    assert_equal [ Permission::REPORTS_READ ], fresh.permissions,
+    assert_equal [ *Permission::REPORT_KEYS ], fresh.permissions,
       "descartar lote não estava com o delegado, então não pode ser concedido"
   end
 
@@ -112,7 +112,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # Os papéis de administração não se concedem pelo convite: a plataforma nasce do seed e
   # o administrador da organização, da própria plataforma. Parâmetro forjado é ignorado.
   test "administrador da organização não nomeia plataforma nem outro administrador pelo convite" do
-    target = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "alvo@exemplo.com")
+    target = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "alvo@exemplo.com")
     sign_in_as(admin_user)
 
     patch user_path(target), params: {
@@ -162,7 +162,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # A listagem virou cards com o uso de cada pessoa, tirado da trilha.
   test "os cards mostram último acesso, entradas, exportações e envios" do
     boss = admin_user
-    target = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "alvo@exemplo.com",
+    target = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "alvo@exemplo.com",
       created_by: boss)
     AuditEvent.create!(user: target, actor_email: target.email_address, action: "session.start", created_at: 2.days.ago)
     AuditEvent.create!(user: target, actor_email: target.email_address, action: "report.export", created_at: 1.day.ago)
@@ -192,7 +192,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "mudar permissão derruba as sessões de quem foi alterado" do
-    target = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a,
+    target = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a,
       email: "alvo@exemplo.com")
     target.sessions.create!(last_active_at: Time.current)
     sign_in_as(admin_user)
@@ -242,7 +242,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "sem a chave de administração, a tela nem abre" do
-    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_READ ], email: "comum@exemplo.com"))
+    sign_in_as(scoped_user(permissions: [ *Permission::REPORT_KEYS ], email: "comum@exemplo.com"))
 
     get users_path
     assert_response :forbidden

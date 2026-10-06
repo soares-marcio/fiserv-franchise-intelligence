@@ -50,7 +50,7 @@ class SoftDeleteTest < ActionDispatch::IntegrationTest
   end
 
   test "apagar o Master guarda os dados, derruba as sessões de quem o tinha e registra na trilha" do
-    collaborator = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "colab@exemplo.com")
+    collaborator = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "colab@exemplo.com")
     sign_in_as(collaborator)
     sign_out
     travel 31.seconds
@@ -91,7 +91,7 @@ class SoftDeleteTest < ActionDispatch::IntegrationTest
   end
 
   test "só o administrador da organização dona apaga; a plataforma e o colaborador não" do
-    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_READ, Permission::BATCHES_UPLOAD ],
+    sign_in_as(scoped_user(permissions: [ *Permission::REPORT_KEYS, Permission::BATCHES_UPLOAD ],
       channel: @channel_a, email: "colab@exemplo.com"))
     get new_channel_deletion_path(@channel_a)
     assert_response :forbidden
@@ -131,7 +131,7 @@ class SoftDeleteTest < ActionDispatch::IntegrationTest
   end
 
   test "a plataforma restaura tudo, e recusa quando uma planilha nova já ocupou o REPORT_ID" do
-    collaborator = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "colab@exemplo.com")
+    collaborator = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "colab@exemplo.com")
     Operations::SoftDelete.delete_channel(channel: @channel_a, actor: @admin, confirmation: BinWorkbook::CHANNEL)
     sign_in_as(platform_admin_user)
 
@@ -206,8 +206,8 @@ class SoftDeleteTest < ActionDispatch::IntegrationTest
   end
 
   test "colaborador com o MIC apagado perde o acesso a ele; com o Master inteiro, deixa de vê-lo" do
-    by_mic = scoped_user(permissions: [ Permission::REPORTS_READ ], sub_channel: @mic_beta, email: "mic@exemplo.com")
-    whole = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "master@exemplo.com")
+    by_mic = scoped_user(permissions: [ *Permission::REPORT_KEYS ], sub_channel: @mic_beta, email: "mic@exemplo.com")
+    whole = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "master@exemplo.com")
 
     Operations::SoftDelete.delete_sub_channel(sub_channel: @mic_beta, actor: @admin, confirmation: "MIC BETA")
 

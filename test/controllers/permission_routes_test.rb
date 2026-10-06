@@ -13,7 +13,7 @@ class PermissionRoutesTest < ActionDispatch::IntegrationTest
   end
 
   test "Ver relatórios abre os relatórios e o menu" do
-    sign_in_with(Permission::REPORTS_READ)
+    sign_in_with(*Permission::REPORT_KEYS)
 
     get reports_path
     assert_response :success
@@ -23,7 +23,7 @@ class PermissionRoutesTest < ActionDispatch::IntegrationTest
   end
 
   test "Exportar relatórios, com Ver relatórios, baixa o CSV" do
-    sign_in_with(Permission::REPORTS_READ, Permission::REPORTS_EXPORT)
+    sign_in_with(*Permission::REPORT_KEYS, Permission::REPORTS_EXPORT)
 
     get three_months_reports_path(format: :csv)
     assert_response :success

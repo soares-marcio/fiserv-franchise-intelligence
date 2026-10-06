@@ -29,9 +29,11 @@
   </section>
 
   <section class="surface-card p-6">
-    <p class="section-label">O que pode fazer</p>
+    <p class="section-label">O que vai aparecer no menu</p>
     <p class="metric-hint mt-1">
-      Você só concede o que você mesmo tem.
+      Cada caixa de Relatórios e Estabelecimentos é um item do menu: a pessoa vê só os
+      marcados, e só da carteira escolhida em "O que pode ver". Você só concede o que você
+      mesmo tem.
     </p>
     <% Permission::GROUPS.each do |group, keys| %>
       <% available_keys = keys & @permissions %>
@@ -51,7 +53,10 @@
               <%= check_box_tag "permissions[]", key, @user.permissions.include?(key),
                 id: "permission_#{key}", class: "checkbox checkbox-sm mt-0.5" %>
               <span>
-                <%= Permission.label(key) %>
+                <span class="font-semibold"><%= Permission.label(key) %></span>
+                <% if (description = Permission.description(key)) %>
+                  <span class="block text-xs opacity-80"><%= description %></span>
+                <% end %>
                 <% if (requirement = Permission.requirement_text(key)) %>
                   <span class="block text-xs opacity-70"><%= requirement %></span>
                 <% end %>

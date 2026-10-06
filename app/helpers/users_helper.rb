@@ -65,6 +65,13 @@ module UsersHelper
     return "Todas" if user.organization_admin?
     return "Nenhuma" if user.permissions.empty?
 
-    user.permissions.map { |key| Permission.label(key) }.to_sentence
+    # Com os seis itens de relatório, a lista diria seis nomes onde um resumo basta.
+    keys = user.permissions
+    labels = if (Permission::REPORT_KEYS - keys).empty?
+      [ "Todos os relatórios", *(keys - Permission::REPORT_KEYS).map { |key| Permission.label(key) } ]
+    else
+      keys.map { |key| Permission.label(key) }
+    end
+    labels.to_sentence
   end
 end

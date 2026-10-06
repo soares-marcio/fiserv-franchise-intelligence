@@ -31,7 +31,22 @@ class ApplicationController < ActionController::Base
     @file_freshness ||= FileFreshness.new(organization: Current.organization)
   end
 
+  # Os itens do menu na ordem em que aparecem: a raiz leva ao primeiro que o ator tem.
+  LANDING_SCREENS = [
+    [ :report, :revenue?, :reports_path ], [ :report, :clover?, :stalled_reports_path ],
+    [ :report, :weekly?, :weekly_reports_path ], [ :report, :three_months?, :three_months_reports_path ],
+    [ :report, :recurring?, :recurring_reports_path ], [ :report, :indicators?, :indicators_reports_path ],
+    [ :establishment, :index?, :establishments_path ], [ :import_batch, :index?, :import_batches_path ],
+    [ :user, :index?, :users_path ]
+  ].freeze
+
   private
+
+  # nil quando o ator não tem tela nenhuma: aí a raiz responde o 403 de sempre.
+  def landing_path
+    screen = LANDING_SCREENS.find { |name, query, _| policy(name).public_send(query) }
+    screen && public_send(screen.last)
+  end
 
   # 403 renderizado, nunca redirect_back: voltar para a página anterior com um destino vindo
   # do cabeçalho é redirecionamento aberto, que o Brakeman acusa e com razão.
