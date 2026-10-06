@@ -16,6 +16,9 @@ class ApplicationController < ActionController::Base
   after_action :verify_authorized
 
   rescue_from Pundit::NotAuthorizedError, with: :forbidden
+  # Formulário aberto até o token de segurança vencer: volta à tela de onde veio, com o
+  # aviso, em vez da página solta do 422. Nada é gravado — o pedido foi recusado antes.
+  rescue_from ActionController::InvalidAuthenticityToken, with: :expired_form
 
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
@@ -55,6 +58,23 @@ class ApplicationController < ActionController::Base
       format.html { render "errors/forbidden", status: :forbidden, layout: "error" }
       format.any { head :forbidden }
     end
+  end
+
+  def expired_form
+    return head(:unprocessable_entity) unless request.format.html?
+
+    redirect_to expired_form_origin || root_path, status: :see_other,
+      alert: "A página ficou aberta por muito tempo. Confira os dados e envie de novo."
+  end
+
+  # Só o caminho, e só se a origem for este mesmo portal: seguir o Referer inteiro seria
+  # redirecionamento aberto.
+  def expired_form_origin
+    origin = URI.parse(request.referer.to_s)
+    path = origin.request_uri if origin.is_a?(URI::HTTP) && origin.host == request.host
+    path if safe_return_path?(path)
+  rescue URI::InvalidURIError
+    nil
   end
 
   def require_password_change
