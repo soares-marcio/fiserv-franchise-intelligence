@@ -199,7 +199,11 @@ bin/staging-restore --sim    # sem perguntar
 
 Ele pega o **dump mais recente do espelho do berry** (`../franchise-storage/backups/berry/`,
 que o `launchd` puxa às 4h00), recria o banco, restaura o volume `storage`, roda o seed e
-limpa o Solid Cache — que vem dentro do dump, com as chaves da produção. Recusa rodar se o
+limpa o Solid Cache — que vem dentro do dump, com as chaves da produção — e apaga o segundo
+fator, a senha provisória, os códigos de recuperação e as sessões que vieram da produção: as
+chaves `AR_ENCRYPTION_*` de lá são outras e a homologação não decifra nada disso. Quem entra
+na homologação usa a senha da produção e inscreve o segundo fator de novo (o código aparece
+na tela). Recusa rodar se o
 `COMPOSE_FILE` tiver a sobreposição do berry, porque é destrutivo por natureza. O papel
 `metabase_ro` é criado **antes** do `pg_restore`: o dump carrega os `GRANT` para ele, e sem o
 papel o restore para no primeiro.
