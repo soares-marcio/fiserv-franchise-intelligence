@@ -95,6 +95,28 @@ class ReportMenuPermissionsTest < ActionDispatch::IntegrationTest
     assert_select "a.header-status[href=?]", import_batches_path
   end
 
+  # Quem estava navegando no portal e esbarra numa tela que não tem mais — a aba aberta
+  # antes de a permissão mudar, recarregada — vai para a primeira tela que tem, com o aviso.
+  # A página de erro fica para o endereço digitado ou vindo de fora (homologação de 06/10/2026).
+  test "navegando no portal, a tela sem permissão leva à primeira tela que a pessoa tem, com aviso" do
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ ], channel: @channel))
+
+    get indicators_reports_path, headers: { "Referer" => "http://www.example.com#{indicators_reports_path}" }
+
+    assert_redirected_to establishments_path
+    assert_match "não está entre as liberadas", flash[:alert]
+  end
+
+  test "endereço digitado ou vindo de fora mostra a página de erro" do
+    sign_in_as(scoped_user(permissions: [ Permission::ESTABLISHMENTS_READ ], channel: @channel))
+
+    get indicators_reports_path
+    assert_response :forbidden
+
+    get indicators_reports_path, headers: { "Referer" => "https://outro-site.example/" }
+    assert_response :forbidden
+  end
+
   private
 
   def screens

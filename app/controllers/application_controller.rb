@@ -54,10 +54,13 @@ class ApplicationController < ActionController::Base
   # 403 renderizado, nunca redirect_back: voltar para a página anterior com um destino vindo
   # do cabeçalho é redirecionamento aberto, que o Brakeman acusa e com razão.
   def forbidden
-    # Logo depois de entrar, o destino é a tela pedida antes do login, que pode ter perdido
-    # a permissão no meio do caminho: entrar e ver "sem permissão" não diz nada à pessoa.
-    if flash[:signed_in] && request.get? && (destination = landing_path) && destination != request.path
-      return redirect_to(destination)
+    # Quem estava navegando no portal (a aba aberta antes de a permissão mudar, a tela
+    # pedida antes do login) vai para a primeira tela que tem, com o aviso. A página de erro
+    # fica para o endereço digitado ou vindo de fora — sem origem no portal.
+    if request.get? && navigating_within_portal? && (destination = landing_path) &&
+        destination != request.path
+      return redirect_to(destination,
+        alert: "A tela que você tentou abrir não está entre as liberadas para o seu acesso.")
     end
 
     respond_to do |format|
@@ -71,6 +74,13 @@ class ApplicationController < ActionController::Base
   # propósito, contra fixação de sessão. Se a outra aba já entrou, esta entra também; se
   # está no meio, a mensagem diz o que houve (homologação de 06/10/2026).
   SIGN_IN_CONTROLLERS = %w[sessions mfa].freeze
+
+  def navigating_within_portal?
+    origin = URI.parse(request.referer.to_s)
+    origin.is_a?(URI::HTTP) && origin.host == request.host
+  rescue URI::InvalidURIError
+    false
+  end
 
   def expired_form
     return head(:unprocessable_entity) unless request.format.html?
