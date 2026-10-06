@@ -60,11 +60,26 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  # Na entrada (senha ou código), a chave vencida quase sempre vem de outra aba: as abas
+  # dividem o cookie, e a senha aceita numa troca a sessão e a chave dos formulários — de
+  # propósito, contra fixação de sessão. Se a outra aba já entrou, esta entra também; se
+  # está no meio, a mensagem diz o que houve (homologação de 06/10/2026).
+  SIGN_IN_CONTROLLERS = %w[sessions mfa].freeze
+
   def expired_form
     return head(:unprocessable_entity) unless request.format.html?
+    return expired_sign_in if SIGN_IN_CONTROLLERS.include?(controller_path)
 
     redirect_to expired_form_origin || root_path, status: :see_other,
       alert: "A página ficou aberta por muito tempo. Confira os dados e envie de novo."
+  end
+
+  def expired_sign_in
+    return redirect_to(root_path, status: :see_other) if authenticated?
+
+    redirect_to new_session_path, status: :see_other,
+      alert: "Esta tela de entrada ficou desatualizada, provavelmente porque você entrou ou " \
+        "saiu do portal em outra aba. Digite seus dados de novo."
   end
 
   # Só o caminho, e só se a origem for este mesmo portal: seguir o Referer inteiro seria

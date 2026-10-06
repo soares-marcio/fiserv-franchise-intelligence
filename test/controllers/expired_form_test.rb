@@ -18,7 +18,20 @@ class ExpiredFormTest < ActionDispatch::IntegrationTest
       headers: { "Referer" => "http://www.example.com#{new_session_path}" }
 
     assert_redirected_to new_session_path
-    assert_match "ficou aberta por muito tempo", flash[:alert]
+    assert_match "outra aba", flash[:alert]
+  end
+
+  # Duas abas: a outra já concluiu a entrada, e o cookie desta já vale. Mostrar erro a quem
+  # já está dentro seria pedir que digitasse tudo de novo à toa.
+  test "o login vencido de quem já entrou por outra aba vai direto ao portal" do
+    ActionController::Base.allow_forgery_protection = false
+    sign_in_as(admin_user)
+    ActionController::Base.allow_forgery_protection = true
+
+    post session_path, params: { email_address: "chefe@exemplo.com", password: "x", authenticity_token: "vencido" }
+
+    assert_redirected_to root_path
+    assert_nil flash[:alert]
   end
 
   test "um formulário do portal vencido volta à mesma tela" do
@@ -34,7 +47,11 @@ class ExpiredFormTest < ActionDispatch::IntegrationTest
   end
 
   test "origem de outro endereço não é seguida: volta ao início" do
-    post session_path, params: { authenticity_token: "vencido" },
+    ActionController::Base.allow_forgery_protection = false
+    sign_in_as(admin_user)
+    ActionController::Base.allow_forgery_protection = true
+
+    post users_path, params: { authenticity_token: "vencido" },
       headers: { "Referer" => "https://outro-site.example/phishing" }
 
     assert_redirected_to root_path
