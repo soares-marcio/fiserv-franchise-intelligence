@@ -139,6 +139,36 @@ conferido por ele passa verde com a produção quebrada. A migração corre no
 rollback automático: as imagens anteriores ficam, e voltar é `git checkout <sha>` seguido de
 `docker compose up -d --build web worker`.
 
+#### Log em arquivo no berry
+
+Desde 10/2026 o log do Rails, além da saída padrão (`docker compose logs`), vai para
+`~/repos/franchise-intelligence/log/` no berry: `web.log` e `worker.log`, girados por dia
+(`web.log.20261005`). O motivo é o deploy: o log do Docker pertence ao container, e o
+`bin/deploy` o recria — o histórico de quem acessou sumia a cada atualização. Liga quem define
+`RAILS_LOG_FILE`, o que só o `docker-compose.berry.yml` faz; a homologação no Mac continua só
+na saída padrão.
+
+- **Retenção de 30 dias**, decisão de dado e não de espaço: o arquivo guarda IP, caminho e
+  horário de cada acesso. Quem apaga o girado mais velho é o worker, às 4h30
+  (`config/recurring.yml`, `lib/log_retention.rb`). Senha, e-mail, código do segundo fator,
+  termo de busca e dados da planilha saem como `[FILTERED]`
+  (`config/initializers/filter_parameter_logging.rb`).
+- **Volume**: uns 520 bytes por requisição (medido em 05/10/2026); com o uso atual, menos de
+  30 MB por mês.
+- **A pasta pertence ao uid 1000 do container**, não ao `soares`. O Docker do berry é rootless:
+  o uid 1000 de dentro é o 100999 do host, e sem a troca de dono o Rails não cria o arquivo e
+  o `web` não sobe. Pelo mesmo motivo nem `logrotate` nem cron do host conseguem apagar ali —
+  daí a limpeza pelo worker. A troca é feita uma vez, por um container root (que no rootless é
+  o próprio `soares`):
+
+  ```bash
+  cd ~/repos/franchise-intelligence
+  docker run --rm -u 0 -v "$PWD/log:/x" alpine chown 1000:1000 /x
+  ```
+
+  O `soares` continua lendo (`tail -f log/web.log`), porque a pasta e os arquivos ficam com
+  leitura para todos.
+
 A imagem traz o Thruster como `CMD` (`./bin/thrust ./bin/rails server`), mas o Compose
 **sobrescreve** com `bin/rails server -b 0.0.0.0`: na stack quem atende a porta 3000 é o Puma,
 sem cache de assets nem compressão do Thruster. Isso não é só preferência — o
