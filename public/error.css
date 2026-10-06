@@ -1,3 +1,13 @@
+/* Cópia do subconjunto latino do Montserrat de app/assets/fonts: a página estática não
+   conhece o nome com digest que o app gera, e precisa abrir com o app fora do ar. */
+@font-face {
+  font-family: "Montserrat";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/montserrat-latin.woff2") format("woff2");
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -54,15 +64,23 @@ body {
 }
 
 .error-code {
-  margin-top: 2rem;
-  color: #bd3c00;
-  font-size: 0.8125rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eadccd;
+  color: #9a8a80;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.error-next {
+  margin-top: 0.75rem;
+  color: #33251e;
+  font-weight: 600;
+  line-height: 1.6;
 }
 
 h1 {
-  margin-top: 0.4rem;
+  margin-top: 2rem;
   font-size: clamp(1.75rem, 7vw, 2.5rem);
   line-height: 1.05;
 }
