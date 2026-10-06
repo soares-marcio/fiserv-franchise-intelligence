@@ -28,7 +28,7 @@
     <% end %>
   </section>
 
-  <section class="surface-card p-6">
+  <section class="surface-card p-6" data-controller="permission-dependencies">
     <p class="section-label">O que vai aparecer no menu</p>
     <p class="metric-hint mt-1">
       Cada caixa de Relatórios e Estabelecimentos é um item do menu: a pessoa vê só os
@@ -50,8 +50,13 @@
         <div class="mt-2 grid gap-2">
           <% available_keys.each do |key| %>
             <label class="flex items-start gap-2 text-sm">
-              <%= check_box_tag "permissions[]", key, @user.permissions.include?(key),
-                id: "permission_#{key}", class: "checkbox checkbox-sm mt-0.5" %>
+              <% locked = permission_locked?(key, @user.permissions) %>
+              <% available = permission_available?(key, @user.permissions) %>
+              <%= check_box_tag "permissions[]", key, available && (locked || @user.permissions.include?(key)),
+                id: "permission_#{key}", class: "checkbox checkbox-sm mt-0.5",
+                disabled: locked || !available,
+                data: { permission_dependencies_target: "box", key:, requires: Permission::REQUIRES.fetch(key, []).to_json,
+                  action: "permission-dependencies#toggle" } %>
               <span>
                 <span class="font-semibold"><%= Permission.label(key) %></span>
                 <% if (description = Permission.description(key)) %>

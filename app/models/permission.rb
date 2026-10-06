@@ -101,6 +101,20 @@ class Permission
     LABELS.fetch(key, key)
   end
 
+  # A base única vem junto: a tela trava "Ver anotação" marcado quando "Editar" está marcado,
+  # e caixa travada não viaja no formulário. Com alternativas não há o que escolher pela
+  # pessoa — ali nada é acrescentado e a validação continua recusando.
+  def self.with_implied(keys)
+    KEYS & (keys + keys.flat_map { |key| implied_bases(key) })
+  end
+
+  def self.implied_bases(key)
+    bases = REQUIRES[key]
+    return [] unless bases&.one?
+
+    [ bases.first, *implied_bases(bases.first) ]
+  end
+
   # As chaves do conjunto cuja base falta, com o que falta.
   def self.missing_requirements(keys)
     REQUIRES.filter_map do |key, bases|

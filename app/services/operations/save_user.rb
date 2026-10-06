@@ -45,7 +45,7 @@ module Operations
     # Ninguém concede permissão que não tem — e "ter" é o que permitted? diz, então quem
     # administra passa direto porque tem todas.
     def self.allowed_permissions(permissions, actor)
-      requested = Array(permissions).map(&:to_s) & Permission::KEYS
+      requested = Permission.with_implied(Array(permissions).map(&:to_s) & Permission::KEYS)
       requested.select { |key| actor.permitted?(key) }
     end
     private_class_method :allowed_permissions

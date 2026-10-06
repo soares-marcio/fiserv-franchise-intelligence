@@ -51,6 +51,17 @@ class PermissionTest < ActiveSupport::TestCase
     Permission::REPORT_KEYS.each { |key| assert Permission.description(key).present?, key }
   end
 
+  # A tela trava a base marcada, e caixa travada não viaja no formulário: quem recebe
+  # "Editar anotação" leva "Ver anotação" junto. Com alternativas não há o que escolher pela
+  # pessoa, e nada é acrescentado.
+  test "a base única vem junto com a chave que depende dela" do
+    assert_equal [ Permission::NOTES_READ, Permission::NOTES_WRITE ].sort,
+      Permission.with_implied([ Permission::NOTES_WRITE ]).sort
+    assert_equal [ Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ].sort,
+      Permission.with_implied([ Permission::BATCHES_DISCARD ]).sort
+    assert_equal [ Permission::REPORTS_EXPORT ], Permission.with_implied([ Permission::REPORTS_EXPORT ])
+  end
+
   private
 
   # A base de uma chave pode ter base própria (editar anotação → ver anotação → uma tela).

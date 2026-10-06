@@ -61,6 +61,21 @@ module UsersHelper
       .compact.to_sentence.presence || "Nada"
   end
 
+  # Estado inicial de cada caixa no convite, o mesmo que o controller permission-dependencies
+  # mantém ao clicar: a base de uma chave marcada vem marcada e travada; a chave que depende
+  # de uma entre várias telas fica desabilitada enquanto nenhuma delas estiver marcada.
+  def permission_locked?(key, keys)
+    keys.any? { |selected| Permission.implied_bases(selected).include?(key) }
+  end
+
+  def permission_available?(key, keys)
+    bases = Permission::REQUIRES[key]
+    return true if bases.nil?
+    return permission_available?(bases.first, keys) if bases.one?
+
+    bases.intersect?(keys)
+  end
+
   def user_permissions_summary(user)
     return "Todas" if user.organization_admin?
     return "Nenhuma" if user.permissions.empty?

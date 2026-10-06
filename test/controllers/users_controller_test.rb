@@ -370,4 +370,37 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Convidado por #{boss.name} em/, response.body)
     assert_includes response.body, guest.email_address
   end
+
+  # A caixa "Ver anotação" vai travada quando "Editar" está marcado, e caixa travada não é
+  # enviada: o servidor completa a base em vez de recusar o convite.
+  test "editar anotação enviado sozinho grava também o ver" do
+    sign_in_as(admin_user)
+
+    post users_path, params: {
+      user: { name: "Leitora", email_address: "leitora@exemplo.com" },
+      permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_WRITE ],
+      grants: { "0" => { channel_id: @channel_a.id } }
+    }
+
+    fresh = User.find_by!(email_address: "leitora@exemplo.com")
+    assert_includes fresh.permissions, Permission::NOTES_READ
+    assert_includes fresh.permissions, Permission::NOTES_WRITE
+  end
+
+  test "a ficha já vem com a base travada e a dependente sem alternativa desabilitada" do
+    sign_in_as(admin_user)
+    target = scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_READ, Permission::NOTES_WRITE ],
+      channel: @channel_a, email: "alvo@exemplo.com")
+
+    get edit_user_path(target)
+
+    assert_select "input#permission_notes_read[checked][disabled]"
+    assert_select "input#permission_notes_write[checked]:not([disabled])"
+
+    other = scoped_user(permissions: [ Permission::BATCHES_READ ], channel: @channel_a, email: "outro@exemplo.com")
+    get edit_user_path(other)
+    assert_select "input#permission_notes_read[disabled]:not([checked])", 1,
+      "sem Faturamento, Clover Capital ou Estabelecimentos, ver anotação não tem onde valer"
+    assert_select "input#permission_reports_export[disabled]:not([checked])", 1
+  end
 end
