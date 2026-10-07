@@ -77,6 +77,10 @@ module ApplicationHelper
         (breadcrumb_link(@sub_channel.name, sub_channel_report_path(@sub_channel)) if @sub_channel),
         breadcrumb_current("Apagar MIC") ].compact
     when "platform/organizations" then platform_breadcrumb_items
+    when "platform/users"
+      [ breadcrumb_link("Organizações", platform_organizations_path),
+        (breadcrumb_link(organization_display_name(@user.organization), platform_organization_path(@user.organization)) if @user&.organization),
+        breadcrumb_current(@user&.name || "Conta") ].compact
     when "platform/organization_admins"
       [ breadcrumb_link("Organizações", platform_organizations_path),
         platform_organization_crumb,

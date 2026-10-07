@@ -91,7 +91,7 @@ Rails.application.routes.draw do
         post :reactivate
       end
     end
-    resources :users, only: [] do
+    resources :users, only: :show do
       member do
         post :reset_mfa
         post :deactivate

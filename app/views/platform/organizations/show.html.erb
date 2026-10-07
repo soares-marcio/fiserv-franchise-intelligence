@@ -71,7 +71,7 @@
       <% @admins.each do |admin| %>
         <li class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-base-300 p-3">
           <div class="min-w-0 grow basis-64">
-            <p class="font-semibold"><%= admin.name %></p>
+            <p class="font-semibold"><%= link_to admin.name, platform_user_path(admin), class: "link" %></p>
             <p class="text-sm opacity-70"><%= admin.email_address %></p>
             <% first_access_hint = user_first_access_hint(admin) %>
             <% if first_access_hint %>
@@ -101,7 +101,7 @@
         <tbody>
           <% @members.each do |member| %>
             <tr>
-              <td><%= member.name %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
+              <td><%= link_to member.name, platform_user_path(member), class: "link" %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
               <td><%= user_status_badge(member) %></td>
               <td class="text-xs"><%= member.created_by&.name || "—" %></td>
               <td class="text-xs"><%= access_validity_text(member) %></td>

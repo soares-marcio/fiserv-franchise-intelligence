@@ -137,4 +137,48 @@ class PlatformHistoryTest < ActionDispatch::IntegrationTest
     assert_match(/Contas alteradas\s*1/, within_section)
     assert_no_match(/Clover Capital/, within_section)
   end
+
+  # A linha do tempo de uma conta: convite, primeiro acesso, segundo fator, validade,
+  # permissões em números, desativação — o ciclo de vida, não a atividade na carteira.
+  test "a linha do tempo da conta mostra o ciclo de vida, sem a atividade na carteira" do
+    Audit.record("user.created", user: @admin, record: @guest, metadata: { alvo: @guest.email_address })
+    Audit.record("session.start", user: @guest)
+    Audit.record("mfa.enrolled", user: @guest)
+    Audit.record("user.access_validity_changed", user: @admin, record: @guest,
+      metadata: { validade_antes: "indeterminado", validade_depois: "2026-12-31" })
+    Audit.record("report.export", user: @guest, channel: @channel, metadata: { tela: "index", formato: "csv" })
+    Audit.record("note.saved", user: @guest, metadata: { caracteres: 10 })
+    sign_in_as(@platform)
+
+    get platform_user_path(@guest)
+
+    assert_response :success
+    assert_match "Convidou alguém", response.body
+    assert_match "Cadastrou o segundo fator", response.body
+    assert_match "validade depois: 2026-12-31", response.body
+    assert_match "Primeiro acesso", response.body
+    assert_no_match(/Exportou relatório|Salvou anotação/, response.body)
+    assert_no_match LEAKS, response.body
+  end
+
+  test "a lista de convidados leva à linha do tempo, que não abre para quem não é da plataforma" do
+    sign_in_as(@platform)
+    get platform_organization_path(default_organization)
+    assert_select "a[href=?]", platform_user_path(@guest)
+    sign_out
+
+    travel 31.seconds
+    sign_in_as(@admin)
+    get platform_user_path(@guest)
+    assert_response :forbidden
+  end
+
+  test "a plataforma não abre a linha do tempo de outra conta da plataforma" do
+    other = platform_admin_user(email: "plataforma-2@exemplo.com")
+    sign_in_as(@platform)
+
+    get platform_user_path(other)
+
+    assert_response :forbidden
+  end
 end
