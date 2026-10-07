@@ -5,13 +5,36 @@ module UsersHelper
     organization.name.presence || "Organização sem nome ##{organization.id}"
   end
 
+  # A semana final é quando ainda dá para renovar sem a pessoa ficar de fora.
+  ACCESS_EXPIRY_WARNING_DAYS = 7
+
+  def access_validity_text(user)
+    return "Indeterminada" if user.access_expires_on.nil?
+
+    date = l(user.access_expires_on, format: "%d/%m/%Y")
+    days = user.access_days_left
+    return "venceu em #{date}" if days.negative?
+    return "vence hoje (#{date})" if days.zero?
+    return "vence em #{pluralize(days, 'dia', 'dias')} (#{date})" if days <= ACCESS_EXPIRY_WARNING_DAYS
+
+    "até #{date}"
+  end
+
+  def access_expiring_soon?(user)
+    days = user&.access_days_left
+    days.present? && days.between?(0, ACCESS_EXPIRY_WARNING_DAYS)
+  end
+
   def user_status_badge(user)
     return content_tag(:span, "Desativado", class: "badge badge-ghost") unless user.active?
+    return content_tag(:span, "Acesso vencido", class: "badge badge-ghost") if user.access_expired?
     return content_tag(:span, "Bloqueado", class: "badge badge-error") if user.locked?
     # Convite ainda não usado: senha por trocar ou segundo fator por cadastrar.
     unless user.mfa_enabled? && !user.must_change_password?
       return content_tag(:span, "Primeiro acesso pendente", class: "badge badge-warning")
     end
+
+    return content_tag(:span, "Vence em breve", class: "badge badge-warning") if access_expiring_soon?(user)
 
     content_tag(:span, "Ativo", class: "badge badge-success")
   end
@@ -61,10 +84,32 @@ module UsersHelper
       .compact.to_sentence.presence || "Nada"
   end
 
+  # Estado inicial de cada caixa no convite, o mesmo que o controller permission-dependencies
+  # mantém ao clicar: a base de uma chave marcada vem marcada e travada; a chave que depende
+  # de uma entre várias telas fica desabilitada enquanto nenhuma delas estiver marcada.
+  def permission_locked?(key, keys)
+    keys.any? { |selected| Permission.implied_bases(selected).include?(key) }
+  end
+
+  def permission_available?(key, keys)
+    bases = Permission::REQUIRES[key]
+    return true if bases.nil?
+    return permission_available?(bases.first, keys) if bases.one?
+
+    bases.intersect?(keys)
+  end
+
   def user_permissions_summary(user)
     return "Todas" if user.organization_admin?
     return "Nenhuma" if user.permissions.empty?
 
-    user.permissions.map { |key| Permission.label(key) }.to_sentence
+    # Com os seis itens de relatório, a lista diria seis nomes onde um resumo basta.
+    keys = user.permissions
+    labels = if (Permission::REPORT_KEYS - keys).empty?
+      [ "Todos os relatórios", *(keys - Permission::REPORT_KEYS).map { |key| Permission.label(key) } ]
+    else
+      keys.map { |key| Permission.label(key) }
+    end
+    labels.to_sentence
   end
 end

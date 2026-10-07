@@ -1360,6 +1360,20 @@
   font-weight: 600;
 }
 
+  /* Segunda linha do cabeçalho das telas de cards: os critérios de ordenação, que no
+     Faturamento moram nos cabeçalhos da tabela e aqui não têm coluna onde morar. */
+  .cards-toolbar__sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .cards-toolbar__sort .earnings-card-bar__sort {
+    margin-left: 0;
+  }
+
   .earnings-card-bar {
     display: flex;
     flex-wrap: wrap;

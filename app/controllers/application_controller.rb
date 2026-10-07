@@ -16,6 +16,9 @@ class ApplicationController < ActionController::Base
   after_action :verify_authorized
 
   rescue_from Pundit::NotAuthorizedError, with: :forbidden
+  # Formulário aberto até o token de segurança vencer: volta à tela de onde veio, com o
+  # aviso, em vez da página solta do 422. Nada é gravado — o pedido foi recusado antes.
+  rescue_from ActionController::InvalidAuthenticityToken, with: :expired_form
 
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
@@ -31,15 +34,78 @@ class ApplicationController < ActionController::Base
     @file_freshness ||= FileFreshness.new(organization: Current.organization)
   end
 
+  # Os itens do menu na ordem em que aparecem: a raiz leva ao primeiro que o ator tem.
+  LANDING_SCREENS = [
+    [ :report, :revenue?, :reports_path ], [ :report, :clover?, :stalled_reports_path ],
+    [ :report, :weekly?, :weekly_reports_path ], [ :report, :three_months?, :three_months_reports_path ],
+    [ :report, :recurring?, :recurring_reports_path ], [ :report, :indicators?, :indicators_reports_path ],
+    [ :establishment, :index?, :establishments_path ], [ :import_batch, :index?, :import_batches_path ],
+    [ :user, :index?, :users_path ]
+  ].freeze
+
   private
+
+  # nil quando o ator não tem tela nenhuma: aí a raiz responde o 403 de sempre.
+  def landing_path
+    screen = LANDING_SCREENS.find { |name, query, _| policy(name).public_send(query) }
+    screen && public_send(screen.last)
+  end
 
   # 403 renderizado, nunca redirect_back: voltar para a página anterior com um destino vindo
   # do cabeçalho é redirecionamento aberto, que o Brakeman acusa e com razão.
   def forbidden
+    # Quem estava navegando no portal (a aba aberta antes de a permissão mudar, a tela
+    # pedida antes do login) vai para a primeira tela que tem, com o aviso. A página de erro
+    # fica para o endereço digitado ou vindo de fora — sem origem no portal.
+    if request.get? && navigating_within_portal? && (destination = landing_path) &&
+        destination != request.path
+      return redirect_to(destination,
+        alert: "A tela que você tentou abrir não está entre as liberadas para o seu acesso.")
+    end
+
     respond_to do |format|
-      format.html { render "errors/forbidden", status: :forbidden }
+      format.html { render "errors/forbidden", status: :forbidden, layout: "error" }
       format.any { head :forbidden }
     end
+  end
+
+  # Na entrada (senha ou código), a chave vencida quase sempre vem de outra aba: as abas
+  # dividem o cookie, e a senha aceita numa troca a sessão e a chave dos formulários — de
+  # propósito, contra fixação de sessão. Se a outra aba já entrou, esta entra também; se
+  # está no meio, a mensagem diz o que houve (homologação de 06/10/2026).
+  SIGN_IN_CONTROLLERS = %w[sessions mfa].freeze
+
+  def navigating_within_portal?
+    origin = URI.parse(request.referer.to_s)
+    origin.is_a?(URI::HTTP) && origin.host == request.host
+  rescue URI::InvalidURIError
+    false
+  end
+
+  def expired_form
+    return head(:unprocessable_entity) unless request.format.html?
+    return expired_sign_in if SIGN_IN_CONTROLLERS.include?(controller_path)
+
+    redirect_to expired_form_origin || root_path, status: :see_other,
+      alert: "A página ficou aberta por muito tempo. Confira os dados e envie de novo."
+  end
+
+  def expired_sign_in
+    return redirect_to(root_path, status: :see_other) if authenticated?
+
+    redirect_to new_session_path, status: :see_other,
+      alert: "Esta tela de entrada ficou desatualizada, provavelmente porque você entrou ou " \
+        "saiu do portal em outra aba. Digite seus dados de novo."
+  end
+
+  # Só o caminho, e só se a origem for este mesmo portal: seguir o Referer inteiro seria
+  # redirecionamento aberto.
+  def expired_form_origin
+    origin = URI.parse(request.referer.to_s)
+    path = origin.request_uri if origin.is_a?(URI::HTTP) && origin.host == request.host
+    path if safe_return_path?(path)
+  rescue URI::InvalidURIError
+    nil
   end
 
   def require_password_change

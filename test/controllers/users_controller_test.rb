@@ -18,7 +18,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_difference -> { User.count } do
       post users_path, params: {
         user: { name: "Convidada", email_address: "convidada@exemplo.com" },
-        permissions: [ Permission::REPORTS_READ ],
+        permissions: [ *Permission::REPORT_KEYS ],
         grants: { "0" => { channel_id: @channel_a.id } }
       }
     end
@@ -26,7 +26,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     fresh = User.find_by(email_address: "convidada@exemplo.com")
     assert fresh.must_change_password?, "a senha provisória precisa ser trocada no primeiro acesso"
     assert_not fresh.mfa_enabled?, "o segundo fator é cadastrado pela própria pessoa"
-    assert_equal [ Permission::REPORTS_READ ], fresh.permissions
+    assert_equal [ *Permission::REPORT_KEYS ], fresh.permissions
     assert_equal [ @channel_a.id ], fresh.access_grants.pluck(:channel_id)
     assert_match(/Senha provisória/, flash[:notice])
   end
@@ -46,18 +46,18 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
 
   # O delegado é o caso que mais importa: ele administra, mas dentro do que tem.
   test "delegado não concede permissão que não possui" do
-    delegate = scoped_user(permissions: [ Permission::USERS_INVITE, Permission::REPORTS_READ ],
+    delegate = scoped_user(permissions: [ Permission::USERS_INVITE, *Permission::REPORT_KEYS ],
       channel: @channel_a, email: "delegado@exemplo.com")
     sign_in_as(delegate)
 
     post users_path, params: {
       user: { name: "Novo", email_address: "novo@exemplo.com" },
-      permissions: [ Permission::REPORTS_READ, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
+      permissions: [ *Permission::REPORT_KEYS, Permission::BATCHES_UPLOAD, Permission::BATCHES_DISCARD ],
       grants: { "0" => { channel_id: @channel_a.id } }
     }
 
     fresh = User.find_by(email_address: "novo@exemplo.com")
-    assert_equal [ Permission::REPORTS_READ ], fresh.permissions,
+    assert_equal [ *Permission::REPORT_KEYS ], fresh.permissions,
       "descartar lote não estava com o delegado, então não pode ser concedido"
   end
 
@@ -112,7 +112,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # Os papéis de administração não se concedem pelo convite: a plataforma nasce do seed e
   # o administrador da organização, da própria plataforma. Parâmetro forjado é ignorado.
   test "administrador da organização não nomeia plataforma nem outro administrador pelo convite" do
-    target = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "alvo@exemplo.com")
+    target = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "alvo@exemplo.com")
     sign_in_as(admin_user)
 
     patch user_path(target), params: {
@@ -162,7 +162,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   # A listagem virou cards com o uso de cada pessoa, tirado da trilha.
   test "os cards mostram último acesso, entradas, exportações e envios" do
     boss = admin_user
-    target = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a, email: "alvo@exemplo.com",
+    target = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a, email: "alvo@exemplo.com",
       created_by: boss)
     AuditEvent.create!(user: target, actor_email: target.email_address, action: "session.start", created_at: 2.days.ago)
     AuditEvent.create!(user: target, actor_email: target.email_address, action: "report.export", created_at: 1.day.ago)
@@ -192,7 +192,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "mudar permissão derruba as sessões de quem foi alterado" do
-    target = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: @channel_a,
+    target = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: @channel_a,
       email: "alvo@exemplo.com")
     target.sessions.create!(last_active_at: Time.current)
     sign_in_as(admin_user)
@@ -242,7 +242,7 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "sem a chave de administração, a tela nem abre" do
-    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_READ ], email: "comum@exemplo.com"))
+    sign_in_as(scoped_user(permissions: [ *Permission::REPORT_KEYS ], email: "comum@exemplo.com"))
 
     get users_path
     assert_response :forbidden
@@ -369,5 +369,38 @@ class UsersControllerTest < ActionDispatch::IntegrationTest
     assert_no_match(/#{platform.name}/, response.body)
     assert_match(/Convidado por #{boss.name} em/, response.body)
     assert_includes response.body, guest.email_address
+  end
+
+  # A caixa "Ver anotação" vai travada quando "Editar" está marcado, e caixa travada não é
+  # enviada: o servidor completa a base em vez de recusar o convite.
+  test "editar anotação enviado sozinho grava também o ver" do
+    sign_in_as(admin_user)
+
+    post users_path, params: {
+      user: { name: "Leitora", email_address: "leitora@exemplo.com" },
+      permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_WRITE ],
+      grants: { "0" => { channel_id: @channel_a.id } }
+    }
+
+    fresh = User.find_by!(email_address: "leitora@exemplo.com")
+    assert_includes fresh.permissions, Permission::NOTES_READ
+    assert_includes fresh.permissions, Permission::NOTES_WRITE
+  end
+
+  test "a ficha já vem com a base travada e a dependente sem alternativa desabilitada" do
+    sign_in_as(admin_user)
+    target = scoped_user(permissions: [ Permission::REPORTS_REVENUE, Permission::NOTES_READ, Permission::NOTES_WRITE ],
+      channel: @channel_a, email: "alvo@exemplo.com")
+
+    get edit_user_path(target)
+
+    assert_select "input#permission_notes_read[checked][disabled]"
+    assert_select "input#permission_notes_write[checked]:not([disabled])"
+
+    other = scoped_user(permissions: [ Permission::BATCHES_READ ], channel: @channel_a, email: "outro@exemplo.com")
+    get edit_user_path(other)
+    assert_select "input#permission_notes_read[disabled]:not([checked])", 1,
+      "sem Faturamento, Clover Capital ou Estabelecimentos, ver anotação não tem onde valer"
+    assert_select "input#permission_reports_export[disabled]:not([checked])", 1
   end
 end

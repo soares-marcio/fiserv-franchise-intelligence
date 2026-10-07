@@ -80,7 +80,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   test "o ator de um MIC não vê o MIC vizinho do mesmo Master em nenhuma tela, nem pelo cache" do
     with_real_cache do
       warm_cache_as_admin
-      user = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::ESTABLISHMENTS_READ ],
+      user = scoped_user(permissions: [ *Permission::REPORT_KEYS, Permission::ESTABLISHMENTS_READ ],
         sub_channel: @mic_alfa)
       sign_in_as(user)
 
@@ -100,7 +100,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   end
 
   test "o ator de um MIC não abre a tela do MIC vizinho" do
-    user = scoped_user(permissions: [ Permission::REPORTS_READ ], sub_channel: @mic_alfa)
+    user = scoped_user(permissions: [ *Permission::REPORT_KEYS ], sub_channel: @mic_alfa)
     sign_in_as(user)
 
     get sub_channel_report_path(@mic_beta)
@@ -111,7 +111,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   # A exportação é o caminho mais perigoso: leva o recorte inteiro num arquivo. Se o recorte
   # falhar ali, a carteira alheia sai em CSV sem ninguém notar.
   test "a exportação respeita o recorte" do
-    user = scoped_user(permissions: [ Permission::REPORTS_READ, Permission::REPORTS_EXPORT ],
+    user = scoped_user(permissions: [ *Permission::REPORT_KEYS, Permission::REPORTS_EXPORT ],
       channel: @channel_a)
     sign_in_as(user)
 
@@ -240,7 +240,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
         sign_out
 
         travel 31.seconds
-        user = scoped_user(permissions: [ Permission::REPORTS_READ ], sub_channel: @mic_alfa)
+        user = scoped_user(permissions: [ *Permission::REPORT_KEYS ], sub_channel: @mic_alfa)
         sign_in_as(user)
         get three_months_reports_path
         assert_response :success
@@ -290,7 +290,7 @@ class DataScopeTest < ActionDispatch::IntegrationTest
   end
 
   def sign_in_to_channel(channel)
-    sign_in_as(scoped_user(permissions: [ Permission::REPORTS_READ, Permission::ESTABLISHMENTS_READ ],
+    sign_in_as(scoped_user(permissions: [ *Permission::REPORT_KEYS, Permission::ESTABLISHMENTS_READ ],
       channel: channel))
   end
 

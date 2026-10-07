@@ -1,7 +1,10 @@
 <!doctype html>
+<%# O mesmo esqueleto das páginas estáticas de public/ (404, 500…): o 403 é renderizado
+    pelo app, mas tem de parecer da mesma família — sem menu nem trilha, no cartão do
+    error.css. %>
 <html lang="pt-BR">
   <head>
-    <title>Pedido não entendido — Auditoria BIN</title>
+    <title><%= content_for(:title) %> — Auditoria BIN</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
@@ -14,11 +17,7 @@
         <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
         <span>Melo Pay</span>
       </div>
-      <h1>Não foi possível entender o pedido</h1>
-      <p class="description">Algo no endereço ou no formulário não estava certo.</p>
-      <p class="error-next">Volte ao portal e refaça o caminho pelo menu.</p>
-      <a class="button" href="/">Voltar ao início</a>
-      <p class="error-code">Código 400 (pedido inválido) — informe este código e o horário se for pedir ajuda.</p>
+      <%= yield %>
     </main>
   </body>
 </html>

@@ -42,7 +42,7 @@ class UserTest < ActiveSupport::TestCase
 
   test "permissão fora do catálogo não passa nem pelo model nem pelo banco" do
     user = User.new(organization: default_organization, email_address: "b@exemplo.com", name: "B", password: "senha-bem-longa-1",
-      permissions: [ Permission::REPORTS_READ, "inventada" ])
+      permissions: [ *Permission::REPORT_KEYS, "inventada" ])
 
     assert_not user.valid?
     assert_match(/inventada/, user.errors[:permissions].join)
@@ -53,11 +53,11 @@ class UserTest < ActiveSupport::TestCase
   test "administrador da organização tem toda permissão; a plataforma, nenhuma" do
     boss = User.new(organization: default_organization, organization_admin: true, permissions: [])
     platform = User.new(platform_admin: true, permissions: [])
-    shared = User.new(organization: default_organization, permissions: [ Permission::REPORTS_READ ])
+    shared = User.new(organization: default_organization, permissions: [ *Permission::REPORT_KEYS ])
 
     assert boss.permitted?(Permission::BATCHES_DISCARD)
-    assert_not platform.permitted?(Permission::REPORTS_READ)
-    assert shared.permitted?(Permission::REPORTS_READ)
+    assert_not platform.permitted?(Permission::REPORTS_REVENUE)
+    assert(Permission::REPORT_KEYS.all? { |key| shared.permitted?(key) })
     assert_not shared.permitted?(Permission::BATCHES_DISCARD)
   end
 

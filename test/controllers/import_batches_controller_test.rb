@@ -26,7 +26,7 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
         text: /1 master com dados desatualizados/
       assert_select ".coverage-panel__item[data-tone=rose] .coverage-panel__name",
         text: "CANAL TESTE"
-      assert_select ".coverage-panel__facts [data-tone=rose]", text: %r{Dados de 10/08}
+      assert_select ".coverage-panel__facts [data-tone=rose]", text: %r{Dados até 10/08}
       assert_select ".coverage-panel__facts [data-tone=green]", text: /Arquivo há 11 dias/
     end
 

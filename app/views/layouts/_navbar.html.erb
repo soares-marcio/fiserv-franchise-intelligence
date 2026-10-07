@@ -12,22 +12,33 @@
       data-app-layout-target="primaryNav">
       <%# O menu mostra só o que o ator pode abrir: link para tela que responde 403 é
           convite para um erro, e revela o que existe a quem não deveria saber. %>
-      <% if policy(:report).index? %>
+      <% report_policy = policy(:report) %>
+      <% if report_policy.revenue? %>
       <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[index sub_channel] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[index sub_channel] }) %>
+      <% end %>
+      <% if report_policy.clover? %>
       <%= link_to icon_label("storefront", "Clover Capital", css: "nav-icon"), stalled_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[stalled] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[stalled] }) %>
+      <% end %>
+      <% if report_policy.weekly? %>
       <%= link_to icon_label("calendar-blank", "Semanal", css: "nav-icon"), weekly_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[weekly] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[weekly] }) %>
+      <% end %>
+      <% if report_policy.three_months? %>
       <%= link_to icon_label("calendar-check", "Ganhos 3M", css: "nav-icon"), three_months_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[three_months three_months_sub_channel] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[three_months three_months_sub_channel] }) %>
+      <% end %>
+      <% if report_policy.recurring? %>
       <%= link_to icon_label("chart-bar", "Recorrente", css: "nav-icon"), recurring_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[recurring] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[recurring] }) %>
+      <% end %>
+      <% if report_policy.indicators? %>
       <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[indicators] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[indicators] }) %>

@@ -102,12 +102,8 @@
 
     <section class="grid gap-4">
       <% sort_path = ->(order) { recurring_reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
-      <div class="earnings-card-bar">
-        <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
-        <%= render "shared/sort_status", sort: @order, path: sort_path %>
-        <%= render "shared/sort_links", sort: @order, path: sort_path,
-          label: "Ordenar os MICs" %>
-      </div>
+      <%= render "cards_toolbar", label: "Ganho recorrente por MIC", sort: @order, path: sort_path,
+        badges: [ pluralize(@reports.size, "MIC", "MICs") ] %>
 
       <%# Um card por linha: a série de sete colunas de valor mede mais que meio card em
           1440 e, sem quebrar número, Ajuste e Ganho do mês ficariam atrás de um scroll. %>

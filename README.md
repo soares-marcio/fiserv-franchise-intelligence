@@ -268,8 +268,13 @@ inteiro, que usa a chave fixa do estabelecimento.
 
 | Chave | O que libera |
 | --- | --- |
-| `reports_read` | Todas as telas de relatório |
-| `reports_export` | Os botões CSV/XLSX — separado de ver, porque o arquivo larga a paginação e leva o recorte inteiro |
+| `reports_revenue` | Faturamento, o detalhe do MIC e os lançamentos diários do cliente |
+| `reports_clover` | Clover Capital |
+| `reports_weekly` | Semanal e os clientes de cada dia |
+| `reports_three_months` | Ganhos 3M e o detalhe dele por MIC |
+| `reports_recurring` | Recorrente |
+| `reports_indicators` | Indicadores |
+| `reports_export` | Os botões CSV/XLSX, nas telas que a pessoa tem — separado de ver, porque o arquivo larga a paginação e leva o recorte inteiro |
 | `establishments_read` | Lista de clientes, ficha e busca |
 | `notes_read` / `notes_write` | Ler / escrever a anotação do cliente e seus anexos |
 | `batches_read` | Ver lotes e **baixar a planilha enviada**, que é a carteira de um Master num arquivo |
@@ -280,14 +285,47 @@ inteiro, que usa a chave fixa do estabelecimento.
 | `metabase_read` | **Fechada**: a tela mostra a conexão de um papel que lê as views de todas as organizações; não aparece no convite até haver recorte por organização no Metabase |
 | `users_invite` | Convidar e administrar acessos, e ler o histórico |
 
-Cinco chaves só valem ao lado da base (`Permission::REQUIRES`), e o convite recusa a
-combinação incompleta em vez de deixar a pessoa descobrir entrando: `reports_export` pede
-`reports_read`; `notes_read` pede `reports_read` ou `establishments_read` (a anotação é
-lida numa tela de carteira); `notes_write` pede `notes_read`; `batches_adjust` e
-`batches_discard` pedem `batches_upload` (agem sobre o próprio envio). As demais abrem
-sozinhas a tela que prometem — `batches_upload` e `batches_approve` abrem a tela de
-importação, com a lista limitada ao que é de cada um — e o teste
-`test/controllers/permission_routes_test.rb` percorre chave a chave para garantir isso.
+**Uma chave por item do menu de relatórios desde 06/10/2026.** Até ali, `reports_read`
+abria os seis itens de uma vez, e quem concedia pensava no link que a pessoa ia ver — dava
+mais do que a tela de convite mostrava. A migração deu as seis a quem tinha a chave antiga.
+O convite mostra cada item com o que a tela mostra (`Permission::DESCRIPTIONS`); o menu,
+os links entre telas e a raiz seguem as chaves, e sem o Faturamento a raiz leva ao primeiro
+item que a pessoa tem. Cada ação do `ReportsController` está mapeada ao item dela
+(`SCREEN_PERMISSIONS`), e ação nova sem entrada no mapa falha em vez de abrir.
+
+Cinco chaves só valem ao lado da base (`Permission::REQUIRES`): `reports_export` pede um
+item de relatório ou `establishments_read`; `notes_read` pede Faturamento, Clover Capital
+ou `establishments_read` (as telas onde a anotação é lida); `notes_write` pede
+`notes_read`; `batches_adjust` e `batches_discard` pedem `batches_upload`. No convite, a
+base única (editar → ver anotação; reprocessar e descartar → enviar) é marcada e travada
+junto, e o servidor a completa ao salvar (`Permission.with_implied`), porque caixa travada
+não viaja no formulário; a que depende de uma entre várias telas fica desabilitada até uma
+delas ser marcada. Sem `notes_read`, nenhuma tela mostra a anotação — nem o botão, nem o
+ponto de "já tem"; só com `notes_read`, o modal mostra o texto, sem editor. As demais
+abrem sozinhas a tela que prometem, e `test/controllers/permission_routes_test.rb` e
+`report_menu_permissions_test.rb` percorrem chave a chave para garantir isso.
+
+### Validade do acesso
+
+Desde 06/10/2026 o convite tem **"Tempo indeterminado"** (padrão, e como toda conta antiga
+ficou) ou **"Até"** uma data (`users.access_expires_on`). Vale até o fim do dia escolhido,
+no horário de Brasília. Vencido, a pessoa sai na próxima tela e não entra mais — conferido
+a cada requisição, em `User#sign_in_allowed?`, sem tarefa agendada; nada é apagado, e
+mudar a data devolve o acesso. Com a senha certa, a entrada avisa a data **antes** do
+segundo fator; com a senha errada, a resposta continua neutra. O delegado com prazo não
+concede além do dele; administrador não tem prazo. A listagem e a ficha mostram a
+validade, a trilha registra a mudança, e a própria pessoa é avisada na última semana.
+
+### Telas de erro e sem permissão
+
+As páginas de `public/` (400, 404, 406, 422, 500) e o 403 dizem o que aconteceu, o que
+fazer e, só no rodapé, o código explicado. As estáticas abrem com o app fora do ar e por
+isso carregam a fonte de `public/fonts/`. O 403 é do app, mas usa o mesmo cartão
+(`layouts/error`). Quem estava **navegando no portal** e esbarra numa tela que não tem mais
+— a aba aberta antes de a permissão mudar, a tela pedida antes do login — vai para a
+primeira tela que tem, com um aviso; a página de erro fica para o endereço digitado ou
+vindo de fora. Formulário aberto até o token de segurança vencer volta à tela de origem
+com aviso, e o login recusado por outra aba diz que foi outra aba.
 
 ### Convidar
 

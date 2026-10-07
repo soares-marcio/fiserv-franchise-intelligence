@@ -30,6 +30,10 @@ class SessionsController < ApplicationController
     # organização suspensa: dizer "suspensa" confirmaria que o e-mail existe.
     return handle_failure(email) if user.nil?
     return locked if user.locked?
+    # Senha certa, conta ativa, prazo vencido: a pessoa precisa saber o que fazer, e quem
+    # chegou até aqui já tem a senha. Antes do segundo fator — não há por que pedir o
+    # código a quem não vai entrar (decisão de 06/10/2026).
+    return access_expired(user) if user.access_expired? && user.active? && !user.organization&.suspended?
     return handle_failure(email) unless user.sign_in_allowed?
 
     user.register_successful_attempt!
@@ -67,6 +71,13 @@ class SessionsController < ApplicationController
     Audit.record("session.failed", user: target, request:,
       metadata: { email_tentado: email, bloqueada: target&.locked? || false })
     deny
+  end
+
+  def access_expired(user)
+    Audit.record("session.expired_access", user:, request:)
+    redirect_to new_session_path(email_address: params[:email_address]),
+      alert: "Seu acesso venceu em #{I18n.l(user.access_expires_on, format: '%d/%m/%Y')}. " \
+        "Peça a quem administra os acessos para renová-lo."
   end
 
   def deny

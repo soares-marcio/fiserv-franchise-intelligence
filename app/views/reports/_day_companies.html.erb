@@ -55,7 +55,7 @@
               <th scope="row" class="font-normal">
                 <span class="font-mono"><%= row["cnpj"] %></span>
                 <span class="day-modal__name"><%= present_or_dash(row["legal_name"]) %></span>
-                <% if @noted_cnpjs.include?(row["cnpj"]) %>
+                <% if policy(:company_note).show? && @noted_cnpjs.include?(row["cnpj"]) %>
                   <span class="note-flag"><%= icon("note-pencil", css: "icon") %>anotado</span>
                 <% end %>
               </th>

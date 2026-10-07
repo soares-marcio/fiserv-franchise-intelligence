@@ -29,6 +29,9 @@
       <dl class="grid gap-1 text-sm">
         <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Enxerga</dt><dd><%= user_scope_summary(user) %></dd></div>
         <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Pode</dt><dd><%= user_permissions_summary(user) %></dd></div>
+        <% unless user.organization_admin? %>
+          <div class="flex gap-2"><dt class="w-16 shrink-0 opacity-70">Validade</dt><dd><%= access_validity_text(user) %></dd></div>
+        <% end %>
       </dl>
 
       <dl class="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-base-200 p-3 text-xs">

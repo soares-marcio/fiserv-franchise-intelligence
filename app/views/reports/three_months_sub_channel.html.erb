@@ -10,7 +10,7 @@
           Estabelecimentos <strong>credenciados no mês escolhido (M0)</strong>, apurados na
           janela deles: M0, M1 e M2 — o modelo dos primeiros 3 meses, com o prêmio de entrada
           de cada EC. O ganho recorrente da carteira vive na página
-          <%= link_to "Recorrente", recurring_reports_path, class: "link" %>.
+          <%= policy(:report).recurring? ? link_to("Recorrente", recurring_reports_path, class: "link") : "Recorrente" %>.
         </p>
       </div>
       <% if @window %>

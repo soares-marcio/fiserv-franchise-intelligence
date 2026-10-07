@@ -7,7 +7,12 @@
   <header class="earnings-card__head">
     <p class="section-label">MIC</p>
     <h3 class="earnings-card__name">
-      <%= link_to report[:name], sub_channel_report_path(id: report[:uuid]), class: "link" %>
+      <%# O detalhe do MIC é do Faturamento: sem ele o nome fica, sem link para um 403. %>
+      <% if policy(:report).revenue? %>
+        <%= link_to report[:name], sub_channel_report_path(id: report[:uuid]), class: "link" %>
+      <% else %>
+        <%= report[:name] %>
+      <% end %>
     </h3>
   </header>
 

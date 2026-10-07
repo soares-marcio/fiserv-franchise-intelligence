@@ -19,7 +19,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "com permissão de ver relatório, a tela abre" do
-    sign_in_with([ Permission::REPORTS_READ ])
+    sign_in_with([ *Permission::REPORT_KEYS ])
 
     get reports_path
 
@@ -29,7 +29,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   # Exportar leva a carteira inteira num arquivo, sem paginação: é decisão separada de ver
   # a tela, e o teste cobre as duas pontas.
   test "ver relatório não dá direito de exportar" do
-    sign_in_with([ Permission::REPORTS_READ ])
+    sign_in_with([ *Permission::REPORT_KEYS ])
 
     get recurring_reports_path(format: :csv)
 
@@ -37,7 +37,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "com a chave de exportação, o arquivo sai" do
-    sign_in_with([ Permission::REPORTS_READ, Permission::REPORTS_EXPORT ])
+    sign_in_with([ *Permission::REPORT_KEYS, Permission::REPORTS_EXPORT ])
 
     get recurring_reports_path(format: :csv)
 
@@ -46,7 +46,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "estabelecimentos e busca dependem da mesma chave" do
-    sign_in_with([ Permission::REPORTS_READ ])
+    sign_in_with([ *Permission::REPORT_KEYS ])
 
     get establishments_path
     assert_response :forbidden
@@ -64,7 +64,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   test "a tela do Metabase está fechada para todos, com ou sem a chave" do
-    sign_in_with([ Permission::REPORTS_READ, Permission::METABASE_READ ])
+    sign_in_with([ *Permission::REPORT_KEYS, Permission::METABASE_READ ])
 
     get metabase_path
 
@@ -164,7 +164,7 @@ class AuthorizationTest < ActionDispatch::IntegrationTest
   # O menu é a primeira coisa que o usuário vê: mostrar link para tela que responde 403
   # revela o que existe a quem não pode abrir.
   test "o menu mostra só o que o ator pode abrir" do
-    sign_in_with([ Permission::REPORTS_READ ])
+    sign_in_with([ *Permission::REPORT_KEYS ])
 
     get reports_path
 

@@ -1,11 +1,13 @@
 <% content_for :title, "Sem permissão" %>
 
-<section class="page-hero">
-  <p class="eyebrow">Acesso</p>
-  <h1 class="page-title">Você não tem permissão para esta tela</h1>
-  <p class="page-description">
-    Seu acesso não inclui esta parte do portal. Se precisar dela, peça a quem administra os
-    acessos — a permissão é concedida por tela, e não em bloco.
-  </p>
-  <%= link_to "Voltar ao início", root_path, class: "btn btn-primary relative z-10 mt-6" %>
-</section>
+<%# Mesmo padrão das páginas estáticas de public/: o que aconteceu, o que fazer e, só no
+    rodapé, o código explicado — quem usa não sabe o que "403" quer dizer. %>
+<h1>Você não tem permissão para esta tela</h1>
+<p class="description">
+  Esta tela não está entre as liberadas para o seu acesso.
+</p>
+<p class="error-next">
+  Volte ao início para usar as telas que você tem. Se precisar desta, peça a quem administra os acessos.
+</p>
+<%= link_to "Voltar ao início", root_path, class: "button" %>
+<p class="error-code">Código 403 (sem permissão) — informe este código e o horário se for pedir ajuda.</p>

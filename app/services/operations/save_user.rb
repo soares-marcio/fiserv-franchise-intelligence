@@ -9,14 +9,15 @@ module Operations
       # O convidado nasce na organização de quem convida; o papel de administrador da
       # organização nunca vem daqui (só a plataforma o atribui, por outro caminho).
       user = User.new(attributes.merge(created_by: actor, must_change_password: true,
-        organization: actor.organization))
+        organization: actor.organization, access_validity_limit: actor.access_expires_on))
       user.permissions = allowed_permissions(permissions, actor)
       apply(user:, grants:, actor:, provisional_password: true)
     end
 
     def self.update(user:, attributes:, permissions:, grants:, actor:)
       before = { permissions: user.permissions.dup, grants: grant_pairs(user) }
-      user.assign_attributes(attributes)
+      validity_before = user.access_expires_on
+      user.assign_attributes(attributes.merge(access_validity_limit: actor.access_expires_on))
       user.permissions = allowed_permissions(permissions, actor)
       result = apply(user:, grants:, actor:, provisional_password: false)
 
@@ -28,8 +29,19 @@ module Operations
           metadata: { permissoes_antes: before[:permissions], permissoes_depois: user.permissions,
             escopos_antes: before[:grants].size, escopos_depois: after[:grants].size })
       end
+      record_validity_change(user:, actor:, before: validity_before)
       result
     end
+
+    # Encurtar ou estender não derruba ninguém: o vencimento é conferido a cada requisição.
+    def self.record_validity_change(user:, actor:, before:)
+      return if before == user.access_expires_on
+
+      Audit.record("user.access_validity_changed", user: actor, record: user,
+        metadata: { validade_antes: before&.iso8601 || "indeterminado",
+          validade_depois: user.access_expires_on&.iso8601 || "indeterminado" })
+    end
+    private_class_method :record_validity_change
 
     def self.apply(user:, grants:, actor:, provisional_password:)
       ApplicationRecord.transaction do
@@ -45,7 +57,7 @@ module Operations
     # Ninguém concede permissão que não tem — e "ter" é o que permitted? diz, então quem
     # administra passa direto porque tem todas.
     def self.allowed_permissions(permissions, actor)
-      requested = Array(permissions).map(&:to_s) & Permission::KEYS
+      requested = Permission.with_implied(Array(permissions).map(&:to_s) & Permission::KEYS)
       requested.select { |key| actor.permitted?(key) }
     end
     private_class_method :allowed_permissions

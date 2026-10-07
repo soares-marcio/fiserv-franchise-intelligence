@@ -88,7 +88,7 @@
         <th scope="col">CNAE</th>
         <th scope="col">Status</th>
         <th scope="col">Segmento</th>
-        <th scope="col" class="note-col">Anotação</th>
+        <% if policy(:company_note).show? %><th scope="col" class="note-col">Anotação</th><% end %>
       </tr>
     </thead>
     <tbody>
@@ -153,6 +153,7 @@
           </td>
           <%# A anotação é do CNPJ, e aqui a linha já é o cliente: a mesma célula das outras
               telas, com o botão e o ponto de "já tem". O texto fica no modal e na ficha. %>
+          <% if policy(:company_note).show? %>
           <td class="note-col">
             <% note = @notes_by_cnpj[company.cnpj] %>
             <%= render "shared/company_note_cell", company_uuid: company.uuid,
@@ -160,6 +161,7 @@
               note_id: note&.id, note_updated_at: note&.updated_at,
               note_params: listing_params(origin: "establishments") %>
           </td>
+          <% end %>
         </tr>
       <% end %>
     </tbody>

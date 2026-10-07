@@ -5,7 +5,9 @@
   Use o e-mail cadastrado pelo administrador do portal.
 </p>
 
-<%= form_with url: session_path, class: "mt-6 grid gap-4" do |form| %>
+<%# Envio normal do navegador, sem o Turbo: depois de entrar vêm redirecionamentos para telas
+    de outro layout, e o Turbo, estranhando a página, recarregava a tela de onde saiu. %>
+<%= form_with url: session_path, class: "mt-6 grid gap-4", data: { turbo: false } do |form| %>
   <label class="form-control">
     <span class="section-label">E-mail</span>
     <%= form.email_field :email_address, required: true, autofocus: true,

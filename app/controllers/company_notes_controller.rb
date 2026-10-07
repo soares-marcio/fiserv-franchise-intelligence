@@ -116,7 +116,10 @@ class CompanyNotesController < ApplicationController
 
     # Origem desconhecida, ausente ou sem o MIC cai no Clover Capital: lá a linha é o próprio
     # cliente, então quem salvou vê a anotação que acabou de escrever. O recorte da tela vai
-    # junto, senão salvar desfaz o filtro de quem chegou filtrando.
+    # junto, senão salvar desfaz o filtro de quem chegou filtrando. Sem o Clover, a raiz leva
+    # ao primeiro item do menu que a pessoa tem.
+    return root_path unless policy(:report).clover?
+
     stalled_reports_path(channel_id: params[:channel_id].presence,
       sub_channel_id: params[:sub_channel_id].presence)
   end

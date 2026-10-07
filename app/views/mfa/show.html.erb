@@ -7,7 +7,10 @@
 
 <%= render "shared/staging_otp", user: @user %>
 
-<%= form_with url: mfa_path, class: "mt-6 grid gap-4" do |form| %>
+<%# Sem o Turbo, pelo mesmo motivo da tela de entrada: aceito o código, o redirecionamento pode
+    levar a uma página de outro layout, e o Turbo recarregava /mfa — já sem entrada pendente,
+    o que mostrava "a verificação expirou" a quem tinha acabado de entrar. %>
+<%= form_with url: mfa_path, class: "mt-6 grid gap-4", data: { turbo: false } do |form| %>
   <label class="form-control">
     <span class="section-label">Código</span>
     <%# inputmode numérico e autocomplete one-time-code: no celular o teclado abre certo e o

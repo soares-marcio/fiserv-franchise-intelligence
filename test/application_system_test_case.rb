@@ -28,8 +28,9 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
       fill_in "Código", with: current_otp(user)
       click_on "Verificar"
       # O Turbo envia o formulário em segundo plano: devolver antes de a resposta chegar
-      # deixa o teste navegar sem sessão e cair no login.
-      assert_no_current_path mfa_path
+      # deixa o teste navegar sem sessão e cair no login. Os 2 s padrão do Capybara não
+      # bastam com a máquina carregada: a verificação chegou a passar disso (06/10/2026).
+      assert_no_current_path mfa_path, wait: 15
     end
     user
   end

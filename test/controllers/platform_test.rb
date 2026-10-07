@@ -9,7 +9,7 @@ class PlatformTest < ActionDispatch::IntegrationTest
     import_synthetic_workbook
     @platform = platform_admin_user
     @admin_a = admin_user(email: "admin-a@exemplo.com")
-    @guest = scoped_user(permissions: [ Permission::REPORTS_READ ], channel: Channel.first,
+    @guest = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: Channel.first,
       email: "convidado@exemplo.com", created_by: @admin_a)
   end
 
