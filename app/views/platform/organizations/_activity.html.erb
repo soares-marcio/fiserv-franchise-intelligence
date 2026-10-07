@@ -1,0 +1,87 @@
+<%# O que a plataforma acompanha da organização, em contas, datas e contagens — nunca nome de
+    Master, de MIC, de arquivo nem o que foi escrito à mão (Platform::OrganizationProfile).
+    O histórico da trilha começa em 09/2026, quando o login entrou. %>
+<% usage = profile.monthly_usage %>
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Uso por mês</p>
+  <p class="metric-hint mt-1">Meses no horário de Brasília. Base para a cobrança por usuário ativo; o registro começa em 09/2026.</p>
+  <div class="table-scroll mt-3" role="region" tabindex="0">
+    <table class="table table-sm" aria-label="Uso por mês">
+      <thead><tr><th scope="col">Mês</th><th scope="col">Pessoas que entraram</th><th scope="col">Entradas</th><th scope="col">Exportações</th><th scope="col">Arquivos importados</th></tr></thead>
+      <tbody>
+        <% usage.each do |row| %>
+          <tr>
+            <td><%= l(row[:month], format: "%m/%Y") %></td>
+            <td class="tabular-nums"><%= row[:people] %></td>
+            <td class="tabular-nums"><%= row[:logins] %></td>
+            <td class="tabular-nums"><%= row[:exports] %></td>
+            <td class="tabular-nums"><%= row[:files] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="mt-5 grid gap-5 lg:grid-cols-3">
+  <% security = profile.security %>
+  <section class="surface-card p-6" aria-label="Segurança">
+    <p class="section-label">Segurança · 30 dias</p>
+    <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+      <div><dt class="text-xs opacity-70">Entradas recusadas</dt><dd class="font-semibold tabular-nums"><%= security[:refused] %></dd></div>
+      <div><dt class="text-xs opacity-70">Bloqueios por tentativas</dt><dd class="font-semibold tabular-nums"><%= security[:lockouts] %></dd></div>
+      <div><dt class="text-xs opacity-70">Códigos de verificação errados</dt><dd class="font-semibold tabular-nums"><%= security[:wrong_codes] %></dd></div>
+      <div><dt class="text-xs opacity-70">Segundo fator reiniciado</dt><dd class="font-semibold tabular-nums"><%= security[:mfa_resets] %></dd></div>
+      <div><dt class="text-xs opacity-70">Tentativas com acesso vencido</dt><dd class="font-semibold tabular-nums"><%= security[:expired_access] %></dd></div>
+      <div><dt class="text-xs opacity-70">Contas bloqueadas agora</dt><dd class="font-semibold tabular-nums"><%= security[:locked_now] %></dd></div>
+    </dl>
+  </section>
+
+  <% health = profile.portfolio_health %>
+  <section class="surface-card p-6" aria-label="Saúde da carteira">
+    <p class="section-label">Saúde da carteira</p>
+    <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+      <div><dt class="text-xs opacity-70">Dias desde o último arquivo</dt><dd class="font-semibold tabular-nums"><%= health[:days_since_file] || "—" %></dd></div>
+      <div><dt class="text-xs opacity-70">Falhas em 30 dias</dt><dd class="font-semibold tabular-nums"><%= health[:failed_recently] %></dd></div>
+      <div><dt class="text-xs opacity-70">Em revisão agora</dt><dd class="font-semibold tabular-nums"><%= health[:in_review] %></dd></div>
+      <div><dt class="text-xs opacity-70">Em processamento</dt><dd class="font-semibold tabular-nums"><%= health[:processing] %></dd></div>
+    </dl>
+  </section>
+
+  <% access = profile.access_management %>
+  <section class="surface-card p-6" aria-label="Gestão de acessos">
+    <p class="section-label">Gestão de acessos · 30 dias</p>
+    <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+      <div><dt class="text-xs opacity-70">Convites</dt><dd class="font-semibold tabular-nums"><%= access[:invites] %></dd></div>
+      <div><dt class="text-xs opacity-70">Mudanças de permissão</dt><dd class="font-semibold tabular-nums"><%= access[:permission_changes] %></dd></div>
+      <div><dt class="text-xs opacity-70">Mudanças de validade</dt><dd class="font-semibold tabular-nums"><%= access[:validity_changes] %></dd></div>
+      <div><dt class="text-xs opacity-70">Desativações</dt><dd class="font-semibold tabular-nums"><%= access[:deactivations] %></dd></div>
+      <div><dt class="text-xs opacity-70">Contas alteradas</dt><dd class="font-semibold tabular-nums"><%= access[:accounts] %></dd></div>
+    </dl>
+  </section>
+</div>
+
+<% deletions = profile.deletion_history %>
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Masters apagados e restaurados</p>
+  <p class="metric-hint mt-1">Pelo REPORT_ID: quem apaga é a organização, quem restaura é a plataforma.</p>
+  <% if deletions.empty? %>
+    <p class="metric-hint mt-3">Nada apagado nem restaurado.</p>
+  <% else %>
+    <div class="table-scroll mt-3" role="region" tabindex="0">
+      <table class="table table-sm" aria-label="Masters apagados e restaurados">
+        <thead><tr><th scope="col">Quando</th><th scope="col">O quê</th><th scope="col">REPORT_ID</th><th scope="col">Quem</th></tr></thead>
+        <tbody>
+          <% deletions.each do |event| %>
+            <tr>
+              <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td><%= audit_action_label(event.action) %></td>
+              <td class="tabular-nums"><%= Platform::OrganizationProfile.report_id_of(event) || "—" %></td>
+              <td class="text-xs"><%= event.actor_email %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
