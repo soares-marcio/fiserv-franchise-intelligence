@@ -183,11 +183,10 @@ class BatchAccessTest < ActionDispatch::IntegrationTest
       status: "failed", channel: @channel, uploaded_by: sender)
     sign_in_as(sender)
 
-    get reports_path
-    assert_select "nav.primary-nav a[href=?]", import_batches_path, text: /Importar arquivo/
-
+    # O menu é lido numa tela que a pessoa tem: o 403 usa o cartão das páginas de erro, sem menu.
     get import_batches_path
     assert_response :success
+    assert_select "nav.primary-nav a[href=?]", import_batches_path, text: /Importar arquivo/
     assert_match(/enviado\.xlsx/, response.body)
     assert_no_match(/meu\.xlsx|dele\.xlsx/, response.body)
 
