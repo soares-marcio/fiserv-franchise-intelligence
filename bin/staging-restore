@@ -70,4 +70,9 @@ until [ "$(docker compose ps web --format '{{.Health}}')" = "healthy" ]; do slee
 docker compose exec -T web bin/rails db:seed > /dev/null
 docker compose exec -T web bin/rails runner "Rails.cache.clear" > /dev/null
 
+# O segundo fator e a senha provisória vêm cifrados com as chaves da produção, que esta
+# máquina não tem: sem isto, o login de quem veio no dump quebra. A senha continua valendo,
+# e o segundo fator é inscrito de novo no primeiro acesso (lib/staging_secrets.rb).
+docker compose exec -T web bin/rails staging:forget_production_secrets
+
 echo "Pronto. Homologação recarregada em $(docker compose exec -T db psql -U postgres -At -d "$DB_NAME" -c 'SELECT count(*) FROM import_batches') lotes."
