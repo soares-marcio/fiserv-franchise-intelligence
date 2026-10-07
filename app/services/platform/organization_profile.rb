@@ -19,6 +19,12 @@ module Platform
     def active_count = users.active.count
     def first_access_pending_count = users.active.where(must_change_password: true).or(users.active.where(mfa_enabled_at: nil)).count
 
+    # Validade dos convidados (administrador não tem prazo): quantos têm data, quantos saem na
+    # semana que vem e quantos já saíram — sem mexer em quem é quem.
+    def with_validity_count = users.where.not(access_expires_on: nil).count
+    def expiring_soon_count = users.where(access_expires_on: Date.current..7.days.from_now.to_date).count
+    def expired_count = users.where(access_expires_on: ...Date.current).count
+
     def channels_count = @organization.channels.active.count
     def batches_count = validated_batches.count
     def last_file_on = validated_batches.maximum(:source_file_date)

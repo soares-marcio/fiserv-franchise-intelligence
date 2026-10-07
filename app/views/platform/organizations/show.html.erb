@@ -49,6 +49,9 @@
     <div><dt class="text-xs opacity-70">Colaboradores</dt><dd class="font-semibold tabular-nums"><%= @profile.members_count %></dd></div>
     <div><dt class="text-xs opacity-70">Contas ativas</dt><dd class="font-semibold tabular-nums"><%= @profile.active_count %></dd></div>
     <div><dt class="text-xs opacity-70">Primeiro acesso pendente</dt><dd class="font-semibold tabular-nums"><%= @profile.first_access_pending_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Com prazo</dt><dd class="font-semibold tabular-nums"><%= @profile.with_validity_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Vencem em 7 dias</dt><dd class="font-semibold tabular-nums"><%= @profile.expiring_soon_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Vencidos</dt><dd class="font-semibold tabular-nums"><%= @profile.expired_count %></dd></div>
     <div><dt class="text-xs opacity-70">Masters</dt><dd class="font-semibold tabular-nums"><%= @profile.channels_count %></dd></div>
     <div><dt class="text-xs opacity-70">Arquivos importados</dt><dd class="font-semibold tabular-nums"><%= @profile.batches_count %></dd></div>
     <div><dt class="text-xs opacity-70">Último arquivo</dt><dd class="font-semibold"><%= @profile.last_file_on ? l(@profile.last_file_on) : "—" %></dd></div>
@@ -92,13 +95,14 @@
   <% else %>
     <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Convidados da organização">
       <table class="table table-sm">
-        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
+        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Validade</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
         <tbody>
           <% @members.each do |member| %>
             <tr>
               <td><%= member.name %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
               <td><%= user_status_badge(member) %></td>
               <td class="text-xs"><%= member.created_by&.name || "—" %></td>
+              <td class="text-xs"><%= access_validity_text(member) %></td>
               <td class="text-xs"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
               <td><%= render "support_actions", user: member %></td>
             </tr>
