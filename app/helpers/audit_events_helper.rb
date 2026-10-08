@@ -38,6 +38,36 @@ module AuditEventsHelper
     "user.reactivated" => "Reativou acesso de alguém"
   }.freeze
 
+  # O que a plataforma pode ler dos metadados: lista fechada, e não de exclusão — chave nova
+  # não chega à plataforma por esquecimento. Ficam de fora o nome do Master e do MIC, o nome
+  # do arquivo, o recorte da exportação e todo texto escrito à mão (07/10/2026: o "Apagou
+  # Master" mostrava o nome dele no histórico da plataforma).
+  PLATFORM_METADATA_LABELS = {
+    "report_id" => "REPORT_ID", "ecs" => "ECs", "mics" => "MICs", "lotes" => "lotes",
+    "acessos" => "acessos", "caracteres" => "caracteres", "tela" => "tela", "formato" => "formato",
+    "restantes" => "códigos restantes", "bloqueada" => "bloqueada", "email_tentado" => "e-mail tentado",
+    "alvo" => "alvo", "mfa" => "segundo fator", "validade_antes" => "validade antes",
+    "validade_depois" => "validade depois", "escopos_antes" => "escopos antes",
+    "escopos_depois" => "escopos depois", "permissoes_antes" => "permissões antes",
+    "permissoes_depois" => "permissões depois", "saindo" => "saindo", "entrando" => "entrando",
+    "mudando_de_mic" => "mudando de MIC", "de" => "de", "para" => "para", "nome" => "nome"
+  }.freeze
+  # O motivo escrito pela plataforma (suspensão) é dela; o de uma recusa de importação é da
+  # organização e pode citar cliente.
+  PLATFORM_OWN_MOTIVE_PREFIX = "organization.".freeze
+
+  def platform_metadata_summary(event)
+    parts = event.metadata.to_h.filter_map do |key, value|
+      label = PLATFORM_METADATA_LABELS[key.to_s]
+      label ||= "motivo" if key.to_s == "motivo" && event.action.start_with?(PLATFORM_OWN_MOTIVE_PREFIX)
+      next if label.nil?
+
+      values = key.to_s.start_with?("permissoes_") ? Array(value).map { |item| Permission.label(item) } : Array(value)
+      "#{label}: #{values.join(', ')}"
+    end
+    parts.empty? ? "—" : parts.join(" · ")
+  end
+
   def audit_action_label(action)
     ACTION_LABELS.fetch(action, action)
   end

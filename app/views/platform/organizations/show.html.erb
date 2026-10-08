@@ -49,6 +49,9 @@
     <div><dt class="text-xs opacity-70">Colaboradores</dt><dd class="font-semibold tabular-nums"><%= @profile.members_count %></dd></div>
     <div><dt class="text-xs opacity-70">Contas ativas</dt><dd class="font-semibold tabular-nums"><%= @profile.active_count %></dd></div>
     <div><dt class="text-xs opacity-70">Primeiro acesso pendente</dt><dd class="font-semibold tabular-nums"><%= @profile.first_access_pending_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Com prazo</dt><dd class="font-semibold tabular-nums"><%= @profile.with_validity_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Vencem em 7 dias</dt><dd class="font-semibold tabular-nums"><%= @profile.expiring_soon_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Vencidos</dt><dd class="font-semibold tabular-nums"><%= @profile.expired_count %></dd></div>
     <div><dt class="text-xs opacity-70">Masters</dt><dd class="font-semibold tabular-nums"><%= @profile.channels_count %></dd></div>
     <div><dt class="text-xs opacity-70">Arquivos importados</dt><dd class="font-semibold tabular-nums"><%= @profile.batches_count %></dd></div>
     <div><dt class="text-xs opacity-70">Último arquivo</dt><dd class="font-semibold"><%= @profile.last_file_on ? l(@profile.last_file_on) : "—" %></dd></div>
@@ -56,6 +59,8 @@
     <div><dt class="text-xs opacity-70">Anexos</dt><dd class="font-semibold tabular-nums"><%= @profile.attachments_count %> · <%= number_to_human_size(@profile.attachments_bytes) %></dd></div>
   </dl>
 </section>
+
+<%= render "activity", profile: @profile %>
 
 <section class="surface-card mt-5 p-6">
   <p class="section-label">Administradores</p>
@@ -66,7 +71,7 @@
       <% @admins.each do |admin| %>
         <li class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-base-300 p-3">
           <div class="min-w-0 grow basis-64">
-            <p class="font-semibold"><%= admin.name %></p>
+            <p class="font-semibold"><%= link_to admin.name, platform_user_path(admin), class: "link" %></p>
             <p class="text-sm opacity-70"><%= admin.email_address %></p>
             <% first_access_hint = user_first_access_hint(admin) %>
             <% if first_access_hint %>
@@ -92,13 +97,14 @@
   <% else %>
     <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Convidados da organização">
       <table class="table table-sm">
-        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
+        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Validade</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
         <tbody>
           <% @members.each do |member| %>
             <tr>
-              <td><%= member.name %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
+              <td><%= link_to member.name, platform_user_path(member), class: "link" %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
               <td><%= user_status_badge(member) %></td>
               <td class="text-xs"><%= member.created_by&.name || "—" %></td>
+              <td class="text-xs"><%= access_validity_text(member) %></td>
               <td class="text-xs"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
               <td><%= render "support_actions", user: member %></td>
             </tr>
@@ -170,7 +176,7 @@
               <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
               <td class="text-xs"><%= event.user&.name || event.actor_email %></td>
               <td><%= audit_action_label(event.action) %></td>
-              <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+              <td class="text-xs opacity-70"><%= platform_metadata_summary(event) %></td>
             </tr>
           <% end %>
         </tbody>

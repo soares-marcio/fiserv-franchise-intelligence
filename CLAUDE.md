@@ -279,7 +279,10 @@ contornadas por conveniência:
   sem `.active` acha o EC do Master apagado.
 
 A trilha ganha `organization_id`; ação da plataforma fica sem organização mesmo quando o
-registro tem uma (é o que separa o que cada papel lê). O papel `metabase_ro` lê as views de
+registro tem uma (é o que separa o que cada papel lê). **A plataforma lê os metadados da trilha por
+lista fechada** (`AuditEventsHelper::PLATFORM_METADATA_LABELS`): metadado novo com nome de
+Master, de MIC, de arquivo ou texto livre não entra nela — foi assim que o "Apagou Master"
+mostrou o nome dele à plataforma até 07/10/2026. O papel `metabase_ro` lê as views de
 todas as organizações: a tela `/metabase` está fechada até haver recorte lá.
 
 **Desde 22/09/2026 há um endereço público**, `https://manager.melopay.com.br`, servido por

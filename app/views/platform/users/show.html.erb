@@ -1,0 +1,48 @@
+<% content_for :title, "Linha do tempo · #{@user.name}" %>
+
+<section class="page-hero">
+  <p class="eyebrow">Plataforma · <%= organization_display_name(@user.organization) %></p>
+  <h1 class="page-title"><%= @user.name %></h1>
+  <p class="page-description">
+    <%= @user.email_address %> · <%= user_role_badge(@user) %> <%= user_status_badge(@user) %>
+  </p>
+  <% unless @user.organization_admin? %>
+    <p class="metric-hint relative z-10 mt-1">Validade do acesso: <%= access_validity_text(@user) %></p>
+  <% end %>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Resumo</p>
+  <p class="metric-hint mt-1">O ciclo de vida da conta. O que ela fez na carteira é da organização e não aparece aqui.</p>
+  <dl class="mt-3 grid grid-cols-2 gap-3 text-sm md:grid-cols-5">
+    <div><dt class="text-xs opacity-70">Convidada em</dt><dd class="font-semibold"><%= l(@user.created_at.to_date) %></dd></div>
+    <div><dt class="text-xs opacity-70">Primeiro acesso</dt><dd class="font-semibold"><%= @timeline.first_access&.strftime("%d/%m/%Y %H:%M") || "nunca" %></dd></div>
+    <div><dt class="text-xs opacity-70">Último acesso</dt><dd class="font-semibold"><%= @timeline.last_access&.strftime("%d/%m/%Y %H:%M") || "nunca" %></dd></div>
+    <div><dt class="text-xs opacity-70">Entradas</dt><dd class="font-semibold tabular-nums"><%= @timeline.logins_count %></dd></div>
+    <div><dt class="text-xs opacity-70">Senhas ou códigos recusados</dt><dd class="font-semibold tabular-nums"><%= @timeline.refused_count %></dd></div>
+  </dl>
+</section>
+
+<section class="surface-card mt-5 p-6">
+  <p class="section-label">Linha do tempo</p>
+  <% events = @timeline.events %>
+  <% if events.empty? %>
+    <p class="metric-hint mt-3">Nada registrado ainda. O registro começa em 09/2026.</p>
+  <% else %>
+    <div class="table-scroll mt-3" role="region" tabindex="0">
+      <table class="table table-sm" aria-label="Linha do tempo da conta">
+        <thead><tr><th scope="col">Quando</th><th scope="col">O quê</th><th scope="col">Quem</th><th scope="col">Detalhes</th></tr></thead>
+        <tbody>
+          <% events.each do |event| %>
+            <tr>
+              <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td><%= audit_action_label(event.action) %></td>
+              <td class="text-xs"><%= event.actor_email %></td>
+              <td class="text-xs opacity-70"><%= platform_metadata_summary(event) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

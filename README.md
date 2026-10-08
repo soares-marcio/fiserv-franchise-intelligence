@@ -236,6 +236,26 @@ recusado com mensagem neutra, sem revelar nome de Master nem de EC alheio. Maste
 administrador da organização inaugura; colaborador precisa do Master inteiro para enviar,
 revisar ou receber a liberação de um arquivo.
 
+#### O que a plataforma acompanha de cada organização
+
+Desde 07/10/2026 a ficha da organização, vista pela plataforma, traz em contas, datas e
+contagens (`Platform::OrganizationProfile`): a **validade** de cada convidado e quantos
+têm prazo, vencem em 7 dias ou venceram; o **uso por mês** (pessoas que entraram,
+entradas, exportações, arquivos importados — mês de Brasília, base da cobrança por usuário
+ativo); a **segurança** em 30 dias (entradas recusadas, bloqueios, códigos errados, segundo
+fator reiniciado, acesso vencido, contas bloqueadas agora); a **saúde da carteira** (dias
+sem arquivo, falhas, lotes em revisão ou em processamento); a **gestão de acessos** em 30
+dias, em números; e os **Masters e MICs apagados e restaurados** pelo `REPORT_ID`, com quem
+fez. O nome de cada conta leva à **linha do tempo** dela (`Platform::AccountTimeline`):
+convite, primeiro e último acesso, segundo fator, senha, validade, permissões e desativação
+— o ciclo de vida, não o que a pessoa fez na carteira.
+
+O registro começa em 09/2026, quando o login entrou. A plataforma lê os metadados da trilha
+por **lista fechada** (`AuditEventsHelper::PLATFORM_METADATA_LABELS`): nome de Master ou de
+MIC, nome de arquivo, motivo escrito à mão e o recorte de uma exportação nunca chegam a ela
+— até 07/10/2026 o histórico mostrava o nome do Master apagado. Chave nova de metadado só
+aparece para a plataforma se entrar nessa lista.
+
 ### Entrar
 
 Senha **e** segundo fator (TOTP: Google Authenticator, Authy, 1Password ou o gerenciador do

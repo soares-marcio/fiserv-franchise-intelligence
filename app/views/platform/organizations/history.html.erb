@@ -39,7 +39,7 @@
               <span class="block text-xs opacity-70"><%= event.actor_email %></span>
             </td>
             <td><%= audit_action_label(event.action) %></td>
-            <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+            <td class="text-xs opacity-70"><%= platform_metadata_summary(event) %></td>
           </tr>
         <% end %>
       </tbody>

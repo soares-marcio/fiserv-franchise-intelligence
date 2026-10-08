@@ -134,6 +134,28 @@ class PlatformTest < ActionDispatch::IntegrationTest
     assert_no_match(/#{Regexp.escape(BinWorkbook::CHANNEL)}|MIC ALFA|30000001/, response.body)
   end
 
+  # A plataforma acompanha por quanto tempo cada convidado vai usar o portal — base para
+  # cobrança por usuário e para saber quem sai em breve (pedido de 07/10/2026).
+  test "a ficha mostra a validade de cada convidado e a contagem dos prazos" do
+    other = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: Channel.first,
+      email: "temporario@exemplo.com", created_by: @admin_a)
+    other.update_column(:access_expires_on, 3.days.from_now.to_date)
+    gone = scoped_user(permissions: [ *Permission::REPORT_KEYS ], channel: Channel.first,
+      email: "vencido@exemplo.com", created_by: @admin_a)
+    gone.update_column(:access_expires_on, 2.days.ago.to_date)
+    sign_in_as(@platform)
+
+    get platform_organization_path(default_organization)
+
+    assert_select "th", text: "Validade"
+    assert_match "Indeterminada", response.body
+    assert_match "vence em 3 dias", response.body
+    assert_match "venceu em", response.body
+    assert_match(/Com prazo<\/dt><dd class="font-semibold tabular-nums">2</, response.body)
+    assert_match(/Vencem em 7 dias<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
+    assert_match(/Vencidos<\/dt><dd class="font-semibold tabular-nums">1</, response.body)
+  end
+
   test "renomeia a organização a pedido, com o nome anterior e o novo na trilha" do
     sign_in_as(@platform)
 

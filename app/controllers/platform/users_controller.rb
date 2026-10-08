@@ -4,6 +4,13 @@ module Platform
   class UsersController < ApplicationController
     before_action :load_user
 
+    # A linha do tempo de uma conta de organização: o ciclo de vida dela, não o que ela fez
+    # na carteira. A regra de quem a plataforma alcança é a mesma do suporte.
+    def show
+      authorize @user, :support?
+      @timeline = AccountTimeline.new(@user)
+    end
+
     def reset_mfa
       authorize @user, :support?
       @user.reset_mfa!
