@@ -91,6 +91,11 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
       assert_no_selector "#status_filter_trigger", visible: true
       find(".mobile-filter-disclosure > summary").click
       assert_selector "#status_filter_trigger", visible: true
+
+      find(".mobile-filter-disclosure > summary").click
+      assert_no_selector "#status_filter_trigger", visible: true
+      page.driver.browser.manage.window.resize_to(*VIEWPORTS.fetch(:desktop_edge))
+      assert_selector "#status_filter_trigger", visible: true
     end
   end
 

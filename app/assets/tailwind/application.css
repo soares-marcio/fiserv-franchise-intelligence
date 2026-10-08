@@ -306,12 +306,11 @@
     overflow: visible;
   }
 
+  /* O summary some no desktop. Um <details> fechado não renderiza filhos: o JS
+     `mobile-disclosure` reabre o bloco ao cruzar 768px. Esta regra só reforça o
+     caso em que o atributo `open` já está presente. */
   .mobile-filter-disclosure > summary {
     display: none;
-  }
-
-  .mobile-filter-disclosure:not([open]) > .filter-panel {
-    display: block;
   }
 
   /* Faixa de pílulas, e não grade de colunas: cada filtro tem a largura do próprio conteúdo

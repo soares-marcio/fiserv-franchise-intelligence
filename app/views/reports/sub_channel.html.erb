@@ -108,7 +108,7 @@
         forma, a mesma altura e o mesmo peso; quem grita é o valor, não o rótulo. %>
     <% filters_active = @selected_statuses.any? || @selected_date_kinds.any? || @from_date ||
       @query.present? || @revenue_basis %>
-    <details class="mobile-filter-disclosure" open>
+    <details class="mobile-filter-disclosure" open data-controller="mobile-disclosure">
       <summary>
         <span>
           <strong>Filtros</strong>
