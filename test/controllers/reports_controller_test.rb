@@ -910,17 +910,17 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
 
     assert_response :success
-    assert_select "button.conversation-trigger", count: 1
-    assert_select "button.conversation-trigger[disabled]", count: 0
-    assert_select "button.conversation-trigger[data-conversation-modal-items-param=?]",
+    assert_select ".establishment-revenue-table button.conversation-trigger", count: 1
+    assert_select ".establishment-revenue-table button.conversation-trigger[disabled]", count: 0
+    assert_select ".establishment-revenue-table button.conversation-trigger[data-conversation-modal-items-param=?]",
       [ { "ec" => "30000001", "text" => "Ligar > Enviar proposta" } ].to_json
 
     # O cliente do MIC BETA não tem conversa em nenhum EC: botão desabilitado e sem param,
     # porque não há o que o modal mostre.
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC BETA"))
 
-    assert_select "button.conversation-trigger[disabled]", count: 1
-    assert_select "button.conversation-trigger[data-conversation-modal-items-param]", count: 0
+    assert_select ".establishment-revenue-table button.conversation-trigger[disabled]", count: 1
+    assert_select ".establishment-revenue-table button.conversation-trigger[data-conversation-modal-items-param]", count: 0
   end
 
   test "as colunas de valor ordenam a listagem e anunciam o sentido" do
@@ -1153,7 +1153,10 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
-    assert_select "section.table-frame[data-variation-filter='alta'] .variation-chip--up", count: 1
+    assert_select(
+      "section.table-frame[data-variation-filter='alta'] .establishment-revenue-table .variation-chip--up",
+      count: 1
+    )
     assert_select "tbody td p", text: "LOJA UM"
     assert_select "tbody td p", text: "LOJA DOIS", count: 0
     assert_select "tbody td p", text: "LOJA TRES", count: 0

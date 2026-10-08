@@ -106,6 +106,16 @@
         diferentes — caixa com chip, botão com ícone, select, alça crua, campo de texto —,
         mais uma linha de chips repetindo o que os controles já diziam. Aqui todos têm a mesma
         forma, a mesma altura e o mesmo peso; quem grita é o valor, não o rótulo. %>
+    <% filters_active = @selected_statuses.any? || @selected_date_kinds.any? || @from_date ||
+      @query.present? || @revenue_basis %>
+    <details class="mobile-filter-disclosure" open>
+      <summary>
+        <span>
+          <strong>Filtros</strong>
+          <small><%= filters_active ? "Há filtros aplicados" : "Refine os estabelecimentos" %></small>
+        </span>
+        <%= icon("caret-down", css: "icon") %>
+      </summary>
     <section class="filter-panel">
       <%= form_with url: sub_channel_report_path(@sub_channel), method: :get, class: "filter-bar" do %>
         <% if @selected_channel %>
@@ -125,7 +135,7 @@
           </div>
           <div id="status_filter_menu" class="tag-select__menu" data-tag-select-target="menu"
             hidden role="listbox" aria-multiselectable="true"
-            aria-labelledby="status_filter_trigger">
+            aria-labelledby="status_filter_trigger" data-action="keydown->tag-select#menuKeydown">
             <% @status_options.each do |status| %>
               <label class="tag-select__option <%= "is-selected" if @selected_statuses.include?(status) %>">
                 <%= check_box_tag "status[]", status, @selected_statuses.include?(status),
@@ -154,7 +164,7 @@
           </div>
           <div id="date_kind_filter_menu" class="tag-select__menu" data-tag-select-target="menu"
             hidden role="listbox" aria-multiselectable="true"
-            aria-labelledby="date_kind_filter_trigger">
+            aria-labelledby="date_kind_filter_trigger" data-action="keydown->tag-select#menuKeydown">
             <% EstablishmentsHelper::DATE_KIND_OPTIONS.each do |value, label| %>
               <label class="tag-select__option <%= "is-selected" if @selected_date_kinds.include?(value) %>">
                 <%= check_box_tag "date_kind[]", value, @selected_date_kinds.include?(value),
@@ -273,7 +283,7 @@
             class: "btn btn-primary filter-pill__submit" %>
           <%# O "Limpar" só existe quando há o que limpar: botão permanente para desfazer o
               nada é ruído. %>
-          <% if @selected_statuses.any? || @selected_date_kinds.any? || @from_date || @query.present? || @revenue_basis %>
+          <% if filters_active %>
             <%= link_to "Limpar",
               sub_channel_report_path(@sub_channel, channel_id: @selected_channel&.uuid),
               class: "filter-bar__clear" %>
@@ -281,6 +291,7 @@
         </div>
       <% end %>
     </section>
+    </details>
   <% end %>
 
   <%# Abas por variação alinhada: Baixa concentra quem piorou ou zerou o mês atual;
@@ -394,6 +405,12 @@
     </div>
 
     <p class="table-scroll-hint">Deslize a tabela para ver todos os dados.</p>
+
+    <div class="mobile-establishment-list" aria-label="Desempenho por estabelecimento">
+      <%= render partial: "mobile_establishment_card", collection: @reports, as: :report,
+        locals: { sub_channel: @sub_channel, period: @period, from_day: @from_day,
+          to_day: @to_day } %>
+    </div>
 
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Desempenho por estabelecimento, rolável na horizontal">

@@ -107,6 +107,47 @@
 
       <p class="table-scroll-hint">Deslize o calendário para ver todos os dias.</p>
 
+      <%# No telefone, a relação principal é dia → valor → clientes. A tabela continua sendo
+          a leitura comparativa do desktop; esta lista usa os mesmos objetos e os mesmos links. %>
+      <div class="mobile-calendar-list" role="region"
+        aria-label="Faturamento diário de <%= period_option_label(@period) %>">
+        <% @calendar.weeks.each do |week| %>
+          <article class="mobile-calendar-week">
+            <header class="mobile-calendar-week__head">
+              <h3><%= week.label %></h3>
+              <% if week.revenue %>
+                <span class="tabular-nums"><%= brl(week.revenue) %> na semana</span>
+              <% end %>
+            </header>
+            <div class="mobile-calendar-days">
+              <% week.cells.each_with_index do |cell, index| %>
+                <% next if cell.outside? %>
+                <% weekday = %w[Dom Seg Ter Qua Qui Sex Sáb][index] %>
+                <% if cell.uncovered? %>
+                  <div class="calendar-box mobile-calendar-day is-uncovered">
+                    <span class="mobile-calendar-day__weekday"><%= weekday %></span>
+                    <span class="calendar-box__day">Dia <%= cell.day %></span>
+                    <span class="calendar-box__value">Sem dado</span>
+                  </div>
+                <% else %>
+                  <%= link_to weekly_day_report_path(day: cell.day, period: @period.to_s,
+                        channel_id: @selected_channel&.uuid),
+                      class: "calendar-box mobile-calendar-day",
+                      data: { heat: calendar_heat(cell.revenue, @calendar.max_revenue),
+                        turbo_frame: "day_companies", action: "daily-modal#open" },
+                      aria: { label: "Dia #{cell.day}, #{weekday}: #{brl(cell.revenue)}, #{cell.establishments} ECs" } do %>
+                    <span class="mobile-calendar-day__weekday"><%= weekday %></span>
+                    <span class="calendar-box__day">Dia <%= cell.day %></span>
+                    <span class="calendar-box__value tabular-nums"><%= brl(cell.revenue) %></span>
+                    <span class="calendar-box__meta tabular-nums"><%= cell.establishments %> ECs</span>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </div>
+          </article>
+        <% end %>
+      </div>
+
       <div class="table-scroll" role="region" tabindex="0"
         aria-label="Faturamento de cada dia de <%= period_option_label(@period) %>">
         <table class="table revenue-calendar">

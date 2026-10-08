@@ -5,17 +5,17 @@
 <section class="surface-card mt-5 p-6">
   <p class="section-label">Uso por mês</p>
   <p class="metric-hint mt-1">Meses no horário de Brasília. Base para a cobrança por usuário ativo; o registro começa em 09/2026.</p>
-  <div class="table-scroll mt-3" role="region" tabindex="0">
-    <table class="table table-sm" aria-label="Uso por mês">
+  <div class="table-scroll mt-3" role="region" aria-label="Uso por mês" tabindex="0">
+    <table class="table table-sm responsive-card-table" aria-label="Uso por mês">
       <thead><tr><th scope="col">Mês</th><th scope="col">Pessoas que entraram</th><th scope="col">Entradas</th><th scope="col">Exportações</th><th scope="col">Arquivos importados</th></tr></thead>
       <tbody>
         <% usage.each do |row| %>
           <tr>
-            <td><%= l(row[:month], format: "%m/%Y") %></td>
-            <td class="tabular-nums"><%= row[:people] %></td>
-            <td class="tabular-nums"><%= row[:logins] %></td>
-            <td class="tabular-nums"><%= row[:exports] %></td>
-            <td class="tabular-nums"><%= row[:files] %></td>
+            <td data-label="Mês"><%= l(row[:month], format: "%m/%Y") %></td>
+            <td class="tabular-nums" data-label="Pessoas que entraram"><%= row[:people] %></td>
+            <td class="tabular-nums" data-label="Entradas"><%= row[:logins] %></td>
+            <td class="tabular-nums" data-label="Exportações"><%= row[:exports] %></td>
+            <td class="tabular-nums" data-label="Arquivos importados"><%= row[:files] %></td>
           </tr>
         <% end %>
       </tbody>
@@ -68,16 +68,16 @@
   <% if deletions.empty? %>
     <p class="metric-hint mt-3">Nada apagado nem restaurado.</p>
   <% else %>
-    <div class="table-scroll mt-3" role="region" tabindex="0">
-      <table class="table table-sm" aria-label="Masters apagados e restaurados">
+    <div class="table-scroll mt-3" role="region" aria-label="Masters apagados e restaurados" tabindex="0">
+      <table class="table table-sm responsive-card-table" aria-label="Masters apagados e restaurados">
         <thead><tr><th scope="col">Quando</th><th scope="col">O quê</th><th scope="col">REPORT_ID</th><th scope="col">Quem</th></tr></thead>
         <tbody>
           <% deletions.each do |event| %>
             <tr>
-              <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
-              <td><%= audit_action_label(event.action) %></td>
-              <td class="tabular-nums"><%= Platform::OrganizationProfile.report_id_of(event) || "—" %></td>
-              <td class="text-xs"><%= event.actor_email %></td>
+              <td class="text-xs" data-label="Quando"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td data-label="O quê"><%= audit_action_label(event.action) %></td>
+              <td class="tabular-nums" data-label="REPORT_ID"><%= Platform::OrganizationProfile.report_id_of(event) || "—" %></td>
+              <td class="text-xs" data-label="Quem"><%= event.actor_email %></td>
             </tr>
           <% end %>
         </tbody>

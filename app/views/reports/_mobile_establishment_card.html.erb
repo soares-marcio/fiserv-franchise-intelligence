@@ -1,0 +1,67 @@
+<% previous = report["previous_revenue"].to_d %>
+<% previous_full = report["previous_full_revenue"].to_d %>
+<% current = report["current_revenue"].to_d %>
+<% client_name = report["trade_name"].presence || report["legal_name"] %>
+<% conversations = client_conversations(report["best_conversations"]) %>
+<% reference_date = report["activated_on"] || report["accredited_on"] %>
+<% newcomer = if previous.zero? && current.positive?
+     reference_date.present? && reference_date.to_date >= report["previous_period"].to_date
+   end %>
+
+<article class="mobile-establishment-card">
+  <header class="mobile-establishment-card__head">
+    <div class="min-w-0">
+      <p class="font-mono text-xs"><%= formatted_cnpj(report["cnpj"]) %></p>
+      <h3>
+        <%= link_to client_name,
+          sub_channel_daily_report_path(sub_channel, report["company_uuid"],
+            period:, from_day:, to_day:),
+          class: "daily-trigger", data: { turbo_frame: "daily_revenues",
+            action: "daily-modal#open" } %>
+      </h3>
+      <% if report["legal_name"].present? && report["legal_name"] != report["trade_name"] %>
+        <p class="mobile-establishment-card__legal"><%= report["legal_name"] %></p>
+      <% end %>
+    </div>
+    <%= variation_chip(previous, current, newcomer:) %>
+  </header>
+
+  <% if report["contract_status"].present? %>
+    <div><%= contract_status_badge(report["contract_status"]) %></div>
+  <% end %>
+
+  <dl class="mobile-establishment-card__metrics">
+    <div><dt>Net MDR</dt><dd><%= client_net_mdr_label(report["net_mdr_min"], report["net_mdr_max"]) || "—" %></dd></div>
+    <div><dt>Mês anterior cheio</dt><dd><%= brl(previous_full) %></dd></div>
+    <div><dt>Base comparável</dt><dd><%= brl(previous) %></dd></div>
+    <div><dt>Mês atual</dt><dd><%= brl(current) %></dd></div>
+  </dl>
+
+  <details class="mobile-establishment-card__details">
+    <summary>Datas do ciclo</summary>
+    <dl>
+      <div><dt>Credenciamento</dt><dd><%= format_date(report["accredited_on"]) %></dd></div>
+      <div><dt>Ativação</dt><dd><%= format_date(report["activated_on"]) %></dd></div>
+      <div><dt>Suspensão</dt><dd><%= format_date(report["suspended_on"]) %></dd></div>
+      <div><dt>Uso do app</dt><dd><%= format_date(report["last_app_access_at"]) %></dd></div>
+    </dl>
+  </details>
+
+  <div class="mobile-establishment-card__actions">
+    <%= button_tag type: "button", disabled: conversations.empty?,
+      class: "btn btn-outline conversation-trigger",
+      aria: { label: conversations.any? ? "Melhor conversa de #{client_name}" : "#{client_name} não tem melhor conversa" },
+      data: (conversations.any? ? { action: "conversation-modal#open",
+        conversation_modal_items_param: conversations.to_json,
+        conversation_modal_name_param: client_name } : {}) do %>
+      <%= icon_label("list-bullets", "Melhor conversa", css: "btn-icon") %>
+    <% end %>
+    <%= render "shared/company_note_cell",
+      company_uuid: report["company_uuid"], name: client_name,
+      note_id: report["note_id"], note_updated_at: report["note_updated_at"],
+      cell_id: "mobile_#{company_note_cell_id(report["company_uuid"])}",
+      note_params: sub_channel_listing_params(
+        origin: "sub_channel", sub_channel_id: sub_channel.uuid
+      ) %>
+  </div>
+</article>

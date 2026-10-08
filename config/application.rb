@@ -29,6 +29,14 @@ module FiservFranchiseIntelligence
     # Monolíngue por decisão: o pt-BR.yml existe para o Rails formatar data, moeda e
     # percentual em português, não para traduzir a interface — que é escrita em português.
     config.i18n.available_locales = [ :"pt-BR" ]
+    # O portal não usa câmera, microfone nem geolocalização. Os cabeçalhos ficam explícitos
+    # aqui para não depender de defaults do Rails que podem mudar numa atualização.
+    config.action_dispatch.default_headers.merge!(
+      "X-Frame-Options" => "DENY",
+      "X-Content-Type-Options" => "nosniff",
+      "Referrer-Policy" => "strict-origin-when-cross-origin",
+      "Permissions-Policy" => "camera=(), microphone=(), geolocation=()"
+    )
 
     # Configuration for the application, engines, and railties goes here.
     #

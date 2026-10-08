@@ -2,8 +2,8 @@
     formulário — o conteúdo vem por Turbo Frame quando o modal abre.
 
     O id vem de `company_note_cell_id`: é o endereço da célula para o turbo_stream, que troca
-    esta célula ao salvar, sem recarregar a tela. As duas telas mostram uma linha por CNPJ, e
-    por isso o id é único na página.
+    esta célula ao salvar, sem recarregar a tela. A listagem móvel fornece um id próprio para
+    o mesmo CNPJ; o stream troca os dois alvos para não deixar o indicador desatualizado.
 
     O rótulo é sempre "Anotar"; quem avisa que já há conteúdo é o ponto. Nunca vem `disabled`,
     ao contrário do botão da melhor conversa: lá "não tem" é fato da planilha; aqui é o
@@ -13,9 +13,10 @@
     ponto contaria que há anotação a quem não pode lê-la. %>
 <% if policy(:company_note).show? %>
 <% has_note = note_id.present? %>
+<% resolved_cell_id = local_assigns[:cell_id] || company_note_cell_id(company_uuid) %>
 <%# Quem só lê não escreve: o botão diz "Ver anotação" e, sem anotação, não há o que abrir. %>
 <% can_write = policy(:company_note).edit? %>
-<div class="note-cell" id="<%= company_note_cell_id(company_uuid) %>">
+<div class="note-cell" id="<%= resolved_cell_id %>">
   <% if can_write %>
   <%= button_tag type: "button",
         class: "btn btn-sm note-trigger #{'btn-outline' unless has_note}",

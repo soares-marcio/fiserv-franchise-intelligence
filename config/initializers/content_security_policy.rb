@@ -18,8 +18,7 @@ Rails.application.configure do
     policy.frame_ancestors :none
   end
 
-  # O nonce muda a cada requisição e é o que autoriza o importmap; sem sessão iniciada
-  # (o portal não tem login), o id da sessão é vazio, então vale um valor sorteado.
+  # O nonce muda a cada requisição e é o que autoriza o importmap sem liberar script inline.
   config.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(16) }
   config.content_security_policy_nonce_directives = %w[script-src]
 end

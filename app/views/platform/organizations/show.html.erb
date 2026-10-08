@@ -96,17 +96,17 @@
     <p class="metric-hint mt-3">Ninguém ainda.</p>
   <% else %>
     <div class="table-scroll mt-3" role="region" tabindex="0" aria-label="Convidados da organização">
-      <table class="table table-sm">
-        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Validade</th><th scope="col">Último acesso</th><th scope="col"></th></tr></thead>
+      <table class="table table-sm responsive-card-table">
+        <thead><tr><th scope="col">Nome</th><th scope="col">Situação</th><th scope="col">Convidado por</th><th scope="col">Validade</th><th scope="col">Último acesso</th><th scope="col">Ações</th></tr></thead>
         <tbody>
           <% @members.each do |member| %>
             <tr>
-              <td><%= link_to member.name, platform_user_path(member), class: "link" %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
-              <td><%= user_status_badge(member) %></td>
-              <td class="text-xs"><%= member.created_by&.name || "—" %></td>
-              <td class="text-xs"><%= access_validity_text(member) %></td>
-              <td class="text-xs"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
-              <td><%= render "support_actions", user: member %></td>
+              <td data-label="Nome"><%= link_to member.name, platform_user_path(member), class: "link" %><span class="block text-xs opacity-70"><%= member.email_address %></span></td>
+              <td data-label="Situação"><%= user_status_badge(member) %></td>
+              <td class="text-xs" data-label="Convidado por"><%= member.created_by&.name || "—" %></td>
+              <td class="text-xs" data-label="Validade"><%= access_validity_text(member) %></td>
+              <td class="text-xs" data-label="Último acesso"><%= @last_access[member.id] ? @last_access[member.id].strftime("%d/%m/%Y %H:%M") : "nunca" %></td>
+              <td data-label="Ações"><%= render "support_actions", user: member %></td>
             </tr>
           <% end %>
         </tbody>

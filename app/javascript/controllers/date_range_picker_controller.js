@@ -189,21 +189,35 @@ export default class extends Controller {
     const month = visible.getMonth()
     const days = new Date(year, month + 1, 0).getDate()
     const offset = new Date(year, month, 1).getDay()
-    const cells = WEEKDAYS.map((day) => `<span class="datepicker__dow">${day}</span>`)
+    const cells = WEEKDAYS.map((day) => {
+      const heading = document.createElement("span")
+      heading.className = "datepicker__dow"
+      heading.textContent = day
+      return heading
+    })
 
     for (let slot = 0; slot < offset; slot += 1) {
-      cells.push('<span class="datepicker__cell is-empty" aria-hidden="true"></span>')
+      const empty = document.createElement("span")
+      empty.className = "datepicker__cell is-empty"
+      empty.setAttribute("aria-hidden", "true")
+      cells.push(empty)
     }
     for (let day = 1; day <= days; day += 1) {
       const iso = this.isoDate(visible, day)
       const today = iso === this.todayIso()
-      const classes = `datepicker__cell${today ? " is-today" : ""}`
-      const current = today ? ' aria-current="date"' : ""
-      cells.push(`<button type="button" class="${classes}" data-day="${day}" data-date="${iso}"
-        aria-label="${this.dayLabel(visible, day)}" aria-pressed="false"${current}>${day}</button>`)
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = `datepicker__cell${today ? " is-today" : ""}`
+      button.dataset.day = day
+      button.dataset.date = iso
+      button.setAttribute("aria-label", this.dayLabel(visible, day))
+      button.setAttribute("aria-pressed", "false")
+      if (today) button.setAttribute("aria-current", "date")
+      button.textContent = day
+      cells.push(button)
     }
 
-    grid.innerHTML = cells.join("")
+    grid.replaceChildren(...cells)
   }
 
   applyRangeClasses() {
