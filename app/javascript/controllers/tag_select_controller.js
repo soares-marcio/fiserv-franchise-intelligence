@@ -24,7 +24,7 @@ export default class extends Controller {
 
   sync() {
     const selected = this.selectedBoxes()
-    this.chipsTarget.innerHTML = selected.map((box) => this.chipHtml(box)).join("")
+    this.chipsTarget.replaceChildren(...selected.map((box) => this.chipElement(box)))
     this.placeholderTarget.hidden = selected.length > 0
     this.element.querySelectorAll(".tag-select__option").forEach((option) => {
       const checked = Boolean(option.querySelector("input")?.checked)
@@ -45,6 +45,11 @@ export default class extends Controller {
   }
 
   keydown(event) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault()
+      this.open()
+      return
+    }
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
       this.toggle(event)
@@ -56,6 +61,20 @@ export default class extends Controller {
       last.checked = false
       this.sync()
     }
+  }
+
+  menuKeydown(event) {
+    const boxes = this.boxes()
+    const current = boxes.indexOf(event.target)
+    let next
+    if (event.key === "ArrowDown") next = boxes[current + 1] || boxes[0]
+    else if (event.key === "ArrowUp") next = boxes[current - 1] || boxes.at(-1)
+    else if (event.key === "Home") next = boxes[0]
+    else if (event.key === "End") next = boxes.at(-1)
+    else return
+
+    event.preventDefault()
+    next?.focus()
   }
 
   open() {
@@ -98,25 +117,29 @@ export default class extends Controller {
     return this.boxes().filter((input) => input.checked)
   }
 
-  chipHtml(box) {
+  chipElement(box) {
     const value = box.value
     const label = box.dataset.label || value
     const tone = box.dataset.tone || "neutral"
     // Texto, e não caixinha: dentro da pílula o valor é a informação, e uma caixa com borda
     // dentro de outra caixa com borda vira ruído. O × fica discreto ao lado de cada valor.
-    return `<span class="filter-pill__tag" data-tone="${this.escape(tone)}">
-      <span>${this.escape(label)}</span>
-      <button type="button" class="filter-pill__tag-remove" data-tag-select-remove
-        data-action="click->tag-select#remove" data-value="${this.escape(value)}"
-        aria-label="Remover ${this.escape(label)}">×</button>
-    </span>`
-  }
+    const chip = document.createElement("span")
+    chip.className = "filter-pill__tag"
+    chip.dataset.tone = tone
 
-  escape(value) {
-    return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
+    const text = document.createElement("span")
+    text.textContent = label
+
+    const remove = document.createElement("button")
+    remove.type = "button"
+    remove.className = "filter-pill__tag-remove"
+    remove.dataset.tagSelectRemove = ""
+    remove.dataset.action = "click->tag-select#remove"
+    remove.dataset.value = value
+    remove.setAttribute("aria-label", `Remover ${label}`)
+    remove.textContent = "×"
+
+    chip.append(text, remove)
+    return chip
   }
 }

@@ -77,7 +77,7 @@
     </div>
     <div class="table-scroll" role="region" tabindex="0"
       aria-label="Clientes e estabelecimentos, rolável na horizontal">
-  <table class="table">
+  <table class="table responsive-card-table">
     <caption class="sr-only">Estabelecimentos encontrados</caption>
     <thead>
       <tr>
@@ -98,7 +98,7 @@
         <% lead = establishments.find { |e| e.primary_establishment.nil? } || establishments.first %>
         <% snapshot = lead.current_map_snapshot %>
         <tr class="align-top">
-          <td>
+          <td data-label="Cliente">
             <%# O nome do cliente é o link da linha, e leva ao mesmo lugar que a busca global:
                 o cadastro do EC de referência. Os ECs abaixo continuam levando cada um ao seu. %>
             <%# turbo_frame: "_top" porque a listagem vive dentro do frame "establishments",
@@ -121,12 +121,12 @@
               <% end %>
             </p>
           </td>
-          <td class="font-mono text-xs whitespace-nowrap"><%= formatted_cnpj(company.cnpj) %></td>
-          <td>
+          <td class="font-mono text-xs whitespace-nowrap" data-label="CNPJ"><%= formatted_cnpj(company.cnpj) %></td>
+          <td data-label="MIC">
             <p><%= establishments.filter_map { |e| e.current_map_snapshot&.sub_channel&.name }.uniq.join(" · ").presence || "—" %></p>
             <p class="text-xs opacity-60"><%= channel_name(lead.channel) %></p>
           </td>
-          <td>
+          <td data-label="Endereço">
             <p class="max-w-xs"><%= present_or_dash(snapshot&.street_address) %></p>
             <p class="text-xs opacity-70">
               <%= [ snapshot&.city, snapshot&.state ].compact_blank.join(" · ").presence || "—" %>
@@ -135,17 +135,17 @@
               <% end %>
             </p>
           </td>
-          <td>
+          <td data-label="CNAE">
             <p class="font-mono text-xs"><%= present_or_dash(snapshot&.cnae_code) %></p>
             <p class="max-w-xs text-xs opacity-70"><%= present_or_dash(snapshot&.cnae_description) %></p>
           </td>
-          <td>
+          <td data-label="Status">
             <%= contract_status_badge(snapshot&.contract_status) %>
             <% if establishments.size > 1 %>
               <p class="mt-1 text-xs opacity-60"><%= establishments.size %> ECs</p>
             <% end %>
           </td>
-          <td>
+          <td data-label="Segmento">
             <p><%= present_or_dash(snapshot&.performed_segment) %></p>
             <% if snapshot&.business_line.present? %>
               <p class="max-w-[10rem] text-xs opacity-60"><%= snapshot.business_line %></p>
@@ -154,7 +154,7 @@
           <%# A anotação é do CNPJ, e aqui a linha já é o cliente: a mesma célula das outras
               telas, com o botão e o ponto de "já tem". O texto fica no modal e na ficha. %>
           <% if policy(:company_note).show? %>
-          <td class="note-col">
+          <td class="note-col" data-label="Anotação">
             <% note = @notes_by_cnpj[company.cnpj] %>
             <%= render "shared/company_note_cell", company_uuid: company.uuid,
               name: present_or_dash(snapshot&.trade_name.presence || snapshot&.legal_name),

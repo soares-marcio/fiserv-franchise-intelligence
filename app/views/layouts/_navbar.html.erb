@@ -121,8 +121,13 @@
   </div>
 </header>
 
+<button class="nav-backdrop" type="button" hidden tabindex="-1"
+  data-app-layout-target="navBackdrop" data-action="click->app-layout#closeNavOnBackdrop"
+  aria-label="Fechar menu"></button>
+
 <div class="search-modal" data-app-layout-target="searchModal" role="dialog"
-  aria-modal="true" aria-labelledby="global-search-title" hidden>
+  aria-modal="true" aria-labelledby="global-search-title" hidden
+  data-action="click->app-layout#closeSearchOnBackdrop">
   <div class="search-modal__dialog">
     <div class="search-modal__header">
       <%= icon("magnifying-glass", css: "icon") %>

@@ -306,6 +306,13 @@
     overflow: visible;
   }
 
+  /* O summary some no desktop. Um <details> fechado não renderiza filhos: o JS
+     `mobile-disclosure` reabre o bloco ao cruzar 768px. Esta regra só reforça o
+     caso em que o atributo `open` já está presente. */
+  .mobile-filter-disclosure > summary {
+    display: none;
+  }
+
   /* Faixa de pílulas, e não grade de colunas: cada filtro tem a largura do próprio conteúdo
      e a linha quebra sozinha quando não cabe. A grade de larguras fixas era o que obrigava a
      inventar um valor de coluna para cada campo e a refazer a conta a cada campo novo. */
@@ -1143,12 +1150,147 @@
     font-weight: 700;
   }
 
+  .mobile-calendar-list {
+    display: none;
+  }
+
+  .mobile-calendar-week {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .mobile-calendar-week__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .mobile-calendar-week__head h3 {
+    color: var(--cork-strong);
+    font-weight: 750;
+  }
+
+  .mobile-calendar-week__head span {
+    color: var(--cork-muted);
+    font-size: var(--text-xs);
+  }
+
+  .mobile-calendar-days {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .mobile-calendar-day {
+    min-width: 0;
+    min-height: 5.5rem;
+  }
+
+  .mobile-calendar-day__weekday {
+    display: block;
+    color: var(--cork-muted);
+    font-size: var(--text-xs);
+    font-weight: 750;
+  }
+
   /* Cards de EC: dois por linha, como os de ganho. Com quatro ECs em blocos de página
      inteira, a ficha virava rolagem em que tudo se parecia. */
   .ec-card-grid {
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-establishment-list {
+    display: none;
+  }
+
+  .mobile-establishment-card {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--color-base-300);
+    border-radius: var(--radius-lg);
+    background: var(--color-base-100);
+  }
+
+  .mobile-establishment-card__head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .mobile-establishment-card__head h3 {
+    margin-top: var(--space-1);
+    overflow-wrap: anywhere;
+    font-size: 1rem;
+    font-weight: 750;
+  }
+
+  .mobile-establishment-card__legal {
+    margin-top: var(--space-1);
+    color: var(--cork-muted);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-establishment-card__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .mobile-establishment-card__metrics > div {
+    min-width: 0;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--color-base-200);
+  }
+
+  .mobile-establishment-card__metrics dt,
+  .mobile-establishment-card__details dt {
+    color: var(--cork-muted);
+    font-size: var(--text-xs);
+  }
+
+  .mobile-establishment-card__metrics dd,
+  .mobile-establishment-card__details dd {
+    margin-top: var(--space-1);
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-establishment-card__details summary {
+    min-height: 44px;
+    padding-block: var(--space-2);
+    color: var(--color-primary);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .mobile-establishment-card__details dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-base-300);
+  }
+
+  .mobile-establishment-card__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .mobile-establishment-card__actions .btn,
+  .mobile-establishment-card__actions .note-cell {
+    width: 100%;
   }
 
   .ec-card {
@@ -1775,6 +1917,13 @@
     overflow-wrap: anywhere;
   }
 
+  /* Selo é rótulo curto: herdava da célula a quebra em qualquer ponto e, com a coluna
+     apertada (iPad deitado), "Ativo" virava "Ativ" e "o", com o "o" fora da pílula. */
+  .table .badge {
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
   .table tbody tr {
     position: relative;
     transition: background-color 140ms ease;
@@ -2230,6 +2379,18 @@
     background: color-mix(in oklab, white 8%, transparent);
   }
 
+  .nav-backdrop {
+    position: fixed;
+    z-index: 29;
+    inset: 0;
+    border: 0;
+    background: rgb(6 8 24 / 56%);
+  }
+
+  body.has-mobile-overlay {
+    overflow: hidden;
+  }
+
   .nav-link {
     display: inline-flex;
     min-height: 2.6rem;
@@ -2500,8 +2661,8 @@
     display: flex;
     position: relative;
     flex-direction: column;
-    max-height: 88vh;
-    padding: 1.25rem 1.35rem 1.4rem;
+    max-height: min(88vh, 88dvh);
+    padding: 1.25rem 1.35rem max(1.4rem, env(safe-area-inset-bottom));
   }
 
   .daily-modal__close {
@@ -2769,7 +2930,11 @@
     z-index: 70;
     inset: 0;
     display: grid;
-    padding: 1rem;
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom))
+      max(1rem, env(safe-area-inset-left));
     place-items: start center;
     background: rgb(6 8 24 / 48%);
   }
@@ -2969,9 +3134,16 @@
 }
 
 /* Base mobile: todas as ações continuam disponíveis em uma coluna legível. */
+  /* Nada no conteúdo alarga a página para os lados: o Safari do iPad reduz a página que
+     transborda, a largura que o CSS enxerga passa de 1200px e o menu horizontal voltava só
+     na tela que transbordava (balões de ajuda invisíveis na borda, 10/10/2026). Clip, e não
+     hidden: não cria área de rolagem, e o cabeçalho fixo das tabelas continua funcionando. */
   .app-main {
+    overflow-x: clip;
     min-width: 0;
     padding: var(--space-6) var(--space-3) var(--space-12);
+    padding-right: max(var(--space-3), env(safe-area-inset-right));
+    padding-left: max(var(--space-3), env(safe-area-inset-left));
   }
 
   .topbar {
@@ -3116,6 +3288,45 @@
 
     .support-actions .btn {
       width: 100%;
+    }
+
+    .mobile-filter-disclosure {
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .mobile-filter-disclosure > summary {
+      display: flex;
+      min-height: 48px;
+      padding: var(--space-3) var(--space-4);
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      border: 1px solid var(--color-base-300);
+      border-radius: var(--radius-lg);
+      background: var(--color-base-100);
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .mobile-filter-disclosure > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .mobile-filter-disclosure > summary small {
+      display: block;
+      margin-top: var(--space-1);
+      color: var(--cork-muted);
+      font-size: var(--text-xs);
+      font-weight: 400;
+    }
+
+    .mobile-filter-disclosure[open] > summary .icon {
+      transform: rotate(180deg);
+    }
+
+    .mobile-filter-disclosure:not([open]) > .filter-panel {
+      display: none;
     }
   }
 
@@ -3311,12 +3522,32 @@
 
   .primary-nav.is-open {
     display: flex;
-    order: 3;
-    flex-basis: 100%;
+    position: fixed;
+    z-index: 31;
+    top: var(--topbar-height, 4.75rem);
+    right: 0;
+    left: auto;
+    width: min(22rem, calc(100% - 3rem));
+    max-height: calc(100dvh - var(--topbar-height, 4.75rem));
     flex-direction: column;
     align-items: stretch;
-    padding-top: var(--space-2);
-    border-top: var(--border-subtle);
+    gap: var(--space-1);
+    padding:
+      var(--space-3)
+      max(var(--space-3), env(safe-area-inset-right))
+      max(var(--space-4), env(safe-area-inset-bottom))
+      max(var(--space-3), env(safe-area-inset-left));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-top: 1px solid color-mix(in oklab, white 12%, transparent);
+    background: var(--color-neutral);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .primary-nav.is-open .nav-link {
+    width: 100%;
+    min-height: 48px;
+    padding-inline: var(--space-4);
   }
 
   .nav-link,
@@ -3352,9 +3583,202 @@
     overscroll-behavior: contain;
   }
 
+  .filter-pill__trigger,
+  .filter-pill--select,
+  .filter-pill__submit {
+    min-height: 44px;
+    height: auto;
+  }
+
+  .revenue-range,
+  .revenue-range__input {
+    height: 2.75rem;
+  }
+
+  .revenue-range__input::-webkit-slider-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .revenue-range__input::-moz-range-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .touch-choice {
+    min-height: 44px;
+    padding-block: var(--space-2);
+  }
+
+  @media (max-width: 767px) {
+    .tag-select__menu,
+    .filter-pill__panel,
+    .datepicker {
+      position: fixed;
+      z-index: 60;
+      top: auto;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      max-height: min(82vh, 82dvh);
+      padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      box-shadow: 0 -18px 48px rgb(31 45 61 / 24%);
+    }
+
+    .datepicker {
+      padding-inline: var(--space-1);
+    }
+
+    .datepicker__cell {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .datepicker__actions {
+      margin-inline: calc(-1 * var(--space-1));
+      padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+    }
+
+    .mobile-calendar-list {
+      display: grid;
+    }
+
+    .table-scroll-hint:has(+ .mobile-calendar-list) {
+      display: none;
+    }
+
+    .mobile-calendar-list + .table-scroll {
+      display: none;
+    }
+
+    .mobile-establishment-list {
+      display: grid;
+      padding: var(--space-3);
+      gap: var(--space-3);
+      border-top: 1px solid var(--color-base-300);
+    }
+
+    .table-scroll-hint:has(+ .mobile-establishment-list) {
+      display: none;
+    }
+
+    .mobile-establishment-list + .table-scroll {
+      display: none;
+    }
+
+    .table-scroll:has(> .responsive-card-table) {
+      overflow: visible;
+    }
+
+    .table-scroll > .table.responsive-card-table {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .responsive-card-table colgroup,
+    .responsive-card-table thead {
+      display: none;
+    }
+
+    .responsive-card-table tbody {
+      display: grid;
+      padding: var(--space-3);
+      gap: var(--space-3);
+    }
+
+    .responsive-card-table tbody tr {
+      display: grid;
+      padding: var(--space-3);
+      gap: 0;
+      border: 1px solid var(--color-base-300);
+      border-radius: var(--radius-lg);
+      background: var(--color-base-100);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .responsive-card-table tbody td {
+      display: grid;
+      grid-template-columns: minmax(6.5rem, 38%) minmax(0, 1fr);
+      padding: var(--space-2) 0;
+      gap: var(--space-3);
+      align-items: start;
+      border: 0;
+      border-bottom: 1px solid color-mix(in oklab, var(--color-base-300) 68%, white);
+      text-align: left;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+
+    .responsive-card-table tbody td::before {
+      color: var(--cork-muted);
+      content: attr(data-label);
+      font-size: var(--text-xs);
+      font-weight: 750;
+    }
+
+    .responsive-card-table tbody td > * {
+      min-width: 0;
+      grid-column: 2;
+    }
+
+    .responsive-card-table tbody td:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .responsive-card-table tbody td:first-child {
+      padding-top: 0;
+    }
+
+    .responsive-card-table tbody td[data-label="Ações"] form,
+    .responsive-card-table tbody td[data-label="Ações"] .btn {
+      width: 100%;
+    }
+
+    .mobile-form-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .mobile-form-actions > .btn {
+      width: 100%;
+      min-height: 2.75rem;
+    }
+  }
+
+  @media (max-width: 479px) {
+    .filter-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      width: 100%;
+    }
+
+    .filter-bar > *,
+    .filter-bar .filter-pill,
+    .filter-bar .filter-pill__trigger,
+    .filter-bar .filter-pill--search {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .filter-bar .filter-pill__value {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+  }
+
 @media (min-width: 480px) {
   .app-main {
-    padding-inline: var(--space-4);
+    padding-right: max(var(--space-4), env(safe-area-inset-right));
+    padding-left: max(var(--space-4), env(safe-area-inset-left));
   }
 
   .metric-grid,
@@ -3426,15 +3850,6 @@
      transbordava 250px — medido a 1024px. */
 
 
-  .nav-toggle {
-    display: none;
-  }
-
-  .primary-nav {
-    display: flex;
-    order: 3;
-    flex-basis: 100%;
-  }
 
   .table-scroll {
     overflow-x: auto;
@@ -3500,6 +3915,42 @@
 
   .mobile-table-head {
     display: none;
+  }
+}
+
+/* Menu horizontal só a partir de 1200px. Entre 1024 e 1199 (o iPad 11" deitado tem 1194)
+   os dez itens quebravam em duas linhas e o cabeçalho tomava quase metade da altura antes
+   do primeiro número (09/10/2026): ali o menu fica recolhido no botão, como no telefone. */
+/* Entre 1024 e 1199px o cabeçalho das tabelas quebra de linha: com números e nomes reais, o
+   do MIC não cabia numa linha só e passava da tela. */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .table-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 1200px) {
+  .nav-toggle {
+    display: none;
+  }
+
+  .primary-nav {
+    display: flex;
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .primary-nav.is-open {
+    position: static;
+    right: auto;
+    left: auto;
+    width: auto;
+    max-height: none;
+    padding: 0;
+    overflow: visible;
+    flex-direction: row;
+    background: transparent;
+    box-shadow: none;
   }
 }
 
