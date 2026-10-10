@@ -1917,6 +1917,13 @@
     overflow-wrap: anywhere;
   }
 
+  /* Selo é rótulo curto: herdava da célula a quebra em qualquer ponto e, com a coluna
+     apertada (iPad deitado), "Ativo" virava "Ativ" e "o", com o "o" fora da pílula. */
+  .table .badge {
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
   .table tbody tr {
     position: relative;
     transition: background-color 140ms ease;

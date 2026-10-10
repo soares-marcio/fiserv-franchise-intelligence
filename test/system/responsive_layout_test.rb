@@ -160,4 +160,24 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
       assert_page_fits_viewport
     end
   end
+
+  # As tabelas quebram texto em qualquer ponto para nome longo não estourar a coluna, e o
+  # selo herdava a regra: no iPad deitado, "Ativo" virava "Ativ" e "o", com o "o" fora da
+  # pílula (09/10/2026). Selo é rótulo curto e fica numa linha só.
+  test "selos das tabelas ficam numa linha só no tablet deitado" do
+    visit establishments_path
+
+    with_viewport(:tablet_landscape) do
+      lines = page.evaluate_script(<<~JS)
+        Array.from(document.querySelectorAll(".table .badge")).map((badge) => {
+          const range = document.createRange()
+          range.selectNodeContents(badge)
+          return range.getClientRects().length
+        })
+      JS
+
+      assert lines.any?, "a tela precisa ter selos para o teste valer"
+      assert lines.all? { |count| count == 1 }, "selo quebrado em mais de uma linha: #{lines.inspect}"
+    end
+  end
 end
