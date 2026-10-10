@@ -7,6 +7,7 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     modern_phone: [ 390, 844 ],
     tablet: [ 768, 1024 ],
     desktop_edge: [ 1024, 768 ],
+    tablet_landscape: [ 1194, 834 ],
     desktop: [ 1280, 900 ],
     wide_desktop: [ 1400, 1000 ]
   }.freeze

@@ -49,7 +49,7 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
       assert_no_selector "#primary_nav.is-open"
 
       click_button "Abrir ou fechar o menu"
-      page.driver.browser.manage.window.resize_to(*VIEWPORTS.fetch(:desktop_edge))
+      page.driver.browser.manage.window.resize_to(*VIEWPORTS.fetch(:desktop))
       assert_no_selector "#primary_nav.is-open"
       assert_no_selector "#main-content[inert]"
     end
@@ -131,10 +131,29 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
     with_viewport(:modern_phone) { assert_page_fits_viewport }
   end
 
+  # No iPad deitado (1194px) os dez itens do menu quebravam em duas linhas e o cabeçalho
+  # tomava quase metade da altura antes do primeiro número (09/10/2026): até 1199px o menu
+  # fica recolhido no botão, como no telefone.
+  test "tablet deitado recolhe o menu numa linha só e abre pelo botão" do
+    visit reports_path
+
+    [ :desktop_edge, :tablet_landscape ].each do |viewport|
+      with_viewport(viewport) do
+        assert_no_selector "#primary_nav", visible: true
+        click_button "Abrir ou fechar o menu"
+        assert_selector "#primary_nav.is-open", visible: true
+        assert_selector "#primary_nav a", text: "Histórico", visible: true
+        find("body").send_keys(:escape)
+        assert_no_selector "#primary_nav.is-open"
+        assert_page_fits_viewport
+      end
+    end
+  end
+
   test "desktop preserva menu horizontal sem backdrop" do
     visit reports_path
 
-    with_viewport(:desktop_edge) do
+    with_viewport(:desktop) do
       assert_selector "#primary_nav", visible: true
       assert_no_selector ".nav-toggle", visible: true
       assert_no_selector ".nav-backdrop", visible: true

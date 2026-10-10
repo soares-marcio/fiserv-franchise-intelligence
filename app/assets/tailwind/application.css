@@ -3838,28 +3838,6 @@
      transbordava 250px — medido a 1024px. */
 
 
-  .nav-toggle {
-    display: none;
-  }
-
-  .primary-nav {
-    display: flex;
-    order: 3;
-    flex-basis: 100%;
-  }
-
-  .primary-nav.is-open {
-    position: static;
-    right: auto;
-    left: auto;
-    width: auto;
-    max-height: none;
-    padding: 0;
-    overflow: visible;
-    flex-direction: row;
-    background: transparent;
-    box-shadow: none;
-  }
 
   .table-scroll {
     overflow-x: auto;
@@ -3925,6 +3903,34 @@
 
   .mobile-table-head {
     display: none;
+  }
+}
+
+/* Menu horizontal só a partir de 1200px. Entre 1024 e 1199 (o iPad 11" deitado tem 1194)
+   os dez itens quebravam em duas linhas e o cabeçalho tomava quase metade da altura antes
+   do primeiro número (09/10/2026): ali o menu fica recolhido no botão, como no telefone. */
+@media (min-width: 1200px) {
+  .nav-toggle {
+    display: none;
+  }
+
+  .primary-nav {
+    display: flex;
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .primary-nav.is-open {
+    position: static;
+    right: auto;
+    left: auto;
+    width: auto;
+    max-height: none;
+    padding: 0;
+    overflow: visible;
+    flex-direction: row;
+    background: transparent;
+    box-shadow: none;
   }
 }
 

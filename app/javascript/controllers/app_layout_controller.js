@@ -11,7 +11,8 @@ export default class extends Controller {
     this.boundBeforeVisit = this.closeNav.bind(this)
     document.addEventListener("keydown", this.boundKeydown)
     document.addEventListener("turbo:before-visit", this.boundBeforeVisit)
-    this.desktopMedia = window.matchMedia("(min-width: 1024px)")
+    // O mesmo limite do CSS em que o menu deixa de ser recolhido.
+    this.desktopMedia = window.matchMedia("(min-width: 1200px)")
     this.boundViewportChange = (event) => {
       if (event.matches) this.closeNav()
     }
