@@ -63,7 +63,7 @@ class ReportsController < ApplicationController
   # A competência do calendário sai da URL, validada contra as importadas: mês sem arquivo não
   # é oferecido nem aceito. Sem escolha, abre na mais recente.
   def calendar_period
-    available = @scope.available_periods.map { |row| row["period"].to_date }
+    available = @scope.available_period_dates
     requested = begin
       params[:period].presence&.to_date&.beginning_of_month
     rescue Date::Error, ArgumentError, TypeError
@@ -75,15 +75,14 @@ class ReportsController < ApplicationController
   # As setas andam só entre competências importadas — não existe mês vazio para onde ir. A
   # lista vem em ordem decrescente, então a anterior está adiante no array.
   def load_calendar_neighbours
-    periods = @scope.available_periods.map { |row| row["period"].to_date }
+    periods = @scope.available_period_dates
     position = periods.index(@period)
     @newer_period = position.positive? ? periods[position - 1] : nil
     @older_period = periods[position + 1]
   end
 
   def covered_days_for(period)
-    coverage = @scope.available_periods.find { |row| row["period"].to_date == period }
-    [ coverage["max_known_day"].to_i, Time.days_in_month(period.month, period.year) ].min
+    [ @scope.covered_day_of(period), Time.days_in_month(period.month, period.year) ].min
   end
 
   # Âncora do mês anterior, com a regra de alinhamento da casa: mês escolhido fechado compara
@@ -91,8 +90,7 @@ class ReportsController < ApplicationController
   # Sem isso, setembro com dois dias apareceria como queda de 93%.
   def load_previous_month_anchor
     @previous_period = @period.prev_month
-    available = @scope.available_periods.map { |row| row["period"].to_date }
-    return unless available.include?(@previous_period)
+    return unless @scope.available_period_dates.include?(@previous_period)
 
     @aligned = @covered_days < Time.days_in_month(@period.month, @period.year)
     @previous_totals = @scope.month_totals(

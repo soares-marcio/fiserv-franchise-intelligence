@@ -82,8 +82,8 @@
           <div class="filter-pill filter-pill--select">
             <label class="filter-pill__label" for="period">Competência</label>
             <%= select_tag :period,
-              options_for_select(@scope.available_periods.map { |row|
-                [ period_option_label(row["period"]), row["period"].to_s ] }, @period.to_s),
+              options_for_select(@scope.available_period_dates.map { |period|
+                [ period_option_label(period), period.to_s ] }, @period.to_s),
               class: "filter-pill__native",
               data: { action: "change->live-form#submit" } %>
           </div>
