@@ -3134,7 +3134,12 @@
 }
 
 /* Base mobile: todas as ações continuam disponíveis em uma coluna legível. */
+  /* Nada no conteúdo alarga a página para os lados: o Safari do iPad reduz a página que
+     transborda, a largura que o CSS enxerga passa de 1200px e o menu horizontal voltava só
+     na tela que transbordava (balões de ajuda invisíveis na borda, 10/10/2026). Clip, e não
+     hidden: não cria área de rolagem, e o cabeçalho fixo das tabelas continua funcionando. */
   .app-main {
+    overflow-x: clip;
     min-width: 0;
     padding: var(--space-6) var(--space-3) var(--space-12);
     padding-right: max(var(--space-3), env(safe-area-inset-right));
@@ -3916,6 +3921,14 @@
 /* Menu horizontal só a partir de 1200px. Entre 1024 e 1199 (o iPad 11" deitado tem 1194)
    os dez itens quebravam em duas linhas e o cabeçalho tomava quase metade da altura antes
    do primeiro número (09/10/2026): ali o menu fica recolhido no botão, como no telefone. */
+/* Entre 1024 e 1199px o cabeçalho das tabelas quebra de linha: com números e nomes reais, o
+   do MIC não cabia numa linha só e passava da tela. */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .table-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
 @media (min-width: 1200px) {
   .nav-toggle {
     display: none;

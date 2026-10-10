@@ -180,4 +180,29 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
       assert lines.all? { |count| count == 1 }, "selo quebrado em mais de uma linha: #{lines.inspect}"
     end
   end
+
+  # Com nomes do tamanho dos reais, o cabeçalho da tabela do MIC passava 9px da tela no iPad
+  # deitado (balões de ajuda invisíveis na borda e contagens que não quebravam). O Safari do
+  # iPad reduz a página que transborda, a largura enxergada pelo CSS passa de 1200px e o menu
+  # horizontal voltava só nesta tela (10/10/2026).
+  test "o MIC com nomes longos não transborda no tablet deitado e mantém o menu recolhido" do
+    stores = (1..12).map do |index|
+      BinWorkbook::Store.new(
+        ec: "5#{index.to_s.rjust(7, '0')}", cnpj: "1#{index.to_s.rjust(13, '0')}",
+        sub_channel_name: "MIC ELCIO EUSTAQUIO AGUAS LINDAS GO",
+        legal_name: "MARCA HIGIENE COMERCIO E ATACADISTA DE PRODUTOS DE LIMPEZA LTDA #{index}",
+        trade_name: "SUPERBOM SUPERMERCADO E PADARIA #{index}", contract_status: "Active",
+        previous_days: { 1 => 1_234_567, 10 => 98_765 }, current_days: { 1 => 2_345_678, 14 => 87_654 }
+      )
+    end
+    import_synthetic_workbook(stores:, channel: "MASTER FRANQUEADO REGIAO GOIAS", report_id: "7777",
+      filename: "BIN_LONGO_20260812.xlsx")
+    refresh_audit_views
+    visit sub_channel_report_path(SubChannel.find_by!(name: "MIC ELCIO EUSTAQUIO AGUAS LINDAS GO"))
+
+    with_viewport(:tablet_landscape) do
+      assert_page_fits_viewport
+      assert_no_selector "#primary_nav", visible: true
+    end
+  end
 end
