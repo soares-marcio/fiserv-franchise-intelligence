@@ -3183,7 +3183,7 @@
     .topbar-inner {
       display: grid;
       grid-template-areas:
-        "brand menu search"
+        "brand search menu"
         "status status status"
         "user user user"
         "navigation navigation navigation";

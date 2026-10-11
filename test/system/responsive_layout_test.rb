@@ -150,6 +150,43 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
     end
   end
 
+  # O botão ficava no meio da barra, entre o logo e a busca, e a gaveta abria colada na
+  # borda direita, longe do toque que a abriu (10/10/2026). Ele é o último controle da
+  # linha, no HTML também, para a ordem do Tab seguir a da tela.
+  test "botão do menu fica na ponta direita, colado na gaveta que abre" do
+    visit reports_path
+
+    [ :modern_phone, :tablet, :tablet_landscape ].each do |viewport|
+      with_viewport(viewport) do
+        assert page.evaluate_script(<<~JS), "#{viewport}: algum controle passa à direita do botão"
+          (() => {
+            const toggle = document.querySelector(".nav-toggle").getBoundingClientRect();
+            return [...document.querySelectorAll(".topbar-tools a, .topbar-tools button")]
+              .map((el) => el.getBoundingClientRect())
+              .filter((r) => r.width > 0 && r.top < toggle.bottom && r.bottom > toggle.top)
+              .every((r) => r.right <= toggle.right + 0.5);
+          })()
+        JS
+        assert page.evaluate_script(
+          "document.querySelector('.topbar-tools').lastElementChild.matches('.nav-toggle')"
+        ), "#{viewport}: o botão não é o último da barra no HTML"
+
+        click_button "Abrir ou fechar o menu"
+        assert_selector "#primary_nav.is-open", visible: true
+        assert page.evaluate_script(<<~JS), "#{viewport}: a gaveta não abre do lado do botão"
+          (() => {
+            const toggle = document.querySelector(".nav-toggle").getBoundingClientRect();
+            const nav = document.querySelector("#primary_nav").getBoundingClientRect();
+            const center = toggle.left + toggle.width / 2;
+            return center >= nav.left && center <= nav.right;
+          })()
+        JS
+        find("body").send_keys(:escape)
+        assert_no_selector "#primary_nav.is-open"
+      end
+    end
+  end
+
   test "desktop preserva menu horizontal sem backdrop" do
     visit reports_path
 
