@@ -2475,12 +2475,14 @@
     min-height: 2.5rem;
     align-items: center;
     justify-content: center;
+    border: 1px solid color-mix(in oklab, white 12%, transparent);
     border-radius: 0.75rem;
+    background: color-mix(in oklab, white 9%, transparent);
     color: var(--color-neutral-content);
   }
 
   .nav-toggle:hover {
-    background: color-mix(in oklab, white 8%, transparent);
+    background: color-mix(in oklab, white 14%, transparent);
   }
 
   .nav-backdrop {
@@ -2576,7 +2578,9 @@
     padding: 0 0.85rem;
     align-items: center;
     gap: 0.45rem;
-    border-radius: 999px;
+    /* Mesma caixa da busca e do menu da conta: altura, borda e canto iguais no topo. */
+    border: 1px solid color-mix(in oklab, white 12%, transparent);
+    border-radius: 0.75rem;
     background: color-mix(in oklab, var(--color-success) 22%, transparent);
     color: color-mix(in oklab, var(--color-success) 55%, white);
     font-size: var(--text-xs);
@@ -3671,6 +3675,7 @@
   .nav-link,
   .search-content,
   .header-status,
+  .account-menu__trigger,
   .btn-toggle,
   .btn,
   .datepicker__nav-btn,

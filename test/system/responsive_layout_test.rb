@@ -249,6 +249,28 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
     end
   end
 
+  # A busca era um quadrado arredondado, o selo uma pílula e o "Sair" não tinha caixa: três
+  # formas lado a lado (10/10/2026). Os controles do topo têm a mesma altura e o mesmo canto.
+  test "controles do topo têm a mesma altura e o mesmo arredondamento" do
+    visit reports_path
+
+    [ :desktop, :tablet_landscape, :modern_phone ].each do |viewport|
+      with_viewport(viewport) do
+        boxes = page.evaluate_script(<<~JS)
+          [".search-content", ".header-status", ".account-menu__trigger", ".nav-toggle"]
+            .map((selector) => document.querySelector(selector))
+            .filter((el) => el && el.getBoundingClientRect().width > 0)
+            .map((el) => [el.className, Math.round(el.getBoundingClientRect().height),
+              getComputedStyle(el).borderTopLeftRadius, getComputedStyle(el).borderTopWidth])
+        JS
+        assert_operator boxes.size, :>=, 3, "#{viewport}: #{boxes.inspect}"
+        assert_equal 1, boxes.map(&:second).uniq.size, "#{viewport}: alturas diferentes #{boxes.inspect}"
+        assert_equal 1, boxes.map(&:third).uniq.size, "#{viewport}: cantos diferentes #{boxes.inspect}"
+        assert_equal [ "1px" ], boxes.map(&:fourth).uniq, "#{viewport}: controle sem caixa #{boxes.inspect}"
+      end
+    end
+  end
+
   test "desktop preserva menu horizontal sem backdrop" do
     visit reports_path
 
