@@ -388,6 +388,16 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # Clover Capital, Estabelecimentos e Acessos dividiam o ícone de loja, e Indicadores e
+  # Histórico o de lista (10/10/2026): ícone repetido não diferencia item nenhum.
+  test "cada item do menu tem um ícone próprio" do
+    get reports_path
+
+    icons = css_select("nav.primary-nav a.nav-link svg").map { |svg| svg.inner_html }
+    assert_equal 10, icons.size
+    assert_equal icons.size, icons.uniq.size, "dois itens do menu usam o mesmo ícone"
+  end
+
   test "o menu do header expõe páginas diretas, com badge da idade do arquivo" do
     get reports_path
 

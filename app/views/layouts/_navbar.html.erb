@@ -19,7 +19,7 @@
         aria: nav_link_aria({ controller: :reports, actions: %w[index sub_channel] }) %>
       <% end %>
       <% if report_policy.clover? %>
-      <%= link_to icon_label("storefront", "Clover Capital", css: "nav-icon"), stalled_reports_path,
+      <%= link_to icon_label("hand-coins", "Clover Capital", css: "nav-icon"), stalled_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[stalled] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[stalled] }) %>
       <% end %>
@@ -39,7 +39,7 @@
         aria: nav_link_aria({ controller: :reports, actions: %w[recurring] }) %>
       <% end %>
       <% if report_policy.indicators? %>
-      <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
+      <%= link_to icon_label("gauge", "Indicadores", css: "nav-icon"), indicators_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[indicators] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[indicators] }) %>
       <% end %>
@@ -63,17 +63,17 @@
       <% end %>
       <% end %>
       <% if policy(:organization).index? %>
-        <%= link_to icon_label("storefront", "Organizações", css: "nav-icon"), platform_organizations_path,
+        <%= link_to icon_label("buildings", "Organizações", css: "nav-icon"), platform_organizations_path,
           class: nav_link_class({ controller: :organizations }),
           aria: nav_link_aria({ controller: :organizations }) %>
       <% end %>
       <% if policy(:user).index? %>
-        <%= link_to icon_label("storefront", "Acessos", css: "nav-icon"), users_path,
+        <%= link_to icon_label("users", "Acessos", css: "nav-icon"), users_path,
           class: nav_link_class({ controller: :users }),
           aria: nav_link_aria({ controller: :users }) %>
       <% end %>
       <% if policy(:audit_event).index? %>
-        <%= link_to icon_label("list-bullets", "Histórico", css: "nav-icon"), audit_events_path,
+        <%= link_to icon_label("clock-counter-clockwise", "Histórico", css: "nav-icon"), audit_events_path,
           class: nav_link_class({ controller: :audit_events }),
           aria: nav_link_aria({ controller: :audit_events }) %>
       <% end %>
@@ -116,7 +116,7 @@
           botão fica do lado dela. Trocar só a ordem visual desalinharia a ordem do Tab. %>
       <button class="nav-toggle" type="button" data-action="click->app-layout#toggleNav"
         data-app-layout-target="navToggle" aria-expanded="false" aria-controls="primary_nav">
-        <%= icon("list-bullets", css: "icon") %>
+        <%= icon("list", css: "icon") %>
         <span class="sr-only">Abrir ou fechar o menu</span>
       </button>
     </div>
