@@ -1,0 +1,11 @@
+<%# Quem está agindo e em nome de qual organização: o mesmo bloco no gatilho do menu da conta
+    (desktop) e no topo da gaveta (menu recolhido). %>
+<span class="account-identity">
+  <span class="account-identity__avatar" aria-hidden="true"><%= user_initials(Current.user) %></span>
+  <span class="account-identity__text">
+    <span class="account-identity__name"><%= Current.user.name %></span>
+    <% if Current.organization %>
+      <span class="account-identity__detail"><%= organization_display_name(Current.organization) %></span>
+    <% end %>
+  </span>
+</span>

@@ -117,7 +117,7 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
     platform = platform_admin_user
     member = create_user(email: "mobile@exemplo.com",
       created_by: User.find_by!(email_address: "chefe@exemplo.com"))
-    click_button "Sair"
+    sign_out_through_ui
     sign_in_through_ui(platform)
 
     visit platform_organization_path(default_organization)
@@ -183,6 +183,68 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
         JS
         find("body").send_keys(:escape)
         assert_no_selector "#primary_nav.is-open"
+      end
+    end
+  end
+
+  # O nome, a organização e um "Sair" sem caixa ficavam soltos no canto da barra
+  # (10/10/2026). No desktop viram o menu da conta; com o menu recolhido, vão para a gaveta:
+  # quem está agindo no topo dela, e o "Sair" separado, no fim.
+  test "no desktop a conta abre num menu, com e-mail e Sair, e fecha por Escape e clique fora" do
+    visit reports_path
+
+    with_viewport(:desktop) do
+      trigger = find(".account-menu__trigger", text: "Teste")
+      assert_text default_organization.name
+      assert_no_button "Sair"
+
+      trigger.click
+      assert_selector ".account-menu__panel", text: "chefe@exemplo.com", visible: true
+      assert_button "Sair"
+      find("body").send_keys(:escape)
+      assert_no_button "Sair"
+      assert_selector ".account-menu__trigger:focus"
+
+      trigger.click
+      find("h1").click
+      assert_no_button "Sair"
+
+      trigger.click
+      click_button "Sair"
+      assert_current_path new_session_path
+    end
+  end
+
+  test "com o menu recolhido, a conta fica na gaveta: quem age no topo e o Sair no fim" do
+    visit reports_path
+
+    [ :modern_phone, :tablet_landscape ].each do |viewport|
+      with_viewport(viewport) do
+        assert_no_selector ".account-menu", visible: true
+        assert_no_button "Sair"
+
+        click_button "Abrir ou fechar o menu"
+        within "#primary_nav" do
+          assert_selector ".nav-account", text: "Teste", visible: true
+          assert_selector ".nav-account", text: default_organization.name
+          assert_selector ".nav-account", text: "chefe@exemplo.com"
+          assert_button "Sair"
+        end
+        assert page.evaluate_script(
+          "(n => n.scrollWidth <= n.clientWidth)(document.querySelector('#primary_nav'))"
+        ), "#{viewport}: a gaveta transborda para o lado"
+        assert page.evaluate_script(<<~JS), "#{viewport}: a conta não abre a gaveta nem o Sair a fecha"
+          (() => {
+            const nav = document.querySelector("#primary_nav");
+            const links = nav.querySelectorAll("a.nav-link");
+            const account = nav.querySelector(".nav-account");
+            const exit = nav.querySelector(".nav-account-exit");
+            return nav.firstElementChild === account && nav.lastElementChild === exit &&
+              account.getBoundingClientRect().bottom <= links[0].getBoundingClientRect().top &&
+              exit.getBoundingClientRect().top >= links[links.length - 1].getBoundingClientRect().bottom;
+          })()
+        JS
+        find("body").send_keys(:escape)
       end
     end
   end

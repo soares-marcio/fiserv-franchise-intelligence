@@ -12,6 +12,14 @@
       data-app-layout-target="primaryNav">
       <%# O menu mostra só o que o ator pode abrir: link para tela que responde 403 é
           convite para um erro, e revela o que existe a quem não deveria saber. %>
+      <%# Com o menu recolhido, a conta mora na gaveta: quem está agindo no topo e o "Sair"
+          no fim, longe dos links. No desktop o CSS esconde os dois e vale o menu da conta. %>
+      <% if Current.user %>
+        <div class="nav-account">
+          <%= render "layouts/account_identity" %>
+          <span class="nav-account__email"><%= Current.user.email_address %></span>
+        </div>
+      <% end %>
       <% report_policy = policy(:report) %>
       <% if report_policy.revenue? %>
       <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
@@ -83,6 +91,9 @@
           class: nav_link_class({ controller: :metabase }),
           aria: nav_link_aria({ controller: :metabase }) %>
       <% end %>
+      <% if Current.user %>
+        <div class="nav-account-exit"><%= render "layouts/sign_out" %></div>
+      <% end %>
     </nav>
 
     <div class="topbar-tools">
@@ -100,18 +111,21 @@
         <%= render "layouts/file_status" %>
       <% end %>
       <%# Quem está logado e a saída. Sem isto, a única forma de trocar de usuário seria
-          apagar cookie na mão — e ninguém sabe em nome de quem está agindo. %>
+          apagar cookie na mão — e ninguém sabe em nome de quem está agindo. O "Sair" fica
+          dentro do menu, longe de um clique acidental. %>
       <% if Current.user %>
-        <div class="user-chip">
-          <span class="user-chip__name" title="<%= Current.user.email_address %>">
-            <%= Current.user.name %>
-            <% if Current.organization %>
-              <span class="block text-xs font-normal opacity-70"><%= organization_display_name(Current.organization) %></span>
-            <% end %>
-          </span>
-          <%= button_to "Sair", session_path, method: :delete,
-            class: "btn btn-ghost btn-sm", form: { class: "contents" } %>
-        </div>
+        <details class="account-menu" data-controller="account-menu"
+          data-action="toggle->account-menu#toggle">
+          <summary class="account-menu__trigger">
+            <%= render "layouts/account_identity" %>
+            <%= icon("caret-down", css: "account-menu__caret") %>
+          </summary>
+          <div class="account-menu__panel">
+            <span class="account-menu__label">Conectado como</span>
+            <span class="account-menu__email"><%= Current.user.email_address %></span>
+            <%= render "layouts/sign_out" %>
+          </div>
+        </details>
       <% end %>
       <%# Último da barra, no HTML e na tela: a gaveta abre colada na borda direita, e o
           botão fica do lado dela. Trocar só a ordem visual desalinharia a ordem do Tab. %>

@@ -46,6 +46,13 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     user
   end
 
+  # No desktop o "Sair" fica dentro do menu da conta: abre o menu e sai, como a pessoa faz.
+  def sign_out_through_ui
+    find(".account-menu__trigger").click
+    click_button "Sair"
+    assert_current_path new_session_path
+  end
+
   def with_viewport(name)
     width, height = VIEWPORTS.fetch(name)
     page.driver.browser.manage.window.resize_to(width, height)
