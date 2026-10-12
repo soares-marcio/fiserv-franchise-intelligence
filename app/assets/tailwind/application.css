@@ -2344,24 +2344,22 @@
     display: none;
   }
 
-  /* Badge do menu: idade do último arquivo, no mesmo par de tons do status do header. */
+  /* Badge do menu: idade do último arquivo, no mesmo par de tons do status do header. É um
+     ponto, como o do selo: o texto fica para o leitor de tela e para o title. */
   .nav-badge {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
     margin-left: auto;
-    padding: 0.1rem 0.5rem;
     border-radius: 999px;
-    font-size: var(--text-xs);
-    font-weight: 700;
-    white-space: nowrap;
   }
 
   .nav-badge[data-tone="green"] {
-    background: color-mix(in oklab, var(--color-success) 22%, transparent);
-    color: color-mix(in oklab, var(--color-success) 55%, white);
+    background: var(--color-success);
   }
 
   .nav-badge[data-tone="rose"] {
-    background: color-mix(in oklab, var(--color-error) 24%, transparent);
-    color: color-mix(in oklab, var(--color-error) 45%, white);
+    background: var(--color-error);
   }
 
   /* O hambúrguer só existe quando a barra colapsa (ver media query dos telefones). */

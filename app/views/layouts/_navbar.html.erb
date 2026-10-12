@@ -54,11 +54,12 @@
         <%= icon("upload-simple", css: "nav-icon") %>
         Importar arquivo
         <%# Badge com dado real: a idade do último arquivo, do mesmo FileFreshness que o selo
-            do cabeçalho usa — uma consulta por página, e os dois nunca divergem. %>
+            do cabeçalho usa — uma consulta por página, e os dois nunca divergem. Na tela é só
+            o ponto: o texto já está no selo, e repetido ao lado disputava atenção com ele. %>
         <% file_days = file_freshness.received_days %>
-        <span class="nav-badge"
+        <span class="nav-badge" title="<%= last_file_headline(file_days) %>"
           data-tone="<%= file_days.nil? || file_days >= ImportBatch::STALE_AFTER_DAYS ? 'rose' : 'green' %>">
-          <%= last_file_headline(file_days) %>
+          <span class="sr-only"><%= last_file_headline(file_days) %></span>
         </span>
       <% end %>
       <% end %>

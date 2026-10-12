@@ -412,8 +412,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.primary-nav a", text: /Clover Capital/
     assert_select "nav.primary-nav a", text: /Importar arquivo/
     assert_select "button.nav-toggle[aria-controls='primary_nav']"
-    # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma.
-    assert_select ".nav-badge[data-tone='rose']", text: /Nunca/
+    # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma. O
+    # texto só existe para o leitor de tela: na tela ele já está no selo do cabeçalho.
+    assert_select ".nav-badge[data-tone='rose'] > .sr-only", text: /Nunca/
 
     import_synthetic_workbook
     get reports_path
