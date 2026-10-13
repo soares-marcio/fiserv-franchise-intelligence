@@ -68,6 +68,14 @@ class CompanyNotesController < ApplicationController
             helpers.company_note_cell_id(company.uuid),
             partial: "shared/company_note_cell", locals: cell_locals(company, note)
           ),
+          # A listagem móvel mantém um segundo alvo visível para o mesmo cliente.
+          turbo_stream.replace(
+            "mobile_#{helpers.company_note_cell_id(company.uuid)}",
+            partial: "shared/company_note_cell",
+            locals: cell_locals(company, note).merge(
+              cell_id: "mobile_#{helpers.company_note_cell_id(company.uuid)}"
+            )
+          ),
           # A ficha do cliente mostra o texto; as telas de tabela não têm este alvo, e o Turbo
           # ignora em silêncio o que não encontra.
           turbo_stream.replace(

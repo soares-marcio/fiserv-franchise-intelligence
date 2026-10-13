@@ -29,16 +29,16 @@
   <% if events.empty? %>
     <p class="metric-hint mt-3">Nada registrado ainda. O registro começa em 09/2026.</p>
   <% else %>
-    <div class="table-scroll mt-3" role="region" tabindex="0">
-      <table class="table table-sm" aria-label="Linha do tempo da conta">
+    <div class="table-scroll mt-3" role="region" aria-label="Linha do tempo da conta" tabindex="0">
+      <table class="table table-sm responsive-card-table" aria-label="Linha do tempo da conta">
         <thead><tr><th scope="col">Quando</th><th scope="col">O quê</th><th scope="col">Quem</th><th scope="col">Detalhes</th></tr></thead>
         <tbody>
           <% events.each do |event| %>
             <tr>
-              <td class="text-xs"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
-              <td><%= audit_action_label(event.action) %></td>
-              <td class="text-xs"><%= event.actor_email %></td>
-              <td class="text-xs opacity-70"><%= platform_metadata_summary(event) %></td>
+              <td class="text-xs" data-label="Quando"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+              <td data-label="O quê"><%= audit_action_label(event.action) %></td>
+              <td class="text-xs" data-label="Quem"><%= event.actor_email %></td>
+              <td class="text-xs opacity-70" data-label="Detalhes"><%= platform_metadata_summary(event) %></td>
             </tr>
           <% end %>
         </tbody>

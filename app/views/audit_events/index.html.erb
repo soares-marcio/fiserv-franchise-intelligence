@@ -17,7 +17,7 @@
     </div>
   </div>
   <div class="table-scroll" role="region" tabindex="0" aria-label="Histórico de atividades">
-    <table class="table batches-table">
+    <table class="table batches-table responsive-card-table">
       <caption class="sr-only">Histórico de atividades da organização</caption>
       <colgroup>
         <col style="width: 16%"><col style="width: 20%"><col style="width: 22%">
@@ -35,14 +35,14 @@
       <tbody>
         <% @events.each do |event| %>
           <tr>
-            <td><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
-            <td>
+            <td data-label="Quando"><%= event.created_at.strftime("%d/%m/%Y %H:%M") %></td>
+            <td data-label="Quem">
               <%= event.user&.name || "—" %>
               <span class="block text-xs opacity-70"><%= event.actor_email %></span>
             </td>
-            <td><%= audit_action_label(event.action) %></td>
-            <td><%= channel_name(event.channel) || "—" %></td>
-            <td class="text-xs opacity-70"><%= audit_metadata_summary(event.metadata) %></td>
+            <td data-label="O quê"><%= audit_action_label(event.action) %></td>
+            <td data-label="Master"><%= channel_name(event.channel) || "—" %></td>
+            <td class="text-xs opacity-70" data-label="Detalhes"><%= audit_metadata_summary(event.metadata) %></td>
           </tr>
         <% end %>
       </tbody>

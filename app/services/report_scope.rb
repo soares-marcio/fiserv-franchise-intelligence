@@ -113,6 +113,18 @@ class ReportScope
     end
   end
 
+  # A cobertura é guardada por Master: com vários no recorte, cada competência vem uma vez
+  # por Master. Quem lista meses (seletor, setas) quer cada mês uma vez; quem compara dias
+  # quer o dia do Master mais atrasado — a mesma regra do corte em cutoff_day.
+  def available_period_dates
+    available_periods.map { |row| row["period"].to_date }.uniq
+  end
+
+  def covered_day_of(period)
+    rows = available_periods.select { |row| row["period"].to_date == period }
+    rows.map { |row| row["max_known_day"].to_i }.min
+  end
+
   def establishment_window(period: nil, from_day: nil, to_day: nil)
     PeriodWindow.from_coverages(available_periods, period:, from_day:, to_day:)
   end

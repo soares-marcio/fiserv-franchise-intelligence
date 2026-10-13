@@ -98,6 +98,10 @@ class CompanyNotesControllerTest < ActionDispatch::IntegrationTest
       /target="#{ApplicationController.helpers.company_note_cell_id(@company.uuid)}"/,
       response.body
     )
+    assert_match(
+      /target="mobile_#{ApplicationController.helpers.company_note_cell_id(@company.uuid)}"/,
+      response.body
+    )
     assert_match(/action="replace"/, response.body)
     # O aviso vem no mesmo lote, em vez de esperar a próxima navegação.
     assert_match(/target="flash"/, response.body)

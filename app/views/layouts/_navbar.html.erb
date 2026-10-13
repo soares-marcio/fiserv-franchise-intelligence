@@ -12,6 +12,14 @@
       data-app-layout-target="primaryNav">
       <%# O menu mostra só o que o ator pode abrir: link para tela que responde 403 é
           convite para um erro, e revela o que existe a quem não deveria saber. %>
+      <%# Com o menu recolhido, a conta mora na gaveta: quem está agindo no topo e o "Sair"
+          no fim, longe dos links. No desktop o CSS esconde os dois e vale o menu da conta. %>
+      <% if Current.user %>
+        <div class="nav-account">
+          <%= render "layouts/account_identity" %>
+          <span class="nav-account__email"><%= Current.user.email_address %></span>
+        </div>
+      <% end %>
       <% report_policy = policy(:report) %>
       <% if report_policy.revenue? %>
       <%= link_to icon_label("chart-line-up", "Faturamento", css: "nav-icon"), reports_path,
@@ -19,7 +27,7 @@
         aria: nav_link_aria({ controller: :reports, actions: %w[index sub_channel] }) %>
       <% end %>
       <% if report_policy.clover? %>
-      <%= link_to icon_label("storefront", "Clover Capital", css: "nav-icon"), stalled_reports_path,
+      <%= link_to icon_label("hand-coins", "Clover Capital", css: "nav-icon"), stalled_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[stalled] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[stalled] }) %>
       <% end %>
@@ -39,7 +47,7 @@
         aria: nav_link_aria({ controller: :reports, actions: %w[recurring] }) %>
       <% end %>
       <% if report_policy.indicators? %>
-      <%= link_to icon_label("list-bullets", "Indicadores", css: "nav-icon"), indicators_reports_path,
+      <%= link_to icon_label("gauge", "Indicadores", css: "nav-icon"), indicators_reports_path,
         class: nav_link_class({ controller: :reports, actions: %w[indicators] }),
         aria: nav_link_aria({ controller: :reports, actions: %w[indicators] }) %>
       <% end %>
@@ -54,42 +62,33 @@
         <%= icon("upload-simple", css: "nav-icon") %>
         Importar arquivo
         <%# Badge com dado real: a idade do último arquivo, do mesmo FileFreshness que o selo
-            do cabeçalho usa — uma consulta por página, e os dois nunca divergem. %>
+            do cabeçalho usa — uma consulta por página, e os dois nunca divergem. Na tela é só
+            o ponto: o texto já está no selo, e repetido ao lado disputava atenção com ele. %>
         <% file_days = file_freshness.received_days %>
-        <span class="nav-badge"
+        <span class="nav-badge" title="<%= last_file_headline(file_days) %>"
           data-tone="<%= file_days.nil? || file_days >= ImportBatch::STALE_AFTER_DAYS ? 'rose' : 'green' %>">
-          <%= last_file_headline(file_days) %>
+          <span class="sr-only"><%= last_file_headline(file_days) %></span>
         </span>
       <% end %>
       <% end %>
       <% if policy(:organization).index? %>
-        <%= link_to icon_label("storefront", "Organizações", css: "nav-icon"), platform_organizations_path,
+        <%= link_to icon_label("buildings", "Organizações", css: "nav-icon"), platform_organizations_path,
           class: nav_link_class({ controller: :organizations }),
           aria: nav_link_aria({ controller: :organizations }) %>
-      <% end %>
-      <% if policy(:user).index? %>
-        <%= link_to icon_label("storefront", "Acessos", css: "nav-icon"), users_path,
-          class: nav_link_class({ controller: :users }),
-          aria: nav_link_aria({ controller: :users }) %>
-      <% end %>
-      <% if policy(:audit_event).index? %>
-        <%= link_to icon_label("list-bullets", "Histórico", css: "nav-icon"), audit_events_path,
-          class: nav_link_class({ controller: :audit_events }),
-          aria: nav_link_aria({ controller: :audit_events }) %>
       <% end %>
       <% if policy(:metabase).show? %>
         <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
           class: nav_link_class({ controller: :metabase }),
           aria: nav_link_aria({ controller: :metabase }) %>
       <% end %>
+      <%= render "layouts/admin_links", wrapper_class: "nav-admin", title_class: "nav-admin__title",
+        link_class: nil %>
+      <% if Current.user %>
+        <div class="nav-account-exit"><%= render "layouts/sign_out" %></div>
+      <% end %>
     </nav>
 
     <div class="topbar-tools">
-      <button class="nav-toggle" type="button" data-action="click->app-layout#toggleNav"
-        data-app-layout-target="navToggle" aria-expanded="false" aria-controls="primary_nav">
-        <%= icon("list-bullets", css: "icon") %>
-        <span class="sr-only">Abrir ou fechar o menu</span>
-      </button>
       <%# A busca e o selo são sinais da carteira: a conta da plataforma não tem carteira, e
           quem não pode buscar não ganha o atalho. %>
       <% if policy(:search).index? %>
@@ -104,25 +103,42 @@
         <%= render "layouts/file_status" %>
       <% end %>
       <%# Quem está logado e a saída. Sem isto, a única forma de trocar de usuário seria
-          apagar cookie na mão — e ninguém sabe em nome de quem está agindo. %>
+          apagar cookie na mão — e ninguém sabe em nome de quem está agindo. O "Sair" fica
+          dentro do menu, longe de um clique acidental. %>
       <% if Current.user %>
-        <div class="user-chip">
-          <span class="user-chip__name" title="<%= Current.user.email_address %>">
-            <%= Current.user.name %>
-            <% if Current.organization %>
-              <span class="block text-xs font-normal opacity-70"><%= organization_display_name(Current.organization) %></span>
-            <% end %>
-          </span>
-          <%= button_to "Sair", session_path, method: :delete,
-            class: "btn btn-ghost btn-sm", form: { class: "contents" } %>
-        </div>
+        <details class="account-menu" data-controller="account-menu"
+          data-action="toggle->account-menu#toggle">
+          <summary class="account-menu__trigger">
+            <%= render "layouts/account_identity" %>
+            <%= icon("caret-down", css: "account-menu__caret") %>
+          </summary>
+          <div class="account-menu__panel">
+            <span class="account-menu__label">Conectado como</span>
+            <span class="account-menu__email"><%= Current.user.email_address %></span>
+            <%= render "layouts/admin_links", wrapper_class: "account-menu__section",
+              title_class: "account-menu__section-title", link_class: "account-menu__link" %>
+            <%= render "layouts/sign_out" %>
+          </div>
+        </details>
       <% end %>
+      <%# Último da barra, no HTML e na tela: a gaveta abre colada na borda direita, e o
+          botão fica do lado dela. Trocar só a ordem visual desalinharia a ordem do Tab. %>
+      <button class="nav-toggle" type="button" data-action="click->app-layout#toggleNav"
+        data-app-layout-target="navToggle" aria-expanded="false" aria-controls="primary_nav">
+        <%= icon("list", css: "icon") %>
+        <span class="sr-only">Abrir ou fechar o menu</span>
+      </button>
     </div>
   </div>
 </header>
 
+<button class="nav-backdrop" type="button" hidden tabindex="-1"
+  data-app-layout-target="navBackdrop" data-action="click->app-layout#closeNavOnBackdrop"
+  aria-label="Fechar menu"></button>
+
 <div class="search-modal" data-app-layout-target="searchModal" role="dialog"
-  aria-modal="true" aria-labelledby="global-search-title" hidden>
+  aria-modal="true" aria-labelledby="global-search-title" hidden
+  data-action="click->app-layout#closeSearchOnBackdrop">
   <div class="search-modal__dialog">
     <div class="search-modal__header">
       <%= icon("magnifying-glass", css: "icon") %>

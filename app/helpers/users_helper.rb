@@ -5,6 +5,13 @@ module UsersHelper
     organization.name.presence || "Organização sem nome ##{organization.id}"
   end
 
+  # Avatar do menu da conta: inicial do primeiro e do último nome, como os sistemas que a
+  # pessoa já usa. Um nome só dá uma letra.
+  def user_initials(user)
+    parts = user.name.split
+    [ parts.first, (parts.last if parts.size > 1) ].compact.map { |part| part[0] }.join.upcase
+  end
+
   # A semana final é quando ainda dá para renovar sem a pessoa ficar de fora.
   ACCESS_EXPIRY_WARNING_DAYS = 7
 

@@ -25,7 +25,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
 
       measure = page.evaluate_script(<<~JS)
         (() => {
-          const usuario = document.querySelector(".user-chip").getBoundingClientRect()
+          const usuario = document.querySelector(".topbar-tools").getBoundingClientRect()
           return {
             pagina: document.documentElement.scrollWidth - window.innerWidth,
             usuario_esquerda: usuario.left,
@@ -36,7 +36,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
 
       assert_operator measure["pagina"], :<=, 0, "a página não pode transbordar em #{width}px"
       assert_operator measure["usuario_esquerda"], :>=, 0, "o usuário precisa começar dentro da tela"
-      assert_operator measure["usuario_direita"], :<=, 0, "o botão Sair precisa terminar dentro da tela"
+      assert_operator measure["usuario_direita"], :<=, 0, "as ações do topo precisam terminar dentro da tela"
     end
 
     page.driver.browser.manage.window.resize_to(375, 667)
@@ -126,7 +126,7 @@ class LayoutAndImportTest < ApplicationSystemTestCase
     create_user(email: "administrador@exemplo.com", name: "Administrador da organização",
       organization:, organization_admin: true, created_by: platform)
 
-    click_button "Sair"
+    sign_out_through_ui
     sign_in_through_ui(platform)
     visit platform_organization_path(organization)
     page.driver.browser.manage.window.resize_to(1024, 768)

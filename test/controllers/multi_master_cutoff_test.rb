@@ -63,6 +63,25 @@ class MultiMasterCutoffTest < ActionDispatch::IntegrationTest
     assert_match(/dia #{@cutoff_a}<\/strong>/, response.body)
   end
 
+  # A cobertura é guardada por Master e por mês: com dois Masters, cada competência tinha
+  # duas linhas, e o Semanal oferecia "setembro, setembro, agosto, agosto", com a seta de
+  # mês anterior podendo cair no mesmo mês e a comparação usando o corte de um Master só
+  # (homologação de 09/10/2026).
+  test "o Semanal lista cada competência uma vez, anda mês a mês e usa o corte mais atrasado" do
+    get weekly_reports_path
+
+    assert_response :success
+    options = css_select("select#period option").map { |option| option["value"] }
+    assert_equal options.uniq, options, "competência repetida no seletor"
+    assert_operator options.size, :>=, 2
+
+    current, older = options.first(2)
+    assert_select "a[aria-label='Competência anterior'][href*=?]", "period=#{older}"
+    assert_match "até o dia #{@cutoff_a}", response.body, "vale o corte do Master mais atrasado"
+    assert_no_match "até o dia #{@cutoff_b}", response.body
+    assert_not_equal current, older
+  end
+
   private
 
   def stores_b

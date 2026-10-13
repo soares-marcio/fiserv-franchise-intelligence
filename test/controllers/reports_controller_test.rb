@@ -388,6 +388,16 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # Clover Capital, Estabelecimentos e Acessos dividiam o ícone de loja, e Indicadores e
+  # Histórico o de lista (10/10/2026): ícone repetido não diferencia item nenhum.
+  test "cada item do menu tem um ícone próprio" do
+    get reports_path
+
+    icons = css_select("nav.primary-nav a.nav-link svg").map { |svg| svg.inner_html }
+    assert_equal 10, icons.size
+    assert_equal icons.size, icons.uniq.size, "dois itens do menu usam o mesmo ícone"
+  end
+
   test "o menu do header expõe páginas diretas, com badge da idade do arquivo" do
     get reports_path
 
@@ -402,8 +412,9 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.primary-nav a", text: /Clover Capital/
     assert_select "nav.primary-nav a", text: /Importar arquivo/
     assert_select "button.nav-toggle[aria-controls='primary_nav']"
-    # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma.
-    assert_select ".nav-badge[data-tone='rose']", text: /Nunca/
+    # Sem arquivo importado, o badge avisa em tom de alerta; com arquivo do dia, acalma. O
+    # texto só existe para o leitor de tela: na tela ele já está no selo do cabeçalho.
+    assert_select ".nav-badge[data-tone='rose'] > .sr-only", text: /Nunca/
 
     import_synthetic_workbook
     get reports_path
@@ -910,17 +921,17 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC ALFA"))
 
     assert_response :success
-    assert_select "button.conversation-trigger", count: 1
-    assert_select "button.conversation-trigger[disabled]", count: 0
-    assert_select "button.conversation-trigger[data-conversation-modal-items-param=?]",
+    assert_select ".establishment-revenue-table button.conversation-trigger", count: 1
+    assert_select ".establishment-revenue-table button.conversation-trigger[disabled]", count: 0
+    assert_select ".establishment-revenue-table button.conversation-trigger[data-conversation-modal-items-param=?]",
       [ { "ec" => "30000001", "text" => "Ligar > Enviar proposta" } ].to_json
 
     # O cliente do MIC BETA não tem conversa em nenhum EC: botão desabilitado e sem param,
     # porque não há o que o modal mostre.
     get sub_channel_report_path(SubChannel.find_by!(name: "MIC BETA"))
 
-    assert_select "button.conversation-trigger[disabled]", count: 1
-    assert_select "button.conversation-trigger[data-conversation-modal-items-param]", count: 0
+    assert_select ".establishment-revenue-table button.conversation-trigger[disabled]", count: 1
+    assert_select ".establishment-revenue-table button.conversation-trigger[data-conversation-modal-items-param]", count: 0
   end
 
   test "as colunas de valor ordenam a listagem e anunciam o sentido" do
@@ -1153,7 +1164,10 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     get sub_channel_report_path(sub_channel, variation: "alta")
     assert_response :success
     assert_select "nav.variation-tabs a.is-active .tab-title", text: /Em crescimento · 1/
-    assert_select "section.table-frame[data-variation-filter='alta'] .variation-chip--up", count: 1
+    assert_select(
+      "section.table-frame[data-variation-filter='alta'] .establishment-revenue-table .variation-chip--up",
+      count: 1
+    )
     assert_select "tbody td p", text: "LOJA UM"
     assert_select "tbody td p", text: "LOJA DOIS", count: 0
     assert_select "tbody td p", text: "LOJA TRES", count: 0

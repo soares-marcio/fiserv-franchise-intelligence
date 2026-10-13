@@ -16,6 +16,19 @@ class ContentSecurityPolicyTest < ActionDispatch::IntegrationTest
       assert_includes policy, "object-src 'none'", page
       assert_includes policy, "base-uri 'self'", page
       assert_includes policy, "frame-ancestors 'none'", page
+      assert_includes policy, "script-src 'self'", page
+      assert_not_includes policy, "'unsafe-eval'", page
+    end
+  end
+
+  test "respostas declaram cabeçalhos de defesa do navegador" do
+    PAGES.each do |page|
+      get page
+
+      assert_equal "DENY", response.headers["X-Frame-Options"], page
+      assert_equal "nosniff", response.headers["X-Content-Type-Options"], page
+      assert_equal "strict-origin-when-cross-origin", response.headers["Referrer-Policy"], page
+      assert_equal "camera=(), microphone=(), geolocation=()", response.headers["Permissions-Policy"], page
     end
   end
 
