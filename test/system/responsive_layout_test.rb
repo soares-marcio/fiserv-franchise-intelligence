@@ -215,6 +215,33 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
     end
   end
 
+  # Com dez itens o menu quebrava em duas linhas a 1280px (11/10/2026). Acessos e Histórico
+  # são administração, usados por quem administra: no desktop moram no menu da conta, como
+  # as configurações no GitHub e no Google, e a barra fica com os relatórios e a carteira.
+  test "no desktop a administração fica no menu da conta e o menu cabe numa linha" do
+    visit reports_path
+
+    with_viewport(:desktop) do
+      assert_no_selector "#primary_nav a", text: "Acessos", visible: true
+      assert_no_selector "#primary_nav a", text: "Histórico", visible: true
+      tops = page.evaluate_script(<<~JS)
+        [...document.querySelectorAll("#primary_nav a.nav-link")]
+          .filter((link) => link.getBoundingClientRect().width > 0)
+          .map((link) => Math.round(link.getBoundingClientRect().top))
+      JS
+      assert_equal 1, tops.uniq.size, "o menu quebrou em #{tops.uniq.size} linhas"
+
+      find(".account-menu__trigger").click
+      within ".account-menu__panel" do
+        assert_text(/administração/i)
+        assert_link "Acessos", href: users_path
+        assert_link "Histórico", href: audit_events_path
+      end
+      click_link "Acessos"
+      assert_current_path users_path
+    end
+  end
+
   test "com o menu recolhido, a conta fica na gaveta: quem age no topo e o Sair no fim" do
     visit reports_path
 
@@ -228,6 +255,9 @@ class ResponsiveLayoutTest < ApplicationSystemTestCase
           assert_selector ".nav-account", text: "Teste", visible: true
           assert_selector ".nav-account", text: default_organization.name
           assert_selector ".nav-account", text: "chefe@exemplo.com"
+          assert_selector ".nav-admin", text: /administração/i, visible: true
+          assert_selector ".nav-admin a", text: "Acessos", visible: true
+          assert_selector ".nav-admin a", text: "Histórico", visible: true
           assert_button "Sair"
         end
         assert page.evaluate_script(

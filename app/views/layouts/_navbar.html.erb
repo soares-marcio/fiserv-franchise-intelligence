@@ -76,21 +76,13 @@
           class: nav_link_class({ controller: :organizations }),
           aria: nav_link_aria({ controller: :organizations }) %>
       <% end %>
-      <% if policy(:user).index? %>
-        <%= link_to icon_label("users", "Acessos", css: "nav-icon"), users_path,
-          class: nav_link_class({ controller: :users }),
-          aria: nav_link_aria({ controller: :users }) %>
-      <% end %>
-      <% if policy(:audit_event).index? %>
-        <%= link_to icon_label("clock-counter-clockwise", "Histórico", css: "nav-icon"), audit_events_path,
-          class: nav_link_class({ controller: :audit_events }),
-          aria: nav_link_aria({ controller: :audit_events }) %>
-      <% end %>
       <% if policy(:metabase).show? %>
         <%= link_to icon_label("chart-bar", "Metabase", css: "nav-icon"), metabase_path,
           class: nav_link_class({ controller: :metabase }),
           aria: nav_link_aria({ controller: :metabase }) %>
       <% end %>
+      <%= render "layouts/admin_links", wrapper_class: "nav-admin", title_class: "nav-admin__title",
+        link_class: nil %>
       <% if Current.user %>
         <div class="nav-account-exit"><%= render "layouts/sign_out" %></div>
       <% end %>
@@ -123,6 +115,8 @@
           <div class="account-menu__panel">
             <span class="account-menu__label">Conectado como</span>
             <span class="account-menu__email"><%= Current.user.email_address %></span>
+            <%= render "layouts/admin_links", wrapper_class: "account-menu__section",
+              title_class: "account-menu__section-title", link_class: "account-menu__link" %>
             <%= render "layouts/sign_out" %>
           </div>
         </details>

@@ -2330,7 +2330,49 @@
     overflow-wrap: anywhere;
   }
 
+  .account-menu__section {
+    display: grid;
+    gap: 0.1rem;
+    margin-top: 0.6rem;
+    padding-block: 0.6rem;
+    border-block: 1px solid var(--color-base-300);
+  }
+
+  .account-menu__section-title,
+  .nav-admin__title {
+    padding: 0 0.6rem 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .account-menu__section-title {
+    color: var(--cork-muted);
+  }
+
+  .account-menu__link {
+    display: flex;
+    min-height: 2.5rem;
+    padding: 0 0.6rem;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .account-menu__link:hover,
+  .account-menu__link[aria-current="page"] {
+    background: var(--color-base-200);
+  }
+
+  .account-menu__link[aria-current="page"] {
+    color: var(--color-primary);
+  }
+
   .nav-account,
+  .nav-admin,
   .nav-account-exit {
     display: none;
   }
@@ -3665,6 +3707,18 @@
     color: var(--color-neutral-content);
   }
 
+  .primary-nav.is-open .nav-admin {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+    padding-top: var(--space-3);
+    border-top: 1px solid color-mix(in oklab, white 14%, transparent);
+  }
+
+  .nav-admin__title {
+    color: color-mix(in oklab, var(--color-neutral-content) 60%, transparent);
+  }
+
   .primary-nav.is-open .nav-account-exit {
     display: block;
     margin-top: var(--space-1);
@@ -4223,6 +4277,11 @@
   width: 100%;
   justify-content: flex-start;
   margin-top: 0.5rem;
+}
+
+/* No painel, o "Sair" alinha com os links da administração acima dele. */
+.account-menu__panel .btn.account-exit {
+  padding-inline: 0.6rem;
 }
 
 .nav-account-exit .btn.account-exit {

@@ -1,0 +1,17 @@
+<%# Administração: usada por quem administra, não no dia a dia. No desktop mora no menu da conta,
+    para a barra caber numa linha; com o menu recolhido, numa seção própria da gaveta. Os mesmos
+    links e a mesma permissão nos dois lugares. %>
+<% links = [] %>
+<% links << [ "users", "Acessos", users_path, { controller: :users } ] if policy(:user).index? %>
+<% if policy(:audit_event).index? %>
+  <% links << [ "clock-counter-clockwise", "Histórico", audit_events_path, { controller: :audit_events } ] %>
+<% end %>
+<% if links.any? %>
+  <div class="<%= wrapper_class %>">
+    <span class="<%= title_class %>">Administração</span>
+    <% links.each do |icon_name, label, path, match| %>
+      <%= link_to icon_label(icon_name, label, css: "nav-icon"), path,
+        class: link_class || nav_link_class(match), aria: nav_link_aria(match) %>
+    <% end %>
+  </div>
+<% end %>
