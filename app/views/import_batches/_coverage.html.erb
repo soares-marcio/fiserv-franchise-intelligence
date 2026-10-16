@@ -33,6 +33,13 @@
           <span data-tone="<%= entry.received_stale? ? "rose" : "green" %>">
             Arquivo <%= file_age_label(entry.received_days) %>
           </span>
+          <%# O Master chega em mais de um arquivo: a idade acima é a do MIC mais atrasado, e
+              aqui se diz qual. Apagar o MIC é o que o tira da carteira se ele foi encerrado. %>
+          <% if entry.stale_sub_channels.any? %>
+            <span data-tone="rose">
+              Sem arquivo novo: <%= entry.stale_sub_channels.to_sentence %>
+            </span>
+          <% end %>
         </span>
         <% if policy(:channel).destroy? %>
           <%= link_to icon_label("trash", "Apagar"), new_channel_deletion_path(entry.uuid),
