@@ -929,14 +929,24 @@ CREATE TABLE public.monthly_volumes_consolidated (
 --
 
 CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
- WITH latest_map_batches AS (
-         SELECT ib.channel_id,
-            max(ib.id) AS import_batch_id
-           FROM public.import_batches ib
-          WHERE (((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
-                   FROM public.map_snapshots m
-                  WHERE (m.import_batch_id = ib.id))))
-          GROUP BY ib.channel_id
+ WITH current_snapshots AS (
+         SELECT candidate.id
+           FROM (( SELECT snapshot.id,
+                    snapshot.import_batch_id,
+                    snapshot.channel_id,
+                    snapshot.sub_channel_id,
+                    max(snapshot.import_batch_id) OVER (PARTITION BY snapshot.establishment_id) AS establishment_batch_id
+                   FROM (public.map_snapshots snapshot
+                     JOIN public.import_batches ib ON ((ib.id = snapshot.import_batch_id)))
+                  WHERE ((ib.status)::text = 'validated'::text)) candidate
+             LEFT JOIN ( SELECT snapshot.channel_id,
+                    snapshot.sub_channel_id,
+                    max(snapshot.import_batch_id) AS import_batch_id
+                   FROM (public.map_snapshots snapshot
+                     JOIN public.import_batches ib ON ((ib.id = snapshot.import_batch_id)))
+                  WHERE (((ib.status)::text = 'validated'::text) AND ((ib.source_filename)::text <> 'manual'::text))
+                  GROUP BY snapshot.channel_id, snapshot.sub_channel_id) sub_channel_batch ON (((sub_channel_batch.channel_id = candidate.channel_id) AND (sub_channel_batch.sub_channel_id = candidate.sub_channel_id))))
+          WHERE ((candidate.import_batch_id = candidate.establishment_batch_id) AND ((sub_channel_batch.import_batch_id IS NULL) OR (candidate.import_batch_id >= sub_channel_batch.import_batch_id)))
         ), first_app_access AS (
          SELECT e.company_id,
             min(m.last_app_access_at) AS first_app_access_at,
@@ -964,7 +974,7 @@ CREATE MATERIALIZED VIEW public.audit_accreditation_earnings AS
                     ELSE NULL::boolean
                 END AS auto_flex
            FROM (((public.map_snapshots snapshot
-             JOIN latest_map_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
+             JOIN current_snapshots current ON ((current.id = snapshot.id)))
              JOIN public.establishments e ON ((e.id = snapshot.establishment_id)))
              LEFT JOIN first_app_access access ON ((access.company_id = e.company_id)))
           WHERE (snapshot.accredited_on IS NOT NULL)
@@ -1446,14 +1456,36 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
             ((period_coverages.period - '1 mon'::interval))::date AS previous_period
            FROM public.period_coverages
           WHERE ((NOT period_coverages.closed) AND true)
-        ), latest_batches AS (
-         SELECT ib.channel_id,
-            max(ib.id) AS import_batch_id
-           FROM public.import_batches ib
-          WHERE (((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
-                   FROM public.revenue_snapshots snapshot_1
-                  WHERE (snapshot_1.import_batch_id = ib.id))))
-          GROUP BY ib.channel_id
+        ), current_snapshots AS (
+         SELECT candidate.id
+           FROM (( SELECT snapshot_1.id,
+                    snapshot_1.import_batch_id,
+                    snapshot_1.channel_id,
+                    snapshot_1.sub_channel_id,
+                    max(snapshot_1.import_batch_id) OVER (PARTITION BY snapshot_1.establishment_id) AS establishment_batch_id
+                   FROM (public.revenue_snapshots snapshot_1
+                     JOIN public.import_batches ib ON ((ib.id = snapshot_1.import_batch_id)))
+                  WHERE ((ib.status)::text = 'validated'::text)) candidate
+             LEFT JOIN ( SELECT snapshot_1.channel_id,
+                    snapshot_1.sub_channel_id,
+                    max(snapshot_1.import_batch_id) AS import_batch_id
+                   FROM (public.revenue_snapshots snapshot_1
+                     JOIN public.import_batches ib ON ((ib.id = snapshot_1.import_batch_id)))
+                  WHERE (((ib.status)::text = 'validated'::text) AND ((ib.source_filename)::text <> 'manual'::text))
+                  GROUP BY snapshot_1.channel_id, snapshot_1.sub_channel_id) sub_channel_batch ON (((sub_channel_batch.channel_id = candidate.channel_id) AND (sub_channel_batch.sub_channel_id = candidate.sub_channel_id))))
+          WHERE ((candidate.import_batch_id = candidate.establishment_batch_id) AND ((sub_channel_batch.import_batch_id IS NULL) OR (candidate.import_batch_id >= sub_channel_batch.import_batch_id)))
+        ), sub_channel_cover AS (
+         SELECT snapshot_1.channel_id,
+            snapshot_1.sub_channel_id,
+            ib.current_period AS period,
+            max(ib.current_month_cutoff_day) AS max_known_day
+           FROM (public.revenue_snapshots snapshot_1
+             JOIN public.import_batches ib ON ((ib.id = snapshot_1.import_batch_id)))
+          WHERE (((ib.status)::text = 'validated'::text) AND ((snapshot_1.channel_id, snapshot_1.sub_channel_id) IN ( SELECT vigente.channel_id,
+                    vigente.sub_channel_id
+                   FROM (public.revenue_snapshots vigente
+                     JOIN current_snapshots current_1 ON ((current_1.id = vigente.id))))))
+          GROUP BY snapshot_1.channel_id, snapshot_1.sub_channel_id, ib.current_period
         )
  SELECT snapshot.channel_id,
     snapshot.sub_channel_id,
@@ -1461,18 +1493,20 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
     sub_channel.name AS sub_channel_name,
     cover.previous_period,
     cover.current_period,
-    cover.max_known_day,
+    LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day)) AS max_known_day,
     COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = cover.previous_period)), (0)::numeric) AS previous_full_revenue,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS previous_revenue,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS current_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day))))), (0)::numeric) AS previous_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day))))), (0)::numeric) AS current_revenue,
     count(DISTINCT snapshot.establishment_id) FILTER (WHERE (establishment.primary_establishment_id IS NULL)) AS primary_establishments
-   FROM (((((public.revenue_snapshots snapshot
-     JOIN latest_batches latest ON ((latest.import_batch_id = snapshot.import_batch_id)))
+   FROM ((((((public.revenue_snapshots snapshot
+     JOIN current_snapshots current ON ((current.id = snapshot.id)))
      JOIN open_cover cover ON ((cover.channel_id = snapshot.channel_id)))
+     LEFT JOIN sub_channel_cover ON (((sub_channel_cover.channel_id = snapshot.channel_id) AND (sub_channel_cover.sub_channel_id = snapshot.sub_channel_id) AND (sub_channel_cover.period = cover.current_period))))
      JOIN public.sub_channels sub_channel ON ((sub_channel.id = snapshot.sub_channel_id)))
      JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
      LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = snapshot.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.period = cover.previous_period) OR (revenue.period = cover.current_period)))))
-  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name, cover.previous_period, cover.current_period, cover.max_known_day
+  WHERE true
+  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name, cover.previous_period, cover.current_period, cover.max_known_day, sub_channel_cover.max_known_day
   WITH NO DATA;
 
 
@@ -1495,6 +1529,25 @@ CREATE TABLE public.companies (
 --
 
 CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
+ WITH current_snapshots AS (
+         SELECT candidate.id
+           FROM (( SELECT snapshot_1.id,
+                    snapshot_1.import_batch_id,
+                    snapshot_1.channel_id,
+                    snapshot_1.sub_channel_id,
+                    max(snapshot_1.import_batch_id) OVER (PARTITION BY snapshot_1.establishment_id) AS establishment_batch_id
+                   FROM (public.revenue_snapshots snapshot_1
+                     JOIN public.import_batches ib ON ((ib.id = snapshot_1.import_batch_id)))
+                  WHERE ((ib.status)::text = 'validated'::text)) candidate
+             LEFT JOIN ( SELECT snapshot_1.channel_id,
+                    snapshot_1.sub_channel_id,
+                    max(snapshot_1.import_batch_id) AS import_batch_id
+                   FROM (public.revenue_snapshots snapshot_1
+                     JOIN public.import_batches ib ON ((ib.id = snapshot_1.import_batch_id)))
+                  WHERE (((ib.status)::text = 'validated'::text) AND ((ib.source_filename)::text <> 'manual'::text))
+                  GROUP BY snapshot_1.channel_id, snapshot_1.sub_channel_id) sub_channel_batch ON (((sub_channel_batch.channel_id = candidate.channel_id) AND (sub_channel_batch.sub_channel_id = candidate.sub_channel_id))))
+          WHERE ((candidate.import_batch_id = candidate.establishment_batch_id) AND ((sub_channel_batch.import_batch_id IS NULL) OR (candidate.import_batch_id >= sub_channel_batch.import_batch_id)))
+        )
  SELECT sub_channel.channel_id,
     sub_channel.sub_channel_id,
     establishment.company_id,
@@ -1506,16 +1559,12 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_company AS
     COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.previous_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS previous_revenue,
     COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day))), (0)::numeric) AS current_revenue,
     max(revenue.day) FILTER (WHERE ((revenue.period = sub_channel.current_period) AND (revenue.day <= sub_channel.max_known_day) AND (revenue.amount <> (0)::numeric))) AS last_sale_day
-   FROM ((((public.audit_revenue_by_sub_channel sub_channel
+   FROM (((((public.audit_revenue_by_sub_channel sub_channel
      JOIN public.revenue_snapshots snapshot ON (((snapshot.channel_id = sub_channel.channel_id) AND (snapshot.sub_channel_id = sub_channel.sub_channel_id))))
+     JOIN current_snapshots current ON ((current.id = snapshot.id)))
      JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
      JOIN public.companies company ON ((company.id = establishment.company_id)))
      LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = sub_channel.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.period = sub_channel.previous_period) OR (revenue.period = sub_channel.current_period)))))
-  WHERE (snapshot.import_batch_id = ( SELECT max(ib.id) AS max
-           FROM public.import_batches ib
-          WHERE ((ib.channel_id = snapshot.channel_id) AND ((ib.status)::text = 'validated'::text) AND (EXISTS ( SELECT 1
-                   FROM public.revenue_snapshots latest
-                  WHERE (latest.import_batch_id = ib.id))))))
   GROUP BY sub_channel.channel_id, sub_channel.sub_channel_id, establishment.company_id, company.cnpj, sub_channel.max_known_day, sub_channel.previous_period, sub_channel.current_period
   WITH NO DATA;
 
@@ -5687,6 +5736,9 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261016130000'),
+('20261016120100'),
+('20261016120000'),
 ('20261006180000'),
 ('20261006120000'),
 ('20261001120000'),

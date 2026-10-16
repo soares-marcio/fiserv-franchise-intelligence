@@ -372,4 +372,34 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".failure-report", count: 0
   end
+
+  # O Master chega em mais de um arquivo: a revisão diz quais MICs ficam com o arquivo deles,
+  # para quem aprova não achar que eles vão sumir.
+  test "a revisão lista os MICs do Master que o arquivo não traz" do
+    import_synthetic_workbook
+    pending = import_synthetic_workbook(stores: BinWorkbook.default_stores.first(1),
+      filename: "BIN_METADE_20260812.xlsx")
+    assert pending.pending_review?
+
+    get review_import_batch_path(pending)
+
+    assert_response :success
+    assert_match(/Fora deste arquivo, e sem mudança:\s+MIC BETA \(arquivo de \d{2}\/\d{2}\)/, response.body)
+  end
+
+  test "a cobertura por master diz qual MIC está sem arquivo novo" do
+    gama = BinWorkbook::Store.new(
+      ec: "30000003", cnpj: "55666777000188", sub_channel_name: "MIC GAMA",
+      legal_name: "GAMA COMERCIO LTDA", trade_name: "GAMA LOJA", contract_status: "Active",
+      previous_days: { 1 => 300 }, current_days: { 1 => 120 }, best_conversation: nil, proposal: false
+    )
+    travel_to(Time.zone.local(2026, 8, 11, 12)) { import_synthetic_workbook(stores: [ gama ]) }
+    travel_to(Time.zone.local(2026, 8, 25, 12)) do
+      import_synthetic_workbook(filename: "BIN_TESTE_20260825.xlsx")
+
+      get import_batches_path
+
+      assert_select ".coverage-panel__item", text: /Sem arquivo novo: MIC GAMA/
+    end
+  end
 end

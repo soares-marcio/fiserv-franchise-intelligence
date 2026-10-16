@@ -360,28 +360,74 @@ na hora.
 
 ### Importação com revisão
 
-O portal enxerga **um lote por Master** — o de maior id entre os validados. Um arquivo
-parcial, então, não acrescenta: ele vira a foto oficial, e o que não estiver nele some dos
-relatórios. Por isso o envio pode parar em **revisão**:
+O arquivo vira a foto oficial **dos MICs que ele traz** (ver "Master em mais de um arquivo",
+abaixo): o EC desses MICs que não estiver nele some dos relatórios. Por isso o envio pode
+parar em **revisão**:
 
 - quem enviou não tem `batches_approve`;
-- o arquivo **removeria ECs** da carteira;
+- o arquivo **removeria ECs** dos MICs que traz;
 - há ECs mudando de MIC;
 - o faturamento cai muito (comparado só entre arquivos da mesma competência e com cobertura
   igual ou maior — do contrário a queda é aritmética, não suspeita).
 
 Em revisão o lote **não altera relatório nenhum**: os snapshots estão gravados, mas nenhuma
 tela lê lote que não esteja validado. A tela de revisão mostra o que entra, **o que sairia**,
-quem muda de MIC, CNPJ em mais de um MIC e os números comparados. Aprovar consolida; recusar
-guarda o motivo e o arquivo fica no histórico.
+quem muda de MIC, CNPJ em mais de um MIC, os números comparados e os MICs do Master que ficam
+fora do arquivo (com a data do arquivo que segue valendo para cada um). Aprovar consolida;
+recusar guarda o motivo e o arquivo fica no histórico.
 
-**O arquivo é o Master inteiro, e o recorte por MIC não entra nele.** Por isso três coisas
-exigem o Master **inteiro** no escopo, e não um MIC dele: enviar planilha (ela substitui a
-carteira toda), revisar e aprovar (a tela mostra o diff do Master todo) e receber a
-liberação de um arquivo. A liberação é feita na **ficha do lote** ("Quem vê este arquivo")
+**O arquivo pode trazer qualquer MIC do Master, e o recorte por MIC não entra nele.** Por isso
+três coisas exigem o Master **inteiro** no escopo, e não um MIC dele: enviar planilha, revisar
+e aprovar (a tela mostra quem entra e quem muda de MIC no Master todo) e receber a liberação
+de um arquivo. A liberação é feita na **ficha do lote** ("Quem vê este arquivo")
 por quem administra acessos e alcança o lote; a lista só oferece quem tem aquele Master
 inteiro, e revogar tira o arquivo da listagem da pessoa na hora. Quem tem só um MIC e a
 chave de ver lotes vê exatamente os próprios envios.
+
+### Master em mais de um arquivo
+
+Desde 13/10/2026 a Fiserv manda a carteira de um Master em mais de um arquivo: o do Master
+1478 veio com 10 MICs, e o MIC Águas Lindas veio em outro arquivo, com o mesmo REPORT_ID.
+Por isso o lote vigente é escolhido **por MIC**, e o Master é a soma dos MICs
+(`AuditViews.current_snapshots_sql`, a regra única que views, listagem, 3M, recorrência,
+indicadores e revisão leem). Um snapshot vale quando:
+
+1. é do lote mais recente que traz **aquele EC** — o EC que troca de MIC entre dois arquivos
+   conta uma vez só, no arquivo mais novo;
+2. esse lote não é anterior ao lote vigente **do MIC dele** — o EC que o arquivo novo do MIC
+   não traz sai da carteira.
+
+O cadastro manual de um EC não conta como arquivo do MIC: ele não esconde os outros ECs.
+
+**Nada é apagado** quando um EC ou um MIC sai da carteira: lotes, snapshots, faturamento
+consolidado e revisões ficam no banco. Muda só o que as telas leem.
+
+**Risco aceito: MIC parado.** Antes, um MIC que sumia do arquivo do Master sumia das telas.
+Agora ele fica, com o último arquivo dele, até chegar arquivo novo ou alguém apagá-lo
+("Apagar Master ou MIC"). Duas coisas o denunciam:
+
+- a idade do arquivo do Master passa a ser a do **MIC mais atrasado**, e o painel de
+  cobertura da tela de importação diz qual MIC está "sem arquivo novo";
+- o **corte** também é por MIC: cada MIC é comparado até o dia do arquivo dele, e o total do
+  Master até o menor corte entre os MICs do recorte. Um MIC parado na competência aberta puxa
+  esse corte para baixo — nunca superestima a cobertura.
+
+**Juntar um Master em outro.** A Região Goiás (REPORT_ID 719) foi cadastrada como Master, mas
+era um MIC de Ramos e Silva (1478). Quando a Fiserv passou a mandá-la sob o 1478, o import a
+recusou por "EC de outro canal". A correção é juntar, por console, a pedido — não há tela nem
+migração para isso:
+
+```ruby
+Operations::MergeChannel.call(source: Channel.find(<origem>), target: Channel.find(<destino>),
+  actor: User.find_by!(email_address: "<quem pediu>"))
+```
+
+Os MICs da origem viram MICs do destino pelo nome; ECs, lotes, faturamento, cobertura,
+anomalias e concessões mudam de dono; a origem fica apagada e a trilha antiga aponta para ela.
+Recusa lote pendente ou em revisão. Rode **depois** do deploy da regra por MIC: com a regra
+antiga, o lote mais novo do destino esconderia os MICs que vieram da origem. Depois de juntar,
+o REPORT_ID da origem fica sem Master ativo — se a Fiserv voltar a mandar um arquivo com ele,
+nasce um Master novo e o import o recusa por "EC de outro canal", que é a falha segura.
 
 ### Histórico
 

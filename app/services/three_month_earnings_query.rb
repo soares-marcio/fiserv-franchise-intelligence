@@ -2,24 +2,17 @@
 # materializado — os insumos (monthly_volumes_consolidated, map_snapshots) já estão
 # persistidos pelo import e este objeto só faz a aritmética do modelo de remuneração.
 class ThreeMonthEarningsQuery
-  # O sub-canal de um EC vive nos snapshots por lote, não em establishments; o lote mais
-  # recente validado com revenue_snapshots é o mesmo critério das views de auditoria.
+  # O sub-canal de um EC vive nos snapshots por lote, não em establishments; a carteira
+  # vigente é a mesma das views de auditoria (AuditViews.current_snapshots_sql).
   # Deixou de ser constante quando o recorte entrou: a interpolação do predicado precisa do
   # escopo da instância, e numa constante ela aconteceria no carregamento da classe.
-  def latest_batches_sql
+  def members_sql
     <<~SQL
-    #{AuditViews.latest_batches_sql.strip},
-    latest_map_batches AS (
-      SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-      FROM import_batches ib
-      WHERE ib.status = 'validated'
-        AND EXISTS (SELECT 1 FROM map_snapshots m WHERE m.import_batch_id = ib.id)
-      GROUP BY ib.channel_id
-    ),
+    #{AuditViews.current_snapshots_sql.strip},
     members AS (
       SELECT snapshot.channel_id, snapshot.sub_channel_id, snapshot.establishment_id
       FROM revenue_snapshots snapshot
-      JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
+      JOIN current_snapshots current ON current.id = snapshot.id
       WHERE #{sub_channel_predicate("snapshot")}
     )
     SQL
@@ -171,7 +164,7 @@ class ThreeMonthEarningsQuery
 
   def volume_rows(group:, sub_channel_id: nil)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, bind_params(sub_channel_id:) ])
-      WITH #{latest_batches_sql}
+      WITH #{members_sql}
       SELECT m.channel_id, #{group}, v.period,
         COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'debito'), 0) AS debit,
         COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'credito'), 0) AS credit

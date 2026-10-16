@@ -6,7 +6,9 @@
 # O "geral" que o selo mostra é sempre o **pior** de cada sinal, nunca o mais recente: é a mesma
 # regra do corte de período em ReportScope#cutoff_day — o observado não superestima a cobertura.
 class FileFreshness
-  Entry = Data.define(:name, :uuid, :received_at, :covered_on) do
+  # stale_sub_channels: MICs parados num Master que chega em mais de um arquivo — o arquivo
+  # do Master pode estar em dia e um dos MICs não (AuditViews.current_snapshots_sql).
+  Entry = Data.define(:name, :uuid, :received_at, :covered_on, :stale_sub_channels) do
     # O valor cru da consulta volta em UTC; sem converter, um arquivo recebido às 21h de
     # ontem já conta como de hoje e o selo diz um dia a menos que a tela de importação.
     def received_on = received_at&.in_time_zone&.to_date
@@ -31,12 +33,9 @@ class FileFreshness
   def call = entries
 
   def entries
-    @entries ||= rows.map do |row|
-      Entry.new(
-        name: row["name"], uuid: row["uuid"],
-        received_at: row["received_at"],
-        covered_on: coverage_date(row["period"], row["max_known_day"])
-      )
+    @entries ||= begin
+      rows, sub_channel_rows = cached_rows
+      rows.map { |row| entry(row, sub_channel_rows.fetch(row["id"], [])) }
     end
   end
 
@@ -59,6 +58,31 @@ class FileFreshness
 
   private
 
+  def entry(row, sub_channels)
+    Entry.new(
+      name: row["name"], uuid: row["uuid"],
+      received_at: sub_channels.map { |mic| mic["received_at"] }.min || row["received_at"],
+      covered_on: coverage_date(row["period"], covered_day(row, sub_channels)),
+      stale_sub_channels: stale_names(sub_channels)
+    )
+  end
+
+  # O selo roda em toda página e a carteira por MIC custa uma leitura do histórico de fotos.
+  # Guarda só o dado cru: os dias de atraso saem de Date.current na hora, então a virada do
+  # dia não precisa estar na chave. A chave muda com o que muda o dado — lote (chegada,
+  # aprovação, descarte), consolidação, Master e MIC (criar, apagar, restaurar, juntar: todos
+  # passam por update! do Master ou do MIC). O selo é da organização inteira, não do
+  # recorte de quem olha — é o cache_key dela que separa uma organização da outra.
+  def cached_rows
+    return [ [], {} ] if @organization.nil?
+
+    Rails.cache.fetch([ "file_freshness", @organization.cache_key, *cache_stamps ]) { [ rows, sub_channel_rows ] }
+  end
+
+  def cache_stamps
+    [ PeriodCoverage, ImportBatch, Channel, SubChannel ].map { |model| model.maximum(:updated_at)&.iso8601(6) }
+  end
+
   # O dia coberto é dia do mês; a data sai da competência mais o deslocamento.
   def coverage_date(period, max_known_day)
     return if period.blank? || max_known_day.blank?
@@ -66,13 +90,20 @@ class FileFreshness
     period.to_date + (max_known_day.to_i - 1)
   end
 
+  # O corte do Master na competência mais recente, baixado pelo MIC que cortou antes nela.
+  def covered_day(row, sub_channels)
+    covers = sub_channels.select { |mic| mic["period"] == row["period"] }.map { |mic| mic["max_known_day"] }
+    [ row["max_known_day"], *covers ].compact.min
+  end
+
   # Uma consulta só para os dois sinais. A tabela de cobertura tem uma linha por canal e
-  # competência, e o LATERAL pega a competência mais recente de cada canal.
+  # competência, e o LATERAL pega a competência mais recente de cada canal. É o valor do Master
+  # sem foto de MIC (lote sem faturamento); com MICs, entries troca pelo do MIC mais atrasado.
   def rows
     return [] if @organization.nil?
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization.id ])
-      SELECT channel.name, channel.uuid,
+      SELECT channel.id, channel.name, channel.uuid,
         (
           SELECT MAX(batch.created_at) FROM import_batches batch
           WHERE batch.channel_id = channel.id AND batch.status = 'validated'
@@ -89,5 +120,59 @@ class FileFreshness
       ORDER BY channel.name
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a
+  end
+
+  # Com o Master em mais de um arquivo, os dois sinais são do MIC mais atrasado: o último
+  # arquivo de cada MIC vigente e o corte dele em cada competência (uma linha por competência;
+  # covered_day escolhe a mais recente do Master sem reler period_coverages). MIC
+  # apagado fica fora — apagar é a saída para o MIC que a Fiserv parou de mandar, e esta
+  # consulta não passa pelo AccessScope, que é quem esconde o apagado nas outras telas.
+  def sub_channel_rows
+    return {} if @organization.nil?
+
+    @sub_channel_rows ||= begin
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization.id ])
+        WITH #{sub_channel_files_sql}
+        SELECT files.channel_id, sub_channel.name, files.received_at, cover.period, cover.max_known_day
+        FROM sub_channel_files files
+        JOIN sub_channels sub_channel ON sub_channel.id = files.sub_channel_id AND sub_channel.deleted_at IS NULL
+        LEFT JOIN sub_channel_cover cover
+          ON cover.channel_id = files.channel_id AND cover.sub_channel_id = files.sub_channel_id
+        ORDER BY sub_channel.name
+      SQL
+      ApplicationRecord.connection.exec_query(sql).to_a.group_by { |row| row["channel_id"] }
+    end
+  end
+
+  # MICs cujo último arquivo passou do prazo enquanto outro MIC do mesmo Master recebeu
+  # arquivo em dia. Quando o Master inteiro está parado, o aviso é dele, não de cada MIC.
+  def stale_names(rows)
+    days = rows.to_h { |row| [ row["name"], (Date.current - row["received_at"].in_time_zone.to_date).to_i ] }
+    return [] if days.values.all? { |age| age >= ImportBatch::STALE_AFTER_DAYS }
+
+    days.select { |_name, age| age >= ImportBatch::STALE_AFTER_DAYS }.keys
+  end
+
+  # O último arquivo de cada MIC vigente e o corte de cada MIC (AuditViews). Arquivo é lote
+  # vindo de planilha: o cadastro manual de um EC não diz que o MIC recebeu arquivo.
+  def sub_channel_files_sql
+    <<~SQL.strip
+      #{AuditViews.current_snapshots_sql(channel_predicate: organization_channels).strip},
+      #{AuditViews.sub_channel_cover_sql.strip},
+      sub_channel_files AS (
+        SELECT snapshot.channel_id, snapshot.sub_channel_id, MAX(ib.created_at) AS received_at
+        FROM revenue_snapshots snapshot
+        JOIN import_batches ib ON ib.id = snapshot.import_batch_id
+        WHERE ib.status = 'validated' AND ib.source_filename <> '#{AuditViews::MANUAL_SOURCE}'
+          AND (snapshot.channel_id, snapshot.sub_channel_id) IN (
+            SELECT channel_id, sub_channel_id FROM sub_channel_cover
+          )
+        GROUP BY snapshot.channel_id, snapshot.sub_channel_id
+      )
+    SQL
+  end
+
+  def organization_channels
+    "ib.channel_id IN (SELECT id FROM channels WHERE organization_id = :organization_id AND deleted_at IS NULL)"
   end
 end

@@ -118,7 +118,8 @@ module BinImport
       [ [ @batch.previous_period, 31, true ],
         [ @batch.current_period, @batch.current_month_cutoff_day, false ] ].each do |period, cutoff, closed|
         current = PeriodCoverage.find_by(channel_id: @batch.channel_id, period:)
-        record_shorter_batch!(current, cutoff) if current && cutoff < current.max_known_day
+        known = known_day_of_batch_sub_channels(period)
+        record_shorter_batch!(period, known, cutoff) if known && cutoff < known
         PeriodCoverage.upsert(
           { channel_id: @batch.channel_id, period:,
             max_known_day: [ current&.max_known_day.to_i, cutoff ].max,
@@ -130,9 +131,23 @@ module BinImport
       end
     end
 
-    def record_shorter_batch!(coverage, cutoff)
+    def record_shorter_batch!(period, known, cutoff)
       Anomalies.record!(batch: @batch, type: "batch_covers_fewer_days", severity: "info",
-        details: { period: coverage.period, previous: coverage.max_known_day, current: cutoff })
+        details: { period:, previous: known, current: cutoff })
+    end
+
+    # O maior corte já conhecido dos MICs que este arquivo traz, e não o do Master: com o
+    # Master em mais de um arquivo, o arquivo de um MIC que corta antes do outro não cobre
+    # menos dias do que já se sabia daquele MIC. Na competência fechada o arquivo traz o mês
+    # inteiro, e a pergunta não se aplica.
+    def known_day_of_batch_sub_channels(period)
+      return nil unless period == @batch.current_period
+
+      sub_channel_ids = RevenueSnapshot.where(import_batch_id: @batch.id).distinct.select(:sub_channel_id)
+      ImportBatch.validated.where(channel_id: @batch.channel_id, current_period: period)
+        .where.not(id: @batch.id)
+        .where(id: RevenueSnapshot.where(sub_channel_id: sub_channel_ids).select(:import_batch_id))
+        .maximum(:current_month_cutoff_day)
     end
 
     def coverage_batch_id(current, cutoff, closed)

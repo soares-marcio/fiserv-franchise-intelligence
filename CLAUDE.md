@@ -328,10 +328,16 @@ numa tela. Pela mesma razão, `ReportScope` recebe `scope:` e não `channel_id:`
 de migrar um ponto quebra no boot, não em produção. **A chave de cache carrega o escopo**:
 predicado novo com chave velha serviria o dado de um recorte a outro, sem erro nenhum.
 
-**Importação pode parar em revisão.** O portal enxerga um lote por Master, então arquivo
-parcial vira a foto oficial e o que não estiver nele some dos relatórios. Lote em
-`pending_review` tem snapshots gravados mas não é lido por tela nenhuma; aprovar é o que
-consolida, pelo mesmo código da importação direta.
+**Importação pode parar em revisão.** Desde 16/10/2026 o lote vigente é escolhido **por
+MIC**, não por Master: a Fiserv manda a carteira de um Master em mais de um arquivo, e cada
+arquivo é a foto oficial dos MICs que traz — o EC desses MICs que não estiver nele some dos
+relatórios. A regra mora só em `AuditViews.current_snapshots_sql`; consulta nova que precise
+da carteira vigente usa o builder, nunca um `MAX(ib.id) GROUP BY channel_id` próprio — até a
+troca havia cópias dele espalhadas por views, consultas e revisão. O MIC que para de vir fica
+na carteira até ser apagado: é o risco aceito, denunciado pela idade do arquivo por MIC
+(README, "Master em mais de um arquivo").
+Lote em `pending_review` tem snapshots gravados mas não é lido por tela nenhuma; aprovar é o
+que consolida, pelo mesmo código da importação direta.
 
 **São duas portas de upload, não uma.** A planilha (`import_batches#create`) valida extensão,
 tamanho e assinatura ZIP; os anexos da anotação entram por

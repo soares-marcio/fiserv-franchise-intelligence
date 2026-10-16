@@ -15,14 +15,6 @@
 class SubChannelIndicatorsQuery
   INDICATORS = SubChannelIndicatorRules::INDICATORS.keys.freeze
 
-  LATEST_MAP_BATCHES_SQL = <<~SQL.freeze
-    SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-    FROM import_batches ib
-    WHERE ib.status = 'validated'
-      AND EXISTS (SELECT 1 FROM map_snapshots m WHERE m.import_batch_id = ib.id)
-    GROUP BY ib.channel_id
-  SQL
-
   include ScopedQuery
 
   def initialize(scope:)
@@ -114,10 +106,11 @@ class SubChannelIndicatorsQuery
   # inteira com a data, então um mês sem credenciamento é zero de verdade, não ausência.
   def accreditations_by_month
     sql = sanitize(<<~SQL)
+      WITH #{AuditViews.current_snapshots_sql(table: "map_snapshots").strip}
       SELECT map.sub_channel_id, date_trunc('month', map.accredited_on)::date AS period,
         COUNT(*) AS accredited
       FROM map_snapshots map
-      JOIN (#{LATEST_MAP_BATCHES_SQL.indent(6).strip}) latest ON latest.import_batch_id = map.import_batch_id
+      JOIN current_snapshots current ON current.id = map.id
       WHERE map.accredited_on IS NOT NULL
         AND #{sub_channel_predicate("map")}
       GROUP BY map.sub_channel_id, date_trunc('month', map.accredited_on)
@@ -158,13 +151,9 @@ class SubChannelIndicatorsQuery
   def bases_by_month
     binds = scope_binds.merge(threshold: SubChannelIndicatorRules::VOLUME_THRESHOLD)
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, binds ])
-      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""} map_batches AS (
-        SELECT ib.channel_id, ib.current_period, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND EXISTS (SELECT 1 FROM map_snapshots m WHERE m.import_batch_id = ib.id)
-        GROUP BY ib.channel_id, ib.current_period
-      ), volumes AS (
+      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""}
+      #{AuditViews.current_snapshots_sql(table: "map_snapshots", by_period: true, name: "period_snapshots").strip},
+      volumes AS (
         SELECT channel_id, establishment_id, period, SUM(amount) AS amount
         FROM monthly_volumes_consolidated
         WHERE metric IN ('debito', 'credito')
@@ -177,10 +166,10 @@ class SubChannelIndicatorsQuery
           AND map.suspended_on < (batch.current_period + INTERVAL '1 month')) AS suspended,
         COUNT(*) FILTER (WHERE map.active_current_month IS FALSE) AS inactive,
         COUNT(*) FILTER (WHERE vol.amount > :threshold) AS above_threshold
-      FROM map_batches batch
-      JOIN map_snapshots map ON map.import_batch_id = batch.import_batch_id
+      FROM period_snapshots batch
+      JOIN map_snapshots map ON map.id = batch.id
       LEFT JOIN volumes vol
-        ON vol.channel_id = batch.channel_id
+        ON vol.channel_id = map.channel_id
         AND vol.establishment_id = map.establishment_id
         AND vol.period = batch.current_period
       WHERE #{sub_channel_predicate("map")}

@@ -1,13 +1,13 @@
 # O que muda na carteira se este lote for aprovado.
 #
-# Existe porque o portal enxerga **um único lote por Master** — o de maior id entre os
-# validados (AuditViews.latest_batches_sql). Um arquivo parcial, então, não "acrescenta"
-# nada: ele vira a foto oficial do Master, e todo EC que não estiver nele desaparece dos
-# relatórios. Esse buraco é anterior à autenticação; o que muda agora é que alguém olha
-# antes.
+# A carteira vigente é escolhida por MIC (AuditViews.current_snapshots_sql): a Fiserv manda
+# a carteira de um Master em mais de um arquivo, e cada arquivo vale para os MICs que traz.
+# A comparação, então, é entre o lote pendente e a carteira vigente **dos MICs dele** — os
+# outros MICs do Master não são tocados por este arquivo e continuam com o arquivo deles.
+# Um arquivo que traz um MIC pela metade continua parando aqui: o EC que ele não traz sai.
 #
-# A comparação é entre o lote pendente e o lote vigente do mesmo canal, os dois já com
-# snapshots gravados — por isso não há estrutura nova aqui, só leitura.
+# Os snapshots do lote pendente já estão gravados — por isso não há estrutura nova aqui, só
+# leitura.
 class BatchReview
   def initialize(batch)
     @batch = batch
@@ -15,19 +15,10 @@ class BatchReview
 
   attr_reader :batch
 
-  def current_batch_id
-    return @current_batch_id if defined?(@current_batch_id)
-
-    @current_batch_id = ImportBatch.validated.where(channel_id: batch.channel_id)
-      .where.not(id: batch.id)
-      .where(MapSnapshot.where("map_snapshots.import_batch_id = import_batches.id").arel.exists)
-      .maximum(:id)
-  end
-
   # A lista que justifica a quarentena: ECs que a carteira tem hoje e o arquivo não traz.
   # Aprovar faz cada um deles sumir das telas.
   def leaving
-    @leaving ||= snapshot_rows(current_batch_id).reject { |ec, _| incoming_by_ec.key?(ec) }
+    @leaving ||= current_of_batch_sub_channels.reject { |ec, _| incoming_by_ec.key?(ec) }
   end
 
   def entering
@@ -54,10 +45,20 @@ class BatchReview
   end
 
   def incoming_count = incoming.size
-  def current_count = current_by_ec.size
+  def current_count = current_of_batch_sub_channels.size
 
   def incoming_revenue = revenue_of(batch.id)
-  def current_revenue = current_batch_id ? revenue_of(current_batch_id) : nil
+  def current_revenue = first_of_channel? ? nil : current_revenue_of_batch_sub_channels
+
+  # MICs do Master que este arquivo não traz, com a data do arquivo que segue valendo para
+  # cada um. Não é motivo de revisão: é o Master chegando em mais de um arquivo.
+  def untouched_sub_channels
+    @untouched_sub_channels ||= current_by_ec.values
+      .reject { |row| incoming_sub_channel_ids.include?(row[:sub_channel_id]) }
+      .group_by { |row| row[:sub_channel] }
+      .transform_values { |rows| rows.map { |row| row[:received_at] }.max }
+      .sort.to_h
+  end
 
   # Variação do faturamento total entre os dois lotes.
   #
@@ -75,21 +76,22 @@ class BatchReview
   # cobertura igual ou maior: dentro do mês o valor é acumulado dia a dia, então um arquivo
   # que cobre menos dias traz menos dinheiro por aritmética, não por perda de carteira —
   # e esse caso já tem detecção própria (a anomalia de cobertura menor, na consolidação).
+  #
+  # Com o Master em mais de um arquivo, a comparação é com os lotes vigentes dos MICs que este
+  # arquivo traz, e todos eles precisam estar na mesma competência e não cobrir mais dias.
   def comparable_periods?
-    return false if current_batch&.current_period.blank?
-    return false unless batch.current_period == current_batch.current_period
+    batches = ImportBatch.where(id: current_of_batch_sub_channels.values.map { |row| row[:import_batch_id] }.uniq)
+    return false if batches.empty? || batch.current_month_cutoff_day.blank?
 
-    new_cutoff = batch.current_month_cutoff_day
-    current_cutoff = current_batch.current_month_cutoff_day
-    new_cutoff.present? && current_cutoff.present? && new_cutoff >= current_cutoff
+    batches.all? do |current|
+      current.current_period.present? && current.current_period == batch.current_period &&
+        current.current_month_cutoff_day.present? &&
+        batch.current_month_cutoff_day >= current.current_month_cutoff_day
+    end
   end
 
-  def current_batch
-    @current_batch ||= current_batch_id && ImportBatch.find_by(id: current_batch_id)
-  end
-
-  # Primeiro envio de um Master não tem com o que comparar: não há carteira a perder.
-  def first_of_channel? = current_batch_id.nil?
+  # Primeiro arquivo dos MICs que ele traz: não há carteira deles a perder.
+  def first_of_channel? = current_of_batch_sub_channels.empty?
 
   def removes_establishments? = leaving.any?
 
@@ -104,8 +106,8 @@ class BatchReview
     reasons
   end
 
-  # Queda de 40% no faturamento total do Master entre dois arquivos seguidos não é oscilação
-  # de carteira: é arquivo incompleto ou competência trocada.
+  # Queda de 40% no faturamento dos MICs do arquivo entre dois arquivos seguidos não é
+  # oscilação de carteira: é arquivo incompleto ou competência trocada.
   REVENUE_DROP_LIMIT = 40
 
   private
@@ -113,25 +115,55 @@ class BatchReview
   def incoming = incoming_by_ec
 
   def incoming_by_ec
-    @incoming_by_ec ||= snapshot_rows(batch.id)
+    @incoming_by_ec ||= snapshot_rows(MapSnapshot.where(import_batch_id: batch.id))
   end
 
+  # A carteira vigente do Master inteiro, sem este lote: é contra ela que se sabe quem entra e
+  # quem muda de MIC, mesmo que o MIC de origem esteja em outro arquivo.
   def current_by_ec
-    @current_by_ec ||= current_batch_id ? snapshot_rows(current_batch_id) : {}
+    @current_by_ec ||= snapshot_rows(current_map_snapshots)
+  end
+
+  # Só os MICs que o arquivo traz: é deles que o arquivo é a foto.
+  def current_of_batch_sub_channels
+    @current_of_batch_sub_channels ||= current_by_ec.select do |_ec, row|
+      incoming_sub_channel_ids.include?(row[:sub_channel_id])
+    end
+  end
+
+  def incoming_sub_channel_ids
+    @incoming_sub_channel_ids ||= incoming.values.map { |row| row[:sub_channel_id] }.to_set
+  end
+
+  def current_map_snapshots
+    MapSnapshot.where(id: current_snapshot_ids("map_snapshots"))
+  end
+
+  # A carteira vigente do Master como estaria sem este lote — o que vale hoje.
+  def current_snapshot_ids(table)
+    return [] if batch.channel_id.nil?
+
+    AuditViews.current_snapshot_ids(table:, channel_id: batch.channel_id, except_batch_id: batch.id)
   end
 
   # Uma consulta por lote, com o MIC junto: a tela mostra EC, CNPJ e MIC de cada linha.
-  def snapshot_rows(import_batch_id)
-    return {} if import_batch_id.nil?
-
-    MapSnapshot.where(import_batch_id:)
-      .joins(:establishment, :sub_channel)
+  def snapshot_rows(snapshots)
+    snapshots.joins(:establishment, :sub_channel, :import_batch)
       .joins("JOIN companies ON companies.id = establishments.company_id")
-      .pluck("establishments.ec", "companies.cnpj", "sub_channels.name")
-      .to_h { |ec, cnpj, sub_channel| [ ec, { cnpj:, sub_channel: } ] }
+      .pluck("establishments.ec", "companies.cnpj", "sub_channels.name", "sub_channels.id",
+        "map_snapshots.import_batch_id", "import_batches.created_at")
+      .to_h do |ec, cnpj, sub_channel, sub_channel_id, import_batch_id, received_at|
+        [ ec, { cnpj:, sub_channel:, sub_channel_id:, import_batch_id:, received_at: } ]
+      end
   end
 
   def revenue_of(import_batch_id)
     RevenueSnapshot.where(import_batch_id:).sum(:current_month_total) || 0
+  end
+
+  # O faturamento vigente dos MICs do arquivo, pela mesma regra da carteira.
+  def current_revenue_of_batch_sub_channels
+    RevenueSnapshot.where(id: current_snapshot_ids("revenue_snapshots"),
+      sub_channel_id: incoming_sub_channel_ids.to_a).sum(:current_month_total) || 0
   end
 end

@@ -64,7 +64,87 @@ class FileFreshnessTest < ActiveSupport::TestCase
     assert_empty FileFreshness.new(organization: nil).entries, "a plataforma não tem carteira a medir"
   end
 
+  # O Master chega em mais de um arquivo: o arquivo do Master em dia não pode esconder o MIC
+  # que parou de vir. A idade é a do MIC mais atrasado, e a tela diz qual é.
+  test "MIC parado num Master com arquivo em dia aparece pelo nome, e a idade é a dele" do
+    travel_to(Time.zone.local(2026, 8, 11, 12)) do
+      import_synthetic_workbook(stores: [ gama_store ], filename: "BIN_GAMA_20260811.xlsx")
+    end
+    travel_to(Time.zone.local(2026, 8, 25, 12)) do
+      import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260825.xlsx")
+      entry = FileFreshness.new(organization: default_organization).entries.sole
+
+      assert_equal [ "MIC GAMA" ], entry.stale_sub_channels
+      assert_equal 14, entry.received_days, "o arquivo mais velho entre os MICs vigentes"
+    end
+  end
+
+  # Apagar o MIC é a saída documentada para o MIC que a Fiserv parou de mandar: depois disso
+  # ele não pode seguir puxando a idade do Master nem aparecer como parado.
+  test "MIC apagado sai da idade do Master e da lista de parados" do
+    travel_to(Time.zone.local(2026, 8, 11, 12)) do
+      import_synthetic_workbook(stores: [ gama_store ], filename: "BIN_GAMA_20260811.xlsx")
+    end
+    travel_to(Time.zone.local(2026, 8, 25, 12)) do
+      import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260825.xlsx")
+      gama = SubChannel.active.find_by!(name: "MIC GAMA")
+      Operations::SoftDelete.delete_sub_channel(sub_channel: gama, actor: admin_user, confirmation: gama.name)
+      entry = FileFreshness.new(organization: default_organization).entries.sole
+
+      assert_empty entry.stale_sub_channels
+      assert_equal 0, entry.received_days
+    end
+  end
+
+  # O teste roda com null_store; aqui o cache é de verdade, para provar que apagar um MIC e
+  # receber arquivo novo derrubam o selo guardado.
+  test "o selo guardado cai quando um MIC é apagado e quando chega arquivo" do
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    travel_to(Time.zone.local(2026, 8, 11, 12)) do
+      import_synthetic_workbook(stores: [ gama_store ], filename: "BIN_GAMA_20260811.xlsx")
+    end
+    travel_to(Time.zone.local(2026, 8, 25, 12)) do
+      import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260825.xlsx")
+      assert_equal [ "MIC GAMA" ], FileFreshness.new(organization: default_organization).entries.sole.stale_sub_channels
+    end
+    # A chave sai do maior updated_at: com o relógio congelado no mesmo instante do import, o
+    # apagamento não o moveria — na vida real o relógio anda.
+    travel_to(Time.zone.local(2026, 8, 25, 15)) do
+      gama = SubChannel.active.find_by!(name: "MIC GAMA")
+      Operations::SoftDelete.delete_sub_channel(sub_channel: gama, actor: admin_user, confirmation: gama.name)
+      assert_empty FileFreshness.new(organization: default_organization).entries.sole.stale_sub_channels
+    end
+    travel_to(Time.zone.local(2026, 8, 27, 12)) do
+      assert_equal 2, FileFreshness.new(organization: default_organization).entries.sole.received_days,
+        "a virada do dia não depende do cache"
+      stores = BinWorkbook.default_stores.map { |store| store.dup.tap { |copy| copy.current_days = { 1 => 50 } } }
+      import_synthetic_workbook(stores:, filename: "BIN_TESTE_20260827.xlsx")
+      assert_equal 0, FileFreshness.new(organization: default_organization).entries.sole.received_days
+    end
+  ensure
+    Rails.cache = original
+  end
+
+  test "Master inteiro parado não lista cada MIC" do
+    travel_to(Time.zone.local(2026, 8, 11, 12)) { import_synthetic_workbook }
+    travel_to(Time.zone.local(2026, 8, 30, 12)) do
+      entry = FileFreshness.new(organization: default_organization).entries.sole
+
+      assert entry.received_stale?
+      assert_empty entry.stale_sub_channels
+    end
+  end
+
   private
+
+  def gama_store
+    BinWorkbook::Store.new(
+      ec: "30000003", cnpj: "55666777000188", sub_channel_name: "MIC GAMA",
+      legal_name: "GAMA COMERCIO LTDA", trade_name: "GAMA LOJA", contract_status: "Active",
+      previous_days: { 1 => 300 }, current_days: { 1 => 120 }, best_conversation: nil, proposal: false
+    )
+  end
 
   def channel(name, received:, coverage:)
     channel = Channel.create!(organization: default_organization, name: name, external_id: "EXT-#{name}")
