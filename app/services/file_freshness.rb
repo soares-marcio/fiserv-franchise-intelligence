@@ -34,11 +34,12 @@ class FileFreshness
 
   def entries
     @entries ||= rows.map do |row|
+      sub_channels = sub_channel_rows.fetch(row["id"], [])
       Entry.new(
         name: row["name"], uuid: row["uuid"],
-        received_at: row["received_at"],
-        covered_on: coverage_date(row["period"], row["max_known_day"]),
-        stale_sub_channels: stale_sub_channels.fetch(row["id"], [])
+        received_at: sub_channels.map { |mic| mic["received_at"] }.min || row["received_at"],
+        covered_on: coverage_date(row["period"], covered_day(row, sub_channels)),
+        stale_sub_channels: stale_names(sub_channels)
       )
     end
   end
@@ -69,30 +70,24 @@ class FileFreshness
     period.to_date + (max_known_day.to_i - 1)
   end
 
+  # O corte do Master na competência mais recente, baixado pelo MIC que cortou antes.
+  def covered_day(row, sub_channels)
+    [ row["max_known_day"], *sub_channels.map { |mic| mic["max_known_day"] } ].compact.min
+  end
+
   # Uma consulta só para os dois sinais. A tabela de cobertura tem uma linha por canal e
-  # competência, e o LATERAL pega a competência mais recente de cada canal.
-  #
-  # Com o Master em mais de um arquivo, os dois sinais são do MIC mais atrasado: o arquivo
-  # mais velho entre os MICs vigentes, e o menor corte entre eles na competência. Master sem
-  # foto de MIC (lote sem faturamento) cai no último lote validado, como antes.
+  # competência, e o LATERAL pega a competência mais recente de cada canal. É o valor do Master
+  # sem foto de MIC (lote sem faturamento); com MICs, entries troca pelo do MIC mais atrasado.
   def rows
     return [] if @organization.nil?
 
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization.id ])
-      WITH #{sub_channel_files_sql}
       SELECT channel.id, channel.name, channel.uuid,
-        COALESCE(
-          (SELECT MIN(files.received_at) FROM sub_channel_files files WHERE files.channel_id = channel.id),
-          (
-            SELECT MAX(batch.created_at) FROM import_batches batch
-            WHERE batch.channel_id = channel.id AND batch.status = 'validated'
-          )
+        (
+          SELECT MAX(batch.created_at) FROM import_batches batch
+          WHERE batch.channel_id = channel.id AND batch.status = 'validated'
         ) AS received_at,
-        coverage.period,
-        LEAST(coverage.max_known_day, COALESCE((
-          SELECT MIN(cover.max_known_day) FROM sub_channel_cover cover
-          WHERE cover.channel_id = channel.id AND cover.period = coverage.period
-        ), coverage.max_known_day)) AS max_known_day
+        coverage.period, coverage.max_known_day
       FROM channels channel
       LEFT JOIN LATERAL (
         SELECT period, max_known_day FROM period_coverages
@@ -106,24 +101,33 @@ class FileFreshness
     ApplicationRecord.connection.exec_query(sql).to_a
   end
 
-  # MICs cujo último arquivo passou do prazo enquanto outro MIC do mesmo Master recebeu
-  # arquivo em dia. Quando o Master inteiro está parado, o aviso é dele, não de cada MIC.
-  def stale_sub_channels
-    @stale_sub_channels ||= begin
-      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization&.id.to_i ])
+  # Com o Master em mais de um arquivo, os dois sinais são do MIC mais atrasado: o último
+  # arquivo de cada MIC vigente e o corte dele na competência mais recente do Master. MIC
+  # apagado fica fora — apagar é a saída para o MIC que a Fiserv parou de mandar, e esta
+  # consulta não passa pelo AccessScope, que é quem esconde o apagado nas outras telas.
+  def sub_channel_rows
+    return {} if @organization.nil?
+
+    @sub_channel_rows ||= begin
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization.id ])
         WITH #{sub_channel_files_sql}
-        SELECT files.channel_id, sub_channel.name, files.received_at
+        SELECT files.channel_id, sub_channel.name, files.received_at, (
+            SELECT cover.max_known_day FROM sub_channel_cover cover
+            WHERE cover.channel_id = files.channel_id AND cover.sub_channel_id = files.sub_channel_id
+              AND cover.period = (
+                SELECT MAX(period) FROM period_coverages WHERE period_coverages.channel_id = files.channel_id
+              )
+          ) AS max_known_day
         FROM sub_channel_files files
-        JOIN sub_channels sub_channel ON sub_channel.id = files.sub_channel_id
-        JOIN channels channel ON channel.id = files.channel_id
-        WHERE channel.organization_id = :organization_id
+        JOIN sub_channels sub_channel ON sub_channel.id = files.sub_channel_id AND sub_channel.deleted_at IS NULL
         ORDER BY sub_channel.name
       SQL
       ApplicationRecord.connection.exec_query(sql).to_a.group_by { |row| row["channel_id"] }
-        .transform_values { |rows| stale_names(rows) }
     end
   end
 
+  # MICs cujo último arquivo passou do prazo enquanto outro MIC do mesmo Master recebeu
+  # arquivo em dia. Quando o Master inteiro está parado, o aviso é dele, não de cada MIC.
   def stale_names(rows)
     days = rows.to_h { |row| [ row["name"], (Date.current - row["received_at"].in_time_zone.to_date).to_i ] }
     return [] if days.values.all? { |age| age >= ImportBatch::STALE_AFTER_DAYS }

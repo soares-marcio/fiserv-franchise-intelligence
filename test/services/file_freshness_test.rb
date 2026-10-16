@@ -79,6 +79,23 @@ class FileFreshnessTest < ActiveSupport::TestCase
     end
   end
 
+  # Apagar o MIC é a saída documentada para o MIC que a Fiserv parou de mandar: depois disso
+  # ele não pode seguir puxando a idade do Master nem aparecer como parado.
+  test "MIC apagado sai da idade do Master e da lista de parados" do
+    travel_to(Time.zone.local(2026, 8, 11, 12)) do
+      import_synthetic_workbook(stores: [ gama_store ], filename: "BIN_GAMA_20260811.xlsx")
+    end
+    travel_to(Time.zone.local(2026, 8, 25, 12)) do
+      import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260825.xlsx")
+      gama = SubChannel.active.find_by!(name: "MIC GAMA")
+      Operations::SoftDelete.delete_sub_channel(sub_channel: gama, actor: admin_user, confirmation: gama.name)
+      entry = FileFreshness.new(organization: default_organization).entries.sole
+
+      assert_empty entry.stale_sub_channels
+      assert_equal 0, entry.received_days
+    end
+  end
+
   test "Master inteiro parado não lista cada MIC" do
     travel_to(Time.zone.local(2026, 8, 11, 12)) { import_synthetic_workbook }
     travel_to(Time.zone.local(2026, 8, 30, 12)) do
