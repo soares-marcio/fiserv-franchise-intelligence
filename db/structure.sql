@@ -1474,6 +1474,18 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
                   WHERE (((ib.status)::text = 'validated'::text) AND ((ib.source_filename)::text <> 'manual'::text))
                   GROUP BY snapshot_1.channel_id, snapshot_1.sub_channel_id) sub_channel_batch ON (((sub_channel_batch.channel_id = candidate.channel_id) AND (sub_channel_batch.sub_channel_id = candidate.sub_channel_id))))
           WHERE ((candidate.import_batch_id = candidate.establishment_batch_id) AND ((sub_channel_batch.import_batch_id IS NULL) OR (candidate.import_batch_id >= sub_channel_batch.import_batch_id)))
+        ), sub_channel_cover AS (
+         SELECT snapshot_1.channel_id,
+            snapshot_1.sub_channel_id,
+            ib.current_period AS period,
+            max(ib.current_month_cutoff_day) AS max_known_day
+           FROM (public.revenue_snapshots snapshot_1
+             JOIN public.import_batches ib ON ((ib.id = snapshot_1.import_batch_id)))
+          WHERE (((ib.status)::text = 'validated'::text) AND ((snapshot_1.channel_id, snapshot_1.sub_channel_id) IN ( SELECT vigente.channel_id,
+                    vigente.sub_channel_id
+                   FROM (public.revenue_snapshots vigente
+                     JOIN current_snapshots current_1 ON ((current_1.id = vigente.id))))))
+          GROUP BY snapshot_1.channel_id, snapshot_1.sub_channel_id, ib.current_period
         )
  SELECT snapshot.channel_id,
     snapshot.sub_channel_id,
@@ -1481,19 +1493,20 @@ CREATE MATERIALIZED VIEW public.audit_revenue_by_sub_channel AS
     sub_channel.name AS sub_channel_name,
     cover.previous_period,
     cover.current_period,
-    cover.max_known_day,
+    LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day)) AS max_known_day,
     COALESCE(sum(revenue.amount) FILTER (WHERE (revenue.period = cover.previous_period)), (0)::numeric) AS previous_full_revenue,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS previous_revenue,
-    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= cover.max_known_day))), (0)::numeric) AS current_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.previous_period) AND (revenue.day <= LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day))))), (0)::numeric) AS previous_revenue,
+    COALESCE(sum(revenue.amount) FILTER (WHERE ((revenue.period = cover.current_period) AND (revenue.day <= LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day))))), (0)::numeric) AS current_revenue,
     count(DISTINCT snapshot.establishment_id) FILTER (WHERE (establishment.primary_establishment_id IS NULL)) AS primary_establishments
-   FROM (((((public.revenue_snapshots snapshot
+   FROM ((((((public.revenue_snapshots snapshot
      JOIN current_snapshots current ON ((current.id = snapshot.id)))
      JOIN open_cover cover ON ((cover.channel_id = snapshot.channel_id)))
+     LEFT JOIN sub_channel_cover ON (((sub_channel_cover.channel_id = snapshot.channel_id) AND (sub_channel_cover.sub_channel_id = snapshot.sub_channel_id) AND (sub_channel_cover.period = cover.current_period))))
      JOIN public.sub_channels sub_channel ON ((sub_channel.id = snapshot.sub_channel_id)))
      JOIN public.establishments establishment ON ((establishment.id = snapshot.establishment_id)))
      LEFT JOIN public.daily_revenues_consolidated revenue ON (((revenue.channel_id = snapshot.channel_id) AND (revenue.establishment_id = snapshot.establishment_id) AND ((revenue.period = cover.previous_period) OR (revenue.period = cover.current_period)))))
   WHERE true
-  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name, cover.previous_period, cover.current_period, cover.max_known_day
+  GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name, cover.previous_period, cover.current_period, cover.max_known_day, sub_channel_cover.max_known_day
   WITH NO DATA;
 
 
@@ -5723,6 +5736,7 @@ ALTER TABLE ONLY public.revenue_snapshots
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261016130000'),
 ('20261016120100'),
 ('20261016120000'),
 ('20261006180000'),

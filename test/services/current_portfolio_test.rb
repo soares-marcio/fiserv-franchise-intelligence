@@ -78,6 +78,36 @@ class CurrentPortfolioTest < ActiveSupport::TestCase
     assert_equal [ "MIC ALFA", "MIC GAMA" ], earnings.sort
   end
 
+  test "MIC de arquivo que corta antes é comparado até o próprio corte, e o total até o menor" do
+    import_and_approve(stores: alfa_stores, filename: "BIN_ALFA_20260811.xlsx")
+    later_gama = store_like(gama_store, current_days: { 1 => 120, 13 => 50 })
+    import_and_approve(stores: [ later_gama ], filename: "BIN_GAMA_20260814.xlsx")
+    refresh_audit_views
+
+    cutoffs = ApplicationRecord.connection.select_rows(
+      "SELECT sub_channel_name, max_known_day FROM audit_revenue_by_sub_channel"
+    ).to_h { |name, day| [ name, day.to_i ] }
+    report = ReportScope.new(scope: organization_scope)
+
+    assert_equal({ "MIC ALFA" => 10, "MIC GAMA" => 13 }, cutoffs)
+    assert_equal 10, report.cutoff_day, "o total não compara dias que um dos arquivos não trouxe"
+    assert_equal 13, PeriodCoverage.find_by!(period: Date.new(2026, 8, 1)).max_known_day,
+      "a cobertura guardada do Master continua sendo a maior conhecida"
+  end
+
+  test "arquivo de outro MIC que corta antes não é anomalia de cobertura; o do mesmo MIC é" do
+    later_gama = store_like(gama_store, current_days: { 1 => 120, 13 => 50 })
+    import_and_approve(stores: [ later_gama ], filename: "BIN_GAMA_20260814.xlsx")
+    import_and_approve(stores: alfa_stores, filename: "BIN_ALFA_20260811.xlsx")
+
+    assert_not DataAnomaly.exists?(anomaly_type: "batch_covers_fewer_days")
+
+    shorter_alfa = alfa_stores.map { |store| store_like(store, current_days: { 1 => 15, 2 => 25 }) }
+    import_and_approve(stores: shorter_alfa, filename: "BIN_ALFA_20260803.xlsx")
+
+    assert DataAnomaly.exists?(anomaly_type: "batch_covers_fewer_days")
+  end
+
   private
 
   def alfa_stores = BinWorkbook.default_stores.first(2)

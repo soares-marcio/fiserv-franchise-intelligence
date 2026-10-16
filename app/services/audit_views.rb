@@ -19,6 +19,10 @@ class AuditViews
     daily_revenues_consolidated monthly_volumes_consolidated
   ].freeze
 
+  # Corte de cada MIC na view: o dele, nunca acima do Master — o ajuste manual de corte
+  # (Operations::AdjustCutoff) mexe na cobertura do Master e continua valendo.
+  SUB_CHANNEL_CUTOFF = "LEAST(cover.max_known_day, COALESCE(sub_channel_cover.max_known_day, cover.max_known_day))"
+
   # O nome de arquivo que o cadastro manual grava no lote (Operations::RegisterManually).
   MANUAL_SOURCE = "manual"
 
@@ -107,6 +111,29 @@ class AuditViews
   end
 
 
+  # O corte de cada MIC na competência: o maior dia de corte entre os lotes validados que o
+  # trouxeram. Com o Master em mais de um arquivo, cada arquivo tem o próprio corte, e o MIC
+  # do arquivo que parou no dia 10 comparado até o dia 13 do outro pareceria queda. Só os MICs
+  # com carteira vigente entram — um MIC esvaziado não puxa o corte de ninguém. Precisa do CTE
+  # current_snapshots no mesmo WITH.
+  def self.sub_channel_cover_sql
+    <<~SQL
+      sub_channel_cover AS (
+        SELECT snapshot.channel_id, snapshot.sub_channel_id, ib.current_period AS period,
+          MAX(ib.current_month_cutoff_day) AS max_known_day
+        FROM revenue_snapshots snapshot
+        JOIN import_batches ib ON ib.id = snapshot.import_batch_id
+        WHERE ib.status = 'validated'
+          AND (snapshot.channel_id, snapshot.sub_channel_id) IN (
+            SELECT vigente.channel_id, vigente.sub_channel_id
+            FROM revenue_snapshots vigente
+            JOIN current_snapshots current ON current.id = vigente.id
+          )
+        GROUP BY snapshot.channel_id, snapshot.sub_channel_id, ib.current_period
+      )
+    SQL
+  end
+
   # Regra da comparação alinhada, em um lugar só: o mês anterior cheio nunca é recortado e os
   # dois períodos comparáveis levam o mesmo recorte de dias. A view materializada recorta pelo
   # corte de cada canal; o ReportScope injeta o menor corte do recorte; a listagem usa a faixa
@@ -132,7 +159,8 @@ class AuditViews
           (period - INTERVAL '1 month')::date AS previous_period
         FROM period_coverages
         WHERE NOT closed AND #{channel_predicate}
-      ), #{current_snapshots_sql.strip}
+      ), #{current_snapshots_sql.strip},
+      #{sub_channel_cover_sql.strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name AS sub_channel_name,
         cover.previous_period, cover.current_period, #{cutoff} AS max_known_day,
         #{aligned_aggregates_sql(table: 'revenue', previous_period: 'cover.previous_period',
@@ -143,6 +171,10 @@ class AuditViews
       FROM revenue_snapshots snapshot
       JOIN current_snapshots current ON current.id = snapshot.id
       JOIN open_cover cover ON cover.channel_id = snapshot.channel_id
+      LEFT JOIN sub_channel_cover
+        ON sub_channel_cover.channel_id = snapshot.channel_id
+        AND sub_channel_cover.sub_channel_id = snapshot.sub_channel_id
+        AND sub_channel_cover.period = cover.current_period
       JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       LEFT JOIN daily_revenues_consolidated revenue
@@ -151,14 +183,15 @@ class AuditViews
         AND revenue.period IN (cover.previous_period, cover.current_period)
       WHERE #{snapshot_predicate}
       GROUP BY snapshot.channel_id, snapshot.sub_channel_id, sub_channel.uuid, sub_channel.name,
-        cover.previous_period, cover.current_period, cover.max_known_day
+        cover.previous_period, cover.current_period, cover.max_known_day,
+        sub_channel_cover.max_known_day
     SQL
   end
 
   def self.create_sql
     <<~SQL
       CREATE MATERIALIZED VIEW audit_revenue_by_sub_channel AS
-      #{revenue_by_sub_channel_sql(cutoff: 'cover.max_known_day')};
+      #{revenue_by_sub_channel_sql(cutoff: SUB_CHANNEL_CUTOFF)};
       CREATE UNIQUE INDEX index_audit_revenue_by_sub_channel
         ON audit_revenue_by_sub_channel (channel_id, sub_channel_id);
 

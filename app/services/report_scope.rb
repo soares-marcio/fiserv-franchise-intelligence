@@ -99,12 +99,7 @@ class ReportScope
   # Memoizado: a janela é montada para a tela e de novo para a listagem, no mesmo scope.
   def available_periods
     @available_periods ||= begin
-      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
-        SELECT period, max_known_day, closed
-        FROM period_coverages
-        WHERE #{channel_predicate}
-        ORDER BY period DESC
-      SQL
+      sql = ApplicationRecord.sanitize_sql_array([ "#{coverage_sql} ORDER BY period DESC", scope_binds ])
       ApplicationRecord.connection.exec_query(sql).to_a
     end
   end
@@ -357,12 +352,34 @@ class ReportScope
 
   def coverages
     @coverages ||= begin
-      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
-        SELECT channel_id, max_known_day FROM period_coverages
-        WHERE NOT closed AND #{channel_predicate}
-      SQL
+      sql = ApplicationRecord.sanitize_sql_array([ "#{coverage_sql} AND NOT cover.closed", scope_binds ])
       ApplicationRecord.connection.exec_query(sql).to_a
     end
+  end
+
+  # A cobertura do Master, rebaixada ao corte do MIC mais atrasado do recorte quando o Master
+  # chega em mais de um arquivo: comparar o MIC que parou no dia 10 até o dia 13 do outro
+  # arquivo faria o dia que falta parecer queda. A competência fechada é o mês inteiro, e
+  # nenhum arquivo a recorta.
+  def coverage_sql
+    <<~SQL
+      WITH #{AuditViews.current_snapshots_sql(channel_predicate: channel_predicate("ib")).strip},
+      #{AuditViews.sub_channel_cover_sql.strip},
+      scoped_cover AS (
+        SELECT channel_id, period, MIN(max_known_day) AS max_known_day
+        FROM sub_channel_cover
+        WHERE #{sub_channel_predicate}
+        GROUP BY channel_id, period
+      )
+      SELECT cover.channel_id, cover.period, cover.closed,
+        CASE WHEN cover.closed THEN cover.max_known_day
+          ELSE LEAST(cover.max_known_day, COALESCE(scoped_cover.max_known_day, cover.max_known_day))
+        END AS max_known_day
+      FROM period_coverages cover
+      LEFT JOIN scoped_cover
+        ON scoped_cover.channel_id = cover.channel_id AND scoped_cover.period = cover.period
+      WHERE #{channel_predicate("cover")}
+    SQL
   end
 
   def query(name, order_by = nil)
