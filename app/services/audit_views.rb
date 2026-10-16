@@ -111,6 +111,17 @@ class AuditViews
   end
 
 
+  # Os ids dos snapshots vigentes de um Master — para quem lê a carteira de um Master só. O
+  # lote em revisão sai da conta (except_batch_id): a revisão compara com o que vale hoje.
+  def self.current_snapshot_ids(table:, channel_id:, except_batch_id: nil)
+    cte = current_snapshots_sql(table:, channel_predicate: "ib.channel_id = :channel_id AND ib.id <> :except_batch_id")
+    sql = ApplicationRecord.sanitize_sql_array([
+      "WITH #{cte.strip} SELECT id FROM current_snapshots",
+      { channel_id:, except_batch_id: except_batch_id || 0 }
+    ])
+    ApplicationRecord.connection.exec_query(sql).rows.flatten
+  end
+
   # O corte de cada MIC na competência: o maior dia de corte entre os lotes validados que o
   # trouxeram. Com o Master em mais de um arquivo, cada arquivo tem o próprio corte, e o MIC
   # do arquivo que parou no dia 10 comparado até o dia 13 do outro pareceria queda. Só os MICs

@@ -287,9 +287,8 @@ class ReportScope
     channel_id = SubChannel.find(sub_channel_id).channel_id
     return RevenueSnapshot.none unless @scope.channel_ids.include?(channel_id)
 
-    current = AuditViews.current_snapshots_sql(channel_predicate: "ib.channel_id = #{channel_id.to_i}")
-    RevenueSnapshot.where(sub_channel_id:)
-      .where("revenue_snapshots.id IN (WITH #{current.strip} SELECT id FROM current_snapshots)")
+    RevenueSnapshot.where(sub_channel_id:,
+      id: AuditViews.current_snapshot_ids(table: "revenue_snapshots", channel_id:))
   end
 
   def calendar_rows(sql, period:, covered_days:)

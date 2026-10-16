@@ -143,9 +143,7 @@ class BatchReview
   def current_snapshot_ids(table)
     return [] if batch.channel_id.nil?
 
-    current = AuditViews.current_snapshots_sql(table:,
-      channel_predicate: "ib.channel_id = #{batch.channel_id.to_i} AND ib.id <> #{batch.id.to_i}")
-    ApplicationRecord.connection.select_values("WITH #{current.strip} SELECT id FROM current_snapshots")
+    AuditViews.current_snapshot_ids(table:, channel_id: batch.channel_id, except_batch_id: batch.id)
   end
 
   # Uma consulta por lote, com o MIC junto: a tela mostra EC, CNPJ e MIC de cada linha.
