@@ -71,11 +71,12 @@ class FileFreshness
   # Guarda só o dado cru: os dias de atraso saem de Date.current na hora, então a virada do
   # dia não precisa estar na chave. A chave muda com o que muda o dado — lote (chegada,
   # aprovação, descarte), consolidação, Master e MIC (criar, apagar, restaurar, juntar: todos
-  # passam por update! do Master ou do MIC).
+  # passam por update! do Master ou do MIC). O selo é da organização inteira, não do
+  # recorte de quem olha — é o cache_key dela que separa uma organização da outra.
   def cached_rows
     return [ [], {} ] if @organization.nil?
 
-    Rails.cache.fetch([ "file_freshness", @organization.id, *cache_stamps ]) { [ rows, sub_channel_rows ] }
+    Rails.cache.fetch([ "file_freshness", @organization.cache_key, *cache_stamps ]) { [ rows, sub_channel_rows ] }
   end
 
   def cache_stamps
@@ -89,9 +90,10 @@ class FileFreshness
     period.to_date + (max_known_day.to_i - 1)
   end
 
-  # O corte do Master na competência mais recente, baixado pelo MIC que cortou antes.
+  # O corte do Master na competência mais recente, baixado pelo MIC que cortou antes nela.
   def covered_day(row, sub_channels)
-    [ row["max_known_day"], *sub_channels.map { |mic| mic["max_known_day"] } ].compact.min
+    covers = sub_channels.select { |mic| mic["period"] == row["period"] }.map { |mic| mic["max_known_day"] }
+    [ row["max_known_day"], *covers ].compact.min
   end
 
   # Uma consulta só para os dois sinais. A tabela de cobertura tem uma linha por canal e
@@ -121,7 +123,8 @@ class FileFreshness
   end
 
   # Com o Master em mais de um arquivo, os dois sinais são do MIC mais atrasado: o último
-  # arquivo de cada MIC vigente e o corte dele na competência mais recente do Master. MIC
+  # arquivo de cada MIC vigente e o corte dele em cada competência (uma linha por competência;
+  # covered_day escolhe a mais recente do Master sem reler period_coverages). MIC
   # apagado fica fora — apagar é a saída para o MIC que a Fiserv parou de mandar, e esta
   # consulta não passa pelo AccessScope, que é quem esconde o apagado nas outras telas.
   def sub_channel_rows
@@ -130,15 +133,11 @@ class FileFreshness
     @sub_channel_rows ||= begin
       sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, organization_id: @organization.id ])
         WITH #{sub_channel_files_sql}
-        SELECT files.channel_id, sub_channel.name, files.received_at, (
-            SELECT cover.max_known_day FROM sub_channel_cover cover
-            WHERE cover.channel_id = files.channel_id AND cover.sub_channel_id = files.sub_channel_id
-              AND cover.period = (
-                SELECT MAX(period) FROM period_coverages WHERE period_coverages.channel_id = files.channel_id
-              )
-          ) AS max_known_day
+        SELECT files.channel_id, sub_channel.name, files.received_at, cover.period, cover.max_known_day
         FROM sub_channel_files files
         JOIN sub_channels sub_channel ON sub_channel.id = files.sub_channel_id AND sub_channel.deleted_at IS NULL
+        LEFT JOIN sub_channel_cover cover
+          ON cover.channel_id = files.channel_id AND cover.sub_channel_id = files.sub_channel_id
         ORDER BY sub_channel.name
       SQL
       ApplicationRecord.connection.exec_query(sql).to_a.group_by { |row| row["channel_id"] }
