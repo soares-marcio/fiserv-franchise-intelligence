@@ -33,14 +33,9 @@ class FileFreshness
   def call = entries
 
   def entries
-    @entries ||= rows.map do |row|
-      sub_channels = sub_channel_rows.fetch(row["id"], [])
-      Entry.new(
-        name: row["name"], uuid: row["uuid"],
-        received_at: sub_channels.map { |mic| mic["received_at"] }.min || row["received_at"],
-        covered_on: coverage_date(row["period"], covered_day(row, sub_channels)),
-        stale_sub_channels: stale_names(sub_channels)
-      )
+    @entries ||= begin
+      rows, sub_channel_rows = cached_rows
+      rows.map { |row| entry(row, sub_channel_rows.fetch(row["id"], [])) }
     end
   end
 
@@ -62,6 +57,30 @@ class FileFreshness
   def stale_entries = entries.select { |entry| entry.received_stale? || entry.covered_stale? }
 
   private
+
+  def entry(row, sub_channels)
+    Entry.new(
+      name: row["name"], uuid: row["uuid"],
+      received_at: sub_channels.map { |mic| mic["received_at"] }.min || row["received_at"],
+      covered_on: coverage_date(row["period"], covered_day(row, sub_channels)),
+      stale_sub_channels: stale_names(sub_channels)
+    )
+  end
+
+  # O selo roda em toda página e a carteira por MIC custa uma leitura do histórico de fotos.
+  # Guarda só o dado cru: os dias de atraso saem de Date.current na hora, então a virada do
+  # dia não precisa estar na chave. A chave muda com o que muda o dado — lote (chegada,
+  # aprovação, descarte), consolidação, Master e MIC (criar, apagar, restaurar, juntar: todos
+  # passam por update! do Master ou do MIC).
+  def cached_rows
+    return [ [], {} ] if @organization.nil?
+
+    Rails.cache.fetch([ "file_freshness", @organization.id, *cache_stamps ]) { [ rows, sub_channel_rows ] }
+  end
+
+  def cache_stamps
+    [ PeriodCoverage, ImportBatch, Channel, SubChannel ].map { |model| model.maximum(:updated_at)&.iso8601(6) }
+  end
 
   # O dia coberto é dia do mês; a data sai da competência mais o deslocamento.
   def coverage_date(period, max_known_day)

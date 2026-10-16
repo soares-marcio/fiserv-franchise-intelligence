@@ -96,6 +96,36 @@ class FileFreshnessTest < ActiveSupport::TestCase
     end
   end
 
+  # O teste roda com null_store; aqui o cache é de verdade, para provar que apagar um MIC e
+  # receber arquivo novo derrubam o selo guardado.
+  test "o selo guardado cai quando um MIC é apagado e quando chega arquivo" do
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    travel_to(Time.zone.local(2026, 8, 11, 12)) do
+      import_synthetic_workbook(stores: [ gama_store ], filename: "BIN_GAMA_20260811.xlsx")
+    end
+    travel_to(Time.zone.local(2026, 8, 25, 12)) do
+      import_synthetic_workbook(stores: BinWorkbook.default_stores, filename: "BIN_TESTE_20260825.xlsx")
+      assert_equal [ "MIC GAMA" ], FileFreshness.new(organization: default_organization).entries.sole.stale_sub_channels
+    end
+    # A chave sai do maior updated_at: com o relógio congelado no mesmo instante do import, o
+    # apagamento não o moveria — na vida real o relógio anda.
+    travel_to(Time.zone.local(2026, 8, 25, 15)) do
+      gama = SubChannel.active.find_by!(name: "MIC GAMA")
+      Operations::SoftDelete.delete_sub_channel(sub_channel: gama, actor: admin_user, confirmation: gama.name)
+      assert_empty FileFreshness.new(organization: default_organization).entries.sole.stale_sub_channels
+    end
+    travel_to(Time.zone.local(2026, 8, 27, 12)) do
+      assert_equal 2, FileFreshness.new(organization: default_organization).entries.sole.received_days,
+        "a virada do dia não depende do cache"
+      stores = BinWorkbook.default_stores.map { |store| store.dup.tap { |copy| copy.current_days = { 1 => 50 } } }
+      import_synthetic_workbook(stores:, filename: "BIN_TESTE_20260827.xlsx")
+      assert_equal 0, FileFreshness.new(organization: default_organization).entries.sole.received_days
+    end
+  ensure
+    Rails.cache = original
+  end
+
   test "Master inteiro parado não lista cada MIC" do
     travel_to(Time.zone.local(2026, 8, 11, 12)) { import_synthetic_workbook }
     travel_to(Time.zone.local(2026, 8, 30, 12)) do
