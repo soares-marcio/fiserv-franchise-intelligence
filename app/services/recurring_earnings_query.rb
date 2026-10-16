@@ -57,31 +57,40 @@ class RecurringEarningsQuery
   # trocar de subcanal, cada mês fica com o dono que tinha na ocasião.
   def monthly_rows
     sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
-      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""} map_batches AS (
-        SELECT ib.channel_id, ib.current_period, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND EXISTS (SELECT 1 FROM map_snapshots m WHERE m.import_batch_id = ib.id)
-        GROUP BY ib.channel_id, ib.current_period
-      ), fallback_batches AS (
-        SELECT channel_id, MIN(import_batch_id) AS import_batch_id
-        FROM map_batches GROUP BY channel_id
-      ), period_batches AS (
-        SELECT periods.channel_id, periods.period,
-          COALESCE(closed.import_batch_id, own.import_batch_id, fallback.import_batch_id)
-            AS import_batch_id,
+      WITH #{@scope.partial? ? @scope.establishments_cte + "," : ""}
+      #{AuditViews.current_snapshots_sql(table: "map_snapshots", by_period: true,
+        name: "current_period_snapshots").strip},
+      map_periods AS (
+        SELECT map.id, map.channel_id, map.sub_channel_id, map.establishment_id,
+          current.current_period
+        FROM current_period_snapshots current
+        JOIN map_snapshots map ON map.id = current.id
+      ), sub_channel_periods AS (
+        SELECT DISTINCT channel_id, sub_channel_id, current_period FROM map_periods
+      ), fallback_periods AS (
+        SELECT channel_id, sub_channel_id, MIN(current_period) AS current_period
+        FROM sub_channel_periods GROUP BY channel_id, sub_channel_id
+      ), period_sources AS (
+        -- A âncora é escolhida por MIC: com o Master em mais de um arquivo, cada MIC tem os
+        -- próprios lotes, e o arquivo de P + 1 de um MIC não diz nada sobre o outro.
+        SELECT periods.channel_id, fallback.sub_channel_id, periods.period,
+          COALESCE(closed.current_period, own.current_period, fallback.current_period)
+            AS source_period,
           CASE
-            WHEN closed.import_batch_id IS NOT NULL THEN 'closed'
-            WHEN own.import_batch_id IS NOT NULL THEN 'provisional'
+            WHEN closed.current_period IS NOT NULL THEN 'closed'
+            WHEN own.current_period IS NOT NULL THEN 'provisional'
             ELSE 'fallback'
           END AS mdr_source
         FROM (SELECT DISTINCT channel_id, period FROM monthly_volumes_consolidated) periods
-        JOIN fallback_batches fallback ON fallback.channel_id = periods.channel_id
-        LEFT JOIN map_batches closed
+        JOIN fallback_periods fallback ON fallback.channel_id = periods.channel_id
+        LEFT JOIN sub_channel_periods closed
           ON closed.channel_id = periods.channel_id
+          AND closed.sub_channel_id = fallback.sub_channel_id
           AND closed.current_period = (periods.period + INTERVAL '1 month')::date
-        LEFT JOIN map_batches own
-          ON own.channel_id = periods.channel_id AND own.current_period = periods.period
+        LEFT JOIN sub_channel_periods own
+          ON own.channel_id = periods.channel_id
+          AND own.sub_channel_id = fallback.sub_channel_id
+          AND own.current_period = periods.period
       ), volumes AS (
         SELECT v.channel_id, v.establishment_id, v.period,
           COALESCE(SUM(v.amount) FILTER (WHERE v.metric = 'debito'), 0) AS debit,
@@ -91,7 +100,7 @@ class RecurringEarningsQuery
           AND v.metric IN ('debito', 'credito')
         GROUP BY v.channel_id, v.establishment_id, v.period
       )
-      SELECT map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_source,
+      SELECT map.sub_channel_id, vol.channel_id, vol.period, source.mdr_source,
         SUM(vol.debit) AS debit, SUM(vol.credit) AS credit,
         -- "Net MDR da carteira (sem Flex)" é o cabeçalho da tabela de recorrência do Anexo C.
         -- A leitura adotada: fora da média os ECs da modalidade Flex, e não "sem a parcela
@@ -104,12 +113,15 @@ class RecurringEarningsQuery
             FILTER (WHERE map.net_mdr IS NOT NULL AND BTRIM(map.financial_solutions) IS DISTINCT FROM 'Flex'), 0)
           AS weighted_net_mdr
       FROM volumes vol
-      JOIN period_batches batch
-        ON batch.channel_id = vol.channel_id AND batch.period = vol.period
-      JOIN map_snapshots map
-        ON map.import_batch_id = batch.import_batch_id
-        AND map.establishment_id = vol.establishment_id
-      GROUP BY map.sub_channel_id, vol.channel_id, vol.period, batch.mdr_source
+      JOIN period_sources source
+        ON source.channel_id = vol.channel_id AND source.period = vol.period
+      JOIN map_periods current
+        ON current.channel_id = vol.channel_id
+        AND current.sub_channel_id = source.sub_channel_id
+        AND current.current_period = source.source_period
+        AND current.establishment_id = vol.establishment_id
+      JOIN map_snapshots map ON map.id = current.id
+      GROUP BY map.sub_channel_id, vol.channel_id, vol.period, source.mdr_source
       ORDER BY vol.period
     SQL
     ApplicationRecord.connection.exec_query(sql).to_a

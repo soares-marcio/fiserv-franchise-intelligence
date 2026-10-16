@@ -64,10 +64,7 @@ class ReportScope
   end
 
   def contract_statuses(sub_channel_id:)
-    import_batch_id = latest_validated_batch_id(sub_channel_id)
-    return [] unless import_batch_id
-
-    RevenueSnapshot.where(import_batch_id:, sub_channel_id:).where.not(contract_status: [ nil, "" ])
+    current_revenue_snapshots(sub_channel_id).where.not(contract_status: [ nil, "" ])
       .distinct.order(:contract_status).pluck(:contract_status)
   end
 
@@ -88,8 +85,7 @@ class ReportScope
   CLIENT_LEGAL_NAME_SQL = "mode() WITHIN GROUP (ORDER BY legal_name)"
 
   def client_in_sub_channel(company_id:, sub_channel_id:)
-    snapshots = RevenueSnapshot
-      .where(import_batch_id: latest_validated_batch_id(sub_channel_id), sub_channel_id:)
+    snapshots = current_revenue_snapshots(sub_channel_id)
       .joins(:establishment).where(establishments: { company_id: })
     trade_name, legal_name =
       snapshots.pick(Arel.sql(CLIENT_TRADE_NAME_SQL), Arel.sql(CLIENT_LEGAL_NAME_SQL))
@@ -290,14 +286,15 @@ class ReportScope
 
   private
 
-  # EXISTS para em um snapshot por lote; o JOIN percorria todos os snapshots de todos os lotes.
-  def latest_validated_batch_id(sub_channel_id)
+  # As fotos vigentes do MIC, pela regra da carteira (AuditViews.current_snapshots_sql). O
+  # canal entra no predicado só para a janela não percorrer os lotes dos outros Masters.
+  def current_revenue_snapshots(sub_channel_id)
     channel_id = SubChannel.find(sub_channel_id).channel_id
-    return nil unless @scope.channel_ids.include?(channel_id)
+    return RevenueSnapshot.none unless @scope.channel_ids.include?(channel_id)
 
-    ImportBatch.where(channel_id:, status: "validated")
-      .where(RevenueSnapshot.where("revenue_snapshots.import_batch_id = import_batches.id").arel.exists)
-      .maximum(:id)
+    current = AuditViews.current_snapshots_sql(channel_predicate: "ib.channel_id = #{channel_id.to_i}")
+    RevenueSnapshot.where(sub_channel_id:)
+      .where("revenue_snapshots.id IN (WITH #{current.strip} SELECT id FROM current_snapshots)")
   end
 
   def calendar_rows(sql, period:, covered_days:)

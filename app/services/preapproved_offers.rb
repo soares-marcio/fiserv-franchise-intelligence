@@ -57,26 +57,18 @@ class PreapprovedOffers
     ]
   end
 
-  # O lote é o mais recente validado que trouxe Mapa — não o mais recente qualquer: um lote
-  # só de faturamento zeraria a listagem. Mesmo critério de audit_accreditation_earnings.
-  def latest_map_batches_sql
-    <<~SQL
-      latest_map_batches AS (
-        SELECT ib.channel_id, MAX(ib.id) AS import_batch_id
-        FROM import_batches ib
-        WHERE ib.status = 'validated'
-          AND EXISTS (SELECT 1 FROM map_snapshots m WHERE m.import_batch_id = ib.id)
-        GROUP BY ib.channel_id
-      )
-    SQL
+  # A carteira vigente pelo Mapa — não pelo faturamento: um lote só de faturamento zeraria a
+  # listagem. Mesma regra das views (AuditViews.current_snapshots_sql).
+  def current_map_snapshots_sql
+    AuditViews.current_snapshots_sql(table: "map_snapshots", name: "current_map_snapshots")
   end
 
   def sub_channels_sql
     <<~SQL
-      WITH #{latest_map_batches_sql.strip}
+      WITH #{current_map_snapshots_sql.strip}
       SELECT DISTINCT sub_channel.uuid, sub_channel.name
       FROM map_snapshots snapshot
-      JOIN latest_map_batches latest ON latest.import_batch_id = snapshot.import_batch_id
+      JOIN current_map_snapshots current ON current.id = snapshot.id
       JOIN sub_channels sub_channel ON sub_channel.id = snapshot.sub_channel_id
       WHERE snapshot.preapproved_volume IS NOT NULL
         AND #{literal_predicate(sub_channel_predicate("snapshot"))}
@@ -86,7 +78,7 @@ class PreapprovedOffers
 
   def sql
     <<~SQL
-      WITH #{latest_map_batches_sql.strip}
+      WITH #{current_map_snapshots_sql.strip}
       SELECT company.cnpj, company.uuid AS company_uuid,
         note.id AS note_id, note.updated_at AS note_updated_at,
         mode() WITHIN GROUP (ORDER BY snapshot.legal_name) AS legal_name,
@@ -101,7 +93,7 @@ class PreapprovedOffers
         COUNT(DISTINCT snapshot.legal_name) > 1 AS diverging_name,
         #{diverging_expression} AS diverging
       FROM map_snapshots snapshot
-      JOIN latest_map_batches latest ON latest.import_batch_id = snapshot.import_batch_id
+      JOIN current_map_snapshots current ON current.id = snapshot.id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
       -- O MIC não é coluna da tabela: é filtro, e o nome aparece sem destaque dentro da

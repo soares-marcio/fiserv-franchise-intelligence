@@ -402,7 +402,7 @@ class EstablishmentListingQuery
   # carrega filtro nenhum da tela — quem filtra é o HAVING, pelo motivo explicado lá.
   def ec_listing_sql
     <<~SQL
-      WITH #{AuditViews.latest_batches_sql(channel_predicate: channel_predicate("ib")).strip}
+      WITH #{AuditViews.current_snapshots_sql(channel_predicate: channel_predicate("ib")).strip}
       SELECT snapshot.channel_id, snapshot.sub_channel_id, establishment.id AS establishment_id,
         establishment.uuid AS establishment_uuid,
         establishment.ec, company.cnpj, company.uuid AS company_uuid,
@@ -423,7 +423,7 @@ class EstablishmentListingQuery
           day_filter: "revenue.day BETWEEN :from_day AND :to_day"
         ).indent(4).strip}
       FROM revenue_snapshots snapshot
-      JOIN latest_batches latest ON latest.import_batch_id = snapshot.import_batch_id
+      JOIN current_snapshots current ON current.id = snapshot.id
       JOIN establishments establishment ON establishment.id = snapshot.establishment_id
       JOIN companies company ON company.id = establishment.company_id
       -- A anotação do cliente se liga pelo CNPJ, não por FK: id e uuid de companies são
