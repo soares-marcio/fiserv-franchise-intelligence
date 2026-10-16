@@ -1,8 +1,8 @@
 require "test_helper"
 
-# A quarentena. O portal enxerga **um lote por Master** — o de maior id entre os validados —,
-# então um arquivo parcial não acrescenta: ele vira a foto oficial, e o que não estiver nele
-# some dos relatórios. Estes testes fixam que isso não acontece sem alguém olhar antes.
+# A quarentena. O arquivo vira a foto oficial dos MICs que traz, e o EC desses MICs que não
+# estiver nele some dos relatórios. Estes testes fixam que isso não acontece sem alguém olhar
+# antes — e que o arquivo de outros MICs do mesmo Master não é tratado como perda.
 class BatchReviewTest < ActiveSupport::TestCase
   setup do
     @first_item = import_synthetic_workbook
@@ -19,6 +19,29 @@ class BatchReviewTest < ActiveSupport::TestCase
     assert_includes batch.review_reasons, "removes_establishments"
     # Enquanto pendente, nenhuma tela o enxerga: o lote vigente continua sendo o primeiro.
     assert_equal @first_item.id, ImportBatch.validated.where(channel: @channel).maximum(:id)
+  end
+
+  test "arquivo com outros MICs do mesmo Master consolida direto e não tira nada dos demais" do
+    gama = BinWorkbook::Store.new(
+      ec: "30000003", cnpj: "55666777000188", sub_channel_name: "MIC GAMA",
+      legal_name: "GAMA COMERCIO LTDA", trade_name: "GAMA LOJA", contract_status: "Active",
+      previous_days: { 1 => 300 }, current_days: { 1 => 120 }, best_conversation: nil, proposal: false
+    )
+
+    batch = import_as(nil, stores: [ gama ], filename: "BIN_GAMA_20260812.xlsx")
+    review = BatchReview.new(batch)
+
+    assert batch.validated?, "o Master chegar em dois arquivos não é arquivo pela metade"
+    assert_empty review.leaving
+    assert_equal [ "MIC ALFA", "MIC BETA" ], review.untouched_sub_channels.keys
+  end
+
+  test "arquivo que traz um MIC pela metade para em revisão só pelo que falta nele" do
+    batch = import_as(nil, stores: BinWorkbook.default_stores.first(1), filename: "BIN_METADE_20260812.xlsx")
+
+    assert batch.pending_review?
+    assert_equal [ "90000001" ], BatchReview.new(batch).leaving.keys,
+      "o MIC BETA não está no arquivo e continua com o arquivo dele"
   end
 
   test "o diff diz exatamente o que sairia, o que entra e o que muda de MIC" do

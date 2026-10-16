@@ -372,4 +372,18 @@ class ImportBatchesControllerTest < ActionDispatch::IntegrationTest
 
     assert_select ".failure-report", count: 0
   end
+
+  # O Master chega em mais de um arquivo: a revisão diz quais MICs ficam com o arquivo deles,
+  # para quem aprova não achar que eles vão sumir.
+  test "a revisão lista os MICs do Master que o arquivo não traz" do
+    import_synthetic_workbook
+    pending = import_synthetic_workbook(stores: BinWorkbook.default_stores.first(1),
+      filename: "BIN_METADE_20260812.xlsx")
+    assert pending.pending_review?
+
+    get review_import_batch_path(pending)
+
+    assert_response :success
+    assert_match(/Fora deste arquivo, e sem mudança:\s+MIC BETA \(arquivo de \d{2}\/\d{2}\)/, response.body)
+  end
 end

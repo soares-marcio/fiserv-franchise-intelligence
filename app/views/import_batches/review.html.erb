@@ -6,8 +6,8 @@
     <h1 class="page-title"><%= @import_batch.source_filename %></h1>
     <p class="page-description">
       Este arquivo <strong>ainda não vale</strong>: nenhuma tela do portal o enxerga. Aprovar
-      faz dele a foto oficial do Master — o portal mostra um lote por Master, e o que não
-      estiver neste arquivo sai dos relatórios.
+      faz dele a foto oficial dos MICs que ele traz — o EC desses MICs que não estiver neste
+      arquivo sai dos relatórios. Os outros MICs do Master não mudam.
     </p>
 
     <dl class="mt-6 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
@@ -118,6 +118,14 @@
           <% end %>
         </tbody>
       </table>
+
+      <% if @review.untouched_sub_channels.any? %>
+        <%# O Master chega em mais de um arquivo: os MICs que este não traz seguem com o deles. %>
+        <p class="metric-hint mt-4">
+          Fora deste arquivo, e sem mudança:
+          <%= @review.untouched_sub_channels.map { |name, received_at| "#{name} (arquivo de #{received_at.strftime('%d/%m')})" }.to_sentence %>.
+        </p>
+      <% end %>
 
       <% if @review.split_cnpjs.any? %>
         <p class="metric-hint mt-4">
