@@ -26,6 +26,7 @@ module AuditEventsHelper
     "organization_admin.created" => "Criou administrador de organização",
     "channel.deleted" => "Apagou Master",
     "channel.restored" => "Restaurou Master",
+    "channel.merged" => "Juntou um Master em outro como MIC",
     "sub_channel.deleted" => "Apagou MIC",
     "sub_channel.restored" => "Restaurou MIC",
     "user.created" => "Convidou alguém",
