@@ -427,7 +427,10 @@ anomalias e concessões mudam de dono; a origem fica apagada e a trilha antiga a
 Recusa lote pendente ou em revisão. Rode **depois** do deploy da regra por MIC: com a regra
 antiga, o lote mais novo do destino esconderia os MICs que vieram da origem. Depois de juntar,
 o REPORT_ID da origem fica sem Master ativo — se a Fiserv voltar a mandar um arquivo com ele,
-nasce um Master novo e o import o recusa por "EC de outro canal", que é a falha segura.
+nasce um Master novo e o import o recusa por "EC de outro canal", que é a falha segura. Foi o
+que aconteceu em 03/11/2026 (lote #46): o arquivo de Águas Lindas voltou com o 719 e o CANAL
+de Ramos e Silva. A mensagem mostra o REPORT_ID do arquivo e o do Master dono dos ECs; a
+saída é corrigir a coluna REPORT_ID da planilha para o do Master.
 
 ### Histórico
 
