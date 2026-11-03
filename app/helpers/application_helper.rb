@@ -303,6 +303,17 @@ module ApplicationHelper
     channel.name == BinImport::ChannelResolver::FALLBACK_NAME ? "SEM MASTER" : channel.name
   end
 
+  # Os cortes dos MICs agrupados por dia, do mais adiantado ao mais atrasado: "dia 26: 10
+  # MICs · dia 12: MIC AGUAS LINDAS". Com muitos MICs no mesmo dia, o nome de cada um
+  # esconderia o que interessa, que é quem ficou atrás.
+  def sub_channel_cutoffs_text(cutoffs)
+    cutoffs.group_by(&:last).map do |day, rows|
+      names = rows.map(&:first)
+      who = names.size <= 3 ? names.to_sentence : "#{names.size} MICs"
+      "dia #{day}: #{who}"
+    end.join(" · ")
+  end
+
   # Seta do calendário: link quando existe competência para onde ir, botão apagado quando
   # não existe. Some-lo faria o seletor pular de lugar ao chegar na ponta da série.
   def calendar_step(period, icon_name, label)

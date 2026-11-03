@@ -352,7 +352,11 @@ class ReportsController < ApplicationController
     # seria oferecer um caminho sem volta, e revelaria que ele existe.
     @channels = policy_scope(Channel).order(:name)
     @selected_channel = @channels.find_param!(params[:channel_id]) if params[:channel_id].present?
-    @scope = ReportScope.new(scope: Current.access_scope.narrow(channel: @selected_channel))
+    # O corte vem da URL, para o link compartilhado abrir no mesmo corte; qualquer valor que
+    # não seja "maior" cai no menor, que é o padrão.
+    @cutoff_param = ("maior" if params[:corte] == "maior")
+    @scope = ReportScope.new(scope: Current.access_scope.narrow(channel: @selected_channel),
+      cutoff_mode: @cutoff_param ? :per_sub_channel : :min)
     @cutoff_day = @scope.cutoff_day
   end
 

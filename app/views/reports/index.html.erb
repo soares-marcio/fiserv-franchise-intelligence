@@ -5,16 +5,44 @@
     <p class="eyebrow">Visão comercial</p>
     <h1 class="page-title">Auditoria de faturamento</h1>
     <% if @cutoff_day %>
+      <%# Cada MIC até o seu só faz diferença quando os cortes divergem; sem divergência o
+          seletor some e a tela fala do corte único, qualquer que seja o da URL. %>
+      <% per_sub_channel = @scope.per_sub_channel_cutoff? && @scope.mixed_cutoffs? %>
+      <% day_hint = per_sub_channel ? "até o dia de cada MIC (o maior é #{@scope.max_cutoff_day})" : "até dia #{@cutoff_day}" %>
       <p class="page-description">
-        O mês anterior aparece completo. A variação compara períodos equivalentes até o
-        <strong>dia <%= @cutoff_day %></strong>, último dia com movimento no mês atual.
-        <% if @scope.mixed_cutoffs? %>
+        O mês anterior aparece completo.
+        <% if per_sub_channel %>
+          A variação compara cada MIC com o mês anterior até o último dia dele, e o total soma
+          essas comparações.
+        <% else %>
+          A variação compara períodos equivalentes até o <strong>dia <%= @cutoff_day %></strong>,
+          último dia com movimento em todos os MICs.
+        <% end %>
+        <%# Com Masters em dias diferentes, o nome do Master é o que explica o corte; os MICs
+            de cada um aparecem ao escolhê-lo no filtro. %>
+        <% if @scope.mixed_channel_cutoffs? %>
           Os Masters estão em dias diferentes
-          (<%= @scope.cutoffs_by_channel.map { |name, day| "#{name}: dia #{day}" }.join(" · ") %>):
-          com todos selecionados vale o menor, para comparar períodos da mesma duração.
+          (<%= @scope.cutoffs_by_channel.map { |name, day| "#{name}: dia #{day}" }.join(" · ") %>).
           Escolha um Master no filtro para ver o corte dele.
+        <% elsif @scope.mixed_cutoffs? %>
+          Os MICs estão em dias diferentes (<%= sub_channel_cutoffs_text(@scope.sub_channel_cutoffs) %>).
         <% end %>
       </p>
+      <% if @scope.mixed_cutoffs? %>
+        <div class="relative z-10 mt-3 flex flex-wrap items-center gap-2">
+          <span class="section-label">Corte</span>
+          <div class="join" role="group" aria-label="Dia de corte">
+            <% [ [ nil, "Dia #{@cutoff_day} · mesmo dia para todos" ],
+                 [ "maior", "Dia #{@scope.max_cutoff_day} · cada MIC até o seu" ] ].each do |value, label| %>
+              <%= link_to label,
+                reports_path({ channel_id: @selected_channel&.uuid, corte: value,
+                  sort: params[:sort], direction: params[:direction] }.compact),
+                class: "join-item btn btn-sm #{value == @cutoff_param ? "btn-primary" : "btn-outline"}",
+                aria: { current: ("true" if value == @cutoff_param) } %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     <% else %>
       <p class="page-description">Importe um arquivo validado para começar a acompanhar a carteira.</p>
     <% end %>
@@ -29,12 +57,12 @@
         <article class="metric-card" data-tone="gold">
           <p class="metric-label">Base comparável</p>
           <p class="metric-value"><%= brl_metric(@totals[:previous_revenue]) %></p>
-          <p class="metric-hint">Mês anterior até dia <%= @cutoff_day %></p>
+          <p class="metric-hint">Mês anterior <%= day_hint %></p>
         </article>
         <article class="metric-card" data-tone="green">
           <p class="metric-label">Mês atual</p>
           <p class="metric-value"><%= brl_metric(@totals[:current_revenue]) %></p>
-          <p class="metric-hint">Movimento até dia <%= @cutoff_day %></p>
+          <p class="metric-hint">Movimento <%= day_hint %></p>
         </article>
         <article class="metric-card"
           data-tone="<%= variation_metric_tone(@totals[:previous_revenue], @totals[:current_revenue]) %>">
@@ -58,6 +86,7 @@
             @selected_channel&.uuid),
           class: "filter-pill__native" %>
       </div>
+      <%= hidden_field_tag :corte, @cutoff_param if @cutoff_param %>
       <%= button_tag icon_label("funnel", "Filtrar"), type: "submit",
         class: "btn btn-primary filter-pill__submit" %>
       <% if @selected_channel %>
@@ -76,7 +105,7 @@
         <div class="table-toolbar__meta">
           <span class="badge badge-ghost"><%= pluralize(@reports.size, "MIC", "MICs") %></span>
           <%= render "shared/sort_status", sort: @order,
-            path: ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
+            path: ->(order) { reports_path(channel_id: @selected_channel&.uuid, corte: @cutoff_param, **order.except(:page)) } %>
         </div>
       <% end %>
     </div>
@@ -91,10 +120,10 @@
           <tr>
             <th scope="col">MIC</th>
             <%# As três colunas de valor ordenam a listagem, como na tela do subcanal. %>
-            <% sort_path = ->(order) { reports_path(channel_id: @selected_channel&.uuid, **order.except(:page)) } %>
+            <% sort_path = ->(order) { reports_path(channel_id: @selected_channel&.uuid, corte: @cutoff_param, **order.except(:page)) } %>
             <% ReportScope::SUB_CHANNEL_SORT_COLUMNS.each do |column, label| %>
               <%= render "shared/sortable_header", sort: @order, column:, label:, path: sort_path,
-                hint: (column == "previous_full_revenue" ? "competência fechada" : ("até dia #{@cutoff_day}" if @cutoff_day)),
+                hint: (column == "previous_full_revenue" ? "competência fechada" : (day_hint if @cutoff_day)),
                 extra_class: ("variation-col" if column == "variation") %>
             <% end %>
           </tr>
@@ -109,6 +138,9 @@
                 <%= link_to report["sub_channel_name"],
                   sub_channel_report_path(report["uuid"], { channel_id: @selected_channel&.uuid }.compact),
                   class: "subchannel-link font-semibold", data: { turbo: false } %>
+                <% if per_sub_channel && report["max_known_day"].to_i < @scope.max_cutoff_day %>
+                  <span class="block text-xs font-normal opacity-70">até dia <%= report["max_known_day"].to_i %></span>
+                <% end %>
               </td>
               <td class="text-right tabular-nums"><%= brl(previous_full) %></td>
               <td class="text-right tabular-nums"><%= brl(previous) %></td>

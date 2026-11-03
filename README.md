@@ -410,7 +410,12 @@ Agora ele fica, com o último arquivo dele, até chegar arquivo novo ou alguém 
   cobertura da tela de importação diz qual MIC está "sem arquivo novo";
 - o **corte** também é por MIC: cada MIC é comparado até o dia do arquivo dele, e o total do
   Master até o menor corte entre os MICs do recorte. Um MIC parado na competência aberta puxa
-  esse corte para baixo — nunca superestima a cobertura.
+  esse corte para baixo — nunca superestima a cobertura. Quando os MICs estão em dias
+  diferentes, a Auditoria de faturamento diz quem está atrás e oferece um seletor (desde
+  03/11/2026): o padrão é o menor dia para todos; "cada MIC até o seu" (`?corte=maior`)
+  compara cada MIC até o próprio dia e soma, mostrando os dias que o arquivo adiantado já
+  trouxe sem fazer o MIC atrasado parecer em queda. Cortar todos no maior dia faria isso, e
+  por isso não é opção.
 
 **Juntar um Master em outro.** A Região Goiás (REPORT_ID 719) foi cadastrada como Master, mas
 era um MIC de Ramos e Silva (1478). Quando a Fiserv passou a mandá-la sob o 1478, o import a
@@ -427,7 +432,10 @@ anomalias e concessões mudam de dono; a origem fica apagada e a trilha antiga a
 Recusa lote pendente ou em revisão. Rode **depois** do deploy da regra por MIC: com a regra
 antiga, o lote mais novo do destino esconderia os MICs que vieram da origem. Depois de juntar,
 o REPORT_ID da origem fica sem Master ativo — se a Fiserv voltar a mandar um arquivo com ele,
-nasce um Master novo e o import o recusa por "EC de outro canal", que é a falha segura.
+nasce um Master novo e o import o recusa por "EC de outro canal", que é a falha segura. Foi o
+que aconteceu em 03/11/2026 (lote #46): o arquivo de Águas Lindas voltou com o 719 e o CANAL
+de Ramos e Silva. A mensagem mostra o REPORT_ID do arquivo e o do Master dono dos ECs; a
+saída é corrigir a coluna REPORT_ID da planilha para o do Master.
 
 ### Histórico
 
