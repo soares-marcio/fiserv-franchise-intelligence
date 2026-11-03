@@ -40,11 +40,21 @@ class ReportScope
   # Antes existia um CHANNEL_PREDICATE em que `nil` significava "todos os canais", e o nil
   # vinha de params. Agora o recorte vem do ator: não há valor que signifique "tudo" por
   # omissão, e escopo vazio enxerga nada — não a carteira inteira.
-  def initialize(scope:)
+  # Dois jeitos de cortar quando os MICs estão em dias diferentes. :min (padrão) compara
+  # todos até o menor dia — o total só leva dias que todos os arquivos trouxeram.
+  # :per_sub_channel compara cada MIC até o próprio dia e soma: mostra tudo que já chegou
+  # sem inventar queda no MIC atrasado, que no corte único maior apareceria sem os dias que
+  # o arquivo dele não trouxe.
+  CUTOFF_MODES = %i[min per_sub_channel].freeze
+
+  def initialize(scope:, cutoff_mode: :min)
     @scope = scope
+    @cutoff_mode = CUTOFF_MODES.include?(cutoff_mode) ? cutoff_mode : :min
   end
 
-  attr_reader :scope
+  attr_reader :scope, :cutoff_mode
+
+  def per_sub_channel_cutoff? = cutoff_mode == :per_sub_channel
 
   # As agregações do dashboard só mudam numa consolidação ou num ajuste de corte, e os dois
   # tocam period_coverages: o carimbo dela na chave invalida o cache sozinho, como no
@@ -260,7 +270,20 @@ class ReportScope
     coverages.map { |row| row["max_known_day"].to_i }.min
   end
 
+  # O maior corte do recorte: é o dia que a tela anuncia quando cada MIC vai até o seu.
+  def max_cutoff_day
+    [ *coverages.map { |row| row["max_known_day"].to_i }, *sub_channel_cutoffs.map(&:last) ].max
+  end
+
+  # Divergência entre Masters ou entre MICs do mesmo Master. Olhar só a cobertura do Master
+  # escondia o segundo caso: o 1478 mostrava "dia 12" sem dizer que era Águas Lindas quem
+  # estava atrás e os outros MICs já iam até o dia 26 (produção, 03/11/2026).
   def mixed_cutoffs?
+    cutoff_day.present? && max_cutoff_day != cutoff_day
+  end
+
+  # Só os Masters divergem — o corte de cada um já é o do MIC mais atrasado dele.
+  def mixed_channel_cutoffs?
     coverages.map { |row| row["max_known_day"].to_i }.uniq.size > 1
   end
 
@@ -272,11 +295,31 @@ class ReportScope
       .sort_by { |name, day| [ -day, name.to_s ] }
   end
 
+  # O corte de cada MIC do recorte na competência aberta, do mais adiantado para o mais
+  # atrasado: [nome, dia]. É a regra da view (AuditViews::SUB_CHANNEL_CUTOFF) — o MIC nunca
+  # passa do corte do Master.
+  def sub_channel_cutoffs
+    @sub_channel_cutoffs ||= begin
+      sql = ApplicationRecord.sanitize_sql_array([ <<~SQL, scope_binds ])
+        WITH #{AuditViews.current_snapshots_sql(channel_predicate: channel_predicate("ib")).strip},
+        #{AuditViews.sub_channel_cover_sql.strip}
+        SELECT sub_channel.name, LEAST(cover.max_known_day, sub_channel_cover.max_known_day) AS max_known_day
+        FROM sub_channel_cover
+        JOIN period_coverages cover
+          ON cover.channel_id = sub_channel_cover.channel_id AND cover.period = sub_channel_cover.period
+        JOIN sub_channels sub_channel ON sub_channel.id = sub_channel_cover.sub_channel_id
+        WHERE NOT cover.closed AND #{sub_channel_predicate("sub_channel_cover")}
+      SQL
+      ApplicationRecord.connection.exec_query(sql).rows
+        .map { |name, day| [ name, day.to_i ] }.sort_by { |name, day| [ -day, name ] }
+    end
+  end
+
   def totals
     cutoff = cutoff_day
     return empty_totals unless cutoff
 
-    cached("totals") { aligned_totals(cutoff) }
+    cached("totals") { per_sub_channel_cutoff? ? sub_channel_totals(cutoff) : aligned_totals(cutoff) }
   end
 
   private
@@ -297,7 +340,19 @@ class ReportScope
   end
 
   def cached(name, &block)
-    Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @scope.cache_key, cutoff_day ], &block)
+    Rails.cache.fetch([ "dashboard", name, PeriodCoverage.consolidation_stamp, @scope.cache_key, cutoff_day, cutoff_mode ], &block)
+  end
+
+  # O mês anterior cheio não depende de corte; os dois períodos comparáveis são a soma das
+  # linhas por MIC, cada uma até o próprio dia. No corte único as duas contas fecham no mesmo
+  # número (medido na homologação em 02/11/2026 e travado no teste de alinhamento), então a
+  # soma não troca a base do total.
+  def sub_channel_totals(cutoff)
+    rows = revenue_by_sub_channel
+    aligned_totals(cutoff).merge(
+      previous_revenue: rows.sum { |row| row["previous_revenue"].to_d },
+      current_revenue: rows.sum { |row| row["current_revenue"].to_d }
+    )
   end
 
   def aligned_totals(cutoff)
@@ -340,8 +395,9 @@ class ReportScope
     cutoff = cutoff_day
     return [] unless cutoff
 
+    sql_cutoff = per_sub_channel_cutoff? ? AuditViews::SUB_CHANNEL_CUTOFF : ":cutoff"
     sql = ApplicationRecord.sanitize_sql_array([
-      "#{AuditViews.revenue_by_sub_channel_sql(cutoff: ':cutoff', channel_predicate:,
+      "#{AuditViews.revenue_by_sub_channel_sql(cutoff: sql_cutoff, channel_predicate:,
         snapshot_predicate: sub_channel_predicate("snapshot"))} " \
         "ORDER BY sub_channel.name",
       scope_binds.merge(cutoff: cutoff.to_i)

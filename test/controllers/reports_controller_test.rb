@@ -864,6 +864,45 @@ class ReportsControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", text: /Mês anterior comparável/
   end
 
+  # Dois arquivos do mesmo Master em dias diferentes: a tela abre no menor corte, diz quem
+  # está atrás e oferece o corte de cada MIC; a escolha segue nos links de ordenação.
+  test "MICs em dias diferentes ganham o seletor de corte, que abre no menor" do
+    import_synthetic_workbook(stores: BinWorkbook.default_stores.first(2), filename: "BIN_ALFA_20260811.xlsx")
+    gama = BinWorkbook::Store.new(
+      ec: "30000003", cnpj: "55666777000188", sub_channel_name: "MIC GAMA",
+      legal_name: "GAMA COMERCIO LTDA", trade_name: "GAMA LOJA", contract_status: "Active",
+      previous_days: { 1 => 300 }, current_days: { 1 => 120, 13 => 50 }, best_conversation: nil, proposal: false
+    )
+    batch = import_synthetic_workbook(stores: [ gama ], filename: "BIN_GAMA_20260814.xlsx")
+    Operations::ReviewBatch.approve(batch:, reviewer: admin_user, note: "Arquivo de parte dos MICs") if batch.pending_review?
+    AuditViews.refresh!
+
+    get reports_path
+
+    assert_select ".page-description", text: /até o\s+dia 10/
+    assert_select ".page-description", text: /dia 13: MIC GAMA · dia 10: MIC ALFA/
+    assert_select "a[aria-current=true]", text: "Dia 10 · mesmo dia para todos"
+    assert_select "a[href=?]", reports_path(corte: "maior"), text: "Dia 13 · cada MIC até o seu"
+
+    get reports_path(corte: "maior", sort: "current_revenue", direction: "desc")
+
+    assert_select "a[aria-current=true]", text: "Dia 13 · cada MIC até o seu"
+    assert_select ".page-description", text: /cada MIC com o mês anterior até o último dia dele/
+    assert_select "td", text: /MIC ALFA\s+até dia 10/
+    assert_select "td", text: /MIC GAMA\s+até dia/, count: 0
+    assert_select "a[href*='corte=maior'][href*='sort=previous_revenue']"
+  end
+
+  test "sem divergência de corte a tela não oferece seletor" do
+    import_synthetic_workbook
+    AuditViews.refresh!
+
+    get reports_path(corte: "maior")
+
+    assert_select "a", text: /cada MIC até o seu/, count: 0
+    assert_select ".page-description", text: /até o\s+dia \d+/
+  end
+
   # A auditoria de faturamento não exporta (decisão do usuário, 10/09/2026): quem precisa de
   # arquivo desce ao MIC, onde a linha é o cliente. O endpoint saiu junto com os botões —
   # botão escondido com a rota de pé seria meia remoção.

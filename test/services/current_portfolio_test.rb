@@ -95,6 +95,52 @@ class CurrentPortfolioTest < ActiveSupport::TestCase
       "a cobertura guardada do Master continua sendo a maior conhecida"
   end
 
+  # O seletor de corte: com os MICs em dias diferentes dentro do mesmo Master, o menor corte
+  # esconde os dias que o arquivo adiantado já trouxe. "Cada MIC até o seu" mostra esses dias
+  # sem cortar o MIC atrasado num dia que ele não tem.
+  test "corte por MIC leva cada MIC até o próprio dia e o total soma as linhas" do
+    import_and_approve(stores: alfa_stores, filename: "BIN_ALFA_20260811.xlsx")
+    later_gama = store_like(gama_store, current_days: { 1 => 120, 13 => 50 })
+    import_and_approve(stores: [ later_gama ], filename: "BIN_GAMA_20260814.xlsx")
+    refresh_audit_views
+
+    single = ReportScope.new(scope: organization_scope)
+    per_mic = ReportScope.new(scope: organization_scope, cutoff_mode: :per_sub_channel)
+    by_name = ->(report) { report.revenue_by_sub_channel.index_by { |row| row["sub_channel_name"] } }
+
+    assert single.mixed_cutoffs?, "o mesmo Master com MICs em dias diferentes é divergência"
+    assert_equal [ [ "MIC GAMA", 13 ], [ "MIC ALFA", 10 ] ], single.sub_channel_cutoffs
+    assert_equal [ 10, 13 ], [ single.cutoff_day, single.max_cutoff_day ]
+
+    assert_equal [ 10, 10 ], by_name.(single).values_at("MIC ALFA", "MIC GAMA").map { |row| row["max_known_day"].to_i }
+    assert_equal [ 10, 13 ], by_name.(per_mic).values_at("MIC ALFA", "MIC GAMA").map { |row| row["max_known_day"].to_i }
+    assert_equal 120, by_name.(single)["MIC GAMA"]["current_revenue"].to_d
+    assert_equal 170, by_name.(per_mic)["MIC GAMA"]["current_revenue"].to_d, "o dia 13 do GAMA entra"
+    assert_equal by_name.(single)["MIC ALFA"].except("max_known_day"), by_name.(per_mic)["MIC ALFA"].except("max_known_day"),
+      "o MIC atrasado fica igual nos dois cortes"
+
+    totals = per_mic.totals
+    rows = per_mic.revenue_by_sub_channel
+    assert_equal rows.sum { |row| row["current_revenue"].to_d }, totals[:current_revenue]
+    assert_equal rows.sum { |row| row["previous_revenue"].to_d }, totals[:previous_revenue]
+    assert_equal single.totals[:current_revenue] + 50, totals[:current_revenue]
+    assert_equal single.totals[:previous_full_revenue], totals[:previous_full_revenue]
+  end
+
+  test "sem divergência entre MICs não há corte a escolher" do
+    import_and_approve(stores: alfa_stores, filename: "BIN_ALFA_20260811.xlsx")
+    same_day_gama = store_like(gama_store, current_days: { 1 => 120, 10 => 50 })
+    import_and_approve(stores: [ same_day_gama ], filename: "BIN_GAMA_20260814.xlsx")
+    refresh_audit_views
+
+    single = ReportScope.new(scope: organization_scope)
+    per_mic = ReportScope.new(scope: organization_scope, cutoff_mode: :per_sub_channel)
+
+    assert_not single.mixed_cutoffs?
+    assert_equal single.totals, per_mic.totals
+    assert_equal :min, ReportScope.new(scope: organization_scope, cutoff_mode: :qualquer).cutoff_mode
+  end
+
   test "arquivo de outro MIC que corta antes não é anomalia de cobertura; o do mesmo MIC é" do
     later_gama = store_like(gama_store, current_days: { 1 => 120, 13 => 50 })
     import_and_approve(stores: [ later_gama ], filename: "BIN_GAMA_20260814.xlsx")
