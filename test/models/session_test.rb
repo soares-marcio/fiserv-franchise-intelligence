@@ -6,14 +6,15 @@ class SessionTest < ActiveSupport::TestCase
   end
 
   test "expira por inatividade e por tempo absoluto" do
-    active = @user.sessions.create!(last_active_at: Time.current)
-    stop = @user.sessions.create!(last_active_at: 3.hours.ago)
+    active = @user.sessions.create!(last_active_at: 11.hours.ago)
+    active.update_column(:created_at, 15.hours.ago)
+    stop = @user.sessions.create!(last_active_at: 13.hours.ago)
     old_one = @user.sessions.create!(last_active_at: Time.current)
-    old_one.update_column(:created_at, 13.hours.ago)
+    old_one.update_column(:created_at, 17.hours.ago)
 
-    assert_not active.expired?
-    assert stop.expired?, "duas horas sem uso derruba a sessão"
-    assert old_one.reload.expired?, "doze horas derrubam mesmo em uso contínuo"
+    assert_not active.reload.expired?, "onze horas parada e quinze de vida ainda valem"
+    assert stop.expired?, "doze horas sem uso derrubam a sessão"
+    assert old_one.reload.expired?, "dezesseis horas derrubam mesmo em uso contínuo"
     assert_equal [ stop.id, old_one.id ].sort, Session.expired.pluck(:id).sort
   end
 
