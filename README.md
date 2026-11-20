@@ -79,7 +79,7 @@ quando ela não está lá. `BIN_REFERENCE_FILE` sobrescreve o caminho.
 
 ## Requisitos
 
-- Ruby 4.0.6 (`.ruby-version`)
+- Ruby 4.0.10 (`.ruby-version`)
 - PostgreSQL 16 com as extensões que o `structure.sql` declara — `pg_trgm`, `pgcrypto`,
   `unaccent` e `vector` (a imagem `pgvector/pgvector:pg16` traz as quatro)
 
