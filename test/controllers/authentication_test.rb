@@ -143,7 +143,7 @@ class AuthenticationTest < ActionDispatch::IntegrationTest
 
   test "sessão parada expira e some do banco" do
     sign_in_as(@user)
-    Session.last.update_column(:last_active_at, 3.hours.ago)
+    Session.last.update_column(:last_active_at, 13.hours.ago)
 
     get root_path
 

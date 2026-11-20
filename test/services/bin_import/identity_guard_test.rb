@@ -32,7 +32,23 @@ class BinImport::IdentityGuardTest < ActiveSupport::TestCase
       BinImport::IdentityGuard.assert_existing!(other, sheets(row(@alfa.ec, "11.222.333/0001-81")))
     end
 
-    assert_match(/EC 30000001 já pertence a outro canal/, error.message)
+    assert_equal "O arquivo traz o REPORT_ID 999, mas o EC 30000001 já pertence ao Master " \
+      "\"#{@channel.name}\", de REPORT_ID #{@channel.external_id}. Um EC não muda de Master entre " \
+      "importações: confira a coluna REPORT_ID da planilha.", error.message
+  end
+
+  # O caso do lote #46: mesmo CANAL, REPORT_ID de um Master que não existe mais. A mensagem
+  # diz que o REPORT_ID não é de ninguém e quantos ECs do arquivo estão no outro Master.
+  test "REPORT_ID sem Master ativo aponta o Master dos ECs e quantos são" do
+    novo = Channel.new(organization: default_organization, external_id: "719", name: @channel.name)
+    beta = Establishment.where(channel: @channel).where.not(id: @alfa.id).first
+    rows = sheets(row(@alfa.ec, "11.222.333/0001-81"), row(beta.ec, beta.company.cnpj))
+
+    error = assert_raises(ArgumentError) { BinImport::IdentityGuard.assert_existing!(novo, rows) }
+
+    assert_match(/\AO arquivo traz o REPORT_ID 719, mas o EC 30000001 já pertence ao Master/, error.message)
+    assert_includes error.message, "de REPORT_ID #{@channel.external_id}, junto com outro EC deste arquivo."
+    assert_includes error.message, "Nenhum Master ativo usa o REPORT_ID 719."
   end
 
   test "EC desconhecido passa: é cadastro novo, não divergência" do

@@ -24,10 +24,25 @@ module BinImport
           "planilha, ou avise a Fiserv se a troca for real."
         end
         if establishment.channel_id != channel.id
-        raise ArgumentError, "O EC #{establishment.ec} já pertence a outro canal. " \
-          "Um EC não muda de carteira entre importações: confira o CANAL da planilha."
+        raise ArgumentError, other_channel_message(channel, establishment, known.values)
         end
       end
     end
+
+    # O CANAL pode trazer o mesmo nome e o REPORT_ID não (lote #46, 03/11/2026: o arquivo de
+    # Águas Lindas voltou com o 719 do Master juntado ao 1478). Quem envia precisa ver os
+    # dois REPORT_IDs lado a lado; "outro canal" sozinho parecia erro do portal.
+    def self.other_channel_message(channel, establishment, known)
+      owner = establishment.channel
+      others = known.count { |candidate| candidate.channel_id == owner.id } - 1
+      along = { 0 => "", 1 => ", junto com outro EC deste arquivo" }
+        .fetch(others, ", junto com outros #{others} ECs deste arquivo")
+      unknown = "Nenhum Master ativo usa o REPORT_ID #{channel.external_id}. " if channel.new_record?
+
+      "O arquivo traz o REPORT_ID #{channel.external_id}, mas o EC #{establishment.ec} já " \
+        "pertence ao Master \"#{owner.name}\", de REPORT_ID #{owner.external_id}#{along}. " \
+        "#{unknown}Um EC não muda de Master entre importações: confira a coluna REPORT_ID da planilha."
+    end
+    private_class_method :other_channel_message
   end
 end
